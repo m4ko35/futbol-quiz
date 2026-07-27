@@ -1,0 +1,14 @@
+# Satir sonlarini depoda LF olarak normalize et. Prettier de LF uretiyor
+# (.prettierrc.json -> endOfLine: "lf"); aksi halde Windows'ta calisan
+# gelistiricilerin her dosyayi degismis gostermesi riski var.
+* text=auto eol=lf
+
+# Ikili dosyalar dokunulmadan saklanir.
+*.png binary
+*.jpg binary
+*.svg text
+*.ico binary
+*.db binary
+
+# Uretilmis dosyalar GitHub dil istatistiklerine ve diff'lere karismasin.
+package-lock.json linguist-generated=true -diff

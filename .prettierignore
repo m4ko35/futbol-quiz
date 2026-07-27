@@ -1,0 +1,9 @@
+node_modules
+.next
+out
+build
+coverage
+package-lock.json
+prisma/migrations
+scripts/etl/.cache
+*.db

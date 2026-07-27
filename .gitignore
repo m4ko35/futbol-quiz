@@ -1,0 +1,53 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files — gercek sirlar asla commit edilmez (PROJECT.md §7.6)
+.env*
+!.env.example
+
+# veritabani — uretilmis veri, kaynak degil (§3)
+/prisma/*.db
+/prisma/*.db-journal
+
+# ETL ham yanit onbellegi — buyuk ve yeniden uretilebilir (§4.2)
+/scripts/etl/.cache/
+
+# test ciktilari
+/coverage
+/test-results
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
