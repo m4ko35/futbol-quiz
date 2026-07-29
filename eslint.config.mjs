@@ -26,6 +26,8 @@ const eslintConfig = defineConfig([
     "coverage/**",
     "next-env.d.ts",
     "scripts/etl/.cache/**",
+    // Prisma'nin urettigi istemci — bizim yazdigimiz kod degil.
+    "src/generated/**",
   ]),
 
   // ─── Tüm TypeScript dosyaları: güvenlik ve tip disiplini ───────────────

@@ -23,7 +23,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
-    "etl": "tsx scripts/etl/index.ts"
+    "etl": "tsx scripts/etl/index.ts",
+    "db:verify": "tsx scripts/etl/verify-data.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.1",

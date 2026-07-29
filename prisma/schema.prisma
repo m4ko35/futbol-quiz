@@ -1,0 +1,106 @@
+// Futbol Quiz — veri modeli
+// Tasarım gerekçeleri: PROJECT.md §5. Şema değişikliği önce orada güncellenir.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model League {
+  id         String @id @default(cuid())
+  wikidataId String @unique // "Q9448"
+  name       String
+  country    String // ISO 3166-1 alpha-2: "GB"
+  tier       Int    @default(1)
+  clubs      Club[]
+
+  @@map("leagues")
+}
+
+model Club {
+  id         String @id @default(cuid())
+  wikidataId String @unique
+
+  name      String // "Galatasaray Spor Kulübü"
+  shortName String // "Galatasaray"
+  // Aksansız + küçük harfli arama anahtarı. Türkçe'de "İ"/"ı" varsayılan
+  // toLowerCase ile bozulduğu için normalizasyon elle yapılır (normalize.ts).
+  searchKey String
+
+  country     String?
+  foundedYear Int?
+  crestUrl    String?
+
+  // MVP'de seçim listesinde görünür mü (§1.3). Oyuncunun geçtiği her kulüp
+  // veritabanına girer ama yalnızca küratörlü liste seçilebilir olur.
+  isSelectable Boolean @default(false)
+
+  leagueId String?
+  league   League? @relation(fields: [leagueId], references: [id])
+
+  spells Spell[]
+
+  @@index([searchKey])
+  @@index([isSelectable])
+  @@map("clubs")
+}
+
+model Player {
+  id         String @id @default(cuid())
+  wikidataId String @unique
+
+  name      String
+  searchKey String
+
+  birthDate   DateTime?
+  nationality String? // ISO 3166-1 alpha-2
+  position    String? // normalize edilmiş: "Kaleci" | "Defans" | ...
+
+  spells Spell[]
+
+  @@index([searchKey])
+  @@map("players")
+}
+
+/// Bir oyuncunun bir kulüpteki TEK bir dönemi.
+///
+/// Neden ayrı varlık? Aynı oyuncu aynı kulüpte birden fazla kez oynayabilir
+/// (kiralık dönüşü, yıllar sonra geri dönüş). Basit bir çoktan-çoğa ilişki
+/// bu tekrarları temsil edemezdi (§5.1).
+model Spell {
+  id String @id @default(cuid())
+
+  /// Wikidata ifade (statement) kimliği — doğal anahtar.
+  /// Örn: "Q161089-AD66DA21-C0D1-4D66-90B7-676566585715".
+  /// ETL'i idempotent yapar (aynı veri iki kez yüklenirse çoğalmaz) ve her
+  /// satırın kaynağını tek tek doğrulanabilir kılar.
+  wikidataStatementId String @unique
+
+  playerId String
+  clubId   String
+
+  /// null = bilinmiyor. Wikidata'da tarih yoksa UYDURULMAZ (§2.7).
+  startYear Int?
+  /// null = bilinmiyor VEYA oyuncu hâlâ kulüpte (isCurrent ile ayrılır).
+  endYear   Int?
+
+  isCurrent Boolean @default(false)
+  isLoan    Boolean @default(false)
+  isYouth   Boolean @default(false)
+
+  appearances Int?
+  goals       Int?
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  /// Ortak oyuncu sorgusunun ana indeksi: "bu kulüpteki oyuncular" taraması.
+  @@index([clubId, playerId])
+  @@index([playerId])
+  @@map("spells")
+}

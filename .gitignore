@@ -38,6 +38,9 @@ yarn-error.log*
 /prisma/*.db
 /prisma/*.db-journal
 
+# Prisma'nin urettigi istemci — `npm run db:generate` ile yeniden uretilir
+/src/generated/
+
 # ETL ham yanit onbellegi — buyuk ve yeniden uretilebilir (§4.2)
 /scripts/etl/.cache/
 

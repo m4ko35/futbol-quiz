@@ -4,8 +4,8 @@
 > Kod ile belge çeliştiğinde önce bu belge güncellenir, sonra kod yazılır.
 
 **Sürüm:** 0.1.0
-**Tarih:** 2026-07-28
-**Durum:** Faz 0 tamamlandı — sıradaki Faz 1 (veri modeli ve ETL)
+**Tarih:** 2026-07-29
+**Durum:** Faz 1 tamamlandı — sıradaki Faz 2 (çekirdek iş mantığı)
 
 ---
 
@@ -29,16 +29,37 @@ Kullanıcının seçtiği **iki futbol kulübünün ikisinde de forma giymiş** 
 
 Avrupa'nın 5 büyük ligi + Süper Lig:
 
-| Lig            | Ülke      | Wikidata QID (doğrulanacak) |
-| -------------- | --------- | --------------------------- |
-| Premier League | İngiltere | `Q9448`                     |
-| La Liga        | İspanya   | `Q324867`                   |
-| Serie A        | İtalya    | `Q15804`                    |
-| Bundesliga     | Almanya   | `Q82595`                    |
-| Ligue 1        | Fransa    | `Q13394`                    |
-| Süper Lig      | Türkiye   | `Q170323`                   |
+| Lig            | Ülke      | Wikidata QID | Güncel kadro | Veri kümesi | Seçilebilir |
+| -------------- | --------- | ------------ | ------------ | ----------- | ----------- |
+| Premier League | İngiltere | `Q9448`      | 20           | 51          | 51          |
+| La Liga        | İspanya   | `Q324867`    | 21           | 61          | 57          |
+| Serie A        | İtalya    | `Q15804`     | 28           | 92          | 81          |
+| Bundesliga     | Almanya   | `Q82595`     | 18           | 76          | 59          |
+| Ligue 1        | Fransa    | `Q13394`     | 22           | 75          | 68          |
+| Süper Lig      | Türkiye   | `Q485568`    | 20           | 33          | 29          |
+|                |           | **Toplam**   | **129**      | **388**     | **345**     |
 
-Yaklaşık **120 kulüp**. Kulüplerin _tüm_ tarihsel oyuncu kadrosu çekilir — dolayısıyla veri tabanında bu 120 kulübün dışındaki kulüpler de "oyuncunun geçtiği kulüp" olarak yer alabilir, fakat MVP'de **seçim listesinde yalnızca bu 120 kulüp** gösterilir.
+Üç sütun üç ayrı şeyi sayar ve karıştırılmamalıdır:
+
+- **Güncel kadro** — ligin bu sezonki takım sayısı.
+- **Veri kümesi** — ligde bir zamanlar yer almış ve veritabanına giren tüm kulüpler. Ligler tarihseldir: Serie A'da 92 kulüp oynamıştır, 28'i bu sezon.
+- **Seçilebilir** — kullanıcıya sunulanlar; en az 50 dönem kaydı olma eşiğini geçenler (§5.3).
+
+Faz 1 sonunda ölçülen toplam: **388 kulüp, 76.358 oyuncu, 193.003 dönem** (19.803'ü kiralık, 9.561'i sürmekte). Kabul kontrolü `npm run db:verify` ile tekrarlanabilir.
+
+QID'ler ve kulüp sayıları Faz 1'de canlı SPARQL sorgusuyla **ölçülerek doğrulandı** (2026-07-29). Ölçüm üç hata ortaya çıkardı ve üçü de düzeltildi:
+
+- Süper Lig için ilk tahmin `Q170323` idi; o QID **Nintendo DS**'e ait. Doğrusu `Q485568`.
+- Kulüp sayımı `P118` (lig) üzerinden yapılırken tür kısıtı olmadan 9091 sonuç dönüyordu; bunların 6066'sı **insan** çıktı. `P118` yalnızca takımlarda değil oyuncularda da kullanılıyor. Bu yüzden bir tür kısıtı **zorunludur**.
+- Tür kısıtı tek sınıfa (`Q476028`) daraltıldığında ise **FC Barcelona listeden düşüyordu**: Barcelona'nın `P31` değerleri `men's association football team`, `professional sports team` ve `representation team`; hiçbiri `Q476028` değil. Aynı hata Bundesliga'yı 18 yerine 17, Süper Lig'i 20 yerine 19 kulüple gösteriyordu. Doğru çözüm, ölçülerek çıkarılmış **6 sınıflık bir beyaz liste** kullanmaktır (§5.3).
+
+> Sayılar zamanla değişir. `P118` tarihsel bir bağ olduğu için feshedilmiş selef kulüpler de (ör. `SC Fives`, `Olympique Lillois`, `Società Ginnastica di Torino`) listeye girer. Bunlar `Club.isSelectable = false` ile seçim listesinden çıkarılır: eşik, en az 50 dönem kaydı olmasıdır. Aksi hâlde kullanıcı bu kulüpleri seçip boş sonuç alırdı. Hiç dönem kaydı gelmeyen kulüpler ise yükleme sonunda tamamen silinir (bu koşuda 34 adet).
+
+Bu kulüplerin **tüm tarihsel kadroları** çekilir (yalnızca güncel sezon değil) — Barcelona 1491, Bayern 804, Galatasaray 735 dönem kaydı gibi.
+
+**Kapsam sınırı (Faz 1 kararı):** Yalnızca bu kulüplerdeki dönemler çekilir; oyuncuların bu kulüpler dışındaki kariyerleri **çekilmez**. MVP oyun modu için bu yeterlidir ve tam olarak doğrudur: "A ve B kulüplerinin ikisinde de oynamış oyuncular" sorusu, A ve B seçilebilir kulüpler olduğu için yalnızca bu dönemlere bakar. Veri kümesi ayrıca erkek ligleriyle sınırlıdır (BR-7).
+
+Tam kariyer çıkarımı (oyuncunun geçtiği her kulüp) Faz 5'teki **kariyer bilmecesi** ve **bağlantı zinciri** modlarının ön koşuludur; oraya kadar ertelendi (§10.2). Ertelemenin gerekçesi kapsam disiplinidir: tam kariyer çekimi kulüp evrenini birkaç bine çıkarır ve MVP'ye hiçbir doğruluk katkısı yapmaz.
 
 ### 1.4 Başarı Kriterleri
 
@@ -125,12 +146,15 @@ futbol-quiz/
 │
 ├── scripts/etl/                   ← ağa çıkan TEK yer
 │   ├── index.ts                   ← CLI giriş noktası
+│   ├── verify-data.ts             ← yükleme sonrası kabul kontrolü (§8.2)
+│   ├── config.ts                  ← Zod ile doğrulanmış ETL ortamı
+│   ├── leagues.ts                 ← doğrulanmış lig QID'leri ve WD sabitleri
 │   ├── sources/wikidata/
-│   │   ├── client.ts              ← rate-limit + retry + User-Agent
-│   │   ├── queries/               ← .rq uzantılı SPARQL dosyaları
-│   │   └── schemas.ts             ← gelen yanıtın Zod şeması
+│   │   ├── client.ts              ← rate-limit + retry + User-Agent + önbellek
+│   │   ├── queries.ts             ← parametreli SPARQL kurucuları (QID guard'lı)
+│   │   └── schemas.ts             ← gelen yanıtın Zod şeması + okuyucular
 │   ├── pipeline/
-│   │   ├── extract.ts
+│   │   ├── extract.ts             ← üç geçişli çekim orkestrasyonu
 │   │   ├── normalize.ts           ← ad/tarih normalizasyonu, dedupe
 │   │   ├── validate.ts            ← tutarlılık denetimleri
 │   │   └── load.ts                ← veritabanına upsert
@@ -243,18 +267,86 @@ model Spell {
   isYouth      Boolean @default(false) // altyapı dönemleri ayrıştırılır
   appearances  Int?
   goals        Int?
-  sourceRef    String                 // izlenebilirlik: Wikidata statement id
+
+  // Wikidata ifade (statement) kimliği — doğal anahtar.
+  wikidataStatementId String @unique
 
   player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
   club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
 
   @@index([clubId, playerId])         // ortak oyuncu sorgusunun ana indeksi
   @@index([playerId])
-  @@unique([playerId, clubId, startYear, isLoan])  // ETL idempotent olsun
 }
 ```
 
-### 5.3 İş Kuralları
+> **Faz 1'de değişen karar.** Taslakta `Spell` için bileşik bir tekillik kısıtı (`[playerId, clubId, startYear, isLoan]`) öngörülmüştü. Ölçüm sırasında Wikidata'nın her `P54` ifadesine kalıcı ve benzersiz bir kimlik verdiği görüldü (`Q161089-AD66DA21-…`). Bunu doğal anahtar yapmak daha iyi: bileşik anahtar tarihi bilinmeyen iki dönemi yanlışlıkla aynı sayardı, ifade kimliği ise hem çakışmaz hem her satırın kaynağını tek tek doğrulanabilir kılar. Ayrı bir `sourceRef` alanına da gerek kalmadı.
+
+### 5.3 Wikidata Özellik Eşlemesi
+
+Aşağıdaki kimliklerin hepsi **canlı sorguyla ölçülerek** belirlendi; tahmin yok. İkisi ilk taslaktaki varsayımı çürüttü ve düzeltildi.
+
+| Alan             | Wikidata      | Not                                                       |
+| ---------------- | ------------- | --------------------------------------------------------- |
+| Kulüp sınıfı     | `Q476028`     | `P31/P279*` ile aranır — **kısıt zorunlu** (aşağıya bkz.) |
+| Kulübün ligi     | `P118`        | Oyuncularda da kullanılıyor, tek başına yeterli değil     |
+| Oyuncu–kulüp     | `P54`         | İfade (statement) olarak okunur, niteleyicileriyle        |
+| Dönem başlangıcı | `pq:P580`     |                                                           |
+| Dönem bitişi     | `pq:P582`     | Yoksa "hâlâ kulüpte" kabul edilir                         |
+| Maç sayısı       | `pq:P1350`    |                                                           |
+| Gol sayısı       | `pq:P1351`    | ⚠ İlk varsayım `P6509` idi — **yanlış**                   |
+| Transfer türü    | `pq:P1642`    | Kiralık = `Q2914547` (ilk varsayım `Q1361518` — yanlış)   |
+| Kuruluş yılı     | `P571`        |                                                           |
+| Kulüp arması     | `P154`        | Yalnızca bazı kulüplerde var                              |
+| Doğum tarihi     | `P569`        |                                                           |
+| Mevki            | `P413`        |                                                           |
+| Uyruk / ülke     | `P27` / `P17` | `P297` ile ISO alpha-2 koda çevrilir                      |
+| Cinsiyet         | `P21`         | Yalnızca kapsam filtresi (BR-7); saklanmaz, gösterilmez   |
+
+#### Kulüp sınıfı beyaz listesi
+
+Kulüp sorgusunun tür kısıtı **tek sınıfla yapılamaz**. İki ucu da ölçtük:
+
+- Kısıt **olmadan** 9091 sonuç döndü, 6066'sı **insandı** — `P118` oyuncularda da kullanılıyor.
+- Kısıt **yalnızca `Q476028`** olduğunda FC Barcelona, Bundesliga'nın 18. ve Süper Lig'in 20. kulübü listeden düştü.
+
+Altı ligdeki tüm insan-olmayan `P118` bağlarının tür dağılımı ölçülerek şu beyaz liste çıkarıldı:
+
+| QID          | Sınıf                           |
+| ------------ | ------------------------------- |
+| `Q476028`    | association football club       |
+| `Q103229495` | men's association football team |
+| `Q15944511`  | association football team       |
+| `Q20639856`  | professional sports team        |
+| `Q847017`    | sports club                     |
+| `Q13580678`  | multisports club                |
+
+Sezon, maç, kadro listesi gibi takım olmayan türler (`Q26887310`, `Q109623729`, `Q51747567` …) bilinçli olarak dışarıdadır. Geniş görünen `sports club` / `professional sports team` sınıfları sorun yaratmaz: sorgu zaten belirli bir futbol ligine bağlı olmayı şart koştuğu için başka branşlar giremez.
+
+#### Kulüp evreni: üç dal, tek karar mercii
+
+Kulüp listesi **üç ayrı sorgudan** toplanır (`scripts/etl/sources/wikidata/queries.ts`):
+
+| Dal       | Sorgu                    | Neden gerekli                                                                       |
+| --------- | ------------------------ | ----------------------------------------------------------------------------------- |
+| `link`    | `clubsByLeagueLink`      | `P118` ile lige bağlı kulüpler                                                      |
+| `seasons` | `clubsFromSeasons`       | `P118` eksik; Wolfsburg, St. Pauli, Heidenheim yalnızca `P3450`/`P1923` ile geliyor |
+| `parents` | `clubsFromSeasonParents` | `P1923` bazen sezona özgü takım varlığı döndürür; gerçek kulüp `P831` ucunda        |
+
+**`P831`'in yönü Wikidata'da tutarsızdır** ve hangi ucun gerçek kulüp olduğu türden okunamaz. Ölçüm:
+
+| Tohum                         | `P831` hedefi              | Oyuncu (tohum → hedef) |
+| ----------------------------- | -------------------------- | ---------------------- |
+| `Q97905916` FC Augsburg 25-26 | `Q15755` FC Augsburg       | 0 → **326**            |
+| `Q7156` FC Barcelona          | `Q3091261` FC Barcelona    | **1399** → 22          |
+| `Q43710` Antalyaspor          | `Q12808521` Antalyaspor K. | **277** → 7            |
+
+İlk satır çözümlemeyi gerektirir, diğer ikisi çözümlemeden zarar görür. Bu yüzden `P831` bir **çözümleme** (tohumun yerine ebeveyni koymak) olarak değil, **ek aday** olarak kullanılır: üç dal da yalnızca aday üretir.
+
+Kararı tahmin değil ölçüm verir: her aday için dönemler çekilir, `MIN_SPELLS_FOR_SELECTABLE` (50) eşiğinin altındakiler seçilemez işaretlenir, hiç dönemi olmayanlar yükleme sonunda silinir. Böylece "gerçek kulüp hangisi" sorusunu, cevabı zaten ölçtüğümüz büyüklük — kulübe bağlı `P54` ifadesi sayısı — yanıtlar.
+
+Bu tasarım üç kez sırayla kırılan üç ayrı kuralın yerine geçti: önce çözümleme hiç yoktu (Augsburg 0 dönemle girdi), sonra her kulübe uygulandı (Barcelona ve Antalyaspor kabuk varlığa taşındı), sonra yalnızca sezon dalına uygulandı (Antalyaspor yine bozuldu, çünkü `P1923` katılımcısı her zaman sezon varlığı değil). Ortak hata, veriden okunabilecek bir şeyi kuralla tahmin etmekti.
+
+### 5.4 İş Kuralları
 
 Bunlar `domain/services/` içinde saf fonksiyon olarak yaşar ve birim testi ile korunur:
 
@@ -264,6 +356,7 @@ Bunlar `domain/services/` içinde saf fonksiyon olarak yaşar ve birim testi ile
 - **BR-4 — Aynı kulüp seçimi:** A ile B aynı kulüp ise istek reddedilir (`400`).
 - **BR-5 — Sıralama:** Sonuçlar, iki kulüpteki toplam maç sayısına göre azalan; maç bilgisi yoksa en son dönem yılına göre azalan sıralanır.
 - **BR-6 — Tarih normalizasyonu:** Wikidata'nın gün hassasiyetli tarihleri sezon yılına indirgenir (Temmuz–Aralık → o yıl; Ocak–Haziran → bir önceki yıl sezonuna ait).
+- **BR-7 — Kapsam: erkek ligleri.** Veri kümesi hedeflenen altı erkek ligiyle sınırlıdır. Wikidata kadın takımı dönemlerini çoğu zaman **aynı kulüp varlığına** bağladığı için ayrım kulüp düzeyinde yapılamıyor; `P21` (cinsiyet) alanı yalnızca bu kapsamı uygulamak üzere okunur, veritabanına yazılmaz ve arayüzde gösterilmez. `P21` kaydı olmayan oyuncular **kapsamda kalır** — eksik meta veri dışlama gerekçesi değildir. Kadın futbolu ileride kendi lig kümesiyle ayrı bir kapsam olarak eklenebilir (§10.2).
 
 ---
 
@@ -512,13 +605,20 @@ Denenen ve **reddedilen** çözümler:
 
 ### 8.2 Veri Doğruluğu Denetimleri
 
-ETL yükleme sonrası otomatik çalışır; eşik aşılırsa süreç **hata ile biter** ve veritabanı güncellenmez:
+Denetim **iki aşamalıdır**. Tek aşamalı ilk tasarım kullanılamaz çıktı: 78.236 kaydın 11'i bozuk olduğu için tüm yükleme durmuştu. Kaynak açık veriyse birkaç hatalı kayıt kaçınılmazdır; anlamlı sinyal tek kaydın bozukluğu değil, bozukluk **oranıdır**.
 
-- Bir oyuncunun zaman olarak örtüşen iki kalıcı (kiralık olmayan) dönemi olamaz.
-- `startYear > endYear` olan kayıt olamaz.
-- Kulüp kuruluş yılından önce başlayan dönem olamaz.
-- Yıl aralığı `[1850, bugünkü yıl + 1]` dışında olamaz.
-- Seçilebilir 120 kulübün her biri en az 50 oyuncuya sahip olmalı (aksi hâlde veri çekimi eksik demektir).
+1. **Ayıklama** (`sanitizeSpells`) — kendi içinde çelişen tekil kayıtlar atılır:
+   - `startYear > endYear` olan kayıt,
+   - yıl aralığı `[1850, bugünkü yıl + 1]` dışında olan kayıt.
+2. **Oran denetimi** (`validateDataset`) — ayıklama oranı `MAX_REJECT_RATIO` (%1) eşiğini aşarsa süreç **hata ile biter** ve veritabanı güncellenmez. Örtüşen kalıcı dönem, kuruluş yılından önceki dönem ve 50'den az dönem gelen kulüp **uyarı** üretir; bunlar kaynaktaki bilinen gürültüdür (kulüp kuruluş yılı sık sık selef kulübü gösterir) ve yüklemeyi durdurmaz.
+
+Yükleme ayrıca **otoriter**dir: tam koşuda gelen listede olmayan kulüpler, dönemi kalmayan kulüpler ve dönemi kalmayan oyuncular silinir. Bu olmadan veritabanı önceki koşuların artıklarını biriktiriyordu.
+
+#### Yükleme sonrası kabul kontrolü — `npm run db:verify`
+
+Denetimler ETL'in kendi çıktısına bakar; kabul kontrolü ise **veritabanına** bakar ve sorular sorar: zorunlu kulüpler seçilebilir mi, boş kulüp/öksüz oyuncu kaldı mı, bilinen kulüp çiftleri ortak oyuncu döndürüyor mu. Kulüp evreni sorgularına (§5.3) her dokunuşta çalıştırılır; hatalı çıkışla biter.
+
+Zorunlu kulüp listesi keyfi değil: her satır bir kez bozulmuş bir kulüptür ve orada aynı hatanın sessizce geri gelmesini engellemek için durur.
 
 ### 8.3 CI Ardışık Düzeni
 
@@ -567,14 +667,14 @@ Bu modlar mevcut `Spell` modelini kullanır; yeni tablo değil, yeni **alan** ge
 - [x] Vitest kurulumu, BR-6 sezon normalizasyonu ve 11 geçen test
 - [x] `.gitignore`, `.env.example`, `README.md`, git deposu başlatma
 
-### Faz 1 — Veri
+### Faz 1 — Veri ✅
 
-- [ ] Prisma şeması ve ilk migration
-- [ ] Wikidata istemcisi: rate-limit, yeniden deneme, `User-Agent`, disk önbelleği
-- [ ] SPARQL sorguları: ligler → kulüpler → oyuncular/dönemler
-- [ ] Normalizasyon: ad/tarih/mevki, tekilleştirme, kiralık ve altyapı tespiti
-- [ ] Doğrulama denetimleri (§8.2) ve `load` adımı
-- [ ] 120 kulübün tam veri çekimi
+- [x] Prisma şeması ve ilk migration
+- [x] Wikidata istemcisi: rate-limit, yeniden deneme, `User-Agent`, disk önbelleği
+- [x] SPARQL sorguları: ligler → kulüpler → oyuncular/dönemler
+- [x] Normalizasyon: ad/tarih/mevki, tekilleştirme, kiralık ve altyapı tespiti
+- [x] Doğrulama denetimleri (§8.2), otoriter `load` adımı, `npm run db:verify`
+- [x] Altı ligin tam veri çekimi
 
 ### Faz 2 — Çekirdek İş Mantığı
 
@@ -605,28 +705,40 @@ Bu modlar mevcut `Spell` modelini kullanır; yeni tablo değil, yeni **alan** ge
 
 ### 10.1 Şu Anki Odak
 
-**Faz 1 — Veri.** Faz 0 tamamlandı. Sonraki somut adım: Prisma şemasının yazılması ve Wikidata SPARQL istemcisinin kurulması.
+**Faz 2 — Çekirdek İş Mantığı.** Faz 1 tamamlandı; veritabanı dolu ve kabul kontrolünden geçiyor. Sonraki somut adım: domain varlıkları ve `findCommonPlayers` use-case'i.
 
-Faz 0'ın bıraktığı doğrulanabilir taban:
+Faz 1'in bıraktığı doğrulanabilir taban:
 
-| Komut               | Sonuç                                              |
-| ------------------- | -------------------------------------------------- |
-| `npm run typecheck` | temiz                                              |
-| `npm run lint`      | temiz (0 uyarı)                                    |
-| `npm run test`      | 11/11 geçiyor                                      |
-| `npm run build`     | başarılı, tüm rotalar dinamik (nonce için gerekli) |
-| `npm run audit:ci`  | 0 açık (üretim ağacı)                              |
+| Komut               | Sonuç                                                      |
+| ------------------- | ---------------------------------------------------------- |
+| `npm run typecheck` | temiz                                                      |
+| `npm run lint`      | temiz (0 uyarı)                                            |
+| `npm run test`      | 60/60 geçiyor                                              |
+| `npm run build`     | başarılı, tüm rotalar dinamik (nonce için gerekli)         |
+| `npm run audit:ci`  | 0 açık (üretim ağacı)                                      |
+| `npm run etl`       | 388 kulüp · 76.358 oyuncu · 193.003 dönem                  |
+| `npm run db:verify` | 18/18 kontrol geçiyor (10 zorunlu kulüp, bütünlük, 5 çift) |
+
+**Faz 1'in asıl dersi.** Çekim mantığı üç kez üst üste kırıldı ve üçünde de aynı hatayı yaptım: veriden okunabilecek bir şeyi kuralla tahmin ettim. `P831`'in yönü, hangi hataların yeniden denenebilir olduğu, kaç bozuk kaydın kabul edilebilir olduğu — üçü de "şöyle olmalı" diye varsayıldı, sonra ölçümle çürütüldü. Kalıcı düzeltmeler tahmini ölçümle değiştirdi: kulüp seçimi dönem sayısına, yeniden deneme hatanın kaynağına, doğrulama ayıklama oranına bakıyor.
+
+Bunun süreçteki karşılığı `npm run db:verify`. Faz 1 boyunca doğrulamam "birkaç kulübe bakıp iyi görünüyor" demekten ibaretti ve üç gerilemeyi kaçırdı. Kontrolün ilk sürümü sonuncusunu ilk koşuda yakaladı.
 
 ### 10.2 Bilinen Teknik Borç / İleri Kararlar
 
-| Konu                     | Şimdiki karar                         | Ne zaman değişir                                              |
-| ------------------------ | ------------------------------------- | ------------------------------------------------------------- |
-| SQLite                   | Yeterli                               | Eşzamanlı yazma veya çok örnekli dağıtım gerekirse            |
-| Bellek içi hız sınırlama | Yeterli                               | Birden fazla sunucu örneği çalıştırılırsa                     |
-| Wikidata tek kaynak      | Kabul, override'larla                 | Kapsam boşlukları %5'i aşarsa ikinci kaynak eklenir           |
-| i18n                     | Yalnızca TR metinler                  | İngilizce talep edilirse (yapı hazır)                         |
-| Tümüyle dinamik render   | Nonce'lu CSP için kabul edildi (§7.3) | Next kararlı SRI sunarsa statik + hash tabanlı CSP'ye geçilir |
-| `brace-expansion` açığı  | Dev-only, izleniyor (§7.7)            | `eslint-config-next` eslint 10 uyumlu eklentilerle çıkarsa    |
+| Konu                         | Şimdiki karar                                               | Ne zaman değişir                                                            |
+| ---------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------- |
+| SQLite                       | Yeterli                                                     | Eşzamanlı yazma veya çok örnekli dağıtım gerekirse                          |
+| Bellek içi hız sınırlama     | Yeterli                                                     | Birden fazla sunucu örneği çalıştırılırsa                                   |
+| Wikidata tek kaynak          | Kabul, override'larla                                       | Kapsam boşlukları %5'i aşarsa ikinci kaynak eklenir                         |
+| i18n                         | Yalnızca TR metinler                                        | İngilizce talep edilirse (yapı hazır)                                       |
+| Tümüyle dinamik render       | Nonce'lu CSP için kabul edildi (§7.3)                       | Next kararlı SRI sunarsa statik + hash tabanlı CSP'ye geçilir               |
+| `brace-expansion` açığı      | Dev-only, izleniyor (§7.7)                                  | `eslint-config-next` eslint 10 uyumlu eklentilerle çıkarsa                  |
+| Yalnızca erkek ligleri       | Kapsam kararı (BR-7)                                        | Kadın futbolu kendi lig kümesiyle ayrı kapsam olarak eklenebilir            |
+| Kulüp sınıfı beyaz listesi   | 6 sınıf, ölçülerek belirlendi                               | Yeni bir kulüp farklı `P31` ile listeden düşerse genişletilir               |
+| Tam kariyer verisi yok       | Faz 1 kapsam sınırı (§1.3)                                  | Kariyer bilmecesi / bağlantı zinciri modları için gerekli olacak            |
+| `isYouth` hiç tetiklenmiyor  | Kabul — veri kümesinde altyapı takımı yok (388 kulübün 0'ı) | Alt lig kapsamı eklenirse altyapı/rezerv takımlar girer, BR-2 devreye girer |
+| Kulüp kuruluş yılı gürültülü | Uyarı, bloklamıyor (§8.2)                                   | 9158 dönem kulüp kuruluşundan önce; `P571` sık sık selef kulübü gösteriyor  |
+| `db:verify` elle çalışır     | Faz 1'de yeterli                                            | Dağıtım ardışık düzenine girince veri yükleme adımının parçası olur         |
 
 ---
 

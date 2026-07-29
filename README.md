@@ -26,6 +26,27 @@ cp .env.example .env    # Windows PowerShell: Copy-Item .env.example .env
 `.env` içindeki `ETL_USER_AGENT` değerini kendi iletişim bilginizle
 güncelleyin — Wikidata, kimliğini bildirmeyen istemcileri engeller.
 
+## Veritabanını hazırlama
+
+```bash
+npm run db:migrate      # şemayı SQLite'a uygula (prisma/dev.db oluşur)
+npm run etl             # Wikidata'dan veriyi çek ve yükle
+```
+
+ETL, Wikidata'ya nazik davranmak için saniyede bir istek atar; ilk tam çekim
+**yarım saatten uzun sürebilir**. Ham yanıtlar `scripts/etl/.cache/` altında
+saklanır, bu yüzden sonraki koşular çok daha hızlıdır.
+
+| ETL komutu                      | Ne yapar                                   |
+| ------------------------------- | ------------------------------------------ |
+| `npm run etl -- verify-leagues` | Yalnızca lig QID'lerini doğrular (hızlı)   |
+| `npm run etl -- --max-clubs=3`  | Küçük deneme koşusu                        |
+| `npm run etl -- --dry-run`      | Çeker ve doğrular, veritabanına **yazmaz** |
+| `npm run etl -- --no-cache`     | Disk önbelleğini atlar                     |
+
+Wikidata'ya bağlanan **tek** süreç budur. Web uygulaması çalışırken hiçbir dış
+servise istek gitmez (PROJECT.md §7.4).
+
 ```bash
 npm run dev             # http://localhost:3000
 ```

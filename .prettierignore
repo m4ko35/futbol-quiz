@@ -6,4 +6,5 @@ coverage
 package-lock.json
 prisma/migrations
 scripts/etl/.cache
+src/generated
 *.db
