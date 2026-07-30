@@ -137,9 +137,41 @@ describe("normalizePosition", () => {
     expect(normalizePosition("striker")).toBe("Forvet");
   });
 
-  it("tanınmayan etiketi olduğu gibi bırakır", () => {
+  it("Türkçe etiketleri de eşler", () => {
+    // Türkçe Wikidata etiketi; 14.905 oyuncuda ham geçiyordu.
+    expect(normalizePosition("savunma")).toBe("Defans");
+    expect(normalizePosition("attacker")).toBe("Forvet");
     expect(normalizePosition("libero özel")).toBe("Defans");
-    expect(normalizePosition("bilinmeyen mevki")).toBe("bilinmeyen mevki");
+  });
+
+  /**
+   * Tarihsel İngiliz mevkileri. 2-3-5 dizilişinde half-back'ler ORTA HATTI
+   * kurardı; WM dizilişiyle birlikte merkezdeki oyuncu stopere çekildi. İki
+   * "half" bu yüzden farklı yere gider ve kalıp sırası bunu belirler.
+   */
+  it("wing half orta saha, centre half defans olur", () => {
+    expect(normalizePosition("wing half")).toBe("Orta saha");
+    expect(normalizePosition("half-back")).toBe("Orta saha");
+    expect(normalizePosition("centre half")).toBe("Defans");
+    expect(normalizePosition("centerhalf")).toBe("Defans");
+  });
+
+  it("orta saha kalıbı forvet kalıbından ÖNCE eşleşir", () => {
+    // İki kalıba da uyan etiketlerde sıra sonucu belirler.
+    expect(normalizePosition("attacking midfielder")).toBe("Orta saha");
+  });
+
+  /**
+   * Wikidata'nın `P413` alanı yalnızca futbol mevkisi taşımıyor; ham etikete
+   * düşmek bir bakanlığı ya da bir kişi adını mevki diye gösteriyordu.
+   */
+  it("futbol mevkisi olmayan etiketleri null yapar", () => {
+    expect(normalizePosition("İçişleri Bakanlığı (İngiltere)")).toBeNull();
+    expect(normalizePosition("yardımcı koç")).toBeNull();
+    expect(normalizePosition("Q114044295")).toBeNull();
+    expect(normalizePosition("wicket-keeper")).toBeNull();
+    expect(normalizePosition("fly-half")).toBeNull();
+    expect(normalizePosition("bilinmeyen mevki")).toBeNull();
   });
 
   it("boş değeri null yapar", () => {

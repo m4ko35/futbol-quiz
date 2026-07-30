@@ -26,6 +26,15 @@ export interface HandleApiOptions<T> {
   readonly headers: Headers;
   readonly limiter: RateLimiter;
   readonly clientKey: string;
+  /**
+   * Başarılı yanıt önbelleklenebilir mi? Varsayılan `true`.
+   *
+   * Sadece POST uçları için `false` verilir. CDN'ler POST yanıtını zaten
+   * önbelleklemez; ama `public, s-maxage=…` başlığı göndermek "bu yanıt
+   * paylaşılabilir" demektir ve söylediği şey doğru değilse bir sonraki
+   * okuyucuyu yanıltır. Başlık, davranışın kendisi kadar sözleşmedir.
+   */
+  readonly cacheable?: boolean;
   run(context: ApiRequestContext): Promise<T>;
 }
 
@@ -97,7 +106,11 @@ export async function handleApiRequest<T>(
 
     return new Response(JSON.stringify({ data }), {
       status: 200,
-      headers: { ...BASE_HEADERS, "Cache-Control": CACHEABLE },
+      headers: {
+        ...BASE_HEADERS,
+        "Cache-Control":
+          options.cacheable === false ? NOT_CACHEABLE : CACHEABLE,
+      },
     });
   } catch (error: unknown) {
     const mapped = toApiError(error, traceId);

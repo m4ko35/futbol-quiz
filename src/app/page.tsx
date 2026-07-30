@@ -1,5 +1,6 @@
 import { searchClubs } from "@/application/use-cases/search-clubs";
 import { CommonPlayersQuiz } from "@/components/common-players-quiz";
+import { ModeNav } from "@/components/mode-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { datasets, repositories } from "@/infrastructure/db/repositories";
 
@@ -21,7 +22,8 @@ export default async function Home() {
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-10 px-5 py-10 sm:px-6 sm:py-16">
       <header>
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+        <ModeNav current="common-players" />
+        <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
           Futbol Quiz
         </h1>
         <p className="mt-2 opacity-70">

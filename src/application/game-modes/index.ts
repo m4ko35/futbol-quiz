@@ -1,4 +1,5 @@
 import { commonPlayersMode } from "./common-players";
+import { gridMode } from "./grid";
 import { GameModeRegistry } from "./registry";
 
 /**
@@ -10,6 +11,7 @@ import { GameModeRegistry } from "./registry";
 export const gameModes = new GameModeRegistry();
 
 gameModes.register(commonPlayersMode);
+gameModes.register(gridMode);
 
 export { GameModeRegistry } from "./registry";
 export type { GameMode, GameModeDeps, RegisteredGameMode } from "./types";

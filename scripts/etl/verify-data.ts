@@ -1,5 +1,7 @@
+import { GRID_CLUB_QIDS } from "../../src/application/game-modes/grid/pool";
 import { PrismaClient } from "../../src/generated/prisma";
 import { MIN_SPELLS_FOR_SELECTABLE } from "./leagues";
+import { POSITIONS } from "./pipeline/normalize";
 
 /**
  * Yüklenen veri kümesinin kabul kontrolü — `npm run db:verify`.
@@ -189,6 +191,77 @@ async function verifyEvidenceRatio(): Promise<void> {
   );
 }
 
+/**
+ * Mevki alanı kapalı bir kümedir.
+ *
+ * NEDEN VAR: `normalizePosition` bir dönem tanımadığı etiketi HAM hâliyle
+ * geçiriyordu ve Wikidata'nın `P413` alanı yalnızca futbol mevkisi taşımıyor.
+ * Veri kümesine bir bakanlık ("İçişleri Bakanlığı (İngiltere)"), bir kişi adı
+ * ("Iván Luquetta"), çözülememiş bir QID ve kriket/ragbi/voleybol mevkileri
+ * girmişti — hepsi arayüzde oyuncunun mevkisi olarak görünüyordu.
+ *
+ * Kural düzeltildi; bu kontrol düzeltmenin GEÇERLİ KALDIĞINI ölçer. Kaynak
+ * yeni bir etiket üretirse ya da kural gevşetilirse veri yenilendiği anda
+ * patlar, yayına çıkmadan önce.
+ */
+async function verifyPositions(): Promise<void> {
+  console.log("\n=== Mevki değerleri ===");
+
+  const rows = await prisma.player.groupBy({
+    by: ["position"],
+    _count: { _all: true },
+  });
+
+  const unexpected = rows.filter(
+    (row) => row.position !== null && !POSITIONS.includes(row.position),
+  );
+
+  check(
+    unexpected.length === 0,
+    `beklenmeyen mevki değeri: ${unexpected.length}` +
+      (unexpected.length > 0
+        ? ` (${unexpected
+            .slice(0, 5)
+            .map((row) => `${String(row.position)}:${String(row._count._all)}`)
+            .join(", ")})`
+        : ` — izin verilenler: ${POSITIONS.join(", ")}`),
+  );
+}
+
+/**
+ * Izgara havuzu — §9.1.
+ *
+ * NEDEN BURADA: havuz kodda sabit bir QID listesidir, veri ise altı ayda bir
+ * yenilenir. Wikidata bir kulübü başka bir varlığa birleştirirse ya da kulüp
+ * seçilebilirlik eşiğinin altına düşerse, havuzdaki satır sessizce ölü bir
+ * göndermeye dönüşür: üretim o kulübü hiç seçmez ve kimse fark etmez.
+ * Burada patlar — veri yenilendiği anda, yayına çıkmadan önce.
+ *
+ * Kulüp sayısı da denetlenir: ızgara üç sütun ister, dördün altına düşen bir
+ * havuz `generateGrid`'i her gün başarısız kılar.
+ */
+async function verifyGridPool(): Promise<void> {
+  console.log("\n=== Izgara havuzu (§9.1) ===");
+
+  const found = await prisma.club.findMany({
+    where: { wikidataId: { in: [...GRID_CLUB_QIDS] }, isSelectable: true },
+    select: { wikidataId: true },
+  });
+
+  const present = new Set(found.map((club) => club.wikidataId));
+  const missing = GRID_CLUB_QIDS.filter((qid) => !present.has(qid));
+
+  check(
+    missing.length === 0,
+    `havuzdaki ${GRID_CLUB_QIDS.length} QID'den ${present.size} tanesi seçilebilir` +
+      (missing.length > 0 ? ` — eksik: ${missing.join(", ")}` : ""),
+  );
+  check(
+    present.size >= 4,
+    `üretim için yeterli kulüp var (${present.size} ≥ 4)`,
+  );
+}
+
 async function verifyKnownPairs(): Promise<void> {
   console.log("\n=== Ortak oyuncu çiftleri ===");
 
@@ -230,6 +303,8 @@ async function main(): Promise<void> {
     await verifyTargetClubs();
     await verifyIntegrity();
     await verifyEvidenceRatio();
+    await verifyPositions();
+    await verifyGridPool();
     await verifyKnownPairs();
   } finally {
     await prisma.$disconnect();

@@ -88,6 +88,30 @@ export function isGridShapeValid(grid: Grid): boolean {
   );
 }
 
+/**
+ * BR-13 — bir ızgarada toplam tahmin hakkı.
+ *
+ * Dokuz hücre, dokuz hak: yanlış bir tahmin bir hücreyi harcar. Sınırsız
+ * deneme, ızgarayı bir bilgi sorusundan bir arama alıştırmasına çevirirdi —
+ * kullanıcı listeyi tarayıp doğruyu bulana kadar denerdi ve oyunun sorduğu
+ * şey ("biliyor musun") ortadan kalkardı.
+ *
+ * Hücre sayısından TÜRETİLİR, ayrıca yazılmaz: ızgara boyutu değişirse hak
+ * sayısı da kendiliğinden değişir.
+ */
+export const MAX_GUESSES = GRID_SIZE * GRID_SIZE;
+
+/**
+ * Oyun bitti mi? — dokuz hak tükendi ya da dokuz hücre de çözüldü.
+ *
+ * NEDEN DOMAIN'DE: arayüz bu koşulu kendi hesaplasaydı, "bitti" tanımı bir
+ * bileşenin içinde saklı kalırdı; skor tablosu (§9) eklendiğinde sunucunun da
+ * aynı tanıma ihtiyacı olacak.
+ */
+export function isGameOver(guessesUsed: number, solvedCells: number): boolean {
+  return guessesUsed >= MAX_GUESSES || solvedCells >= GRID_SIZE * GRID_SIZE;
+}
+
 /** Bir hücrenin kimliği — kullanıcı cevabı bununla eşlenir. */
 export interface CellRef {
   readonly row: number;

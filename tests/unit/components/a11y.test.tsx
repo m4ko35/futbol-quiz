@@ -5,12 +5,29 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
 import type { ClubDto } from "@/application/dto/club-dto";
 import type { CommonPlayersResultDto } from "@/application/dto/common-players-dto";
+import type { DailyGridDto } from "@/application/use-cases/daily-grid";
 import { ClubPicker } from "@/components/club-picker";
 import { CommonPlayersResult } from "@/components/common-players-result";
+import { GridGame } from "@/components/grid-game";
+import { ModeNav } from "@/components/mode-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { describeViolations, findA11yViolations } from "../../helpers/a11y";
 
 afterEach(cleanup);
+
+const GRID: DailyGridDto = {
+  date: "2026-07-31",
+  rows: [
+    { kind: "club", label: "Barcelona" },
+    { kind: "club", label: "Milan" },
+    { kind: "nationality", label: "Brezilya" },
+  ],
+  columns: [
+    { kind: "club", label: "Arsenal" },
+    { kind: "club", label: "Inter" },
+    { kind: "club", label: "Galatasaray" },
+  ],
+};
 
 const club = (id: string, shortName: string): ClubDto => ({
   id,
@@ -160,6 +177,29 @@ describe("erişilebilirlik — WCAG 2.1 AA (§7.10)", () => {
     await expectNoViolations(container);
   });
 
+  /**
+   * BOŞ LİSTE AYRI BİR DURUMDUR ve uzun süre denetlenmiyordu.
+   * `role="listbox"` yalnızca `option` çocuğu barındırabilir; "Sonuç yok"
+   * metni listenin içine konduğunda kritik bir `aria-required-children` ihlali
+   * oluşuyordu. Dolu listeyle çalışan testler bunu göremezdi.
+   */
+  it("kulüp seçicide — liste BOŞKEN — ihlal yok", async () => {
+    const { container } = render(
+      <ClubPicker
+        label="A kulübü"
+        selected={null}
+        onSelect={() => undefined}
+        initialOptions={[]}
+        search={() => Promise.resolve([])}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole("combobox"));
+    expect(screen.getByText("Sonuç yok.")).toBeInTheDocument();
+
+    await expectNoViolations(container);
+  });
+
   it("seçim yapıldıktan sonra ihlal yok", async () => {
     const { container } = render(
       <ClubPicker
@@ -169,6 +209,47 @@ describe("erişilebilirlik — WCAG 2.1 AA (§7.10)", () => {
         search={() => Promise.resolve([])}
       />,
     );
+
+    await expectNoViolations(container);
+  });
+
+  it("boş ızgarada ihlal yok", async () => {
+    const { container } = render(
+      <GridGame
+        grid={GRID}
+        checkAnswer={() => Promise.resolve(true)}
+        searchPlayers={() => Promise.resolve([])}
+      />,
+    );
+
+    await expectNoViolations(container);
+  });
+
+  /**
+   * Asıl risk burada: tablo başlıkları, hücre düğmeleri ve seçici paneli aynı
+   * anda ekranda. `scope` bağları ancak dolu bir tabloda değerlendirilebilir.
+   */
+  it("seçici AÇIKKEN ızgarada ihlal yok", async () => {
+    const { container } = render(
+      <GridGame
+        grid={GRID}
+        checkAnswer={() => Promise.resolve(true)}
+        searchPlayers={() => Promise.resolve([])}
+      />,
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "Barcelona ve Arsenal için oyuncu seçin",
+      }),
+    );
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+
+    await expectNoViolations(container);
+  });
+
+  it("mod gezinmesinde ihlal yok", async () => {
+    const { container } = render(<ModeNav current="grid" />);
 
     await expectNoViolations(container);
   });

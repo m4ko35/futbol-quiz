@@ -118,23 +118,87 @@ export function statementIdFromUri(uri: string | undefined): string | null {
   return last !== undefined && last.length > 0 ? last : null;
 }
 
-const POSITION_MAP: ReadonlyArray<readonly [RegExp, string]> = [
-  [/goalkeeper|kaleci/i, "Kaleci"],
-  [/sweeper|libero/i, "Defans"],
-  [/(centre|center|full|wing)-?back|defender|defans|bek|stoper/i, "Defans"],
-  [/midfield|orta saha/i, "Orta saha"],
-  [/winger|kanat/i, "Kanat"],
-  [/striker|forward|forvet|santrfor/i, "Forvet"],
+/**
+ * Mevki etiketi → sabit Türkçe küme.
+ *
+ * SIRA ANLAMLIDIR: ilk eşleşen kazanır. "attacking midfielder" hem `midfield`
+ * hem `attack` içerir; orta saha kalıbı önce geldiği için doğru sonucu verir.
+ *
+ * KALIPLAR ÖLÇÜLEREK GENİŞLETİLDİ. İlk sürüm 76.358 oyuncunun 19.897'sini
+ * (%26) eşleyemiyordu ve bunlar ham etiketle veritabanına giriyordu:
+ * `savunma` 14.905, `wing half` 4.346, `attacker` 646. Türkçe Wikidata
+ * etiketleri (`savunma`) ve tarihsel İngiliz mevkileri (`wing half`,
+ * `centre half`) hesaba katılmamıştı.
+ *
+ * `back` KELİMESİ SINIRLARIYLA ARANIR. Sınırsız bir `back` kalıbı
+ * "half-back"i de yakalar ve onu yanlış sıraya sokardı; `(^|\s)back(\s|$)`
+ * yalnızca tek başına duran "back" etiketini eşler.
+ */
+/**
+ * `position` alanının alabileceği DEĞERLERİN TAMAMI (`null` dışında).
+ *
+ * Dışa aktarılıyor çünkü `db:verify` bunu denetliyor: kural gevşetilir ya da
+ * yeni bir etiket sızarsa, kabul kontrolü veri yenilendiği anda patlar. Kuralın
+ * kodda doğru olması yetmez — üretilen VERİNİN ona uyduğu ölçülmelidir (§8.2).
+ */
+export const POSITIONS: readonly string[] = [
+  "Kaleci",
+  "Defans",
+  "Orta saha",
+  "Kanat",
+  "Forvet",
 ];
 
-/** Mevki etiketini sabit bir Türkçe kümeye eşler; tanınmazsa ham etiket. */
+const POSITION_MAP: ReadonlyArray<readonly [RegExp, string]> = [
+  [/goalkeeper|kaleci|portero|goalie/i, "Kaleci"],
+  [/sweeper|libero/i, "Defans"],
+
+  // "centre half" ORTA SAHA DEĞİL. 2-3-5 dizilişinde half-back'ler orta hattı
+  // kurardı; WM dizilişiyle birlikte merkezdeki oyuncu stopere çekildi ve
+  // "centre half" bugünkü anlamıyla stoperi anlatır. Aşağıdaki "half" kuralının
+  // ÖNÜNDE durmak zorunda, yoksa orta sahaya düşer.
+  [/(centre|center)[\s-]?half/i, "Defans"],
+
+  // Kanattaki half-back'ler ise orta saha oyuncusuydu. 4.346 oyuncu bu
+  // etiketi taşıyor ve ilk sürümde hiç eşlenmiyordu.
+  [/(wing|left|right)[\s-]?half|half[\s-]?back/i, "Orta saha"],
+
+  [
+    /(centre|center|full|wing|left|right)[\s-]?back|(^|\s)back(\s|$)|defender|defans|savunma|defensa|bek|stoper|stopper/i,
+    "Defans",
+  ],
+  [/midfield|orta saha|orta oyuncu|oyun kurucu|playmaker|medio/i, "Orta saha"],
+  [/winger|kanat|(left|right)[\s-]?wing/i, "Kanat"],
+  [/striker|forward|attacker|forvet|santrfor|delantero/i, "Forvet"],
+];
+
+/**
+ * Mevki etiketini sabit bir Türkçe kümeye eşler; TANINMAZSA `null`.
+ *
+ * NEDEN HAM ETİKETE DÜŞÜLMÜYOR (davranış değişti). Eski sürüm tanımadığı
+ * etiketi olduğu gibi geçiriyordu ve Wikidata'nın `P413` alanı yalnızca futbol
+ * mevkisi taşımıyor. Veri kümesinde ölçülen değerler arasında şunlar vardı:
+ *
+ *   "İçişleri Bakanlığı (İngiltere)", "yardımcı koç", "kadın",
+ *   "Iván Luquetta", "Q114044295", "Todas las Sangres",
+ *   "wicket-keeper", "fly-half", "prop", "lock", "smaçör", "pasör"
+ *
+ * Yani bir bakanlık, bir kişi adı, çözülememiş bir QID, bir roman, kriket,
+ * ragbi, voleybol ve hentbol mevkileri. Bunlar "belirsiz veri" değil YANLIŞ
+ * veridir; kullanıcıya bir futbolcunun mevkisi diye gösterilemez.
+ *
+ * §2.7'nin "belirsizlik veri kaybından iyidir" kuralıyla çelişmiyor: o kural
+ * ölçülemeyen bir şeyi UYDURMAYI yasaklar. Burada yapılan, ölçülerek yanlış
+ * olduğu görülen bir değeri "bilinmiyor" diye işaretlemektir — `isCurrent`
+ * alanının kaldırılmasıyla aynı gerekçe (§6.2).
+ */
 export function normalizePosition(label: string | undefined): string | null {
   if (label === undefined || label.trim().length === 0) return null;
 
   for (const [pattern, turkish] of POSITION_MAP) {
     if (pattern.test(label)) return turkish;
   }
-  return label.trim();
+  return null;
 }
 
 /** ISO 3166-1 alpha-2 biçimini doğrular ("TR", "GB"). */

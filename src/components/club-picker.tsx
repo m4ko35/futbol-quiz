@@ -202,54 +202,59 @@ export function ClubPicker({
           />
 
           {isOpen && (
-            <ul
-              id={listboxId}
-              role="listbox"
-              aria-label={`${label} sonuçları`}
-              className="absolute z-10 mt-1 max-h-72 w-full overflow-auto rounded-md border border-current/50 bg-[var(--background)] shadow-lg"
-            >
-              {visible.map((club, index) => (
-                <li
-                  key={club.id}
-                  id={`${listboxId}-${String(index)}`}
-                  role="option"
-                  aria-selected={index === highlighted}
-                  className={`cursor-pointer px-3 py-2 text-sm ${
-                    index === highlighted ? "bg-current/10" : ""
-                  }`}
-                  // `onMouseDown`, `onClick` değil: `onClick` girdi alanının
-                  // blur olayından sonra gelir ve o sırada liste kapanmış olur.
-                  onMouseDown={(event) => {
-                    event.preventDefault();
-                    choose(club);
-                  }}
-                  onMouseEnter={() => {
-                    setActiveIndex(index);
-                  }}
-                >
-                  <span className="flex items-center gap-2">
-                    <ClubCrest club={club} />
-                    <span className="font-medium">{club.shortName}</span>
-                    {club.country !== null && (
-                      <span className="opacity-60">{club.country}</span>
-                    )}
-                  </span>
-                </li>
-              ))}
-
+            <div className="absolute z-10 mt-1 max-h-72 w-full overflow-auto rounded-md border border-current/50 bg-[var(--background)] shadow-lg">
+              {/*
+                DURUM METNİ LİSTENİN DIŞINDA.
+                `role="listbox"` yalnızca `option` çocuğu barındırabilir
+                (WAI-ARIA "required owned elements"). "Sonuç yok" bir seçenek
+                değildir; listenin içine konduğunda `aria-required-children`
+                ihlali oluşur ve ekran okuyucu boş listede gezinmeye çalışır.
+              */}
               {visible.length === 0 && (
-                <li
-                  className="px-3 py-2 text-sm opacity-60"
-                  role="presentation"
-                >
+                <p className="px-3 py-2 text-sm opacity-70">
                   {isLoading
                     ? "Aranıyor…"
                     : failed
                       ? "Arama başarısız oldu."
                       : "Sonuç yok."}
-                </li>
+                </p>
               )}
-            </ul>
+
+              <ul
+                id={listboxId}
+                role="listbox"
+                aria-label={`${label} sonuçları`}
+              >
+                {visible.map((club, index) => (
+                  <li
+                    key={club.id}
+                    id={`${listboxId}-${String(index)}`}
+                    role="option"
+                    aria-selected={index === highlighted}
+                    className={`cursor-pointer px-3 py-2 text-sm ${
+                      index === highlighted ? "bg-current/10" : ""
+                    }`}
+                    // `onMouseDown`, `onClick` değil: `onClick` girdi alanının
+                    // blur olayından sonra gelir ve o sırada liste kapanmış olur.
+                    onMouseDown={(event) => {
+                      event.preventDefault();
+                      choose(club);
+                    }}
+                    onMouseEnter={() => {
+                      setActiveIndex(index);
+                    }}
+                  >
+                    <span className="flex items-center gap-2">
+                      <ClubCrest club={club} />
+                      <span className="font-medium">{club.shortName}</span>
+                      {club.country !== null && (
+                        <span className="opacity-60">{club.country}</span>
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </div>
       ) : (

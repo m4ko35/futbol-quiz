@@ -1,11 +1,11 @@
-# Futbol Quiz — Proje Şartnamesi
+﻿# Futbol Quiz — Proje Şartnamesi
 
 > Bu belge projenin tek referans kaynağıdır (single source of truth).
 > Kod ile belge çeliştiğinde önce bu belge güncellenir, sonra kod yazılır.
 
 **Sürüm:** 0.1.0
-**Tarih:** 2026-07-30
-**Durum:** Faz 4 tamamlandı — proje eksiksiz ve sertleştirilmiş. Sıradaki Faz 4.5: yayın.
+**Tarih:** 2026-07-31
+**Durum:** Faz 4.4 tamamlandı — iki oyun modu (ortak oyuncu, 3×3 ızgara) çalışıyor. Sıradaki Faz 4.5: yayın.
 
 ---
 
@@ -506,7 +506,7 @@ Kulüp arama / otomatik tamamlama.
         "id": "…",
         "name": "Emmanuel Eboué",
         "nationality": "CI",
-        "position": "Defender",
+        "position": "Defans",
         "spellsAtA": [
           {
             "startYear": 2011,
@@ -537,6 +537,8 @@ Kulüp arama / otomatik tamamlama.
 
 **`isCurrent` neden yok.** Faz 1 şemasında bu alan vardı ve "oyuncu hâlâ kulüpte" diye okunuyordu. Faz 4'te ölçüldü: alan gerçekte "Wikidata'da bitiş tarihi girilmemiş" demek. Man United'ın "güncel kadrosunda" Herbert Broomfield (1909) ve Harold Hardman (1912), Bayern'inkinde Paul Francke (1899) çıkıyor; 32.102 dönemde bitiş tarihi eksik. Yanlış olduğu **bilinen** bir alanı sözleşmede tutmak, onu tüketen herkes için tuzaktır — alan sözleşmeden çıkarıldı. Ham değer veritabanında duruyor (ileride güvenilir bir kaynakla düzeltilebilir), ama dışarı verilmiyor. Bitişi bilinmeyen dönem arayüzde `2011 – ?` olarak gösterilir.
 
+**`position` kapalı bir kümedir**: `Kaleci`, `Defans`, `Orta saha`, `Kanat`, `Forvet` ya da `null`. Wikidata'nın `P413` alanı yalnızca futbol mevkisi taşımıyor; normalizasyon tanımadığı etiketi bir dönem ham hâliyle geçirdi ve veri kümesine bir bakanlık ("İçişleri Bakanlığı (İngiltere)"), bir kişi adı, çözülememiş bir QID ve kriket/ragbi/voleybol mevkileri girdi. Tanınmayan etiket artık `null` olur ve `db:verify` kümenin dışına çıkılmadığını denetler (§8.2).
+
 ### 6.3 Hata Biçimi
 
 ```jsonc
@@ -557,6 +559,79 @@ Kulüp arama / otomatik tamamlama.
 | `INTERNAL_ERROR`   | 500  | Beklenmeyen hata — **detay sızmaz**     |
 
 **Kural:** `INTERNAL_ERROR` yanıtı asla istisna mesajı, yığın izi (stack trace), SQL parçası veya dosya yolu içermez. Bunlar yalnızca sunucu loguna `traceId` ile yazılır.
+
+### 6.4 Izgara uçları
+
+Üçü de 3×3 ızgara modunundur (§9.1). İkisi okuma, biri cevap doğrulama.
+
+#### `GET /api/grid`
+
+**Parametresi yoktur.** Izgara tarihten türetilir (BR-11) ve tarihi **sunucu** okur; istemcinin gün seçebilmesi, yarının ızgarasını bugünden çekmek ya da geçmiş bir günü tekrar oynamak demekti.
+
+```jsonc
+// 200 OK — önbelleklenebilir (§7.9)
+{
+  "data": {
+    "date": "2026-07-31", // UTC
+    "rows": [
+      { "kind": "club", "label": "Barcelona" },
+      { "kind": "nationality", "label": "Brezilya" },
+      { "kind": "club", "label": "Milan" },
+    ],
+    "columns": [
+      { "kind": "club", "label": "Arsenal" },
+      { "kind": "club", "label": "Inter" },
+      { "kind": "club", "label": "Galatasaray" },
+    ],
+  },
+}
+```
+
+**Sızıntı kuralı.** Yanıt cevapları taşımaz, hücre başına cevap **sayısını** da taşımaz (sayı tahmin alanını daraltan bir ipucudur) ve kriterin **kimliğini** de taşımaz — kulüp id'si ya da ülke kodu verilseydi istemci kesişimi kendisi hesaplayabilirdi.
+
+#### `POST /api/grid/answer`
+
+| Alan          | Tip    | Zorunlu | Kural                 |
+| ------------- | ------ | ------- | --------------------- |
+| `cell.row`    | int    | evet    | 0–2                   |
+| `cell.column` | int    | evet    | 0–2                   |
+| `playerId`    | string | evet    | Geçerli kimlik biçimi |
+
+```jsonc
+// 200 OK — ÖNBELLEKLENMEZ
+{ "data": { "correct": true } }
+```
+
+**Neden POST.** İşlem sunucu durumunu değiştirmiyor, yani GET de olabilirdi. POST seçildi çünkü cevap denemeleri kullanıcının **oyun ilerleyişidir**: GET olsaydı her deneme tarayıcı geçmişine, sunucu erişim loglarına ve paylaşılan önbelleğe URL olarak yazılırdı — aynı ızgarayı henüz oynamamış birinin başkasının denemelerini bir kayıttan okuyabilmesi demek.
+
+**İstemcinin kriterlerine güvenilmez (BR-12).** Gövde yalnızca hücre koordinatı ve oyuncu kimliği taşır; hangi kriterin hangi hücrede olduğunu sunucu ızgarayı **yeniden üreterek** bulur. İstemci kriter gönderebilseydi kendi ızgarasını uydurup her cevabı doğru yaptırabilirdi.
+
+**Var olmayan kimlik `404` değil `correct:false` döner.** 404 dönmek, hangi kimliklerin var olduğunu ayırt etmeyi — yani numaralandırmayı — mümkün kılardı.
+
+#### `GET /api/players`
+
+| Parametre | Tip    | Zorunlu  | Kural               |
+| --------- | ------ | -------- | ------------------- |
+| `q`       | string | **evet** | 2–50 karakter       |
+| `limit`   | int    | hayır    | 1–20, varsayılan 10 |
+
+```jsonc
+// 200 OK
+{
+  "data": [
+    {
+      "id": "clx…",
+      "name": "Esteban Cambiasso",
+      "nationality": "AR",
+      "position": "Orta saha",
+    },
+  ],
+}
+```
+
+`q` burada **zorunludur**, kulüp aramasındaki gibi isteğe bağlı değil: 76.358 kayıtlık bir tabloda "hepsini listele" anlamlı bir istek olamaz. İki karakterden kısa metin boş liste döner — bu bir kural ihlali değil, henüz tamamlanmamış bir girdidir.
+
+**Yanıt oyuncunun kulüp geçmişini taşımaz.** Taşısaydı arama kutusu ızgaranın cevap anahtarına dönüşürdü. `nationality` ve `position` kalır çünkü aynı adı taşıyan iki oyuncuyu ayırt etmek gerekir; ikisi de ızgara kriteri olabildiği için küçük bir ipucu taşırlar — kabul edilen bir maliyet, alternatifi ayırt edilemeyen bir listedir.
 
 ---
 
@@ -896,13 +971,13 @@ export interface GameMode<TInput, TOutput> {
 
 ### Planlanan Modlar
 
-| Mod                    | Açıklama                                              | Durum                        |
-| ---------------------- | ----------------------------------------------------- | ---------------------------- |
-| **Ortak oyuncu** (MVP) | İki kulüpte de oynamış oyuncular                      | ✅ Faz 3                     |
-| **3×3 ızgara**         | Satır/sütun kriterlerini sağlayan oyuncu bulma        | Faz 4.4 — §9.1               |
+| Mod                    | Açıklama                                              | Durum                         |
+| ---------------------- | ----------------------------------------------------- | ----------------------------- |
+| **Ortak oyuncu** (MVP) | İki kulüpte de oynamış oyuncular                      | ✅ Faz 3                      |
+| **3×3 ızgara**         | Satır/sütun kriterlerini sağlayan oyuncu bulma        | ✅ Faz 4.4 — §9.1             |
 | Kariyer bilmecesi      | Kulüp geçmişi verilir, oyuncu tahmin edilir           | Tam kariyer verisi gerektirir |
 | Bağlantı zinciri       | İki oyuncu arasında ortak kulüp üzerinden en kısa yol | Tam kariyer verisi gerektirir |
-| Az mı çok mu           | Maç/gol sayısı karşılaştırması                        | Veri %73 dolu; havuz daralır |
+| Az mı çok mu           | Maç/gol sayısı karşılaştırması                        | Veri %73 dolu; havuz daralır  |
 
 > **Kariyer bilmecesi ve bağlantı zinciri neden ertelendi.** İkisi de oyuncunun kulüp geçmişini TAM olarak bilmeyi gerektirir; §1.3'teki kapsam sınırı gereği bu altı lig dışındaki kariyerler çekilmiyor. Ajax'ta oynamış bir oyuncunun o dönemi görünmez — bilmece eksik bir kariyer üzerinden kurulur ve bağlantı zincirinin bulduğu "en kısa yol" gerçekte en kısa olmayabilir. 3×3 ızgara bu sınırdan etkilenMEZ: sorusu "bu kulüpte oynadı mı", "başka nerede oynadı" değil.
 
@@ -916,11 +991,11 @@ Bu modlar mevcut `Spell` modelini kullanır; yeni tablo değil, yeni **alan** ge
 
 Izgaranın rastgele üretilebilmesi tasarımın ön koşuluydu; ölçüldü (200 tohum, gerçek veri):
 
-| Yapılandırma            | Geçerli ızgara | Ort. deneme | Hücre başına cevap (medyan) |
-| ----------------------- | -------------- | ----------- | --------------------------- |
-| 324 kulüp, alt sınır 3  | 200/200        | 2,3         | 7                           |
-| 120 kulüp, 5–200 cevap  | 150/150        | 1,8         | 22                          |
-| **60 kulüp, 5–150**     | **150/150**    | **1,1**     | **24**                      |
+| Yapılandırma           | Geçerli ızgara | Ort. deneme | Hücre başına cevap (medyan) |
+| ---------------------- | -------------- | ----------- | --------------------------- |
+| 324 kulüp, alt sınır 3 | 200/200        | 2,3         | 7                           |
+| 120 kulüp, 5–200 cevap | 150/150        | 1,8         | 22                          |
+| **60 kulüp, 5–150**    | **150/150**    | **1,1**     | **24**                      |
 
 Üretim ~9 ms sürüyor. Yani mod teknik olarak mümkün — ama **oynanabilir değil**, ve sebebi aşağıdaki bulgu.
 
@@ -944,6 +1019,37 @@ Veride tanınırlık sinyali arandı, **yoktur**:
 
 Tanınırlık ölçülebilir bir veri değil, bir **ürün kararıdır**. Bu yüzden ızgara havuzu **küratörlüdür** ve QID ile sabitlenmiştir — `db:verify`'daki zorunlu kulüp listesiyle aynı gerekçe (§8.2): ada güvenmek bu projede dört kez yanılttı.
 
+#### Havuz: 82 kulüp, ürün sahibi tarafından seçildi
+
+Veri kümesindeki 345 seçilebilir kulübün tamamı — ligiyle ve oyuncu sayısıyla — ürün sahibine sunuldu; aşağıdaki 82'yi kendisi seçti. Bu bir ölçüm sonucu değil, kayıt altına alınmış bir karardır:
+
+| Lig            | Kulüp |
+| -------------- | ----- |
+| Premier League | 20    |
+| Bundesliga     | 15    |
+| Serie A        | 13    |
+| La Liga        | 13    |
+| Ligue 1        | 12    |
+| Süper Lig      | 9     |
+
+Havuzdaki 82 QID'nin 82'si veri kümesinde çözüldü (0 eksik). Liste `src/application/game-modes/grid/pool.ts` içinde; değiştirmek bir kod değişikliğidir.
+
+#### Ölçüm: küratörlü havuzla üretim (365 gün, gerçek veri, gerçek depolar)
+
+| Ölçüt              | Sonuç                                        |
+| ------------------ | -------------------------------------------- |
+| Geçerli ızgara     | **365/365**                                  |
+| Hiç çıkmayan kulüp | **0** — 82 kulübün hepsi en az 4 kez         |
+| Üretim süresi      | 432 ms/ızgara (gün başına bir kez, §9.1)     |
+| Ülke kriteri payı  | 408 / 2.190 kriter yuvası (%18,6)            |
+| Hücre başına cevap | min 5 · medyan 9 · p75 21 · p95 62 · max 103 |
+
+Hücre alt sınırı `MIN_CELL_ANSWERS = 5` ölçülen minimumla birebir örtüşüyor: üretim BR-9'u gerçekten uyguluyor, band dışı hücre hiç geçmedi.
+
+**Kullanım sıklığı ligin değil, kesişimin işlevi.** En sık çıkan kulüpler Arsenal (63), Liverpool (62), Chelsea (62); en seyrek Göztepe (4), Athletic Bilbao (4), Union Berlin (4). Athletic Bilbao 743 oyuncusuna rağmen seyrek çünkü yalnızca Bask oyuncu kadrosuna alır — diğer kulüplerle kesişimi küçüktür. Bu bir kusur değil, verinin doğru yansıması.
+
+**Üretim maliyeti neden 432 ms.** Her kriter için ayrı bir kimlik sorgusu atılıyor. Bu maliyeti günün yalnızca ilk isteği öder: sonuç gün anahtarıyla süreç içinde önbelleklenir (`daily-grid.ts`) ve 200 yanıtı CDN'de de önbelleklenebilir (§7.9). Izgara deterministik olduğu için (BR-11) iki sunucu örneği aynı gün için aynı sonucu üretir.
+
 #### Ölçüm: ülke ekseni
 
 Ülke × kulüp kesişimleri **iki kutuplu**: medyan 4, p95 557. Yani ya birkaç oyuncu (tahmin edilemez) ya da yüzlerce (bedava — "Bayern'de oynamış bir Alman"). Ölçülen dağılımda çiftlerin yalnızca **%40'ı** 5–150 bandına düşüyor. Ülke satırları bu yüzden bandın içinde kalacak şekilde seçilir; sağlanamazsa ızgara kulüp satırlarıyla kurulur.
@@ -954,6 +1060,21 @@ Tanınırlık ölçülebilir bir veri değil, bir **ürün kararıdır**. Bu yü
 - **BR-10 — Tekrar yok.** Bir oyuncu tek bir ızgarada yalnızca bir hücrede kullanılabilir.
 - **BR-11 — Günlük ızgara.** Izgara tarihten türetilen bir tohumla **deterministik** üretilir: aynı gün herkes aynı ızgarayı görür. Gerekçe iki katlı — (1) yanıt önbelleklenebilir hâle gelir (§7.9), rastgele ızgara CDN önbelleğini işlevsiz kılardı; (2) ileride skor tablosu (§9) ancak herkes aynı soruyu çözerse anlamlı olur.
 - **BR-12 — Cevap kimlikle doğrulanır.** Kullanıcı bir oyuncu **seçer**, ad yazmaz; doğrulama `playerId` üzerinden yapılır. Ada göre eşleştirme bu projede dört kez yanılttı (§10.1); "Shevchenko" arayan kullanıcı "Andriy Şevçenko" kaydını bulamazdı.
+- **BR-13 — Dokuz tahmin hakkı.** Dokuz hücre, dokuz hak: yanlış bir tahmin bir hücreyi harcar. Sınırsız deneme, ızgarayı bir bilgi sorusundan bir **arama alıştırmasına** çevirirdi — kullanıcı listeyi tarayıp doğruyu bulana kadar denerdi. Hak sayısı hücre sayısından türetilir, ayrıca yazılmaz. Doğrulanamayan bir cevap (ağ hatası) hak **harcamaz**: kullanıcının yapmadığı bir hatanın cezası olurdu.
+
+#### BR-10 şu an yalnızca istemcide zorlanıyor
+
+Sunucu, bir ızgarada hangi oyuncuların kullanıldığını **bilmez**: oturum yok, sunucu tarafı oyun durumu yok. Kullanılmış oyuncular seçici listesinden gizlenir, ama bunu aşmak mümkündür.
+
+Bu şu an bir açık **değil**, çünkü kazanılacak bir şey yok: skor kaydedilmiyor, sıralama yok, ilerleme kullanıcının kendi tarayıcısında duruyor. Aynı gerekçe BR-13 için de geçerli — ilerleme `localStorage`'da tutulur ve silinebilir.
+
+**Skor tablosu (§9) eklendiğinde bu tercih geçersiz olur.** O noktada oyun durumu sunucuya taşınmak zorundadır; aksi hâlde sıralamaya yazılan skor, istemcinin kendi beyanı olur. Karar §10.2'de duruyor.
+
+#### İlerleme neden `localStorage`'da
+
+Saklanmasaydı BR-13 anlamsız kalırdı: sayfayı yenileyen kullanıcı sıfırdan başlar, "dokuz hak" hiçbir şeyi sınırlamazdı. Sunucuda saklamak ise oturum yönetimi ve **kişisel veri saklama** demekti; §7.6'daki "kullanıcı verisi tutulmaz" kararıyla çelişirdi. Depo okunamazsa (gizli mod, dolu kota) oyun çökmez, ilerleme yalnızca kalıcı olmaz.
+
+Depodan okunan veri **dış girdi** sayılır ve şekli denetlenmeden kullanılmaz (§2.3): kullanıcı elle düzenleyebilir, eski bir sürüm yazmış olabilir.
 
 #### Sızıntı kuralı
 
@@ -1018,6 +1139,26 @@ Hedef: **eksiksiz bir proje**, sonra yayın. Sıra kasten bu — yayına çıkma
 - [x] CI ardışık düzeni (§8.3)
 - [x] Zamanlanmış ETL iş akışı + dağıtım yapılandırması (§3.1)
 
+### Faz 4.4 — İkinci oyun modu: 3×3 ızgara ✅
+
+Yayından **önce** eklendi. Gerekçe Faz 4'ün gerekçesiyle aynı: mimarinin ikinci bir modu gerçekten taşıdığı ancak ikinci mod yazılınca ölçülebilir. Sözleşme (§9) değişmedi — mod, kayıt listesine bir satır eklenerek girdi.
+
+- [x] Domain kuralları: BR-9…BR-13, deterministik günlük tohum (mulberry32)
+- [x] Küratörlü kulüp havuzu — **82 kulüp**, ürün sahibi 345 kulübün tamamını görerek seçti
+- [x] Üretim algoritması + 365 günlük ölçüm (365/365, 82 kulübün hepsi çıkıyor)
+- [x] `GET /api/grid`, `POST /api/grid/answer`, `GET /api/players` (§6.4)
+- [x] Arayüz: semantik tablo, oyuncu seçici, `localStorage` ilerleme
+- [x] `db:verify`'a havuz denetimi — QID'ler veride gerçekten var mı
+
+**Mod eklerken çıkan iki veri kusuru** (ikisi de arayüzde göründüğü için bulundu):
+
+| Kusur                                                  | Ölçüm                                                                | Düzeltme                                 |
+| ------------------------------------------------------ | -------------------------------------------------------------------- | ---------------------------------------- |
+| `normalizePosition` tanımadığı etiketi ham geçiriyordu | 19.897 oyuncu (%26) eşlenmemiş; ~50'sinde bakanlık, kişi adı, kriket | Kapalı küme + `db:verify` denetimi       |
+| Uyruk arayüzde ham ISO kodu olarak görünüyordu         | Havuzda 30 kod elle yazılmıştı, veride **170** kod var               | `Intl.DisplayNames` + iki bilinçli sapma |
+
+**Bir erişilebilirlik kusuru da ortaya çıktı ve `ClubPicker`'da da vardı:** `role="listbox"` yalnızca `option` çocuğu barındırabilir, "Sonuç yok" metni listenin içindeydi. Mevcut testler listeyi hep dolu kurduğu için görünmemişti; boş liste durumu artık iki seçici için de denetleniyor.
+
 ### Faz 4.5 — Yayın
 
 Kod tarafı hazır. Kalanlar hesap açmayı ve dağıtımda ölçüm yapmayı gerektirir.
@@ -1048,20 +1189,20 @@ Kod tarafı hazır. Kalanlar hesap açmayı ve dağıtımda ölçüm yapmayı ge
 
 ### 10.1 Şu Anki Odak
 
-**Faz 4 tamamlandı — sıradaki Faz 4.5 (yayın).** Sertleştirme bitti; proje eksiksiz. Kalan iş kod değil: hesap açma ve ilk dağıtımda üç varsayımın ölçülmesi — CDN önbellek geçersizleştirme (§7.9), `process.cwd()` yerleşimi (§3.1) ve gerçek tarayıcıda yerleşime bağlı erişilebilirlik ölçütleri (§7.10).
+**Faz 4.4 tamamlandı — sıradaki Faz 4.5 (yayın).** İki oyun modu çalışıyor, sertleştirme bitti. Kalan iş kod değil: hesap açma ve ilk dağıtımda üç varsayımın ölçülmesi — CDN önbellek geçersizleştirme (§7.9), `process.cwd()` yerleşimi (§3.1) ve gerçek tarayıcıda yerleşime bağlı erişilebilirlik ölçütleri (§7.10).
 
-Doğrulanabilir taban (Faz 4 kapanışı, 2026-07-30):
+Doğrulanabilir taban (Faz 4.4 kapanışı, 2026-07-31):
 
 | Komut                  | Sonuç                                                                    |
 | ---------------------- | ------------------------------------------------------------------------ |
 | `npm run typecheck`    | temiz                                                                    |
 | `npm run lint`         | temiz (0 uyarı)                                                          |
 | `npm run format:check` | temiz                                                                    |
-| `npm run test`         | 361/361 geçiyor (birim, bileşen, erişilebilirlik, entegrasyon, doğruluk) |
+| `npm run test`         | 520/520 geçiyor (birim, bileşen, erişilebilirlik, entegrasyon, doğruluk) |
 | `npm run build`        | başarılı, tüm rotalar dinamik (nonce için gerekli)                       |
 | `npm run audit:ci`     | 0 açık (üretim ağacı)                                                    |
 | `npm run etl`          | 388 kulüp · 76.358 oyuncu · 193.003 dönem                                |
-| `npm run db:verify`    | 19/19 kontrol geçiyor (kanıt oranı dâhil)                                |
+| `npm run db:verify`    | 22/22 kontrol geçiyor (kanıt oranı, mevki kümesi, ızgara havuzu dâhil)   |
 | `npm run bench`        | p50 4,2 ms · **p95 16,8 ms** · p99 21,0 ms (bütçe 150 ms)                |
 | CSP nonce ölçümü       | **15/15** script eşleşti, 3/3 benzersiz nonce (§7.3)                     |
 | Üretimde arma ölçümü   | 12 arma, **12'si** `upload.wikimedia.org`, izinsiz köken **0**           |

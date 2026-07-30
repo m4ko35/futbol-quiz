@@ -11,13 +11,10 @@ import {
   seedVariant,
   shuffled,
 } from "@/domain/value-objects/daily-seed";
+import { countryName } from "@/lib/country-name";
 import type { ClubRepository } from "../../ports/club-repository";
 import type { PlayerRepository } from "../../ports/player-repository";
-import {
-  GRID_CLUB_QIDS,
-  GRID_NATIONALITY_CODES,
-  NATIONALITY_LABELS,
-} from "./pool";
+import { GRID_CLUB_QIDS, GRID_NATIONALITY_CODES } from "./pool";
 
 /**
  * Günlük ızgara üretimi — PROJECT.md §9.1.
@@ -32,8 +29,12 @@ import {
  * başına dokuz gidiş-dönüş demekti; aynı tercih ortak oyuncu sorgusunda
  * ölçülerek doğrulanmıştı (p95 47,7 → 16,8 ms).
  *
- * ÖLÇÜM (gerçek veri, 365 gün): 365/365 geçerli ızgara, ortalama 1,1 deneme,
- * ızgara başına 2,9 ms, %73'ünde ülke satırı, hücre başına medyan 9 cevap.
+ * ÖLÇÜM (82 kulüplük küratörlü havuz, gerçek veri, gerçek depolar, 365 gün):
+ * 365/365 geçerli ızgara · 82 kulübün hepsi en az 4 kez çıktı · hücre başına
+ * min 5, medyan 9, p95 62, max 103 cevap · ızgara başına 432 ms.
+ *
+ * 432 ms'yi günün İLK isteği öder; sonuç `daily-grid.ts` içinde gün anahtarıyla
+ * önbelleklenir. Maliyet kriter başına ayrı kimlik sorgusundan gelir.
  */
 
 /** Bir günün ızgarası kaç farklı tohumla denenir. */
@@ -62,7 +63,7 @@ export async function generateGrid(
     (code) => ({
       type: "nationality",
       code,
-      label: NATIONALITY_LABELS[code] ?? code,
+      label: countryName(code),
     }),
   );
 
@@ -98,7 +99,8 @@ export async function generateGrid(
     for (const candidate of candidates.slice(0, MAX_ROW_PROBES)) {
       if (rows.length === GRID_SIZE) break;
       if (rows.some((row) => isSameCriterion(row, candidate))) continue;
-      if (columns.some((column) => isSameCriterion(column, candidate))) continue;
+      if (columns.some((column) => isSameCriterion(column, candidate)))
+        continue;
 
       const candidateSet = await setOf(candidate);
       const playable = columnSets.every((columnSet) =>
