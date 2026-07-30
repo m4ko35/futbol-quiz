@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { connection } from "next/server";
+import { serverEnv } from "@/infrastructure/config/env";
 
 import "./globals.css";
 
@@ -14,10 +15,43 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const TITLE = "Futbol Quiz — Ortak Oyuncular";
+const DESCRIPTION =
+  "İki futbol kulübü seçin, ikisinde de forma giymiş oyuncuları görün. " +
+  "Avrupa'nın beş büyük ligi ve Süper Lig'in tarihsel kadroları.";
+
+/**
+ * Sayfa meta verisi — PROJECT.md §7.11.
+ *
+ * `metadataBase` OLMADAN paylaşım alanları göreli kalır ve hiçbir sohbet
+ * uygulaması onları çözemez; bağlantı başlıksız gri bir kutu olarak görünür.
+ *
+ * `robots` alanı `SITE_INDEXABLE` ile aynı kaynaktan okunur (`robots.ts` de
+ * öyle). Siteyi aramaya açmak tek bir ortam değişkenini değiştirmektir.
+ */
 export const metadata: Metadata = {
-  title: "Futbol Quiz — Ortak Oyuncular",
-  description:
-    "İki futbol kulübü seçin, ikisinde de forma giymiş oyuncuları görün.",
+  metadataBase: new URL(serverEnv().SITE_URL),
+  title: TITLE,
+  description: DESCRIPTION,
+  applicationName: "Futbol Quiz",
+  robots: serverEnv().SITE_INDEXABLE
+    ? { index: true, follow: true }
+    : { index: false, follow: false, nocache: true },
+  openGraph: {
+    type: "website",
+    locale: "tr_TR",
+    siteName: "Futbol Quiz",
+    title: TITLE,
+    description: DESCRIPTION,
+    url: "/",
+  },
+  twitter: {
+    // Görsel üretilmiyor; görselsiz kartın doğru türü budur. "summary_large_image"
+    // vermek, olmayan bir görseli vaat edip boş bir kart üretirdi.
+    card: "summary",
+    title: TITLE,
+    description: DESCRIPTION,
+  },
 };
 
 export default async function RootLayout({

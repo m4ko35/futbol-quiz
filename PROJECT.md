@@ -786,6 +786,27 @@ Denetim **iki parçadır**, çünkü tek bir araç ikisini birden ölçemiyor.
 
 **Bu denetimin DIŞINDA kalanlar — dürüstçe.** jsdom yerleşim hesaplamadığı için görünürlük, gerçek odak sırası, hedef boyutu (2.5.5) ve yeniden akış (1.4.10) ölçülmedi. Bunlar gerçek tarayıcı gerektirir ve ilk dağıtımdan sonra elle denetlenecektir (Faz 4.5).
 
+### 7.11 Site Kimliği ve İndeksleme
+
+**İndeksleme tek anahtarla yönetilir:** `SITE_INDEXABLE`. Hem `app/robots.ts` hem sayfa meta etiketi aynı değeri okur. İki ayrı yerde tutulsaydı biri açılıp diğeri kapalı kalabilir ve sonuç aylarca fark edilmeden yanlış olurdu.
+
+**Varsayılan `false`.** Unutulan bir yapılandırma siteyi sessizce arama sonuçlarına sokmamalı; tersi zararsızdır. Değer `"true"`/`"false"` dizgisiyle sınırlı — `z.coerce.boolean()` KULLANILMAZ, çünkü o dönüşüm boş olmayan her dizgiyi `true` yapar ve `"false"` da `true` olurdu. Tanınmayan bir değerde uygulama başlamaz (§7.6).
+
+**Neden hem `robots.txt` hem `noindex`.** `robots.txt` yalnızca **taramayı** engeller, indekslemeyi değil: dışarıdan bağlantı verilmiş bir adres, içeriği hiç okunmadan arama sonuçlarında görünebilir. İndekslemeyi asıl engelleyen `noindex` meta etiketidir. Bu aşamada siteye dışarıdan bağlantı olmadığı için ikisi birlikte kullanılıyor; tarama trafiğini baştan kesmenin de maliyeti yok.
+
+**Doğrulanmış çıktı (üretim derlemesi, `SITE_INDEXABLE` tanımsız):**
+
+```
+robots.txt        User-Agent: *  /  Disallow: /
+<meta name="robots" content="noindex, nofollow, nocache">
+```
+
+**Paylaşım meta verisi.** `metadataBase` olmadan Open Graph alanları göreli kalır ve hiçbir sohbet uygulaması onları çözemez; bağlantı başlıksız gri bir kutu olarak görünür. `SITE_URL` bu tabanı verir.
+
+> **Görsel üretilmiyor.** `twitter:card` bilerek `summary` (görselli `summary_large_image` değil): olmayan bir görseli vaat etmek boş bir kart üretir. Üretilmiş bir paylaşım görseli (`opengraph-image`) istenirse eklenebilir; MVP için gerekli görülmedi.
+
+**Diğer.** 404 sayfası Türkçedir (arayüz dili TR — §1.2) ve denenen adresi **yansıtmaz**: adresi sayfaya basmak, kullanıcı girdisini sayfaya basmanın en kolay yoludur ve buna hiçbir sebep yok (§6.3). Simge, iskeletten kalan Next logosu yerine uygulamanın kendi işaretidir — iki kesişen çember, yani `A ∩ B`.
+
 ---
 
 ## 8. Kalite Güvencesi
@@ -946,9 +967,25 @@ Hedef: **eksiksiz bir proje**, sonra yayın. Sıra kasten bu — yayına çıkma
 
 ### Faz 4.5 — Yayın
 
-- [ ] Vercel projesi, alan adı, ilk dağıtım
-- [ ] §7.9'daki önbellek geçersizleştirme varsayımının doğrulanması
+Kod tarafı hazır. Kalanlar hesap açmayı ve dağıtımda ölçüm yapmayı gerektirir.
+
+**Sıra önemlidir.** Vercel önce bağlanırsa ilk derleme **kasten** düşer: `dataset:fetch` indireceği sürüm varlığını bulamaz (§3.1). Doğru sıra:
+
+1. [ ] GitHub deposu; bu dalın `main`'e birleştirilmesi
+2. [ ] `ETL_USER_AGENT` depo değişkeni — Wikidata kimliksiz istemcileri engeller
+3. [ ] Veri iş akışını **elle bir kez** çalıştır (~1 saat; GitHub'da yerel önbellek yok)
+4. [ ] Vercel projesi: derleme komutu `npm run vercel-build`, `DATASET_URL` ve hız sınırı değişkenleri
+5. [ ] Alan adı ve `SITE_URL`
+
+**Dağıtımda ölçülecekler** — hiçbiri yerelde ölçülemez:
+
+- [ ] **`TRUSTED_PROXY_HOPS`** — tek güvenlik etkili bilinmeyen. Yanlış değer hız sınırını ya baypas edilebilir ya da tüm kullanıcıları tek kovaya düşürür hâle getirir. Yöntem `.env.example`'da.
+- [ ] CDN önbellek geçersizleştirme (§7.9) — doğrulanınca `s-maxage` uzatılır
+- [ ] `process.cwd()` yerleşimi ve `.db` yolu (§3.1)
 - [ ] Üretimde CSP nonce ölçümünün tekrarı
+- [ ] Gerçek tarayıcıda erişilebilirlik: odak sırası, hedef boyutu, yeniden akış (§7.10)
+
+**Yayına açma anı:** `SITE_INDEXABLE=true` (§7.11). Tek değişken; `robots.txt` ve `noindex` birlikte döner.
 
 ### Faz 5 — Genişleme
 

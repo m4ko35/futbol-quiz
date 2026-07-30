@@ -27,6 +27,31 @@ const ServerEnvSchema = z.object({
    * varsayılan iyimser değil, tek vekildir.
    */
   TRUSTED_PROXY_HOPS: z.coerce.number().int().min(0).default(1),
+
+  /**
+   * Sitenin herkese açık kök adresi — paylaşım meta verisi bunun üzerine
+   * kurulur (§7.11). Göreli adresler paylaşımda çalışmaz: bir sohbet
+   * uygulaması `og:image="/x.png"` değerini çözemez, mutlak adres ister.
+   *
+   * Yerelde varsayılan yeterli; dağıtımda gerçek alan adı verilir.
+   */
+  SITE_URL: z.url().default("http://localhost:3000"),
+
+  /**
+   * Site arama motorlarına açık mı? (§7.11)
+   *
+   * TEK ANAHTAR olması bilinçli: hem `robots.txt` hem sayfa meta etiketi
+   * bunu okur. İki ayrı yerde tutulsaydı biri açılıp diğeri kapalı kalır ve
+   * sonuç sessizce yanlış olurdu — üstelik yanlışlığı fark etmek aylar
+   * sürebilirdi.
+   *
+   * `z.coerce.boolean()` KULLANILMAZ: o dönüşüm boş olmayan HER dizgiyi
+   * `true` yapar, yani "false" da `true` olurdu.
+   */
+  SITE_INDEXABLE: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
 });
 
 export type ServerEnv = z.infer<typeof ServerEnvSchema>;
