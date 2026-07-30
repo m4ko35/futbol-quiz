@@ -217,7 +217,6 @@ describe("GET /api/common-players — §6.2", () => {
     expect(body.data.players[0].spellsAtA[0]).toEqual({
       startYear: 2011,
       endYear: 2014,
-      isCurrent: false,
       isLoan: false,
       appearances: 64,
       goals: 3,

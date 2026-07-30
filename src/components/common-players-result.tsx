@@ -15,18 +15,23 @@ export interface CommonPlayersResultProps {
   readonly result: CommonPlayersResultDto;
 }
 
-/** Dönem aralığını okunur biçime çevirir; bilinmeyeni UYDURMAZ (§2.7). */
+/**
+ * Dönem aralığını okunur biçime çevirir; bilinmeyeni UYDURMAZ (§2.7).
+ *
+ * "hâlâ kadroda" ifadesi bilinçli olarak YOK. Wikidata'da bitiş tarihinin
+ * olmaması "hâlâ kulüpte" değil "bitişi girilmemiş" demek — ölçüldü, Bayern'in
+ * "güncel kadrosunda" 1899 başlangıçlı kayıtlar çıkıyor. Bilinmeyen bitiş
+ * "?" olarak gösterilir; yanlış bir kesinlik vermektense bilinmediğini
+ * söylemek doğrudur.
+ */
 export function formatSpell(spell: SpellDto): string {
-  const { startYear, endYear, isCurrent } = spell;
+  const { startYear, endYear } = spell;
 
   if (startYear === null && endYear === null) {
     return "tarih bilinmiyor";
   }
   if (startYear === null) {
     return `? – ${String(endYear)}`;
-  }
-  if (isCurrent) {
-    return `${String(startYear)} – hâlâ kadroda`;
   }
   if (endYear === null) {
     return `${String(startYear)} – ?`;

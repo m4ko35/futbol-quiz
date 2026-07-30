@@ -79,7 +79,6 @@ describe("findCommonPlayers use-case", () => {
         {
           startYear: 2011,
           endYear: 2014,
-          isCurrent: false,
           isLoan: false,
           appearances: 64,
           goals: 3,
@@ -89,13 +88,46 @@ describe("findCommonPlayers use-case", () => {
         {
           startYear: 2005,
           endYear: 2011,
-          isCurrent: false,
           isLoan: false,
           appearances: 214,
           goals: 9,
         },
       ],
     });
+  });
+
+  it("güvenilmez `isCurrent` alanını dışarı VERMEZ", async () => {
+    // Alan, Wikidata'da "bitiş tarihi yok" durumundan türetiliyor ve bu
+    // "hâlâ kulüpte" anlamına gelmiyor (ölçüm: §10.2). Yanlış olduğu bilinen
+    // bir alanı sözleşmeye koymak, onu tüketen herkes için tuzaktır.
+    //
+    // Kaynak dönem `isCurrent: true` taşıyor; yanıtta izi olmamalı.
+    const result = await findCommonPlayers(
+      { clubA: CLUB_A, clubB: CLUB_B },
+      deps([
+        {
+          player: aPlayer(),
+          spells: [
+            aSpell({
+              clubId: CLUB_A,
+              isCurrent: true,
+              years: { start: 1899, end: null },
+            }),
+            aSpell({ clubId: CLUB_B, isCurrent: true }),
+          ],
+        },
+      ]),
+    );
+
+    const spell = result.players[0]?.spellsAtA[0];
+    expect(spell).toBeDefined();
+    expect(Object.keys(spell ?? {})).toEqual([
+      "startYear",
+      "endYear",
+      "isLoan",
+      "appearances",
+      "goals",
+    ]);
   });
 
   it("count, players dizisinin uzunluğuyla tutarlıdır", async () => {

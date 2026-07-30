@@ -16,7 +16,6 @@ afterEach(cleanup);
 const spell = (overrides: Partial<SpellDto> = {}): SpellDto => ({
   startYear: 2010,
   endYear: 2012,
-  isCurrent: false,
   isLoan: false,
   appearances: null,
   goals: null,
@@ -58,11 +57,6 @@ describe("formatSpell — §2.7, bilinmeyen uydurulmaz", () => {
   it.each([
     ["normal aralık", spell({ startYear: 2010, endYear: 2012 }), "2010 – 2012"],
     ["tek yıl", spell({ startYear: 2010, endYear: 2010 }), "2010"],
-    [
-      "süregelen",
-      spell({ startYear: 2020, endYear: null, isCurrent: true }),
-      "2020 – hâlâ kadroda",
-    ],
     ["bitiş bilinmiyor", spell({ startYear: 2020, endYear: null }), "2020 – ?"],
     [
       "başlangıç bilinmiyor",
@@ -82,6 +76,18 @@ describe("formatSpell — §2.7, bilinmeyen uydurulmaz", () => {
     const text = formatSpell(spell({ startYear: null, endYear: null }));
 
     expect(text).not.toMatch(/\d/u);
+  });
+
+  it("bitişi olmayan dönemi 'hâlâ kadroda' SAYMAZ", () => {
+    // Wikidata'da bitiş tarihinin yokluğu "hâlâ kulüpte" değil "girilmemiş"
+    // demek. Ölçüm: Bayern'in "güncel kadrosunda" 1899 başlangıçlı kayıtlar
+    // çıkıyor. Yanlış bir kesinlik vermektense bilinmediğini söylüyoruz.
+    expect(formatSpell(spell({ startYear: 1899, endYear: null }))).toBe(
+      "1899 – ?",
+    );
+    expect(formatSpell(spell({ startYear: 2025, endYear: null }))).not.toMatch(
+      /kadro/iu,
+    );
   });
 });
 

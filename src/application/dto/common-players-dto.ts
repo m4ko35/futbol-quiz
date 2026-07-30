@@ -7,7 +7,6 @@ import type { ClubDto } from "./club-dto";
 export interface SpellDto {
   readonly startYear: number | null;
   readonly endYear: number | null;
-  readonly isCurrent: boolean;
   readonly isLoan: boolean;
   readonly appearances: number | null;
   readonly goals: number | null;
@@ -34,15 +33,26 @@ export interface CommonPlayersResultDto {
  *
  * Varsayılan ölçüt altyapı dönemlerini zaten dışarıda bırakır (BR-2); listede
  * görünen her dönem tanım gereği altyapı değildir. Kullanıcı "altyapıyı dahil
- * et" seçeneğini açtığında bu alan anlam kazanır ve Faz 3'te arayüz ihtiyacı
+ * et" seçeneğini açtığında bu alan anlam kazanır ve arayüz ihtiyacı
  * belirginleştiğinde eklenir — şimdi eklemek, kullanılmayan bir alanı
  * sözleşmeye sokmak olurdu.
+ *
+ * `isCurrent` de yanıta ÇIKMAZ ve sebebi ölçülmüştür. Alan, Wikidata'da
+ * "bitiş tarihi yok" durumundan türetiliyor; ama bu "hâlâ kulüpte" değil,
+ * **"bitişi kimse girmemiş"** demek. Ölçüm:
+ *
+ *   Man United "güncel kadro" → Herbert Broomfield (1909), Harold Hardman (1912)
+ *   Bayern     "güncel kadro" → Paul Francke (1899), Kuno Friederich (1899)
+ *
+ * 32.102 dönemde bitiş tarihi eksik. Yanlış olduğu ölçülmüş bir alanı dışarı
+ * vermek, onu tüketen herkes için tuzaktır (§2.7: belirsizlik veri kaybından
+ * iyidir). Ham bayrak veritabanında duruyor; güvenilir bir "güncel kadro"
+ * kaynağı eklenirse yeniden değerlendirilir (§10.2).
  */
 export function toSpellDto(spell: Spell): SpellDto {
   return {
     startYear: spell.years.start,
     endYear: spell.years.end,
-    isCurrent: spell.isCurrent,
     isLoan: spell.isLoan,
     appearances: spell.appearances,
     goals: spell.goals,
