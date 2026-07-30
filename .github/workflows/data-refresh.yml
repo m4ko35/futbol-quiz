@@ -43,6 +43,18 @@ jobs:
       - run: npm ci
       - run: npm run db:generate
 
+      # Wikidata kimliksiz istemcileri ENGELLER; User-Agent bir iletişim
+      # adresi içermek zorunda (scripts/etl/config.ts). Depo değişkeni
+      # tanımlanmamışsa ETL 55 dakika sonra değil, burada dursun.
+      - name: Ön denetim
+        run: |
+          if [ -z "${{ vars.ETL_USER_AGENT }}" ]; then
+            echo "::error::ETL_USER_AGENT depo değişkeni tanımlı değil."
+            echo "Settings → Secrets and variables → Actions → Variables"
+            echo "Örnek: futbol-quiz/0.1.0 (https://github.com/KULLANICI/futbol-quiz; eposta@ornek.com)"
+            exit 1
+          fi
+
       # Şemayı migration'lardan kur. `migrate deploy` — `migrate dev` DEĞİL:
       # ikincisi etkileşimlidir ve gerektiğinde veritabanını sıfırlar.
       - run: npx prisma migrate deploy
@@ -53,6 +65,12 @@ jobs:
         run: npm run etl
         env:
           DATABASE_URL: file:./dev.db
+          # ETL'in zorunlu yapılandırması (scripts/etl/config.ts). Eksik
+          # olanı Zod yakalar ve süreç başlamadan durur.
+          ETL_USER_AGENT: ${{ vars.ETL_USER_AGENT }}
+          WIKIDATA_SPARQL_ENDPOINT: https://query.wikidata.org/sparql
+          # Wikidata'ya saniyede 1'den fazla istek atılmaz (§7.4).
+          ETL_REQUESTS_PER_SECOND: "1"
 
       # ─── KAPI ───────────────────────────────────────────────────────────
       # Buradan sonrası yalnızca kabul kontrolü geçerse çalışır. Zorunlu
