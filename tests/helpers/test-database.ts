@@ -19,6 +19,14 @@ import { PrismaClient } from "@/generated/prisma";
  */
 export interface TestDatabase {
   readonly prisma: PrismaClient;
+  /**
+   * Bağlantı dizesi.
+   *
+   * Sözleşme testleri route handler'ları GERÇEKTEN çağırır; o kod kendi
+   * PrismaClient'ını `DATABASE_URL`'den kurar. Bu yüzden adres dışarıya
+   * verilmek zorunda — testin kendi istemcisi yeterli değil.
+   */
+  readonly url: string;
   destroy(): Promise<void>;
 }
 
@@ -46,9 +54,25 @@ export function createTestDatabase(): TestDatabase {
 
   return {
     prisma,
+    url,
     async destroy() {
       await prisma.$disconnect();
-      rmSync(directory, { recursive: true, force: true });
+
+      // Windows'ta dosya, HÂLÂ AÇIK bir tanıtıcı varken silinemez (EPERM).
+      // Sözleşme testlerinde route handler'ların kendi PrismaClient'ı da aynı
+      // dosyayı açıyor ve bu testin kapatabileceği bir nesne değil.
+      //
+      // Temizliğin başarısız olması testi düşürmemeli: geçici dizin işletim
+      // sistemine ait ve er geç toplanır. Sessizce yutmuyoruz — hata görünür
+      // kalsın diye uyarı basılır.
+      try {
+        rmSync(directory, { recursive: true, force: true });
+      } catch (error: unknown) {
+        console.warn(
+          `Geçici test veritabanı silinemedi (${directory}): ` +
+            `${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
     },
   };
 }

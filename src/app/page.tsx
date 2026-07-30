@@ -1,34 +1,44 @@
+import { searchClubs } from "@/application/use-cases/search-clubs";
+import { CommonPlayersQuiz } from "@/components/common-players-quiz";
+import { repositories } from "@/infrastructure/db/repositories";
+
 /**
- * Geçici karşılama ekranı.
+ * Ortak oyuncu ekranı — MVP'nin tek sayfası.
  *
- * Gerçek kulüp seçimi ve sonuç listesi Faz 3'te bu sayfanın yerini alacak
- * (PROJECT.md §10). Şu an burada yalnızca iskeletin ayakta olduğunu gösteren
- * metin var — iş mantığı veya veri erişimi yok.
+ * Sunucu bileşeni: ilk kulüp listesini use-case'ten DOĞRUDAN alır, kendi
+ * API'sine HTTP isteği atmaz. Kendine ağ üzerinden bağlanmak gereksiz bir
+ * gidiş-dönüş, gereksiz bir serileştirme ve hız sınırının kendi sayfamızı
+ * kısıtlaması demek olurdu.
  */
-export default function Home() {
+export default async function Home() {
+  const initialClubs = await searchClubs({}, { clubs: repositories.clubs });
+
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center gap-6 px-6 py-16">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Futbol Quiz</h1>
-        <p className="mt-2 text-lg opacity-70">
+    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-10 px-5 py-10 sm:px-6 sm:py-16">
+      <header>
+        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+          Futbol Quiz
+        </h1>
+        <p className="mt-2 opacity-70">
           İki kulüp seçin, ikisinde de forma giymiş oyuncuları görün.
         </p>
-      </div>
+      </header>
 
-      <section className="rounded-lg border border-current/15 p-5">
-        <h2 className="text-sm font-medium tracking-wide uppercase">
-          Kurulum durumu
-        </h2>
-        <p className="mt-3 text-sm leading-relaxed opacity-70">
-          Faz 0 tamamlandı: proje iskeleti, katmanlı klasör yapısı, güvenlik
-          başlıkları ve test altyapısı hazır. Sıradaki adım Faz 1 — veri modeli
-          ve Wikidata ETL süreci.
-        </p>
-        <p className="mt-3 text-sm opacity-50">
-          Ayrıntılar için depodaki <code className="font-mono">PROJECT.md</code>{" "}
-          dosyasına bakın.
-        </p>
-      </section>
+      <CommonPlayersQuiz initialClubs={initialClubs} />
+
+      <footer className="mt-auto pt-6 text-xs opacity-50">
+        Veriler{" "}
+        <a
+          href="https://www.wikidata.org"
+          className="underline underline-offset-2"
+          rel="noreferrer noopener"
+          target="_blank"
+        >
+          Wikidata
+        </a>
+        &apos;dan derlenmiştir. Kapsam: İngiltere, İspanya, İtalya, Almanya,
+        Fransa ve Türkiye&apos;nin en üst ligleri.
+      </footer>
     </main>
   );
 }

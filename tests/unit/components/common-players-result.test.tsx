@@ -1,0 +1,176 @@
+// @vitest-environment jsdom
+import "@testing-library/jest-dom/vitest";
+import { cleanup, render, screen, within } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
+import type {
+  CommonPlayersResultDto,
+  SpellDto,
+} from "@/application/dto/common-players-dto";
+import {
+  CommonPlayersResult,
+  formatSpell,
+} from "@/components/common-players-result";
+
+afterEach(cleanup);
+
+const spell = (overrides: Partial<SpellDto> = {}): SpellDto => ({
+  startYear: 2010,
+  endYear: 2012,
+  isCurrent: false,
+  isLoan: false,
+  appearances: null,
+  goals: null,
+  ...overrides,
+});
+
+const result = (
+  overrides: Partial<CommonPlayersResultDto> = {},
+): CommonPlayersResultDto => ({
+  clubA: {
+    id: "a",
+    name: "Galatasaray SK",
+    shortName: "Galatasaray",
+    country: "TR",
+    crestUrl: null,
+  },
+  clubB: {
+    id: "b",
+    name: "Arsenal F.C.",
+    shortName: "Arsenal",
+    country: "GB",
+    crestUrl: null,
+  },
+  count: 1,
+  players: [
+    {
+      id: "p1",
+      name: "Emmanuel Eboué",
+      nationality: "CI",
+      position: "Defans",
+      spellsAtA: [spell({ startYear: 2011, endYear: 2014, appearances: 64 })],
+      spellsAtB: [spell({ startYear: 2005, endYear: 2011, appearances: 214 })],
+    },
+  ],
+  ...overrides,
+});
+
+describe("formatSpell — §2.7, bilinmeyen uydurulmaz", () => {
+  it.each([
+    ["normal aralık", spell({ startYear: 2010, endYear: 2012 }), "2010 – 2012"],
+    ["tek yıl", spell({ startYear: 2010, endYear: 2010 }), "2010"],
+    [
+      "süregelen",
+      spell({ startYear: 2020, endYear: null, isCurrent: true }),
+      "2020 – hâlâ kadroda",
+    ],
+    ["bitiş bilinmiyor", spell({ startYear: 2020, endYear: null }), "2020 – ?"],
+    [
+      "başlangıç bilinmiyor",
+      spell({ startYear: null, endYear: 2012 }),
+      "? – 2012",
+    ],
+    [
+      "hiçbiri bilinmiyor",
+      spell({ startYear: null, endYear: null }),
+      "tarih bilinmiyor",
+    ],
+  ])("%s", (_label, input, expected) => {
+    expect(formatSpell(input)).toBe(expected);
+  });
+
+  it("bilinmeyen tarihi 0 veya bugüne çevirmez", () => {
+    const text = formatSpell(spell({ startYear: null, endYear: null }));
+
+    expect(text).not.toMatch(/\d/u);
+  });
+});
+
+describe("CommonPlayersResult", () => {
+  it("oyuncuyu ve iki kulüpteki dönemlerini gösterir", () => {
+    render(<CommonPlayersResult result={result()} />);
+
+    expect(screen.getByText("Emmanuel Eboué")).toBeInTheDocument();
+    expect(screen.getByText(/2011 – 2014/u)).toBeInTheDocument();
+    expect(screen.getByText(/2005 – 2011/u)).toBeInTheDocument();
+  });
+
+  it("BR-3: kiralık dönemi açıkça işaretler", () => {
+    const data = result({
+      players: [
+        {
+          id: "p1",
+          name: "Kiralık Oyuncu",
+          nationality: null,
+          position: null,
+          spellsAtA: [spell({ isLoan: true })],
+          spellsAtB: [spell()],
+        },
+      ],
+    });
+
+    render(<CommonPlayersResult result={data} />);
+
+    expect(screen.getAllByText("kiralık")).toHaveLength(1);
+  });
+
+  it("maç sayısı bilinmiyorsa 0 GÖSTERMEZ", () => {
+    const data = result({
+      players: [
+        {
+          id: "p1",
+          name: "Bilinmeyen",
+          nationality: null,
+          position: null,
+          spellsAtA: [spell({ appearances: null })],
+          spellsAtB: [spell({ appearances: null })],
+        },
+      ],
+    });
+
+    render(<CommonPlayersResult result={data} />);
+
+    expect(screen.queryByText(/0 maç/u)).not.toBeInTheDocument();
+  });
+
+  it("mevki ve uyruk yoksa 'bilgi yok' der", () => {
+    const data = result({
+      players: [
+        {
+          id: "p1",
+          name: "Adsız",
+          nationality: null,
+          position: null,
+          spellsAtA: [spell()],
+          spellsAtB: [spell()],
+        },
+      ],
+    });
+
+    render(<CommonPlayersResult result={data} />);
+
+    expect(screen.getByText("bilgi yok")).toBeInTheDocument();
+  });
+
+  it("boş sonuçta neden boş olduğunu açıklar", () => {
+    render(<CommonPlayersResult result={result({ count: 0, players: [] })} />);
+
+    expect(screen.getByText(/bulunamadı/iu)).toBeInTheDocument();
+    // Kapsam sınırı kullanıcıya söylenmeli; aksi hâlde sonucu hata sanar.
+    expect(screen.getByText(/veri kümesi/iu)).toBeInTheDocument();
+  });
+
+  it("başlık sonuç bölgesine bağlıdır (erişilebilirlik)", () => {
+    render(<CommonPlayersResult result={result()} />);
+
+    const section = screen.getByRole("region", {
+      name: /Galatasaray ∩ Arsenal/u,
+    });
+    expect(within(section).getByText("Emmanuel Eboué")).toBeInTheDocument();
+  });
+
+  it("ortak oyuncu sayısını gösterir", () => {
+    render(<CommonPlayersResult result={result({ count: 42 })} />);
+
+    expect(screen.getByText(/42 ortak oyuncu/u)).toBeInTheDocument();
+  });
+});

@@ -5,7 +5,7 @@
 
 **Sürüm:** 0.1.0
 **Tarih:** 2026-07-29
-**Durum:** Faz 2 tamamlandı — sıradaki Faz 3 (API ve arayüz)
+**Durum:** Faz 3 tamamlandı — MVP çalışıyor; sıradaki Faz 4 (sertleştirme)
 
 ---
 
@@ -198,7 +198,16 @@ futbol-quiz/
 │   │       └── common-players/route.ts
 │   │
 │   ├── components/                ← sunum bileşenleri (iş mantığı yok)
-│   └── lib/                       ← saf yardımcılar (log, result tipi)
+│   │   ├── club-picker.tsx        ← ARIA combobox, klavye gezinme
+│   │   ├── common-players-quiz.tsx← durum makinesi (istemci)
+│   │   └── common-players-result.tsx
+│   │
+│   └── lib/                       ← saf yardımcılar
+│       ├── trace-id.ts            ← §6.3 iz kimliği
+│       ├── logger.ts              ← ayrıntı LOGA, kimlik YANITA
+│       └── http/
+│           ├── api-error.ts       ← DomainError → §6.3 kodu ve durumu
+│           └── api-handler.ts     ← tüm uçların ortak sarmalayıcısı
 │
 └── tests/
     ├── unit/                      ← domain + application — veritabanı yok
@@ -522,11 +531,24 @@ Nonce her istekte 128 bit Web Crypto rastgeleliğiyle üretilir. **Sabitlenmesi 
 
 #### Doğrulama
 
-Faz 0'da üretim derlemesi üzerinde ölçülerek doğrulandı: sayfadaki 11 script etiketinin 11'i CSP başlığındaki nonce ile eşleşiyor ve ardışık üç istekte üç farklı nonce üretiliyor. Bu denetim, CSP veya render moduna dokunan her değişiklikten sonra tekrarlanır.
+Denetim, CSP veya render moduna dokunan her değişiklikten sonra üretim derlemesi üzerinde tekrarlanır.
+
+| Ölçüm                               | Faz 0   | Faz 3 (arayüz ve API eklendikten sonra) |
+| ----------------------------------- | ------- | --------------------------------------- |
+| Nonce'lu script / toplam script     | 11 / 11 | **14 / 14**                             |
+| Üç istekte benzersiz nonce          | 3 / 3   | **3 / 3**                               |
+| Üretimde `unsafe-eval`              | yok     | **yok**                                 |
+| Üretimde `script-src unsafe-inline` | yok     | **yok**                                 |
+
+#### `style-src-attr` tavizinin durumu
+
+Faz 3'te ölçüldü: sayfada **0 adet** `style="..."` özniteliği ve **0 adet** `<style>` bloğu var. Taviz şu an ATIL — `next/image` kullanılmadığı için tetiklenmiyor. Direktif yine de kaldırılmadı: kulüp armaları eklendiğinde `next/image` geri gelecek ve o anda sessizce kırılan bir CSP'yi teşhis etmek, atıl bir direktifi taşımaktan pahalıdır. Direktifin kod çalıştırma riski yoktur (yalnızca öznitelikleri kapsar).
 
 #### Görsel kaynakları
 
 Kulüp armaları yalnızca `upload.wikimedia.org` alanından yüklenir; kural hem CSP `img-src`'de hem `next.config.ts` içindeki `images.remotePatterns` beyaz listesinde tanımlıdır. Rastgele URL'den görsel yüklenmesine izin verilmez — aksi hâlde görsel optimizasyon ucu bir SSRF aracına dönüşür.
+
+> **Ölçülmüş uyumsuzluk (Faz 3):** Beyaz liste ile verinin kendisi ŞU AN ÖRTÜŞMÜYOR. Seçilebilir 345 kulübün 111'inde arma var ve bunların **111'i de** `http://commons.wikimedia.org/wiki/Special:FilePath/…` biçiminde — `upload.wikimedia.org` üzerinden gelen **sıfır**. Yani armalar bugün render edilseydi hepsi CSP tarafından bloklanırdı (ayrıca `http://` karışık içerik olurdu). Bu yüzden Faz 3 arayüzü arma GÖSTERMİYOR; `crestUrl` alanı §6.1 sözleşmesinde duruyor ama kullanılmıyor. Kalıcı çözüm ETL'de normalizasyondur (§10.2).
 
 ### 7.4 Dış Servis Yalıtımı
 
@@ -538,7 +560,13 @@ Wikidata'ya **yalnızca** `scripts/etl/` erişir. Çalışma zamanında (request
 
 ### 7.5 İstek Hızı Sınırlama
 
-Her API ucunda IP başına token bucket: **60 istek / dakika**, patlama toleransı 10. Aşımda `429` + `Retry-After`. IP, ters vekil (reverse proxy) arkasında `X-Forwarded-For`'un **en soldaki güvenilir** değerinden alınır; ham başlığa körü körüne güvenilmez.
+Her API ucunda IP başına token bucket: **60 istek / dakika**, patlama toleransı 10. Aşımda `429` + `Retry-After`. Sabit pencere yerine token bucket seçildi: sabit pencere, pencere sınırında limitin iki katına izin verir.
+
+**İstemci kimliği nasıl bulunur.** `X-Forwarded-For` istemcinin YAZABİLDİĞİ bir başlıktır; ham hâline güvenmek sınırlamayı tamamen etkisiz kılar. Her ters vekil başlığa kendi gördüğü adresi ekler; önümüzde `TRUSTED_PROXY_HOPS` kadar güvenilen vekil varsa **sondan o kadarıncı** giriş bizim altyapımızın yazdığı ilk değerdir. Soldaki her şey uydurulmuş olabilir ve atılır.
+
+`TRUSTED_PROXY_HOPS=0` (doğrudan internete açık) durumunda başlık tamamen yok sayılır ve sınır sunucu geneline düşer. Yanlış olduğu bilinen bir başlığa güvenip sınırlamayı işlevsiz kılmaktansa, daha kaba ama gerçekten uygulanan bir sınır yeğdir.
+
+**Bellek sınırı.** Anahtar istemciden geldiği için kova haritası sınırsız büyüyemez; aksi hâlde sınırlayıcının kendisi bir bellek tüketim aracı olur (§7.1). Sınıra ulaşıldığında yalnızca **kovası dolu** (yani atıl) anahtarlar atılır. İlk tasarımda "en eskiyi at" kuralı vardı ve YANLIŞTI: jetonu tükenmiş bir kovayı silmek, tam da sınırlanan istemciye temiz bir kova hediye ediyordu. Bunu bir test yakaladı; kural artık "tahliye asla kota kazandırmaz". Atılabilecek atıl kova yoksa yeni anahtarlar ortak bir taşma kovasını paylaşır.
 
 > MVP'de sınırlayıcı bellek içidir (tek örnek varsayımı). Yatay ölçeklemeye geçilirse paylaşımlı bir sayaca (Redis vb.) taşınır — bu, `RateLimiter` port'u arkasında olduğu için tek dosyalık değişikliktir.
 
@@ -604,9 +632,14 @@ Denenen ve **reddedilen** çözümler:
 | Seviye      | Kapsam                                                          | Araç            |
 | ----------- | --------------------------------------------------------------- | --------------- |
 | Birim       | `domain/` iş kuralları (BR-1…BR-6), use-case'ler, normalizasyon | Vitest          |
+| Bileşen     | ARIA sözleşmesi, klavye gezinme, durum akışı                    | Vitest + RTL    |
 | Entegrasyon | Repository'ler, gerçek şema ile geçici SQLite dosyası           | Vitest + Prisma |
 | Sözleşme    | API route'ları: geçerli/geçersiz girdi, hata biçimi, limitler   | Vitest          |
 | Doğruluk    | Elle doğrulanmış olgu seti (`tests/fixtures/golden-pairs.ts`)   | Vitest          |
+
+Bileşen testleri jsdom ortamını dosya başındaki `@vitest-environment jsdom` yorumuyla açar; varsayılan ortam Node'dur ve testlerin çoğuna jsdom maliyeti bindirilmez.
+
+Sözleşme testleri route handler'ları **gerçekten** çağırır: `next/server` isteği, gerçek Zod şeması, gerçek Prisma deposu, gerçek hız sınırlayıcı. Sarmalayıcıyı taklit eden bir test, uçların §6'ya uyduğunu söyleyemezdi.
 
 **Kapsam eşiği:** `domain/` ve `application/` için satır kapsamı ≥ %85. UI bileşenleri için eşik yok.
 
@@ -711,12 +744,15 @@ Bu modlar mevcut `Spell` modelini kullanır; yeni tablo değil, yeni **alan** ge
 - [x] `GameMode` sözleşmesi ve kayıt defteri (§9)
 - [x] Altın veri seti ile doğruluk testleri
 
-### Faz 3 — API ve Arayüz
+### Faz 3 — API ve Arayüz ✅
 
-- [ ] `/api/clubs` ve `/api/common-players` (Zod doğrulama + hız sınırı)
-- [ ] Kulüp seçim bileşeni (arama, klavye erişimi, ARIA)
-- [ ] Sonuç listesi (dönem rozetleri, kiralık işareti, boş/hata durumları)
-- [ ] Duyarlı tasarım, karanlık mod
+- [x] `/api/clubs` ve `/api/common-players` (Zod doğrulama + hız sınırı)
+- [x] Ortak sarmalayıcı: iz kimliği, hata eşleme (§6.3), yapılandırılmış log
+- [x] `RateLimiter` port'u + token bucket + güvenilir `X-Forwarded-For` okuma
+- [x] Kulüp seçim bileşeni (arama, klavye erişimi, ARIA combobox deseni)
+- [x] Sonuç listesi (dönem rozetleri, kiralık işareti, boş/hata durumları)
+- [x] Duyarlı tasarım, karanlık mod
+- [x] CSP nonce doğrulamasının tekrarı (§7.3)
 
 ### Faz 4 — Sertleştirme
 
@@ -733,22 +769,21 @@ Bu modlar mevcut `Spell` modelini kullanır; yeni tablo değil, yeni **alan** ge
 
 ### 10.1 Şu Anki Odak
 
-**Faz 3 — API ve Arayüz.** Faz 2 tamamlandı; iş mantığı çalışıyor ve gerçek veriye karşı doğrulandı. Sonraki somut adım: `/api/clubs` ve `/api/common-players` route handler'ları, ardından kulüp seçim arayüzü.
+**Faz 4 — Sertleştirme.** Faz 3 tamamlandı; uygulama uçtan uca çalışıyor. Sonraki somut adım: sorgu performansının ölçülmesi (§1.4'teki p95 < 150 ms hedefi henüz ÖLÇÜLMEDİ) ve erişilebilirlik denetimi.
 
-Faz 3 için hazır olanlar: use-case'ler dışarıya §6.1 ve §6.2'deki şekillerle birebir DTO döndürüyor, hata hiyerarşisi §6.3 tablosuyla eşleşen `code` alanını taşıyor, kompozisyon kökü `repositories` olarak kurulu. Route handler'lara kalan: Zod ile sorgu parametrelerini ayrıştırmak, use-case'i çağırmak, `DomainError`'ı HTTP durumuna eşlemek.
+Faz 3'ün bıraktığı doğrulanabilir taban:
 
-Faz 2'nin bıraktığı doğrulanabilir taban:
-
-| Komut                   | Sonuç                                                      |
-| ----------------------- | ---------------------------------------------------------- |
-| `npm run typecheck`     | temiz                                                      |
-| `npm run lint`          | temiz (0 uyarı)                                            |
-| `npm run test`          | 212/212 geçiyor (150 birim, 17 entegrasyon, 45 doğruluk)   |
-| `npm run test:coverage` | `domain/` + `application/` %100 satır, dal, fonksiyon      |
-| `npm run build`         | başarılı, tüm rotalar dinamik (nonce için gerekli)         |
-| `npm run audit:ci`      | 0 açık (üretim ağacı)                                      |
-| `npm run etl`           | 388 kulüp · 76.358 oyuncu · 193.003 dönem                  |
-| `npm run db:verify`     | 18/18 kontrol geçiyor (10 zorunlu kulüp, bütünlük, 5 çift) |
+| Komut                   | Sonuç                                                             |
+| ----------------------- | ----------------------------------------------------------------- |
+| `npm run typecheck`     | temiz                                                             |
+| `npm run lint`          | temiz (0 uyarı)                                                   |
+| `npm run test`          | 312/312 geçiyor (birim, bileşen, entegrasyon, sözleşme, doğruluk) |
+| `npm run test:coverage` | `domain/` + `application/` %100 satır, dal, fonksiyon             |
+| `npm run build`         | başarılı, tüm rotalar dinamik (nonce için gerekli)                |
+| `npm run audit:ci`      | 0 açık (üretim ağacı)                                             |
+| `npm run etl`           | 388 kulüp · 76.358 oyuncu · 193.003 dönem                         |
+| `npm run db:verify`     | 18/18 kontrol geçiyor (10 zorunlu kulüp, bütünlük, 5 çift)        |
+| CSP nonce ölçümü        | 14/14 script eşleşti, 3/3 benzersiz nonce (§7.3)                  |
 
 **Faz 1'in asıl dersi.** Çekim mantığı üç kez üst üste kırıldı ve üçünde de aynı hatayı yaptım: veriden okunabilecek bir şeyi kuralla tahmin ettim. `P831`'in yönü, hangi hataların yeniden denenebilir olduğu, kaç bozuk kaydın kabul edilebilir olduğu — üçü de "şöyle olmalı" diye varsayıldı, sonra ölçümle çürütüldü. Kalıcı düzeltmeler tahmini ölçümle değiştirdi: kulüp seçimi dönem sayısına, yeniden deneme hatanın kaynağına, doğrulama ayıklama oranına bakıyor.
 
@@ -758,23 +793,26 @@ Bunun süreçteki karşılığı `npm run db:verify`. Faz 1 boyunca doğrulama "
 
 ### 10.2 Bilinen Teknik Borç / İleri Kararlar
 
-| Konu                                      | Şimdiki karar                                               | Ne zaman değişir                                                            |
-| ----------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------- |
-| SQLite                                    | Yeterli                                                     | Eşzamanlı yazma veya çok örnekli dağıtım gerekirse                          |
-| Bellek içi hız sınırlama                  | Yeterli                                                     | Birden fazla sunucu örneği çalıştırılırsa                                   |
-| Wikidata tek kaynak                       | Kabul, override'larla                                       | Kapsam boşlukları %5'i aşarsa ikinci kaynak eklenir                         |
-| i18n                                      | Yalnızca TR metinler                                        | İngilizce talep edilirse (yapı hazır)                                       |
-| Tümüyle dinamik render                    | Nonce'lu CSP için kabul edildi (§7.3)                       | Next kararlı SRI sunarsa statik + hash tabanlı CSP'ye geçilir               |
-| `brace-expansion` açığı                   | Dev-only, izleniyor (§7.7)                                  | `eslint-config-next` eslint 10 uyumlu eklentilerle çıkarsa                  |
-| Yalnızca erkek ligleri                    | Kapsam kararı (BR-7)                                        | Kadın futbolu kendi lig kümesiyle ayrı kapsam olarak eklenebilir            |
-| Kulüp sınıfı beyaz listesi                | 6 sınıf, ölçülerek belirlendi                               | Yeni bir kulüp farklı `P31` ile listeden düşerse genişletilir               |
-| Tam kariyer verisi yok                    | Faz 1 kapsam sınırı (§1.3)                                  | Kariyer bilmecesi / bağlantı zinciri modları için gerekli olacak            |
-| `isYouth` hiç tetiklenmiyor               | Kabul — veri kümesinde altyapı takımı yok (388 kulübün 0'ı) | Alt lig kapsamı eklenirse altyapı/rezerv takımlar girer, BR-2 devreye girer |
-| Kulüp kuruluş yılı gürültülü              | Uyarı, bloklamıyor (§8.2)                                   | 9158 dönem kulüp kuruluşundan önce; `P571` sık sık selef kulübü gösteriyor  |
-| `db:verify` elle çalışır                  | Faz 1'de yeterli                                            | Dağıtım ardışık düzenine girince veri yükleme adımının parçası olur         |
-| Tarihsiz dönemler yanlış pozitif üretiyor | Ölçülüyor (%11,7), izleniyor; §1.4 ölçütü karşılanmıyor     | Faz 4: tarihsiz + maçsız kayıtlar için ayıklama ölçütü tasarlanacak         |
-| Ortak oyuncu sayısı sınırsız              | Kabul — ölçülen en büyük sonuç 128 oyuncu                   | Sayfalama, arayüz gerektirdiğinde (Faz 3) veya sonuç 500'ü aştığında        |
-| Altın veri seti elle bakımlı              | 31 olgu, elle doğrulandı                                    | Kapsam genişledikçe büyütülür; otomatik türetme yapılMAZ (kendini doğrular) |
+| Konu                                      | Şimdiki karar                                                                            | Ne zaman değişir                                                            |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| SQLite                                    | Yeterli                                                                                  | Eşzamanlı yazma veya çok örnekli dağıtım gerekirse                          |
+| Bellek içi hız sınırlama                  | Yeterli                                                                                  | Birden fazla sunucu örneği çalıştırılırsa                                   |
+| Wikidata tek kaynak                       | Kabul, override'larla                                                                    | Kapsam boşlukları %5'i aşarsa ikinci kaynak eklenir                         |
+| i18n                                      | Yalnızca TR metinler                                                                     | İngilizce talep edilirse (yapı hazır)                                       |
+| Tümüyle dinamik render                    | Nonce'lu CSP için kabul edildi (§7.3)                                                    | Next kararlı SRI sunarsa statik + hash tabanlı CSP'ye geçilir               |
+| `brace-expansion` açığı                   | Dev-only, izleniyor (§7.7)                                                               | `eslint-config-next` eslint 10 uyumlu eklentilerle çıkarsa                  |
+| Yalnızca erkek ligleri                    | Kapsam kararı (BR-7)                                                                     | Kadın futbolu kendi lig kümesiyle ayrı kapsam olarak eklenebilir            |
+| Kulüp sınıfı beyaz listesi                | 6 sınıf, ölçülerek belirlendi                                                            | Yeni bir kulüp farklı `P31` ile listeden düşerse genişletilir               |
+| Tam kariyer verisi yok                    | Faz 1 kapsam sınırı (§1.3)                                                               | Kariyer bilmecesi / bağlantı zinciri modları için gerekli olacak            |
+| `isYouth` hiç tetiklenmiyor               | Kabul — veri kümesinde altyapı takımı yok (388 kulübün 0'ı)                              | Alt lig kapsamı eklenirse altyapı/rezerv takımlar girer, BR-2 devreye girer |
+| Kulüp kuruluş yılı gürültülü              | Uyarı, bloklamıyor (§8.2)                                                                | 9158 dönem kulüp kuruluşundan önce; `P571` sık sık selef kulübü gösteriyor  |
+| `db:verify` elle çalışır                  | Faz 1'de yeterli                                                                         | Dağıtım ardışık düzenine girince veri yükleme adımının parçası olur         |
+| Tarihsiz dönemler yanlış pozitif üretiyor | Ölçülüyor (%11,7), izleniyor; §1.4 ölçütü karşılanmıyor                                  | Faz 4: tarihsiz + maçsız kayıtlar için ayıklama ölçütü tasarlanacak         |
+| Ortak oyuncu sayısı sınırsız              | Kabul — ölçülen en büyük sonuç 128 oyuncu                                                | Sayfalama, arayüz gerektirdiğinde (Faz 3) veya sonuç 500'ü aştığında        |
+| Altın veri seti elle bakımlı              | 31 olgu, elle doğrulandı                                                                 | Kapsam genişledikçe büyütülür; otomatik türetme yapılMAZ (kendini doğrular) |
+| Kulüp armaları gösterilmiyor              | Veri `http://commons.wikimedia.org/…`, beyaz liste `https://upload.wikimedia.org` (§7.3) | ETL, `P154` değerini doğrudan `upload` adresine normalize edince açılır     |
+| p95 gecikme ölçülmedi                     | §1.4 hedefi (150 ms) doğrulanMADI                                                        | Faz 4: gerçek veri kümesiyle ölçüm, gerekirse önbellek katmanı              |
+| Erişilebilirlik denetlenmedi              | ARIA sözleşmesi testlerle korunuyor; WCAG denetimi yapılMADI                             | Faz 4: WCAG 2.1 AA denetimi                                                 |
 
 ---
 

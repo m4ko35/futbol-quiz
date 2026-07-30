@@ -17,6 +17,16 @@ const ServerEnvSchema = z.object({
   // §7.5 — IP başına istek limiti.
   RATE_LIMIT_REQUESTS_PER_MINUTE: z.coerce.number().int().positive(),
   RATE_LIMIT_BURST: z.coerce.number().int().positive(),
+
+  /**
+   * Önümüzdeki GÜVENİLEN ters vekil sayısı (§7.5).
+   *
+   * `0` = doğrudan internete açık; `X-Forwarded-For` tamamen yok sayılır ve
+   * hız sınırı sunucu geneline düşer. Değeri gerçekte olduğundan BÜYÜK
+   * vermek, istemcinin uydurduğu adresi gerçek sanmaya yol açar — bu yüzden
+   * varsayılan iyimser değil, tek vekildir.
+   */
+  TRUSTED_PROXY_HOPS: z.coerce.number().int().min(0).default(1),
 });
 
 export type ServerEnv = z.infer<typeof ServerEnvSchema>;
