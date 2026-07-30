@@ -79,3 +79,19 @@ export class ClubNotFoundError extends DomainError {
     super("Seçilen kulüp bulunamadı.");
   }
 }
+
+/**
+ * Günün ızgarası üretilemedi (§9.1).
+ *
+ * Bu bir kullanıcı hatası DEĞİL, sunucu tarafı bir başarısızlıktır: üretim
+ * ölçülen koşullarda 365/365 başarılı. Buraya düşülüyorsa havuz bozulmuş ya
+ * da veri kümesi beklenmedik biçimde daralmıştır — sessizce boş bir ızgara
+ * göstermek yerine hata vermek doğrudur (§2.7).
+ */
+export class GridUnavailableError extends DomainError {
+  readonly code = "GRID_UNAVAILABLE";
+
+  constructor() {
+    super("Bugünün ızgarası hazırlanamadı.");
+  }
+}

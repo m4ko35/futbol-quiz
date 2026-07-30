@@ -1,6 +1,8 @@
+import type { Player } from "@/domain/entities/player";
 import type { PlayerSpells } from "@/domain/services/common-players";
+import type { GridCriterion } from "@/domain/services/grid";
 import type { SpellFilter } from "@/domain/services/spell-filter";
-import type { ClubId } from "@/domain/value-objects/identifiers";
+import type { ClubId, PlayerId } from "@/domain/value-objects/identifiers";
 
 /**
  * Oyuncu veri erişimi — PORT (PROJECT.md §4.1).
@@ -33,4 +35,42 @@ export interface PlayerRepository {
    * hedefinin (§1.4) ön koşuludur.
    */
   findCommonPlayers(query: CommonPlayersQuery): Promise<PlayerSpells[]>;
+
+  /**
+   * Bir ızgara kriterini sağlayan TÜM oyuncu kimlikleri (§9.1).
+   *
+   * Küme olarak dönmesinin sebebi üretim algoritmasıdır: dokuz hücrenin
+   * kesişimi bellekte hesaplanır. Her hücre için ayrı sorgu atmak, ızgara
+   * denemesi başına 9 gidiş-dönüş demekti; ortak oyuncu sorgusunda aynı
+   * tercih ölçülerek doğrulanmıştı (p95 47,7 → 16,8 ms).
+   *
+   * BR-2 burada da geçerlidir: altyapı dönemleri sayılmaz.
+   */
+  findIdsMatching(criterion: GridCriterion): Promise<PlayerId[]>;
+
+  /**
+   * Verilen oyuncu, verilen kriterlerin HEPSİNİ sağlıyor mu? (BR-12)
+   *
+   * Cevap doğrulaması bu tek çağrıyla yapılır. `findIdsMatching` ile küme
+   * çekip üyelik denetlemek de mümkündü ama bir cevabı doğrulamak için
+   * binlerce kimlik taşımak gereksiz.
+   */
+  matchesAll(
+    playerId: PlayerId,
+    criteria: readonly GridCriterion[],
+  ): Promise<boolean>;
+
+  /**
+   * Oyuncu adı araması — ızgarada cevap seçmek için (BR-12).
+   *
+   * Kullanıcı ad YAZMAZ, listeden SEÇER; doğrulama kimlik üzerinden yapılır.
+   * Ada göre eşleştirme bu projede dört kez yanılttı (§10.1).
+   */
+  search(query: PlayerSearchQuery): Promise<Player[]>;
+}
+
+export interface PlayerSearchQuery {
+  readonly term: string;
+  /** Çağıran tarafın kelepçelemesi beklenir (§7.1). */
+  readonly limit: number;
 }

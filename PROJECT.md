@@ -896,15 +896,68 @@ export interface GameMode<TInput, TOutput> {
 
 ### Planlanan Modlar
 
-| Mod                    | Açıklama                                              | Ek veri ihtiyacı    |
-| ---------------------- | ----------------------------------------------------- | ------------------- |
-| **Ortak oyuncu** (MVP) | İki kulüpte de oynamış oyuncular                      | —                   |
-| Kariyer bilmecesi      | Kulüp geçmişi verilir, oyuncu tahmin edilir           | —                   |
-| 3×3 ızgara             | Satır/sütun kriterlerini sağlayan oyuncu bulma        | Ülke, kupa, dönem   |
-| Bağlantı zinciri       | İki oyuncu arasında ortak kulüp üzerinden en kısa yol | Graf sorgusu (BFS)  |
-| Az mı çok mu           | Maç/gol sayısı karşılaştırması                        | İstatistik alanları |
+| Mod                    | Açıklama                                              | Durum                        |
+| ---------------------- | ----------------------------------------------------- | ---------------------------- |
+| **Ortak oyuncu** (MVP) | İki kulüpte de oynamış oyuncular                      | ✅ Faz 3                     |
+| **3×3 ızgara**         | Satır/sütun kriterlerini sağlayan oyuncu bulma        | Faz 4.4 — §9.1               |
+| Kariyer bilmecesi      | Kulüp geçmişi verilir, oyuncu tahmin edilir           | Tam kariyer verisi gerektirir |
+| Bağlantı zinciri       | İki oyuncu arasında ortak kulüp üzerinden en kısa yol | Tam kariyer verisi gerektirir |
+| Az mı çok mu           | Maç/gol sayısı karşılaştırması                        | Veri %73 dolu; havuz daralır |
+
+> **Kariyer bilmecesi ve bağlantı zinciri neden ertelendi.** İkisi de oyuncunun kulüp geçmişini TAM olarak bilmeyi gerektirir; §1.3'teki kapsam sınırı gereği bu altı lig dışındaki kariyerler çekilmiyor. Ajax'ta oynamış bir oyuncunun o dönemi görünmez — bilmece eksik bir kariyer üzerinden kurulur ve bağlantı zincirinin bulduğu "en kısa yol" gerçekte en kısa olmayabilir. 3×3 ızgara bu sınırdan etkilenMEZ: sorusu "bu kulüpte oynadı mı", "başka nerede oynadı" değil.
 
 Bu modlar mevcut `Spell` modelini kullanır; yeni tablo değil, yeni **alan** gerektirirler. Şema bu genişlemeye göre tasarlandı (§5.2'deki `appearances`, `goals`, `nationality` alanları şimdiden mevcut).
+
+### 9.1 3×3 Izgara
+
+Üç satır ve üç sütun kriteri; her hücreye **iki kriteri de sağlayan** bir oyuncu yazılır. Sütunlar her zaman kulüptür; satırlar kulüp veya ülke olabilir.
+
+#### Ölçüm: üretilebilirlik
+
+Izgaranın rastgele üretilebilmesi tasarımın ön koşuluydu; ölçüldü (200 tohum, gerçek veri):
+
+| Yapılandırma            | Geçerli ızgara | Ort. deneme | Hücre başına cevap (medyan) |
+| ----------------------- | -------------- | ----------- | --------------------------- |
+| 324 kulüp, alt sınır 3  | 200/200        | 2,3         | 7                           |
+| 120 kulüp, 5–200 cevap  | 150/150        | 1,8         | 22                          |
+| **60 kulüp, 5–150**     | **150/150**    | **1,1**     | **24**                      |
+
+Üretim ~9 ms sürüyor. Yani mod teknik olarak mümkün — ama **oynanabilir değil**, ve sebebi aşağıdaki bulgu.
+
+#### Ölçüm: "oyuncu sayısı" ünlülük DEĞİL, YAŞ ölçer
+
+İlk tasarım kulüp havuzunu "en çok oyunculu N kulüp" diye seçiyordu. Ölçüm bunu çürüttü — en çok oyunculu 60 kulüp şunları içeriyor:
+
+```
+Genoa (1313)  Birmingham City (1303)  Brentford (1294)  Bradford City (1183)
+Blackpool (1105)  Oldham Athletic (905)  Calcio Padova (866)  SPAL (734)
+```
+
+…ve şunları **içermiyor**: Real Madrid (824), Bayern (766), PSG (588), Galatasaray (681). Sebep açık: oyuncu sayısı kulübün kaç yıldır var olduğunu ölçüyor, ne kadar tanındığını değil.
+
+Veride tanınırlık sinyali arandı, **yoktur**:
+
+| Aday sinyal | Ölçüm                                                                       |
+| ----------- | --------------------------------------------------------------------------- |
+| `leagueId`  | 388 kulübün 388'inde dolu — ayırt etmiyor                                   |
+| `crestUrl`  | Yalnızca 114 kulüpte; Real Madrid, PSG, Man Utd, Arsenal, Fenerbahçe'de YOK |
+
+Tanınırlık ölçülebilir bir veri değil, bir **ürün kararıdır**. Bu yüzden ızgara havuzu **küratörlüdür** ve QID ile sabitlenmiştir — `db:verify`'daki zorunlu kulüp listesiyle aynı gerekçe (§8.2): ada güvenmek bu projede dört kez yanılttı.
+
+#### Ölçüm: ülke ekseni
+
+Ülke × kulüp kesişimleri **iki kutuplu**: medyan 4, p95 557. Yani ya birkaç oyuncu (tahmin edilemez) ya da yüzlerce (bedava — "Bayern'de oynamış bir Alman"). Ölçülen dağılımda çiftlerin yalnızca **%40'ı** 5–150 bandına düşüyor. Ülke satırları bu yüzden bandın içinde kalacak şekilde seçilir; sağlanamazsa ızgara kulüp satırlarıyla kurulur.
+
+#### Kurallar
+
+- **BR-9 — Hücre geçerliliği.** Bir hücre, satır ve sütun kriterlerinin **ikisini birden** sağlayan en az `MIN_CELL_ANSWERS` oyuncu içermelidir. Dokuz hücrenin biri bile sağlamıyorsa ızgara üretilmemiş sayılır.
+- **BR-10 — Tekrar yok.** Bir oyuncu tek bir ızgarada yalnızca bir hücrede kullanılabilir.
+- **BR-11 — Günlük ızgara.** Izgara tarihten türetilen bir tohumla **deterministik** üretilir: aynı gün herkes aynı ızgarayı görür. Gerekçe iki katlı — (1) yanıt önbelleklenebilir hâle gelir (§7.9), rastgele ızgara CDN önbelleğini işlevsiz kılardı; (2) ileride skor tablosu (§9) ancak herkes aynı soruyu çözerse anlamlı olur.
+- **BR-12 — Cevap kimlikle doğrulanır.** Kullanıcı bir oyuncu **seçer**, ad yazmaz; doğrulama `playerId` üzerinden yapılır. Ada göre eşleştirme bu projede dört kez yanılttı (§10.1); "Shevchenko" arayan kullanıcı "Andriy Şevçenko" kaydını bulamazdı.
+
+#### Sızıntı kuralı
+
+Izgara yanıtı **cevapları taşımaz** — yalnızca kriterleri. Hücre başına kaç cevap olduğu da verilmez: sayı, tahmin alanını daraltan bir ipucudur ve oyunun bir parçası olarak sunulmadıkça sızıntıdır (§2.4).
 
 ---
 

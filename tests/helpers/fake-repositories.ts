@@ -5,12 +5,15 @@ import type {
 import type {
   CommonPlayersQuery,
   PlayerRepository,
+  PlayerSearchQuery,
 } from "@/application/ports/player-repository";
 import type { Club } from "@/domain/entities/club";
+import type { Player } from "@/domain/entities/player";
 import type { PlayerSpells } from "@/domain/services/common-players";
+import type { GridCriterion } from "@/domain/services/grid";
 import { spellQualifies } from "@/domain/services/spell-filter";
 import { toSearchKey } from "@/domain/value-objects/search-key";
-import type { ClubId } from "@/domain/value-objects/identifiers";
+import type { ClubId, PlayerId } from "@/domain/value-objects/identifiers";
 
 /**
  * Port'ların bellek içi uygulamaları.
@@ -49,6 +52,21 @@ export class FakeClubRepository implements ClubRepository {
     const wanted = new Set<string>(ids);
     return Promise.resolve(this.#clubs.filter((club) => wanted.has(club.id)));
   }
+
+  /**
+   * Fake, QID'yi kulübün `id`'si sayar.
+   *
+   * Domain `Club` varlığı `wikidataId` taşımaz (dış kaynak kimliği bir domain
+   * kavramı değil, §5.1). Testler kimlikleri kendileri belirlediği için bu
+   * eşleme yeterli; gerçek eşlemenin doğruluğu entegrasyon testlerinde
+   * ölçülür.
+   */
+  findByWikidataIds(wikidataIds: readonly string[]): Promise<Club[]> {
+    const wanted = new Set(wikidataIds);
+    return Promise.resolve(
+      this.#clubs.filter((club) => club.isSelectable && wanted.has(club.id)),
+    );
+  }
 }
 
 export class FakePlayerRepository implements PlayerRepository {
@@ -79,5 +97,53 @@ export class FakePlayerRepository implements PlayerRepository {
     }
 
     return Promise.resolve(result);
+  }
+
+  /** §9.1 — kriteri sağlayan oyuncu kimlikleri. */
+  findIdsMatching(criterion: GridCriterion): Promise<PlayerId[]> {
+    const ids = this.#candidates
+      .filter((candidate) =>
+        criterion.type === "club"
+          ? candidate.spells.some(
+              (spell) => spell.clubId === criterion.clubId && !spell.isYouth,
+            )
+          : candidate.player.nationality === criterion.code,
+      )
+      .map((candidate) => candidate.player.id);
+
+    return Promise.resolve([...new Set(ids)]);
+  }
+
+  /** BR-12 — kimlikle doğrulama. */
+  matchesAll(
+    id: PlayerId,
+    criteria: readonly GridCriterion[],
+  ): Promise<boolean> {
+    if (criteria.length === 0) return Promise.resolve(false);
+
+    const candidate = this.#candidates.find((c) => c.player.id === id);
+    if (candidate === undefined) return Promise.resolve(false);
+
+    return Promise.resolve(
+      criteria.every((criterion) =>
+        criterion.type === "club"
+          ? candidate.spells.some(
+              (spell) => spell.clubId === criterion.clubId && !spell.isYouth,
+            )
+          : candidate.player.nationality === criterion.code,
+      ),
+    );
+  }
+
+  search(query: PlayerSearchQuery): Promise<Player[]> {
+    const term = toSearchKey(query.term);
+    if (term.length === 0) return Promise.resolve([]);
+
+    return Promise.resolve(
+      this.#candidates
+        .map((candidate) => candidate.player)
+        .filter((player) => toSearchKey(player.name).includes(term))
+        .slice(0, query.limit),
+    );
   }
 }

@@ -35,4 +35,14 @@ export interface ClubRepository {
    * iş kuralı uygulamak değil.
    */
   findByIds(ids: readonly ClubId[]): Promise<Club[]>;
+
+  /**
+   * Wikidata QID'lerine karşılık gelen SEÇİLEBİLİR kulüpler (§9.1).
+   *
+   * Izgara havuzu QID ile sabitlenmiştir; kimlikler veritabanına özgü
+   * (`cuid`) olduğu için her koşuda değişebilir, QID değişmez. Bulunamayan
+   * QID'ler sessizce atlanır — havuzun eksiksizliğini `db:verify` denetler
+   * (§8.2), çalışma zamanı değil.
+   */
+  findByWikidataIds(wikidataIds: readonly string[]): Promise<Club[]>;
 }

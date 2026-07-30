@@ -1,11 +1,19 @@
 import type {
   CommonPlayersQuery,
   PlayerRepository,
+  PlayerSearchQuery,
 } from "@/application/ports/player-repository";
+import type { Player } from "@/domain/entities/player";
 import type { Spell } from "@/domain/entities/spell";
 import type { PlayerSpells } from "@/domain/services/common-players";
+import type { GridCriterion } from "@/domain/services/grid";
 import type { SpellFilter } from "@/domain/services/spell-filter";
-import { clubId, playerId } from "@/domain/value-objects/identifiers";
+import { toSearchKey } from "@/domain/value-objects/search-key";
+import {
+  clubId,
+  playerId,
+  type PlayerId,
+} from "@/domain/value-objects/identifiers";
 import type { PrismaClient } from "@/generated/prisma";
 
 /**
@@ -91,6 +99,102 @@ export class PrismaPlayerRepository implements PlayerRepository {
     });
 
     return rows.map(toPlayerSpells);
+  }
+
+  /**
+   * §9.1 — bir kriteri sağlayan tüm oyuncu kimlikleri.
+   *
+   * Kulüp kriteri `[clubId, playerId]` indeksinden okunur; ülke kriteri
+   * `players` üzerinden. İkisi de yalnızca kimlik seçer — üretim algoritması
+   * başka hiçbir alana bakmaz ve satır taşımak boşuna maliyettir.
+   */
+  async findIdsMatching(criterion: GridCriterion): Promise<PlayerId[]> {
+    if (criterion.type === "club") {
+      const rows = await this.#prisma.spell.findMany({
+        // BR-2: altyapı dönemleri ortaklık saymaz.
+        where: { clubId: criterion.clubId, isYouth: false },
+        select: { playerId: true },
+        distinct: ["playerId"],
+      });
+      return rows.map((row) => playerId(row.playerId));
+    }
+
+    const rows = await this.#prisma.player.findMany({
+      where: { nationality: criterion.code },
+      select: { id: true },
+    });
+    return rows.map((row) => playerId(row.id));
+  }
+
+  /** BR-12 — cevap doğrulaması; kimlik üzerinden, ad üzerinden DEĞİL. */
+  async matchesAll(
+    id: PlayerId,
+    criteria: readonly GridCriterion[],
+  ): Promise<boolean> {
+    if (criteria.length === 0) return false;
+
+    const clubIds = criteria
+      .filter((c) => c.type === "club")
+      .map((c) => (c.type === "club" ? c.clubId : ""));
+    const codes = criteria
+      .filter((c) => c.type === "nationality")
+      .map((c) => (c.type === "nationality" ? c.code : ""));
+
+    // Ülke kriteri birden fazlaysa aynı anda sağlanamaz (bir oyuncunun bu
+    // veri kümesinde tek uyruğu var); sorguya gitmeden `false`.
+    if (codes.length > 1) return false;
+
+    const player = await this.#prisma.player.findUnique({
+      where: { id },
+      select: {
+        nationality: true,
+        spells: {
+          where: { clubId: { in: clubIds }, isYouth: false },
+          select: { clubId: true },
+          distinct: ["clubId"],
+        },
+      },
+    });
+    if (player === null) return false;
+
+    const firstCode = codes[0];
+    if (firstCode !== undefined && player.nationality !== firstCode) {
+      return false;
+    }
+    // Her kulüp kriteri için EN AZ BİR dönem bulunmuş olmalı.
+    return new Set(player.spells.map((s) => s.clubId)).size === clubIds.length;
+  }
+
+  /**
+   * Oyuncu araması (BR-12).
+   *
+   * `searchKey` üzerinden aranır — kulüp aramasıyla aynı normalizasyon
+   * (Türkçe ı/İ dâhil). Kullanıcının yazdığı ham metin veritabanı alanına
+   * doğrudan verilmez.
+   */
+  async search(query: PlayerSearchQuery): Promise<Player[]> {
+    const key = toSearchKey(query.term);
+    if (key.length === 0) return [];
+
+    const rows = await this.#prisma.player.findMany({
+      where: { searchKey: { contains: key } },
+      // Kısa adlar önce: "Kaka" arayan kullanıcı "Kakabadze"yi değil onu bekler.
+      orderBy: [{ searchKey: "asc" }],
+      take: query.limit,
+      select: {
+        id: true,
+        name: true,
+        nationality: true,
+        position: true,
+      },
+    });
+
+    return rows.map((row) => ({
+      id: playerId(row.id),
+      name: row.name,
+      nationality: row.nationality,
+      position: row.position,
+    }));
   }
 }
 

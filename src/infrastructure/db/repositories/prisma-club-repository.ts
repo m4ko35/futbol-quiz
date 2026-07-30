@@ -48,6 +48,17 @@ export class PrismaClubRepository implements ClubRepository {
 
     return rows.map(toClub);
   }
+
+  /** §9.1 — ızgara havuzunu QID'den çözer. */
+  async findByWikidataIds(wikidataIds: readonly string[]): Promise<Club[]> {
+    if (wikidataIds.length === 0) return [];
+
+    const rows = await this.#prisma.club.findMany({
+      where: { wikidataId: { in: [...wikidataIds] }, isSelectable: true },
+    });
+
+    return rows.map(toClub);
+  }
 }
 
 /** Prisma satırı → domain varlığı. */
