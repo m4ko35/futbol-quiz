@@ -93,6 +93,10 @@ const eslintConfig = defineConfig([
                 "react",
                 "react-dom",
                 "@prisma/client",
+                // Prisma'nin urettigi istemci bu projede src/generated altinda
+                // durur; "@prisma/client" desenine takilmaz, ayrica yazilir.
+                "@/generated",
+                "@/generated/**",
               ],
               message: layerViolation("domain", "yalnızca kendi içi"),
             },
@@ -123,6 +127,8 @@ const eslintConfig = defineConfig([
                 "react",
                 "react-dom",
                 "@prisma/client",
+                "@/generated",
+                "@/generated/**",
               ],
               message: layerViolation("application", "@/domain ve @/lib"),
             },
@@ -145,6 +151,8 @@ const eslintConfig = defineConfig([
                 "@/infrastructure",
                 "@/infrastructure/**",
                 "@prisma/client",
+                "@/generated",
+                "@/generated/**",
               ],
               message: layerViolation(
                 "components",

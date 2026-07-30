@@ -5,7 +5,7 @@
 
 **Sürüm:** 0.1.0
 **Tarih:** 2026-07-29
-**Durum:** Faz 1 tamamlandı — sıradaki Faz 2 (çekirdek iş mantığı)
+**Durum:** Faz 2 tamamlandı — sıradaki Faz 3 (API ve arayüz)
 
 ---
 
@@ -63,7 +63,10 @@ Tam kariyer çıkarımı (oyuncunun geçtiği her kulüp) Faz 5'teki **kariyer b
 
 ### 1.4 Başarı Kriterleri
 
-- Bilinen 30 kulüp çiftinden oluşan doğrulama setinde **≥ %95 isabet** (yanlış pozitif yok, bilinen ortak oyuncuların ≥ %95'i bulunuyor).
+- Bilinen kulüp çiftlerinden oluşan doğrulama setinde **≥ %95 isabet** (bilinen ortak oyuncuların ≥ %95'i bulunuyor).
+
+  > **Durum (Faz 2):** Çağrı tarafı karşılanıyor — elle doğrulanmış 31 olgunun 31'i bulunuyor. **Yanlış pozitif tarafı karşılanMIYOR.** Dönemlerin %11,7'si tarihsiz ve maçsızdır; bunların bir kısmı altyapı/deneme kaydıdır ama ana kulüp varlığına bağlandıkları için `isYouth` ile ayıklanamaz. Ölçülmüş örnek: Chedric Seedorf (`Q1650766`) Real Madrid ve Inter'de tarihsiz kayıtlarla görünüyor. Bir test bu oranı izler ve büyümesini engeller; kalıcı çözüm Faz 4'e bırakıldı (§10.2).
+
 - Ortak oyuncu sorgusu **p95 < 150 ms** (sunucu tarafı).
 - İlk anlamlı içerik (LCP) **< 2.0 s** (yavaş 4G, orta seviye cihaz).
 - Bilinen kritik/yüksek seviye güvenlik açığı **sıfır** (`npm audit`, bkz. §7).
@@ -164,9 +167,11 @@ futbol-quiz/
 ├── src/
 │   ├── domain/
 │   │   ├── entities/              ← Player, Club, Spell
-│   │   ├── value-objects/         ← DateRange, ClubId, PlayerId, Season
-│   │   ├── services/              ← findOverlap, isSharedPlayer (saf fonksiyon)
-│   │   └── errors/                ← DomainError hiyerarşisi
+│   │   ├── value-objects/         ← ClubId/PlayerId (markalı), YearRange,
+│   │   │                            Season (BR-6), SearchKey (TR normalizasyon)
+│   │   ├── services/              ← spellQualifies (BR-2/3), findCommonPlayers
+│   │   │                            (BR-1/5) — hepsi saf fonksiyon
+│   │   └── errors/                ← DomainError hiyerarşisi (§6.3 kodları)
 │   │
 │   ├── application/
 │   │   ├── ports/                 ← ClubRepository, PlayerRepository arayüzleri
@@ -179,7 +184,7 @@ futbol-quiz/
 │   ├── infrastructure/
 │   │   ├── db/
 │   │   │   ├── client.ts          ← tekil PrismaClient
-│   │   │   └── repositories/      ← port uygulamaları
+│   │   │   └── repositories/      ← port uygulamaları + kompozisyon kökü
 │   │   ├── cache/                 ← LRU bellek içi önbellek
 │   │   ├── rate-limit/            ← token bucket
 │   │   └── config/env.ts          ← Zod ile doğrulanmış ortam değişkenleri
@@ -196,9 +201,11 @@ futbol-quiz/
 │   └── lib/                       ← saf yardımcılar (log, result tipi)
 │
 └── tests/
-    ├── unit/                      ← domain — veritabanı yok
-    ├── integration/               ← repo'lar — geçici SQLite
-    └── fixtures/                  ← doğrulama seti (§1.4)
+    ├── unit/                      ← domain + application — veritabanı yok
+    ├── integration/               ← repo'lar — geçici SQLite, migrate deploy
+    ├── golden/                    ← gerçek veri kümesi; DB yoksa atlanır
+    ├── fixtures/                  ← elle doğrulanmış olgular (§8.1)
+    └── helpers/                   ← kurucular, sahte port'lar, test DB'si
 ```
 
 ---
@@ -596,12 +603,31 @@ Denenen ve **reddedilen** çözümler:
 
 | Seviye      | Kapsam                                                          | Araç            |
 | ----------- | --------------------------------------------------------------- | --------------- |
-| Birim       | `domain/` iş kuralları (BR-1…BR-6), normalizasyon fonksiyonları | Vitest          |
+| Birim       | `domain/` iş kuralları (BR-1…BR-6), use-case'ler, normalizasyon | Vitest          |
 | Entegrasyon | Repository'ler, gerçek şema ile geçici SQLite dosyası           | Vitest + Prisma |
 | Sözleşme    | API route'ları: geçerli/geçersiz girdi, hata biçimi, limitler   | Vitest          |
-| Doğruluk    | 30 kulüp çiftlik altın veri seti (`tests/fixtures/`)            | Vitest          |
+| Doğruluk    | Elle doğrulanmış olgu seti (`tests/fixtures/golden-pairs.ts`)   | Vitest          |
 
 **Kapsam eşiği:** `domain/` ve `application/` için satır kapsamı ≥ %85. UI bileşenleri için eşik yok.
+
+#### Her seviyenin cevapladığı soru farklıdır
+
+Üç seviye üst üste binen değil, **birbirini tamamlayan** sorular sorar. Karıştırılırsa biri diğerinin yerine geçmiş sayılır ve arada boşluk kalır:
+
+- **Birim** — kural doğru mu _yazılmış_? Sahte port'larla çalışır, milisaniye sürer. Veritabanı sorgusunun doğruluğu hakkında hiçbir şey söylemez.
+- **Entegrasyon** — kural SQL'e doğru mu _çevrilmiş_? `spellQualifies` bir kez TypeScript'te, bir kez `WHERE` olarak yazılı; test filtresiz satırları çekip domain yüklemini bellekte uygular ve iki sonucun aynı olmasını bekler. Verinin kendisi hakkında bir şey söylemez.
+- **Doğruluk** — sonuç gerçekten _doğru mu_? Gerçek veri kümesine bakar.
+
+#### Altın veri seti
+
+`tests/fixtures/golden-pairs.ts` iki farklı şey tutar ve ayrım kasıtlıdır:
+
+1. **Elle doğrulanmış olgular (31 kayıt, 27 kulüp çifti)** — "şu oyuncu şu iki kulüpte de oynadı". Kaynağı genel futbol bilgisidir, veritabanı değil; veritabanından türetilmiş bir "altın" set yalnızca kendini doğrular. **Çağrıyı** (recall) ölçer.
+2. **Dondurulmuş sayımlar (6 çift)** — o günkü sonuç. Doğruluk iddiası taşımaz, yalnızca **gerileme** yakalar; ETL yeniden koştuğunda sayılar oynayacağı için eşleşme %15 toleranslıdır.
+
+Kimlikler kulüp ve oyuncu için **QID ile** sabitlenir. Gerekçe ölçülmüştür: `name contains "Shevchenko"` hiçbir şey bulmuyor, çünkü kayıt Türkçe etiketiyle "Andriy Şevçenko" olarak duruyor. Ad bir gösterim ayrıntısıdır; dile, alfabeye ve düzenlemeye göre değişir.
+
+Bu testler veritabanı yoksa **atlanır** (ETL çıktısı depoya girmez). Sessizce geçmezler — "çalıştı" ile "çalışmadı ama ses çıkarmadı" karıştırılmamalıdır.
 
 ### 8.2 Veri Doğruluğu Denetimleri
 
@@ -676,12 +702,14 @@ Bu modlar mevcut `Spell` modelini kullanır; yeni tablo değil, yeni **alan** ge
 - [x] Doğrulama denetimleri (§8.2), otoriter `load` adımı, `npm run db:verify`
 - [x] Altı ligin tam veri çekimi
 
-### Faz 2 — Çekirdek İş Mantığı
+### Faz 2 — Çekirdek İş Mantığı ✅
 
-- [ ] Domain varlıkları ve değer nesneleri
-- [ ] `findCommonPlayers` use-case'i + BR-1…BR-6 birim testleri
-- [ ] Repository port'ları ve Prisma uygulamaları
-- [ ] Altın veri seti ile doğruluk testleri
+- [x] Domain varlıkları ve değer nesneleri (markalı `ClubId`/`PlayerId`, `YearRange`)
+- [x] `findCommonPlayers` use-case'i + BR-1…BR-6 birim testleri
+- [x] `searchClubs` use-case'i, girdi kelepçeleme (§7.1)
+- [x] Repository port'ları ve Prisma uygulamaları + kompozisyon kökü
+- [x] `GameMode` sözleşmesi ve kayıt defteri (§9)
+- [x] Altın veri seti ile doğruluk testleri
 
 ### Faz 3 — API ve Arayüz
 
@@ -705,40 +733,48 @@ Bu modlar mevcut `Spell` modelini kullanır; yeni tablo değil, yeni **alan** ge
 
 ### 10.1 Şu Anki Odak
 
-**Faz 2 — Çekirdek İş Mantığı.** Faz 1 tamamlandı; veritabanı dolu ve kabul kontrolünden geçiyor. Sonraki somut adım: domain varlıkları ve `findCommonPlayers` use-case'i.
+**Faz 3 — API ve Arayüz.** Faz 2 tamamlandı; iş mantığı çalışıyor ve gerçek veriye karşı doğrulandı. Sonraki somut adım: `/api/clubs` ve `/api/common-players` route handler'ları, ardından kulüp seçim arayüzü.
 
-Faz 1'in bıraktığı doğrulanabilir taban:
+Faz 3 için hazır olanlar: use-case'ler dışarıya §6.1 ve §6.2'deki şekillerle birebir DTO döndürüyor, hata hiyerarşisi §6.3 tablosuyla eşleşen `code` alanını taşıyor, kompozisyon kökü `repositories` olarak kurulu. Route handler'lara kalan: Zod ile sorgu parametrelerini ayrıştırmak, use-case'i çağırmak, `DomainError`'ı HTTP durumuna eşlemek.
 
-| Komut               | Sonuç                                                      |
-| ------------------- | ---------------------------------------------------------- |
-| `npm run typecheck` | temiz                                                      |
-| `npm run lint`      | temiz (0 uyarı)                                            |
-| `npm run test`      | 60/60 geçiyor                                              |
-| `npm run build`     | başarılı, tüm rotalar dinamik (nonce için gerekli)         |
-| `npm run audit:ci`  | 0 açık (üretim ağacı)                                      |
-| `npm run etl`       | 388 kulüp · 76.358 oyuncu · 193.003 dönem                  |
-| `npm run db:verify` | 18/18 kontrol geçiyor (10 zorunlu kulüp, bütünlük, 5 çift) |
+Faz 2'nin bıraktığı doğrulanabilir taban:
+
+| Komut                   | Sonuç                                                      |
+| ----------------------- | ---------------------------------------------------------- |
+| `npm run typecheck`     | temiz                                                      |
+| `npm run lint`          | temiz (0 uyarı)                                            |
+| `npm run test`          | 212/212 geçiyor (150 birim, 17 entegrasyon, 45 doğruluk)   |
+| `npm run test:coverage` | `domain/` + `application/` %100 satır, dal, fonksiyon      |
+| `npm run build`         | başarılı, tüm rotalar dinamik (nonce için gerekli)         |
+| `npm run audit:ci`      | 0 açık (üretim ağacı)                                      |
+| `npm run etl`           | 388 kulüp · 76.358 oyuncu · 193.003 dönem                  |
+| `npm run db:verify`     | 18/18 kontrol geçiyor (10 zorunlu kulüp, bütünlük, 5 çift) |
 
 **Faz 1'in asıl dersi.** Çekim mantığı üç kez üst üste kırıldı ve üçünde de aynı hatayı yaptım: veriden okunabilecek bir şeyi kuralla tahmin ettim. `P831`'in yönü, hangi hataların yeniden denenebilir olduğu, kaç bozuk kaydın kabul edilebilir olduğu — üçü de "şöyle olmalı" diye varsayıldı, sonra ölçümle çürütüldü. Kalıcı düzeltmeler tahmini ölçümle değiştirdi: kulüp seçimi dönem sayısına, yeniden deneme hatanın kaynağına, doğrulama ayıklama oranına bakıyor.
 
-Bunun süreçteki karşılığı `npm run db:verify`. Faz 1 boyunca doğrulamam "birkaç kulübe bakıp iyi görünüyor" demekten ibaretti ve üç gerilemeyi kaçırdı. Kontrolün ilk sürümü sonuncusunu ilk koşuda yakaladı.
+Bunun süreçteki karşılığı `npm run db:verify`. Faz 1 boyunca doğrulama "birkaç kulübe bakıp iyi görünüyor" demekten ibaretti ve üç gerilemeyi kaçırdı. Kontrolün ilk sürümü sonuncusunu ilk koşuda yakaladı.
+
+**Faz 2 aynı dersin dördüncü tekrarını gösterdi.** Altın veri seti kurulurken `name contains "Shevchenko"` boş döndü; kayıt Türkçe etiketiyle "Andriy Şevçenko" olarak duruyordu. Ada güvenmenin bedeli bu kez bir gerileme değil, sahte bir "veri eksik" teşhisi oldu. Kural artık kod tabanında üç ayrı yerde uygulanıyor: `db:verify`, altın veri seti ve entegrasyon testleri kimliği **QID ile** sabitler.
 
 ### 10.2 Bilinen Teknik Borç / İleri Kararlar
 
-| Konu                         | Şimdiki karar                                               | Ne zaman değişir                                                            |
-| ---------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------- |
-| SQLite                       | Yeterli                                                     | Eşzamanlı yazma veya çok örnekli dağıtım gerekirse                          |
-| Bellek içi hız sınırlama     | Yeterli                                                     | Birden fazla sunucu örneği çalıştırılırsa                                   |
-| Wikidata tek kaynak          | Kabul, override'larla                                       | Kapsam boşlukları %5'i aşarsa ikinci kaynak eklenir                         |
-| i18n                         | Yalnızca TR metinler                                        | İngilizce talep edilirse (yapı hazır)                                       |
-| Tümüyle dinamik render       | Nonce'lu CSP için kabul edildi (§7.3)                       | Next kararlı SRI sunarsa statik + hash tabanlı CSP'ye geçilir               |
-| `brace-expansion` açığı      | Dev-only, izleniyor (§7.7)                                  | `eslint-config-next` eslint 10 uyumlu eklentilerle çıkarsa                  |
-| Yalnızca erkek ligleri       | Kapsam kararı (BR-7)                                        | Kadın futbolu kendi lig kümesiyle ayrı kapsam olarak eklenebilir            |
-| Kulüp sınıfı beyaz listesi   | 6 sınıf, ölçülerek belirlendi                               | Yeni bir kulüp farklı `P31` ile listeden düşerse genişletilir               |
-| Tam kariyer verisi yok       | Faz 1 kapsam sınırı (§1.3)                                  | Kariyer bilmecesi / bağlantı zinciri modları için gerekli olacak            |
-| `isYouth` hiç tetiklenmiyor  | Kabul — veri kümesinde altyapı takımı yok (388 kulübün 0'ı) | Alt lig kapsamı eklenirse altyapı/rezerv takımlar girer, BR-2 devreye girer |
-| Kulüp kuruluş yılı gürültülü | Uyarı, bloklamıyor (§8.2)                                   | 9158 dönem kulüp kuruluşundan önce; `P571` sık sık selef kulübü gösteriyor  |
-| `db:verify` elle çalışır     | Faz 1'de yeterli                                            | Dağıtım ardışık düzenine girince veri yükleme adımının parçası olur         |
+| Konu                                      | Şimdiki karar                                               | Ne zaman değişir                                                            |
+| ----------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------- |
+| SQLite                                    | Yeterli                                                     | Eşzamanlı yazma veya çok örnekli dağıtım gerekirse                          |
+| Bellek içi hız sınırlama                  | Yeterli                                                     | Birden fazla sunucu örneği çalıştırılırsa                                   |
+| Wikidata tek kaynak                       | Kabul, override'larla                                       | Kapsam boşlukları %5'i aşarsa ikinci kaynak eklenir                         |
+| i18n                                      | Yalnızca TR metinler                                        | İngilizce talep edilirse (yapı hazır)                                       |
+| Tümüyle dinamik render                    | Nonce'lu CSP için kabul edildi (§7.3)                       | Next kararlı SRI sunarsa statik + hash tabanlı CSP'ye geçilir               |
+| `brace-expansion` açığı                   | Dev-only, izleniyor (§7.7)                                  | `eslint-config-next` eslint 10 uyumlu eklentilerle çıkarsa                  |
+| Yalnızca erkek ligleri                    | Kapsam kararı (BR-7)                                        | Kadın futbolu kendi lig kümesiyle ayrı kapsam olarak eklenebilir            |
+| Kulüp sınıfı beyaz listesi                | 6 sınıf, ölçülerek belirlendi                               | Yeni bir kulüp farklı `P31` ile listeden düşerse genişletilir               |
+| Tam kariyer verisi yok                    | Faz 1 kapsam sınırı (§1.3)                                  | Kariyer bilmecesi / bağlantı zinciri modları için gerekli olacak            |
+| `isYouth` hiç tetiklenmiyor               | Kabul — veri kümesinde altyapı takımı yok (388 kulübün 0'ı) | Alt lig kapsamı eklenirse altyapı/rezerv takımlar girer, BR-2 devreye girer |
+| Kulüp kuruluş yılı gürültülü              | Uyarı, bloklamıyor (§8.2)                                   | 9158 dönem kulüp kuruluşundan önce; `P571` sık sık selef kulübü gösteriyor  |
+| `db:verify` elle çalışır                  | Faz 1'de yeterli                                            | Dağıtım ardışık düzenine girince veri yükleme adımının parçası olur         |
+| Tarihsiz dönemler yanlış pozitif üretiyor | Ölçülüyor (%11,7), izleniyor; §1.4 ölçütü karşılanmıyor     | Faz 4: tarihsiz + maçsız kayıtlar için ayıklama ölçütü tasarlanacak         |
+| Ortak oyuncu sayısı sınırsız              | Kabul — ölçülen en büyük sonuç 128 oyuncu                   | Sayfalama, arayüz gerektirdiğinde (Faz 3) veya sonuç 500'ü aştığında        |
+| Altın veri seti elle bakımlı              | 31 olgu, elle doğrulandı                                    | Kapsam genişledikçe büyütülür; otomatik türetme yapılMAZ (kendini doğrular) |
 
 ---
 
