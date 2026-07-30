@@ -19,6 +19,7 @@ const spell = (overrides: Partial<SpellDto> = {}): SpellDto => ({
   isLoan: false,
   appearances: null,
   goals: null,
+  hasEvidence: true,
   ...overrides,
 });
 
@@ -178,5 +179,63 @@ describe("CommonPlayersResult", () => {
     render(<CommonPlayersResult result={result({ count: 42 })} />);
 
     expect(screen.getByText(/42 ortak oyuncu/u)).toBeInTheDocument();
+  });
+});
+
+describe("BR-8 — kanıtsız dönem işareti", () => {
+  const withUnevidenced = () =>
+    result({
+      players: [
+        {
+          id: "p1",
+          name: "Bill Dale",
+          nationality: null,
+          position: null,
+          spellsAtA: [
+            spell({
+              startYear: null,
+              endYear: null,
+              appearances: null,
+              hasEvidence: false,
+            }),
+          ],
+          spellsAtB: [spell({ startYear: 1931, endYear: 1937 })],
+        },
+      ],
+    });
+
+  it("kanıtsız dönem LİSTEDEN ÇIKARILMAZ", () => {
+    // Elemenin bedeli ölçüldü (§1.4): Bill Dale gerçekten iki kulüpte de
+    // oynadı ve eleme onu da siliyordu. Bu testin koruduğu şey, ileride
+    // "temizlik" niyetiyle eklenecek bir filtrenin sessizce doğru cevapları
+    // kaldırmasını engellemektir.
+    render(<CommonPlayersResult result={withUnevidenced()} />);
+
+    expect(screen.getByText("Bill Dale")).toBeInTheDocument();
+  });
+
+  it("kanıtsız dönem işaretlenir ve açıklaması gösterilir", () => {
+    render(<CommonPlayersResult result={withUnevidenced()} />);
+
+    expect(screen.getAllByText(/kaynakta ayrıntı yok/u).length).toBeGreaterThan(
+      0,
+    );
+    expect(screen.getByText(/doğrulukları teyit edilemiyor/u)).toBeVisible();
+  });
+
+  it("bütün dönemler kanıtlıysa açıklama GÖSTERİLMEZ", () => {
+    // Her listede duran bir uyarı, uyarı olmaktan çıkar.
+    render(<CommonPlayersResult result={result()} />);
+
+    expect(screen.queryByText(/kaynakta ayrıntı yok/u)).not.toBeInTheDocument();
+  });
+
+  it("işaret rengin yanında METİNLE de verilir (WCAG 1.4.1)", () => {
+    // Bilgi yalnızca kesik çizgiyle taşınırsa renk/biçim ayırt edemeyen
+    // kullanıcı için kaybolur. Metin bu yüzden zorunludur.
+    render(<CommonPlayersResult result={withUnevidenced()} />);
+
+    const badges = screen.getAllByText(/kaynakta ayrıntı yok/u);
+    expect(badges[0]?.textContent?.trim().length).toBeGreaterThan(0);
   });
 });

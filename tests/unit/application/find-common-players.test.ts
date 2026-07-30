@@ -82,6 +82,7 @@ describe("findCommonPlayers use-case", () => {
           isLoan: false,
           appearances: 64,
           goals: 3,
+          hasEvidence: true,
         },
       ],
       spellsAtB: [
@@ -91,6 +92,7 @@ describe("findCommonPlayers use-case", () => {
           isLoan: false,
           appearances: 214,
           goals: 9,
+          hasEvidence: true,
         },
       ],
     });
@@ -127,7 +129,40 @@ describe("findCommonPlayers use-case", () => {
       "isLoan",
       "appearances",
       "goals",
+      "hasEvidence",
     ]);
+  });
+
+  it("BR-8: kanıtsız dönem ELENMEZ, `hasEvidence: false` ile işaretlenir", async () => {
+    // Ölçüm (§1.4) elemenin doğru kayıtları da götürdüğünü gösterdi; kural
+    // etiketlemedir. Bu testin koruduğu şey iki yönlüdür: oyuncu SONUÇTA
+    // KALMALI (yanlış negatif üretmeyelim) ve işaretlenMELİ (yanlış pozitifi
+    // sessizce sunmayalım).
+    const result = await findCommonPlayers(
+      { clubA: CLUB_A, clubB: CLUB_B },
+      deps([
+        {
+          player: aPlayer({ name: "Bill Dale" }),
+          spells: [
+            aSpell({
+              clubId: CLUB_A,
+              years: { start: null, end: null },
+              appearances: null,
+              goals: null,
+            }),
+            aSpell({
+              clubId: CLUB_B,
+              years: { start: 1931, end: 1937 },
+              appearances: 235,
+            }),
+          ],
+        },
+      ]),
+    );
+
+    expect(result.count).toBe(1);
+    expect(result.players[0]?.spellsAtA[0]?.hasEvidence).toBe(false);
+    expect(result.players[0]?.spellsAtB[0]?.hasEvidence).toBe(true);
   });
 
   it("count, players dizisinin uzunluğuyla tutarlıdır", async () => {

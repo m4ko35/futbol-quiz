@@ -11,6 +11,25 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/// Veri kümesinin künyesi — TEK satır tutar (PROJECT.md §5.2).
+///
+/// Kullanıcı, gördüğü kadronun ne zamana ait olduğunu görebilmelidir; veri
+/// yılda iki kez tazelendiği için eksik bir transfer aksi hâlde "site bozuk"
+/// diye okunur (§1.3). Tarih veriyle birlikte taşınır: dağıtım zamanı yanlış
+/// cevap olurdu, çünkü kod tek başına dağıtıldığında veri eskimediği hâlde
+/// tarih tazelenirdi.
+///
+/// Tekillik `id`'nin sabit 1 olmasıyla zorlanır — ikinci satır birincil anahtar
+/// çakışması verir, yani "hangi künye geçerli" sorusu hiç doğmaz.
+model DatasetMeta {
+  id Int @id @default(1)
+
+  /// ETL koşusunun bittiği an (UTC).
+  generatedAt DateTime
+
+  @@map("dataset_meta")
+}
+
 model League {
   id         String @id @default(cuid())
   wikidataId String @unique // "Q9448"

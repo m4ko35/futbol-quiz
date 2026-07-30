@@ -29,13 +29,42 @@ export interface HandleApiOptions<T> {
   run(context: ApiRequestContext): Promise<T>;
 }
 
-/** Yanıtların ara belleklerde saklanmaması için ortak başlıklar. */
 const BASE_HEADERS: Readonly<Record<string, string>> = {
   "Content-Type": "application/json; charset=utf-8",
-  // Yanıt isteğe ve zamana bağlı; paylaşımlı bir önbellekte durması bir
-  // kullanıcının sonucunu başkasına göstermek anlamına gelebilir.
-  "Cache-Control": "no-store",
 };
+
+/**
+ * Başarılı yanıtların önbellek politikası — PROJECT.md §7.9.
+ *
+ * Faz 3'e kadar burada `no-store` vardı. O tercih, önbelleklenebilirlik
+ * hakkında bir şey BİLİNMEDİĞİ durumda doğru olan güvenli varsayımdı. §3.1'deki
+ * mimari kararla artık biliniyor: veri yalnızca yeni bir dağıtımla değişir,
+ * yani bir dağıtım içinde bu yanıtlar değişmez.
+ *
+ * Önbelleklemenin güvenli olmasının üç koşulu var ve üçü de sağlanıyor:
+ * yanıt yalnızca sorgu parametrelerine bağlı (oturum/çerez/kullanıcı yok),
+ * veri zaten herkese açık, ve dağıtımlar arasında sabit.
+ *
+ * `s-maxage` TEMKİNLİ tutuluyor. Vercel'in CDN önbellek anahtarının dağıtım
+ * kimliğini içerdiği — yani yeni dağıtımın eski yanıtları geçersiz kıldığı —
+ * varsayılıyor ama HENÜZ ÖLÇÜLMEDİ. Varsayım yanlışsa yeni veri eski
+ * önbelleğin arkasında kalır ve bu, sessizce eski veri servis etmek demektir.
+ * İlk dağıtımda ölçülür (§10 Faz 4.5), ölçüldükten sonra uzatılır.
+ *
+ * `stale-while-revalidate` süresi bilerek uzun: veri iki güncelleme arasında
+ * değişmediği için bayat bir yanıt sunmak zararsız, buna karşılık her
+ * kullanıcının tazeleme maliyetini beklemesi gereksiz.
+ */
+const CACHEABLE = "public, s-maxage=300, stale-while-revalidate=86400";
+
+/**
+ * Hata yanıtları ASLA önbelleklenmez.
+ *
+ * En kritiği `429`: önbelleklenmiş bir "hız sınırını aştın" yanıtı, sınırı
+ * aşmamış başka istemcilere de servis edilir. Yani hız sınırlayıcı, kendisini
+ * hiç tetiklememiş kullanıcıları engelleyen bir araca dönüşür.
+ */
+const NOT_CACHEABLE = "no-store";
 
 export async function handleApiRequest<T>(
   options: HandleApiOptions<T>,
@@ -68,7 +97,7 @@ export async function handleApiRequest<T>(
 
     return new Response(JSON.stringify({ data }), {
       status: 200,
-      headers: { ...BASE_HEADERS },
+      headers: { ...BASE_HEADERS, "Cache-Control": CACHEABLE },
     });
   } catch (error: unknown) {
     const mapped = toApiError(error, traceId);
@@ -93,6 +122,13 @@ export async function handleApiRequest<T>(
 function respond(mapped: MappedError): Response {
   return new Response(JSON.stringify(mapped.body), {
     status: mapped.status,
-    headers: { ...BASE_HEADERS, ...mapped.headers },
+    // `mapped.headers` SONRA gelir ki bir hata eşlemesi kendi başlığını
+    // (ör. `Retry-After`) ekleyebilsin; ama önbellek politikasını ezmesin diye
+    // `Cache-Control` en sonda yeniden yazılır.
+    headers: {
+      ...BASE_HEADERS,
+      ...mapped.headers,
+      "Cache-Control": NOT_CACHEABLE,
+    },
   });
 }

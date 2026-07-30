@@ -3,6 +3,7 @@ import type {
   CommonPlayersResultDto,
   SpellDto,
 } from "@/application/dto/common-players-dto";
+import { ClubCrest } from "./club-crest";
 
 /**
  * Ortak oyuncu listesi — PROJECT.md §6.2 yanıtının görünümü.
@@ -48,9 +49,21 @@ function SpellBadges({ spells }: { spells: readonly SpellDto[] }) {
       {spells.map((spell, index) => (
         <li
           key={index}
-          className="inline-flex items-center gap-1.5 rounded border border-current/20 px-2 py-0.5 text-xs whitespace-nowrap"
+          className={
+            "inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-xs whitespace-nowrap " +
+            (spell.hasEvidence
+              ? "border border-current/20"
+              : // BR-8: kanıtsız dönem GÖRSEL OLARAK da ayrılır. Kesik çizgi
+                // tek başına yeterli değildir (renk/biçim tek gösterge
+                // olamaz — WCAG 1.4.1); asıl bilgi metnin kendisindedir.
+                "border border-dashed border-current/50 opacity-75")
+          }
         >
-          <span>{formatSpell(spell)}</span>
+          {spell.hasEvidence ? (
+            <span>{formatSpell(spell)}</span>
+          ) : (
+            <span>kaynakta ayrıntı yok</span>
+          )}
 
           {spell.isLoan && (
             // BR-3: kiralık dönemler sayılır ama açıkça işaretlenir.
@@ -65,6 +78,15 @@ function SpellBadges({ spells }: { spells: readonly SpellDto[] }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+/** Listede kanıtsız dönem var mı? Varsa açıklama gösterilir (BR-8). */
+function hasUnevidencedSpell(players: readonly CommonPlayerDto[]): boolean {
+  return players.some((player) =>
+    [...player.spellsAtA, ...player.spellsAtB].some(
+      (spell) => !spell.hasEvidence,
+    ),
   );
 }
 
@@ -121,7 +143,7 @@ export function CommonPlayersResult({ result }: CommonPlayersResultProps) {
         <p className="mt-2 text-sm opacity-70">
           Bu iki kulüpte de forma giymiş bir oyuncu bulunamadı.
         </p>
-        <p className="mt-1 text-xs opacity-50">
+        <p className="mt-1 text-sm opacity-70">
           Veri kümesi altı Avrupa liginin tarihsel kadrolarını kapsar; bu
           kulüpler dışındaki kariyerler yer almaz.
         </p>
@@ -131,9 +153,14 @@ export function CommonPlayersResult({ result }: CommonPlayersResultProps) {
 
   return (
     <section aria-labelledby="sonuc-basligi" className="flex flex-col gap-4">
-      <h2 id="sonuc-basligi" className="text-lg font-medium">
-        {clubA.shortName} ∩ {clubB.shortName}
-        <span className="ml-2 text-sm font-normal opacity-60">
+      <h2
+        id="sonuc-basligi"
+        className="flex flex-wrap items-center gap-x-2 gap-y-1 text-lg font-medium"
+      >
+        <ClubCrest club={clubA} size={24} />
+        {clubA.shortName} ∩ <ClubCrest club={clubB} size={24} />
+        {clubB.shortName}
+        <span className="text-sm font-normal opacity-60">
           {count} ortak oyuncu
         </span>
       </h2>
@@ -148,6 +175,21 @@ export function CommonPlayersResult({ result }: CommonPlayersResultProps) {
           />
         ))}
       </ul>
+
+      {hasUnevidencedSpell(players) && (
+        // BR-8 — §1.4. Kanıtsız kayıtlar ELENMİYOR çünkü eleme, uydurma
+        // kayıtlarla birlikte doğru olanları da siliyor (ölçüldü). Elenmiyorsa
+        // da söylenmesi gerekir: kullanıcı hangi satıra ne kadar
+        // güvenebileceğini bilmelidir.
+        <p className="text-sm opacity-70">
+          <span className="mr-1.5 inline-block rounded border border-dashed border-current/50 px-1.5 py-0.5 text-xs">
+            kaynakta ayrıntı yok
+          </span>
+          işaretli kayıtlarda transfer yılı ve maç bilgisi bulunmuyor. Bu
+          dönemler listeden çıkarılmadı — kaynaktaki eksiklik, kaydın yanlış
+          olduğu anlamına gelmiyor — ama doğrulukları teyit edilemiyor.
+        </p>
+      )}
     </section>
   );
 }

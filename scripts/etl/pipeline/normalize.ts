@@ -2,6 +2,7 @@ import { toSearchKey } from "../../../src/domain/value-objects/search-key";
 import { toSeasonYear } from "../../../src/domain/value-objects/season";
 import { OUT_OF_SCOPE_GENDER_QIDS, WD } from "../leagues";
 import { int, qid, str, type SparqlBinding } from "../sources/wikidata/schemas";
+import { toCommonsFileUrl } from "./crest-url";
 
 /**
  * Ham Wikidata bağlamalarını veritabanına yazılabilir kayıtlara çevirir.
@@ -171,7 +172,7 @@ export function toClub(
     searchKey: toSearchKey(name),
     country: normalizeCountryCode(str(binding, "countryCode")),
     foundedYear: inception === null ? null : inception.getUTCFullYear(),
-    crestUrl: str(binding, "logo") ?? null,
+    crestUrl: toCommonsFileUrl(str(binding, "logo") ?? null),
     leagueWikidataId,
   };
 }

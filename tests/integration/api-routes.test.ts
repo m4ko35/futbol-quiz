@@ -161,9 +161,20 @@ describe("GET /api/clubs — §6.1", () => {
     expect(body.data).toHaveLength(1);
   });
 
-  it("yanıt paylaşımlı önbelleklerde saklanmaz", async () => {
+  it("başarılı yanıt CDN'de önbelleklenebilir (§7.9)", async () => {
     const response = await clubsRoute.GET(request("/api/clubs"));
+    const cacheControl = response.headers.get("cache-control") ?? "";
 
+    // Veri yalnızca yeni bir dağıtımla değişir; kişiselleştirme yok.
+    expect(cacheControl).toContain("public");
+    expect(cacheControl).toMatch(/s-maxage=\d+/u);
+    expect(cacheControl).not.toContain("no-store");
+  });
+
+  it("geçersiz istek önbelleklenMEZ", async () => {
+    const response = await clubsRoute.GET(request("/api/clubs?limit=0"));
+
+    expect(response.status).toBe(400);
     expect(response.headers.get("cache-control")).toBe("no-store");
   });
 
@@ -220,6 +231,7 @@ describe("GET /api/common-players — §6.2", () => {
       isLoan: false,
       appearances: 64,
       goals: 3,
+      hasEvidence: true,
     });
   });
 
@@ -348,6 +360,11 @@ describe("hız sınırı — §7.5", () => {
 
     const body = await limited?.json();
     expect(body.error.code).toBe("RATE_LIMITED");
+
+    // §7.9 — EN KRİTİK ÖNBELLEK KURALI. Önbelleklenmiş bir 429, sınırı hiç
+    // aşmamış istemcilere de servis edilirdi; hız sınırlayıcı o noktada
+    // masumları engelleyen bir araca dönüşür.
+    expect(limited?.headers.get("cache-control")).toBe("no-store");
   });
 
   it("bir istemcinin sınırı diğerini etkilemez", async () => {

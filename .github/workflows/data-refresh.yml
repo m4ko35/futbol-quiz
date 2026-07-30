@@ -1,0 +1,93 @@
+# Veri kapısı — PROJECT.md §3.1, §8.3.
+#
+# Veri kümesini Wikidata'dan yeniden üretir, KABUL KONTROLÜNDEN geçirir ve
+# ancak geçerse yayımlar. `db:verify` bu iş akışının varlık sebebidir: bozuk
+# veri, kullanıcıya ulaşmadan burada durur ve site bir önceki veriyle çalışmaya
+# devam eder.
+name: Veri tazeleme
+
+on:
+  schedule:
+    # Yılda iki kez, transfer pencereleri kapandıktan BİRKAÇ HAFTA SONRA.
+    # Kaynak Wikidata ve gönüllü katkısıyla güncelleniyor; pencere kapanır
+    # kapanmaz koşmak, eksik bir anlık görüntüyü altı ay boyunca yayında
+    # tutmak demek olurdu.
+    - cron: "0 3 20 9 *" # 20 Eylül — yaz dönemi
+    - cron: "0 3 20 2 *" # 20 Şubat — kış dönemi
+
+  # Elle tetikleme: pencere takvimi kaydığında veya bir veri hatası
+  # düzeltildiğinde beklemek gerekmesin.
+  workflow_dispatch:
+
+permissions:
+  contents: write # sürüm (release) varlığı yüklemek için
+
+concurrency:
+  group: data-refresh
+  cancel-in-progress: false # yarıda kesilen ETL yarım veri bırakır
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    # ETL ölçülen süresi ~55 dakika; Wikidata yavaşlarsa pay kalsın.
+    timeout-minutes: 180
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          cache: npm
+
+      - run: npm ci
+      - run: npm run db:generate
+
+      # Şemayı migration'lardan kur. `migrate deploy` — `migrate dev` DEĞİL:
+      # ikincisi etkileşimlidir ve gerektiğinde veritabanını sıfırlar.
+      - run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: file:./dev.db
+
+      - name: ETL
+        run: npm run etl
+        env:
+          DATABASE_URL: file:./dev.db
+
+      # ─── KAPI ───────────────────────────────────────────────────────────
+      # Buradan sonrası yalnızca kabul kontrolü geçerse çalışır. Zorunlu
+      # kulüpler, bütünlük, kanıtsız dönem oranı ve bilinen çiftler (§8.2).
+      - name: Kabul kontrolü
+        run: npm run db:verify
+        env:
+          DATABASE_URL: file:./dev.db
+
+      # Hız da bir kabul ölçütüdür (§1.4). Veri büyüdükçe sorgu yavaşlarsa
+      # bunu kullanıcıdan önce burada görmek gerekir.
+      - name: Performans ölçümü
+        run: npm run bench
+        env:
+          DATABASE_URL: file:./dev.db
+
+      # Boş alanları geri kazan: dosya dağıtım paketine giriyor ve orada her
+      # megabayt sınıra karşı sayılıyor (§3.1).
+      - name: Sıkıştır
+        run: |
+          sqlite3 prisma/dev.db "VACUUM;"
+          ls -lh prisma/dev.db
+
+      - name: Yayımla
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete dataset-latest --yes --cleanup-tag || true
+          gh release create dataset-latest prisma/dev.db \
+            --title "Veri kümesi $(date -u +%Y-%m-%d)" \
+            --notes "Wikidata'dan $(date -u +%Y-%m-%d) tarihinde üretildi; \
+          db:verify ve bench kapılarından geçti."
+
+      # Dağıtımı tetikle. Sır tanımlı değilse adım atlanır — böylece iş akışı
+      # Vercel bağlanmadan önce de baştan sona çalıştırılıp denenebilir.
+      - name: Dağıtımı tetikle
+        if: ${{ vars.VERCEL_DEPLOY_HOOK_URL != '' }}
+        run: curl -fsS -X POST "${{ vars.VERCEL_DEPLOY_HOOK_URL }}"

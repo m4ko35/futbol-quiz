@@ -1,6 +1,7 @@
 import { searchClubs } from "@/application/use-cases/search-clubs";
 import { CommonPlayersQuiz } from "@/components/common-players-quiz";
-import { repositories } from "@/infrastructure/db/repositories";
+import { SiteFooter } from "@/components/site-footer";
+import { datasets, repositories } from "@/infrastructure/db/repositories";
 
 /**
  * Ortak oyuncu ekranı — MVP'nin tek sayfası.
@@ -11,7 +12,11 @@ import { repositories } from "@/infrastructure/db/repositories";
  * kısıtlaması demek olurdu.
  */
 export default async function Home() {
-  const initialClubs = await searchClubs({}, { clubs: repositories.clubs });
+  // İkisi birbirinden bağımsız; sırayla beklemek boşuna gecikme olurdu.
+  const [initialClubs, dataGeneratedAt] = await Promise.all([
+    searchClubs({}, { clubs: repositories.clubs }),
+    datasets.getGeneratedAt(),
+  ]);
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-10 px-5 py-10 sm:px-6 sm:py-16">
@@ -22,23 +27,21 @@ export default async function Home() {
         <p className="mt-2 opacity-70">
           İki kulüp seçin, ikisinde de forma giymiş oyuncuları görün.
         </p>
+        {/*
+          Kapsam BAŞTA söylenir (§1.3). Ajax veya Porto arayan kullanıcı hiçbir
+          şey bulamayacak; bunu keşfetmek için başarısız aramalar yapmak zorunda
+          kalırsa siteyi bozuk sanar. Altbilgiye gömülü bir not bu işi görmez.
+        */}
+        <p className="mt-3 rounded-md border border-current/15 px-3 py-2 text-sm opacity-70">
+          Kapsam: İngiltere, İspanya, İtalya, Almanya, Fransa ve
+          Türkiye&apos;nin en üst liglerinde oynamış <strong>345 kulüp</strong>{" "}
+          — bu liglerin bugünkü takımları ve geçmişteki takımları dâhil.
+        </p>
       </header>
 
       <CommonPlayersQuiz initialClubs={initialClubs} />
 
-      <footer className="mt-auto pt-6 text-xs opacity-50">
-        Veriler{" "}
-        <a
-          href="https://www.wikidata.org"
-          className="underline underline-offset-2"
-          rel="noreferrer noopener"
-          target="_blank"
-        >
-          Wikidata
-        </a>
-        &apos;dan derlenmiştir. Kapsam: İngiltere, İspanya, İtalya, Almanya,
-        Fransa ve Türkiye&apos;nin en üst ligleri.
-      </footer>
+      <SiteFooter dataGeneratedAt={dataGeneratedAt} />
     </main>
   );
 }

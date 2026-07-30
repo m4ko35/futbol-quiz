@@ -200,6 +200,22 @@ export async function loadDataset(
     where: { spells: { none: {} } },
   });
 
+  // ─── Künye ────────────────────────────────────────────────────────────
+  // EN SONA yazılır ve bilerek: tarih, "ETL başladı" değil "veri kümesi hazır
+  // oldu" anlamına gelmelidir. Yükleme yarıda kalırsa künye de güncellenmez ve
+  // kullanıcıya eski (doğru) tarih gösterilmeye devam eder.
+  //
+  // Kısmi koşularda (`--max-clubs`) YAZILMAZ: 3 kulüplük bir deneme koşusunun
+  // tarihi, tam veri kümesinin tazeliği hakkında yanlış bilgi verirdi.
+  if (input.isFullRun) {
+    const generatedAt = new Date();
+    await prisma.datasetMeta.upsert({
+      where: { id: 1 },
+      create: { id: 1, generatedAt },
+      update: { generatedAt },
+    });
+  }
+
   return {
     leagues: leagueIdByQid.size,
     clubs: await prisma.club.count(),

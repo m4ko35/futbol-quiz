@@ -1,0 +1,5 @@
+-- CreateTable
+CREATE TABLE "dataset_meta" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT DEFAULT 1,
+    "generatedAt" DATETIME NOT NULL
+);

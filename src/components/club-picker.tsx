@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import type { ClubDto } from "@/application/dto/club-dto";
+import { ClubCrest } from "./club-crest";
 
 /**
  * Kulüp seçici — WAI-ARIA "combobox with listbox popup" deseni.
@@ -185,7 +186,11 @@ export function ClubPicker({
             aria-activedescendant={activeOptionId}
             autoComplete="off"
             placeholder="Kulüp arayın…"
-            className="w-full rounded-md border border-current/20 bg-transparent px-3 py-2 text-base outline-none focus:border-current/50 focus:ring-2 focus:ring-current/20"
+            // Kenarlık ve odak halkası ÖLÇÜLEREK seçildi (WCAG 1.4.11: arayüz
+            // bileşeni sınırı ve odak göstergesi için 3:1). Metin rengi
+            // arka planla harmanlandığında: /20 → 1,53:1 (kalıyor),
+            // /50 → 3,41:1, /60 → 4,67:1. Eski değerler /20 ve /20 idi.
+            className="w-full rounded-md border border-current/50 bg-transparent px-3 py-2 text-base outline-none focus:border-current/80 focus:ring-2 focus:ring-current/60"
             onChange={(event) => {
               setTerm(event.target.value);
               setIsOpen(true);
@@ -201,7 +206,7 @@ export function ClubPicker({
               id={listboxId}
               role="listbox"
               aria-label={`${label} sonuçları`}
-              className="absolute z-10 mt-1 max-h-72 w-full overflow-auto rounded-md border border-current/20 bg-[var(--background)] shadow-lg"
+              className="absolute z-10 mt-1 max-h-72 w-full overflow-auto rounded-md border border-current/50 bg-[var(--background)] shadow-lg"
             >
               {visible.map((club, index) => (
                 <li
@@ -222,10 +227,13 @@ export function ClubPicker({
                     setActiveIndex(index);
                   }}
                 >
-                  <span className="font-medium">{club.shortName}</span>
-                  {club.country !== null && (
-                    <span className="ml-2 opacity-60">{club.country}</span>
-                  )}
+                  <span className="flex items-center gap-2">
+                    <ClubCrest club={club} />
+                    <span className="font-medium">{club.shortName}</span>
+                    {club.country !== null && (
+                      <span className="opacity-60">{club.country}</span>
+                    )}
+                  </span>
                 </li>
               ))}
 
@@ -245,11 +253,14 @@ export function ClubPicker({
           )}
         </div>
       ) : (
-        <div className="flex items-center justify-between gap-3 rounded-md border border-current/20 px-3 py-2">
-          <span className="font-medium">{selected.shortName}</span>
+        <div className="flex items-center justify-between gap-3 rounded-md border border-current/50 px-3 py-2">
+          <span className="flex min-w-0 items-center gap-2">
+            <ClubCrest club={selected} size={24} />
+            <span className="truncate font-medium">{selected.shortName}</span>
+          </span>
           <button
             type="button"
-            className="rounded px-2 py-1 text-sm underline underline-offset-2 opacity-70 hover:opacity-100 focus:ring-2 focus:ring-current/30 focus:outline-none"
+            className="rounded px-2 py-1 text-sm underline underline-offset-2 opacity-70 hover:opacity-100 focus:ring-2 focus:ring-current/60 focus:outline-none"
             onClick={() => {
               onSelect(null);
               // Seçim kaldırıldığında odak arama kutusuna dönmeli; aksi hâlde

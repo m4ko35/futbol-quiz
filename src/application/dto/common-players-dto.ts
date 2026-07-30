@@ -1,5 +1,6 @@
 import type { Spell } from "@/domain/entities/spell";
 import type { CommonPlayer } from "@/domain/services/common-players";
+import { hasEvidence } from "@/domain/services/spell-evidence";
 import type { ClubDto } from "./club-dto";
 
 /** Dışarı dönen ortak oyuncu şekilleri — PROJECT.md §6.2. */
@@ -10,6 +11,8 @@ export interface SpellDto {
   readonly isLoan: boolean;
   readonly appearances: number | null;
   readonly goals: number | null;
+  /** BR-8 — dört alanın hiçbiri dolu değilse `false`. */
+  readonly hasEvidence: boolean;
 }
 
 export interface CommonPlayerDto {
@@ -48,6 +51,12 @@ export interface CommonPlayersResultDto {
  * vermek, onu tüketen herkes için tuzaktır (§2.7: belirsizlik veri kaybından
  * iyidir). Ham bayrak veritabanında duruyor; güvenilir bir "güncel kadro"
  * kaynağı eklenirse yeniden değerlendirilir (§10.2).
+ *
+ * `hasEvidence` ise TÜRETİLMİŞ olduğu hâlde yanıta ÇIKAR (BR-8). Kuralı
+ * istemcinin dört alana bakarak kendisi çıkarması mümkündü; kasten burada
+ * hesaplanıyor, çünkü bu bir iş kuralıdır ve iki yerde ayrı ayrı yazılırsa er
+ * geç ayrışır. Sunucu ile arayüzün "kanıtsız" tanımı ayrışırsa kullanıcı,
+ * işaretsiz ama kanıtsız bir satır görür — yani sessizce yanlış bilgi.
  */
 export function toSpellDto(spell: Spell): SpellDto {
   return {
@@ -56,6 +65,7 @@ export function toSpellDto(spell: Spell): SpellDto {
     isLoan: spell.isLoan,
     appearances: spell.appearances,
     goals: spell.goals,
+    hasEvidence: hasEvidence(spell),
   };
 }
 

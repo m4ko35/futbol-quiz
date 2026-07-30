@@ -25,7 +25,10 @@ export default function GlobalError({
       </p>
 
       {error.digest !== undefined && (
-        <p className="text-sm opacity-50">
+        // opacity-50 açık modda 3,41:1 verir ve AA'nın 4,5:1 eşiğini
+        // KARŞILAMAZ (ölçüldü, §7.10). Hata kimliği destek için okunup
+        // yazılacak bir metin; okunaksız olması tam da işlevini bozar.
+        <p className="text-sm opacity-70">
           Hata kimliği: <code className="font-mono">{error.digest}</code>
         </p>
       )}
@@ -34,7 +37,7 @@ export default function GlobalError({
         <button
           type="button"
           onClick={reset}
-          className="rounded-md border border-current/25 px-4 py-2 text-sm font-medium hover:bg-current/5 focus:ring-2 focus:ring-current/30 focus:outline-none"
+          className="rounded-md border border-current/50 px-4 py-2 text-sm font-medium hover:bg-current/10 focus:ring-2 focus:ring-current/60 focus:outline-none"
         >
           Yeniden dene
         </button>

@@ -4,8 +4,8 @@
 > Kod ile belge çeliştiğinde önce bu belge güncellenir, sonra kod yazılır.
 
 **Sürüm:** 0.1.0
-**Tarih:** 2026-07-29
-**Durum:** Faz 3 tamamlandı — MVP çalışıyor; sıradaki Faz 4 (sertleştirme)
+**Tarih:** 2026-07-30
+**Durum:** Faz 4 tamamlandı — proje eksiksiz ve sertleştirilmiş. Sıradaki Faz 4.5: yayın.
 
 ---
 
@@ -59,15 +59,34 @@ Bu kulüplerin **tüm tarihsel kadroları** çekilir (yalnızca güncel sezon de
 
 **Kapsam sınırı (Faz 1 kararı):** Yalnızca bu kulüplerdeki dönemler çekilir; oyuncuların bu kulüpler dışındaki kariyerleri **çekilmez**. MVP oyun modu için bu yeterlidir ve tam olarak doğrudur: "A ve B kulüplerinin ikisinde de oynamış oyuncular" sorusu, A ve B seçilebilir kulüpler olduğu için yalnızca bu dönemlere bakar. Veri kümesi ayrıca erkek ligleriyle sınırlıdır (BR-7).
 
+**Kapsam arayüzde bildirilir (Faz 4 kararı).** Kullanıcı Ajax, Porto, Benfica veya Celtic arayınca hiçbir şey bulamayacak. Bu bir hata değil, yukarıdaki kapsam kararıdır — ama söylenmezse kullanıcı siteyi **bozuk** sanır. Bir ürünün kapsamı, kullanıcının onu keşfetmek için başarısız aramalar yapmasına bırakılamaz: hangi liglerin kapsandığı arayüzde açıkça yazar ve sonuçsuz aramada tekrar hatırlatılır. Aynı gerekçe veri güncellik tarihi için de geçerlidir (§8.3): veri yılda iki kez tazelendiği için eksik bir transferi gören kullanıcı, verinin ne zaman çekildiğini görebilmelidir.
+
 Tam kariyer çıkarımı (oyuncunun geçtiği her kulüp) Faz 5'teki **kariyer bilmecesi** ve **bağlantı zinciri** modlarının ön koşuludur; oraya kadar ertelendi (§10.2). Ertelemenin gerekçesi kapsam disiplinidir: tam kariyer çekimi kulüp evrenini birkaç bine çıkarır ve MVP'ye hiçbir doğruluk katkısı yapmaz.
 
 ### 1.4 Başarı Kriterleri
 
-- Bilinen kulüp çiftlerinden oluşan doğrulama setinde **≥ %95 isabet** (bilinen ortak oyuncuların ≥ %95'i bulunuyor).
+- Bilinen kulüp çiftlerinden oluşan doğrulama setinde **≥ %95 isabet** (bilinen ortak oyuncuların ≥ %95'i bulunuyor). **Durum: karşılanıyor** — elle doğrulanmış 31 olgunun 31'i bulunuyor.
 
-  > **Durum (Faz 2):** Çağrı tarafı karşılanıyor — elle doğrulanmış 31 olgunun 31'i bulunuyor. **Yanlış pozitif tarafı karşılanMIYOR.** Dönemlerin %11,7'si tarihsiz ve maçsızdır; bunların bir kısmı altyapı/deneme kaydıdır ama ana kulüp varlığına bağlandıkları için `isYouth` ile ayıklanamaz. Ölçülmüş örnek: Chedric Seedorf (`Q1650766`) Real Madrid ve Inter'de tarihsiz kayıtlarla görünüyor. Bir test bu oranı izler ve büyümesini engeller; kalıcı çözüm Faz 4'e bırakıldı (§10.2).
+- Kanıtı eksik olan hiçbir kayıt, kanıtlı bir kayıtmış gibi sunulMAZ. **Durum: BR-8 ile karşılanıyor** (aşağıdaki ölçüm).
 
-- Ortak oyuncu sorgusu **p95 < 150 ms** (sunucu tarafı).
+  > **Neden "yanlış pozitif sıfır" değil.** İlk yazımda ölçüt "yanlış pozitif bulunmaz" idi. Faz 4'te ölçüldü ve bu ölçütün **bu veri kaynağıyla ulaşılamaz** olduğu görüldü; ölçüt, ulaşılabilir ve denetlenebilir olanla değiştirildi.
+  >
+  > Dönemlerin %11,7'si tarihsiz ve maçsızdır (193.003'ün 22.520'si). Bunları elemek denendi ve üç aday kural ölçüldü — üçü de altın setin 31/31'ini koruyor, yani ilk bakışta bedelsiz görünüyor. Ama altın set yalnızca **ünlü** oyuncu içerir; bedeli göremez. Düşen isimlere bakıldığında bedel ortaya çıktı:
+  >
+  > | Düşen oyuncu               | Kayıt                   | Gerçekte                        |
+  > | -------------------------- | ----------------------- | ------------------------------- |
+  > | Bill Dale (`Q4908654`)     | Man Utd + Man City      | **Doğru** — ikisinde de oynadı  |
+  > | Harry McShane (`Q48724`)   | Man Utd + Man City      | **Doğru** — ikisinde de oynadı  |
+  > | Emmanuel Petit (`Q269883`) | Barcelona + Real Madrid | **Yanlış** — Real Madrid'de yok |
+  > | Manuel Sanchís (`Q776310`) | Barcelona + Real Madrid | **Yanlış** — Barcelona'da yok   |
+  >
+  > Eleme, yanlışlarla birlikte doğruları da siliyor: Man Utd ∩ Man City 76 → 52, Barcelona ∩ Real Madrid 49 → 36 (yaklaşık üçte bir kayıp).
+  >
+  > Ardından Wikidata'da ayırt edici bir sinyal arandı — ifade `rank`'ı ve kaynakça sayısı canlı sorguyla okundu. **Yok:** rank hepsinde `NormalRank`; kaynakça ise ters yönde çalışıyor (uydurma Petit kaydının kaynağı var, doğru Bill Dale kaydının yok). Nitelik sayısı da yeni bilgi taşımıyor — tarihler ve maç sayıları zaten nitelik olarak geliyor, yani "nitelik=0" bizim hâlihazırda bildiğimiz şeyin aynısı.
+  >
+  > Elemek doğruyu siler, tutmak yanlışı gösterir, veri ikisini ayırmaz. Bu durumda tek dürüst davranış **etiketlemektir** (BR-8): kayıt kalır, kanıtının eksik olduğu kullanıcıya görünür. §2'nin 7. ilkesi — "belirsizlik veri kaybından iyidir" — bunu zaten söylüyordu. Oran bir testle izlenir ve sessizce büyüyemez (§8.2).
+
+- Ortak oyuncu sorgusu **p95 < 150 ms** (sunucu tarafı). **Durum: karşılanıyor** — `npm run bench` ile ölçülüyor, son ölçüm p95 16,8 ms.
 - İlk anlamlı içerik (LCP) **< 2.0 s** (yavaş 4G, orta seviye cihaz).
 - Bilinen kritik/yüksek seviye güvenlik açığı **sıfır** (`npm audit`, bkz. §7).
 
@@ -94,16 +113,69 @@ Bu proje aşağıdaki ilkelere bağlıdır. Bir kod değişikliği bu ilkelerden
 | Dil           | TypeScript 5 (strict)       | Derleme zamanı güvence, geniş ekosistem                                 |
 | Çatı          | Next.js 16 (App Router)     | Sunucu tarafı veri erişimi; sır (secret) istemciye hiç inmez            |
 | UI            | React 19 + Tailwind CSS 4   | Otomatik XSS kaçışı, hızlı ve tutarlı stil                              |
-| Veritabanı    | SQLite                      | Sıfır kurulum, tek dosya; bu veri hacmi için fazlasıyla yeterli         |
+| Veritabanı    | SQLite (salt-okunur)        | Üretimde yazılmaz; dağıtım paketine gömülür (§3.1)                      |
 | ORM           | Prisma 6                    | Parametreli sorgu (SQL injection'a karşı yapısal koruma), tipli şema    |
 | Doğrulama     | Zod 4                       | Şemadan tip türetme; tek kaynaktan hem runtime hem compile-time güvence |
 | Test          | Vitest 4                    | Hızlı, Vite tabanlı; UI testleri için Faz 3'te Testing Library eklenir  |
 | Lint / Format | ESLint 9 + Prettier 3       | Tutarlı kod tabanı, otomatik kural denetimi                             |
 | ETL           | Node.js CLI (`scripts/etl`) | Web sürecinden tamamen ayrık; ağ erişimi yalnızca burada                |
+| Barındırma    | Vercel (sunucusuz)          | Sıfır operasyon; CDN önbelleği yerleşik                                 |
+| Zamanlama     | GitHub Actions (cron)       | ETL'in çalıştığı yer; istek yoluyla hiç kesişmez                        |
 
 > **Next.js 16 notu:** `middleware.ts` dosya kuralı **`proxy.ts`** olarak yeniden adlandırıldı ve dışa aktarılan fonksiyonun adı `proxy` olmalıdır. Sürüme özgü API'ler için `node_modules/next/dist/docs/` altındaki gömülü dokümantasyon esas alınır — eğitim verisinden hatırlanan eski API'ler değil.
 
-**Neden Postgres değil?** Veri hacmi ~500 bin satır mertebesinde, yazma işlemi yalnızca ETL sırasında ve tek süreçten geliyor. SQLite bu profilde daha hızlı ve sıfır operasyon yükü getiriyor. Prisma kullandığımız için ileride Postgres'e geçiş, şema sağlayıcısını değiştirip migration üretmekten ibaret olacak (§10.2).
+### 3.1 Dağıtım Mimarisi: veri bir derleme çıktısıdır
+
+Bu projenin belirleyici kısıtı şudur: **veri yılda iki kez, transfer dönemleri kapandıktan sonra güncellenir.** Kullanıcı isteği veritabanına asla yazmaz. Bu kısıt mimariyi büyük ölçüde tek başına belirliyor.
+
+```
+GitHub Actions  (cron: yılda 2 kez + elle tetik)
+  │
+  ├─ npm run etl        Wikidata → SQLite dosyası  (~55 dk)
+  ├─ npm run db:verify  KAPI: geçmezse burada durur
+  └─ dosyayı yayımla  →  Vercel dağıtımı
+                          └─ .db fonksiyon paketinde, SALT-OKUNUR
+                             └─ istek → Prisma → yerel dosya (ağ turu yok)
+```
+
+**Neden bu şekil:**
+
+- **Bozuk veri kullanıcıya ulaşamaz.** `db:verify` geçmezse yeni dağıtım hiç oluşmaz; site bir önceki veriyle çalışmaya devam eder. Canlı bir veritabanına yazan ETL'de bu güvence yoktur — hatalı koşu doğrudan üretime yazar.
+- **Geri alma dağıtımı geri almaktır.** Veri ve kod birlikte sürümlenir; bir önceki dağıtıma dönmek bir önceki veriye dönmektir.
+- **Sorgu ağ turu içermez.** Ayrı bir veritabanı sunucusu her sorguya gidiş-dönüş ekler; bizim sorgumuz iki ardışık turdan oluştuğu için bu sabit bir vergi olurdu.
+- **Yönetilecek sır yok.** Veritabanı kimlik bilgisi, bağlantı dizesi, ağdan erişilebilen SQL yüzeyi — hiçbiri yok.
+
+**Neden Postgres değil (ölçüldü).** Sunucusuz ortamda dosya sisteminin salt-okunur olması ilk bakışta SQLite'ı eler. Ölçüm bunun yalnızca **yazma** için doğru olduğunu gösterdi: Prisma salt-okunur bir SQLite dosyasını sorunsuz açıyor, en ağır çift (Milan ∩ Inter, 128 oyuncu) salt-okunur dosyadan 18,4 ms'de dönüyor ve yazma denemesi işletim sistemi düzeyinde reddediliyor. Yazma yolu olmadığı için Postgres'in çözdüğü problemlerin — eşzamanlı yazma, bağlantı havuzu, çok yazarlı tutarlılık — hiçbiri bu projede yok.
+
+**Bilinen sınır — ölçüldü.** Fonksiyon paketinin tamamı izlendi (`*.nft.json`), veritabanı tek başına değil:
+
+| Bileşen        | Boyut        | Pay                      |
+| -------------- | ------------ | ------------------------ |
+| Veritabanı     | 78,4 MB      | %62                      |
+| Prisma motoru  | 42,5 MB      | %34                      |
+| Uygulama kodu  | 3,2 MB       | %3                       |
+| `node_modules` | 1,4 MB       | %1                       |
+| **Toplam**     | **125,4 MB** | Vercel sınırı **250 MB** |
+
+Yani marj yaklaşık iki kat — "bol" değil ama yeterli. Veritabanı yayına çıkmadan VACUUM'lanıyor (78,4 → 72,8 MB), dolayısıyla üretimdeki paket ~120 MB.
+
+**Büyümeye karşı elde ne var.** `spells.wikidataStatementId` sütunu ve benzersizlik indeksi (~20 MB) yalnızca ETL'in idempotanlığı için gerekli; uygulama hiç okumuyor. Sınıra yaklaşılırsa yayına çıkan kopyadan bu ikisi düşürülür. O da yetmezse Postgres'e geçiş `PlayerRepository` port'unun arkasında kalır (§4.1) ve tek uygulama dosyasını etkiler — ki bu durumda Prisma motorunun 42,5 MB'ı da ortadan kalkmaz ama veritabanı payı sıfırlanır.
+
+**Ne zaman değişir.** Skor tablosu (§9) yazma ve kimlik getirir; o zaman gerçek bir veritabanı gerekir. Ama bu **ayrı bir veri kümesidir** — kullanıcı skorları quiz verisiyle aynı yerde durmak zorunda değil ve bu mimariyi bozmaz.
+
+#### Parçalar ve sorumlulukları
+
+| Parça                                | Ne yapar                                                                        |
+| ------------------------------------ | ------------------------------------------------------------------------------- |
+| `.github/workflows/data-refresh.yml` | ETL → `db:verify` → `bench` → VACUUM → sürüm varlığı → dağıtım tetiği           |
+| `scripts/fetch-dataset.ts`           | Derleme öncesi veri kümesini indirir; inmezse derlemeyi DURDURUR                |
+| `npm run vercel-build`               | `dataset:fetch` → `prisma generate` → `next build`                              |
+| `outputFileTracingIncludes`          | `.db`'yi sunucu paketine dâhil eder — yol üzerinden açıldığı için izlenemiyor   |
+| `resolveDatabaseUrl()`               | Göreli yolu çalışma zamanında mutlaklaştırır; Prisma'nın şema-göreli çözümü yok |
+
+Bunların ikisi yerelde ölçüldü: iz dosyaları (`*.nft.json`) `.db`'yi içeriyor ve çözülen yol gerçek dosyaya denk geliyor. Kalanlar — cron tetikleme, sürüm varlığı, dağıtım kancası — **ilk dağıtımda doğrulanacaktır** (Faz 4.5); GitHub ve Vercel bağlanmadan ölçülemezler.
+
+> **Ölçülmüş tuzak.** İlk `outputFileTracingIncludes` kalıbı `prisma/*.db` idi ve yanına bırakılmış bir yedeği (`dev.db.bak`) de pakete aldı. Kalıp tek dosyayı adlayacak biçimde daraltıldı: 73 MB'lık bir dosyanın kazara ikizlenmesi paket sınırını sessizce tüketir.
 
 ---
 
@@ -293,7 +365,15 @@ model Spell {
   @@index([clubId, playerId])         // ortak oyuncu sorgusunun ana indeksi
   @@index([playerId])
 }
+
+/// Veri kümesinin künyesi — TEK satır (id sabit 1).
+model DatasetMeta {
+  id          Int      @id @default(1)
+  generatedAt DateTime                 // ETL koşusunun bittiği an
+}
 ```
+
+> **`DatasetMeta` neden var (Faz 4).** Veri yılda iki kez tazelendiği için kullanıcı, gördüğü kadronun ne zamana ait olduğunu bilmelidir (§1.3). Bu tarihin **veriyle birlikte** taşınması gerekir: dağıtım zamanı yanlış cevaptır, çünkü kod tek başına yeniden dağıtıldığında veri eskimediği hâlde tarih tazelenirdi. Dosya değiştirme zamanı da yanlıştır — kopyalama onu sıfırlar. Doğru cevap ETL'in kendi bitiş anını yazmasıdır. Tek satırlık tablo, sabit `id = 1` ile zorlanır: ikinci bir satır eklenmesi birincil anahtar çakışması verir, yani "hangi künye geçerli" sorusu hiç doğmaz.
 
 > **Faz 1'de değişen karar.** Taslakta `Spell` için bileşik bir tekillik kısıtı (`[playerId, clubId, startYear, isLoan]`) öngörülmüştü. Ölçüm sırasında Wikidata'nın her `P54` ifadesine kalıcı ve benzersiz bir kimlik verdiği görüldü (`Q161089-AD66DA21-…`). Bunu doğal anahtar yapmak daha iyi: bileşik anahtar tarihi bilinmeyen iki dönemi yanlışlıkla aynı sayardı, ifade kimliği ise hem çakışmaz hem her satırın kaynağını tek tek doğrulanabilir kılar. Ayrı bir `sourceRef` alanına da gerek kalmadı.
 
@@ -373,6 +453,7 @@ Bunlar `domain/services/` içinde saf fonksiyon olarak yaşar ve birim testi ile
 - **BR-5 — Sıralama:** Sonuçlar, iki kulüpteki toplam maç sayısına göre azalan; maç bilgisi yoksa en son dönem yılına göre azalan sıralanır.
 - **BR-6 — Tarih normalizasyonu:** Wikidata'nın gün hassasiyetli tarihleri sezon yılına indirgenir (Temmuz–Aralık → o yıl; Ocak–Haziran → bir önceki yıl sezonuna ait).
 - **BR-7 — Kapsam: erkek ligleri.** Veri kümesi hedeflenen altı erkek ligiyle sınırlıdır. Wikidata kadın takımı dönemlerini çoğu zaman **aynı kulüp varlığına** bağladığı için ayrım kulüp düzeyinde yapılamıyor; `P21` (cinsiyet) alanı yalnızca bu kapsamı uygulamak üzere okunur, veritabanına yazılmaz ve arayüzde gösterilmez. `P21` kaydı olmayan oyuncular **kapsamda kalır** — eksik meta veri dışlama gerekçesi değildir. Kadın futbolu ileride kendi lig kümesiyle ayrı bir kapsam olarak eklenebilir (§10.2).
+- **BR-8 — Kanıt düzeyi.** Bir `Spell`, `startYear`, `endYear`, `appearances` ve `goals` alanlarının **dördü de** boşsa **kanıtsızdır**; en az biri doluysa kanıtlıdır. Kanıtsız dönemler BR-1 kapsamında **sayılır** (elenmez), fakat API yanıtında ve arayüzde açıkça işaretlenir. Gerekçe ve ölçüm §1.4'tedir; özeti: eleme, uydurma kayıtlarla birlikte doğru kayıtları da siliyor ve Wikidata ikisini ayıracak bir sinyal taşımıyor. BR-5'in sıralaması bu dönemleri kendiliğinden en sona koyar (ne maç sayısı ne yıl bilgisi vardır), dolayısıyla ayrı bir sıralama kuralı gerekmez.
 
 ---
 
@@ -433,6 +514,7 @@ Kulüp arama / otomatik tamamlama.
             "isLoan": false,
             "appearances": 64,
             "goals": 3,
+            "hasEvidence": true,
           },
         ],
         "spellsAtB": [
@@ -442,6 +524,7 @@ Kulüp arama / otomatik tamamlama.
             "isLoan": false,
             "appearances": 214,
             "goals": 9,
+            "hasEvidence": true,
           },
         ],
       },
@@ -449,6 +532,10 @@ Kulüp arama / otomatik tamamlama.
   },
 }
 ```
+
+**`hasEvidence` (BR-8).** Dört alanın (`startYear`, `endYear`, `appearances`, `goals`) hiçbiri dolu değilse `false` olur. Kuralı istemcinin türetmesi de mümkündü; kasten sunucuda tutuluyor, çünkü bu bir **iş kuralıdır** ve iki yerde ayrı ayrı yazılırsa er geç ayrışır (§2.4 ile aynı gerekçe: karar tek yerde verilir).
+
+**`isCurrent` neden yok.** Faz 1 şemasında bu alan vardı ve "oyuncu hâlâ kulüpte" diye okunuyordu. Faz 4'te ölçüldü: alan gerçekte "Wikidata'da bitiş tarihi girilmemiş" demek. Man United'ın "güncel kadrosunda" Herbert Broomfield (1909) ve Harold Hardman (1912), Bayern'inkinde Paul Francke (1899) çıkıyor; 32.102 dönemde bitiş tarihi eksik. Yanlış olduğu **bilinen** bir alanı sözleşmede tutmak, onu tüketen herkes için tuzaktır — alan sözleşmeden çıkarıldı. Ham değer veritabanında duruyor (ileride güvenilir bir kaynakla düzeltilebilir), ama dışarı verilmiyor. Bitişi bilinmeyen dönem arayüzde `2011 – ?` olarak gösterilir.
 
 ### 6.3 Hata Biçimi
 
@@ -535,20 +622,27 @@ Denetim, CSP veya render moduna dokunan her değişiklikten sonra üretim derlem
 
 | Ölçüm                               | Faz 0   | Faz 3 (arayüz ve API eklendikten sonra) |
 | ----------------------------------- | ------- | --------------------------------------- |
-| Nonce'lu script / toplam script     | 11 / 11 | **14 / 14**                             |
+| Nonce'lu script / toplam script     | 11 / 11 | **15 / 15** (Faz 4 ölçümü)              |
 | Üç istekte benzersiz nonce          | 3 / 3   | **3 / 3**                               |
 | Üretimde `unsafe-eval`              | yok     | **yok**                                 |
 | Üretimde `script-src unsafe-inline` | yok     | **yok**                                 |
+| İzinsiz kökenli `<img>`             | —       | **0** (12 arma, hepsi `upload.…`)       |
 
 #### `style-src-attr` tavizinin durumu
 
-Faz 3'te ölçüldü: sayfada **0 adet** `style="..."` özniteliği ve **0 adet** `<style>` bloğu var. Taviz şu an ATIL — `next/image` kullanılmadığı için tetiklenmiyor. Direktif yine de kaldırılmadı: kulüp armaları eklendiğinde `next/image` geri gelecek ve o anda sessizce kırılan bir CSP'yi teşhis etmek, atıl bir direktifi taşımaktan pahalıdır. Direktifin kod çalıştırma riski yoktur (yalnızca öznitelikleri kapsar).
+Faz 3'te ölçüldü: sayfada **0 adet** `style="..."` özniteliği ve **0 adet** `<style>` bloğu var. Taviz şu an ATIL. Faz 4'te armalar eklendi ama `next/image` KULLANILMADI (aşağıya bkz.), dolayısıyla direktif hâlâ tetiklenmiyor. Kaldırılmadı: bir sonraki görsel ihtiyacında sessizce kırılan bir CSP'yi teşhis etmek, atıl bir direktifi taşımaktan pahalıdır. Direktifin kod çalıştırma riski yoktur (yalnızca öznitelikleri kapsar).
 
 #### Görsel kaynakları
 
 Kulüp armaları yalnızca `upload.wikimedia.org` alanından yüklenir; kural hem CSP `img-src`'de hem `next.config.ts` içindeki `images.remotePatterns` beyaz listesinde tanımlıdır. Rastgele URL'den görsel yüklenmesine izin verilmez — aksi hâlde görsel optimizasyon ucu bir SSRF aracına dönüşür.
 
-> **Ölçülmüş uyumsuzluk (Faz 3):** Beyaz liste ile verinin kendisi ŞU AN ÖRTÜŞMÜYOR. Seçilebilir 345 kulübün 111'inde arma var ve bunların **111'i de** `http://commons.wikimedia.org/wiki/Special:FilePath/…` biçiminde — `upload.wikimedia.org` üzerinden gelen **sıfır**. Yani armalar bugün render edilseydi hepsi CSP tarafından bloklanırdı (ayrıca `http://` karışık içerik olurdu). Bu yüzden Faz 3 arayüzü arma GÖSTERMİYOR; `crestUrl` alanı §6.1 sözleşmesinde duruyor ama kullanılmıyor. Kalıcı çözüm ETL'de normalizasyondur (§10.2).
+> **Faz 3'te ölçülen uyumsuzluk ÇÖZÜLDÜ (Faz 4).** Sorun ikiliydi: veri `http://commons.wikimedia.org/wiki/Special:FilePath/…` biçimindeydi (114 armanın 114'ü) **ve** hiçbir bileşen armaları render etmiyordu. İkisi de düzeltildi — ETL adresi `upload.wikimedia.org`'a normalize ediyor (`scripts/etl/pipeline/crest-url.ts`), `ClubCrest` bileşeni gösteriyor.
+>
+> **Beyaz liste GENİŞLETİLMEDİ, veri düzeltildi.** `commons.wikimedia.org` eklemek iki satırlık bir düzeltme olurdu ama yanlış yönde: `Special:FilePath` bir yönlendirmedir (her arma için fazladan gidiş-dönüş) ve `http` karışık içerik uyarısı üretir. Güvenlik sınırını veri hatasına uydurmak yerine veri sınıra uyduruldu.
+>
+> **Ölçülmüş kısıt:** Wikimedia keyfi küçük-resim genişliği kabul etmiyor. İlk deneme 96 px'di ve 114 adresin tamamı `400` döndü ("Use thumbnail sizes listed on https://w.wiki/GHai"). Ölçüm: 64 ✗, 96 ✗, 100 ✗, **120 ✓**, 128 ✗, 160 ✗, 200 ✗, **250 ✓**, 256 ✗, 320 ✗. SVG'ler (114'ün 78'i) doğrudan veriliyor — hem daha küçük (4,4 KB vs 16,8 KB) hem ölçeklenebilir; raster dosyalar 120 px küçük resim olarak.
+>
+> **`next/image` kullanılMIYOR.** Dosyalar ETL'de zaten küçültüldüğü için görsel iyileştiricinin ölçülebilir kazancı yok; devreye almak bir alt sistem ve çalışma zamanı dönüştürme adımı eklerdi. `images.remotePatterns` yine de duruyor: ileride iyileştirici kullanılırsa beyaz listenin ilk günden dar olması gerekir.
 
 ### 7.4 Dış Servis Yalıtımı
 
@@ -557,6 +651,10 @@ Wikidata'ya **yalnızca** `scripts/etl/` erişir. Çalışma zamanında (request
 - SSRF ve dış servis kaynaklı gecikme/kesinti riski ortadan kalkar,
 - üçüncü taraf yanıtı doğrudan kullanıcıya asla yansımaz,
 - ETL'de gelen her kayıt Zod ile doğrulandığı için "kirli veri" veritabanına giremez.
+
+**Kuralın kapsamı: İSTEK YOLU.** Yasaklanan şey, bir kullanıcı isteğinin dış bir servise gitmesidir. Derleme adımı istek yolu değildir ve `scripts/fetch-dataset.ts` orada çalışır: veri kümesini yayımlanmış sürüm varlığından indirir (§3.1). Ayrım keyfi değil, tehdide dayalı — derleme çıktısı dağıtılmadan önce doğrulanabilir ve tekrarlanabilirdir; bir istek anında yapılan çağrı ise kullanıcının gecikmesine, kesintisine ve SSRF yüzeyine doğrudan eklenir.
+
+Betik, yarım veya yanlış bir indirmeyi kabul etmez: geçici dosyaya yazar, boyutu denetler, ancak sonra yerine taşır. Veri inmezse **derleme durur** — boş bir veritabanıyla devam etmek, çalışıyor görünen ama hiçbir kulübü bulamayan bir site üretirdi.
 
 ### 7.5 İstek Hızı Sınırlama
 
@@ -568,7 +666,13 @@ Her API ucunda IP başına token bucket: **60 istek / dakika**, patlama tolerans
 
 **Bellek sınırı.** Anahtar istemciden geldiği için kova haritası sınırsız büyüyemez; aksi hâlde sınırlayıcının kendisi bir bellek tüketim aracı olur (§7.1). Sınıra ulaşıldığında yalnızca **kovası dolu** (yani atıl) anahtarlar atılır. İlk tasarımda "en eskiyi at" kuralı vardı ve YANLIŞTI: jetonu tükenmiş bir kovayı silmek, tam da sınırlanan istemciye temiz bir kova hediye ediyordu. Bunu bir test yakaladı; kural artık "tahliye asla kota kazandırmaz". Atılabilecek atıl kova yoksa yeni anahtarlar ortak bir taşma kovasını paylaşır.
 
-> MVP'de sınırlayıcı bellek içidir (tek örnek varsayımı). Yatay ölçeklemeye geçilirse paylaşımlı bir sayaca (Redis vb.) taşınır — bu, `RateLimiter` port'u arkasında olduğu için tek dosyalık değişikliktir.
+**Sunucusuzda sınırlayıcının rolü (Faz 4 kararı).** Vercel'de her fonksiyon örneğinin kendi belleği vardır, dolayısıyla bellek içi kova **örnek başına** çalışır: N örnek varsa etkin sınır N×60/dk olur. Bu, sınırlayıcıyı tek başına yetersiz kılar ve karar bilinçlidir:
+
+- **Asıl koruma önbellektir** (§7.9). Yanıtlar CDN'de tutulduğu için tekrarlayan istekler fonksiyona hiç ulaşmaz; sınırlayıcı yalnızca önbellek ıskalayan trafiği görür.
+- **Korunacak bir yazma yolu veya kişisel veri yok.** Uygulama veritabanına yazmıyor (§3.1) ve kimlik tutmuyor; sınırlayıcının koruduğu şey bütünlük değil, kaynak tüketimidir.
+- Bu hâliyle sınırlayıcı **tek savunma değil, katmanlardan biridir**.
+
+Paylaşımlı bir sayaca (Vercel KV / Upstash vb.) geçiş, `RateLimiter` port'u arkasında olduğu için tek dosyalık değişikliktir. **Skor tablosu geldiğinde zorunlu olur** — orada yazma yolu ve kimlik devreye girer, yani sınırlayıcı bütünlüğü de korumaya başlar.
 
 ### 7.6 Sır Yönetimi
 
@@ -622,6 +726,65 @@ Denenen ve **reddedilen** çözümler:
 - **Loglama:** Log satırlarına IP, çerez veya tam istek gövdesi yazılmaz — yalnızca `traceId`, uç adı, süre ve sonuç kodu.
 - **Kimlik doğrulama:** MVP'de yok. Eklendiğinde: `httpOnly` + `Secure` + `SameSite=Strict` çerez, sunucu tarafı oturum, CSRF token'ı.
 - **Bağımlılık bütünlüğü:** Üretim yapısı çevrimdışı üretilebilir olmalı; derleme sırasında uzak betik indirilmez.
+
+### 7.9 Önbellekleme
+
+Faz 3'e kadar **her** API yanıtı `Cache-Control: no-store` taşıyordu. O tercih, önbelleklenebilirlik hakkında bir şey bilinmediği durumda doğru olan güvenli varsayımdı. §3.1'deki mimari kararla artık biliniyor: veri yalnızca yeni bir dağıtımla değişir, yani **bir dağıtım içinde yanıtlar değişmezdir**.
+
+Önbelleklenebilirliğin koşulu üç maddedir ve üçü de sağlanıyor:
+
+1. **Kişiselleştirme yok.** Yanıt yalnızca sorgu parametrelerine bağlı; oturum, çerez, kullanıcı yok. Aynı URL herkese aynı cevabı verir.
+2. **Gizli veri yok.** Tüm veri kümesi zaten herkese açık (Wikidata).
+3. **Değişmezlik.** Veri dağıtımlar arasında sabit.
+
+**Uygulanan politika:**
+
+| Yanıt                  | Politika                                          | Gerekçe                                                            |
+| ---------------------- | ------------------------------------------------- | ------------------------------------------------------------------ |
+| `200` (veri)           | `public, s-maxage=<uzun>, stale-while-revalidate` | Dağıtım içinde değişmez                                            |
+| `4xx` doğrulama hatası | `no-store`                                        | Kısa ömürlü ve istemciye özgü; önbellekte yer tutması anlamsız     |
+| `429` hız sınırı       | `no-store`                                        | **Kritik:** önbelleklenirse başka istemcilere de 429 servis edilir |
+| `5xx`                  | `no-store`                                        | Geçici durum; kalıcılaştırılmamalı                                 |
+
+**Sayfa HTML'i önbelleklenmez.** Nonce'lu CSP (§7.3) her yanıtta yeni bir nonce üretir; önbelleklenmiş bir HTML, önbelleklenmiş bir nonce demektir ve bu, nonce'ı işlevsiz kılar. Sayfa kabuğu bu yüzden dinamik kalır — küçüktür, veri zaten API'den gelir.
+
+> **İlk dağıtımda doğrulanacak:** Vercel'in CDN önbellek anahtarının dağıtım kimliğini içerdiği, yani yeni dağıtımın eski yanıtları otomatik geçersiz kıldığı varsayılıyor. Bu doğrulanana kadar `s-maxage` **temkinli** tutulur; doğrulandıktan sonra uzatılır. Varsayım yanlışsa yeni veri eski önbelleğin arkasında kalır — bu, sessizce yanlış veri servis etmek demektir ve ölçülmeden kabul edilemez.
+
+### 7.10 Erişilebilirlik (WCAG 2.1 AA)
+
+Denetim **iki parçadır**, çünkü tek bir araç ikisini birden ölçemiyor.
+
+**1. Yapısal denetim — otomatik ve kalıcı.** `axe-core`, `wcag2a`/`wcag2aa`/`wcag21a`/`wcag21aa` kural kümeleriyle bileşenlerin üzerinde koşuyor ve testlerin parçası (`tests/unit/components/a11y.test.tsx`). Kulüp seçici hem kapalı hem **liste açıkken** denetleniyor — combobox deseninin `aria-*` bağlantıları ancak açıkken değerlendirilebilir.
+
+> Denetimin kendisi de test ediliyor: bilerek bozuk bir işaretlemeye (`<img>` alt'sız, `<button>` adsız) karşı koşturulup ihlalleri **yakaladığı** doğrulanıyor. Hiç kırmızıya dönemeyen bir kapı kapı değildir.
+
+**2. Kontrast — elle hesaplandı.** jsdom'un yerleşim motoru olmadığı için `color-contrast` kuralı orada çalışamaz; açık bırakılsaydı "geçti" derdi ve bu yanıltıcı olurdu. Kural bilerek kapatıldı, kontrast ayrıca hesaplandı. Renkler `#171717`/`#ffffff` (açık) ve `#ededed`/`#0a0a0a` (koyu); arayüz tonları `currentColor` üzerine saydamlıkla kuruluyor, yani her saydamlık değeri bir kontrast oranına karşılık geliyor:
+
+| Saydamlık | Açık mod | Koyu mod | Normal metin (4,5) | Arayüz/odak (3,0) |
+| --------- | -------- | -------- | ------------------ | ----------------- |
+| 0,70      | 6,58     | 8,42     | ✅                 | ✅                |
+| 0,60      | 4,67     | 6,36     | ✅                 | ✅                |
+| 0,50      | 3,41     | 4,74     | ❌ açık modda      | ✅                |
+| 0,30      | 1,96     | 2,38     | ❌                 | ❌                |
+| 0,20      | 1,53     | 1,66     | ❌                 | ❌                |
+
+Ölçüm beş ihlal buldu ve beşi de düzeltildi:
+
+| Yer                                | Neydi                      | Ne oldu           | Hangi ölçüt            |
+| ---------------------------------- | -------------------------- | ----------------- | ---------------------- |
+| Arama kutusu kenarlığı             | `border-current/20` (1,53) | `/50`             | 1.4.11 arayüz bileşeni |
+| Arama kutusu odak halkası          | `ring-current/20` (1,53)   | `/60`             | 1.4.11 / 2.4.11 odak   |
+| "Değiştir" ve "Yeniden dene" odağı | `ring-current/30` (1,96)   | `/60`             | 1.4.11 / 2.4.11 odak   |
+| Hata kimliği metni                 | `opacity-50` (3,41)        | `/70`             | 1.4.3 metin kontrastı  |
+| Boş sonuç açıklaması               | `opacity-50` + `text-xs`   | `/70` + `text-sm` | 1.4.3                  |
+
+**Kural: metin için asgari saydamlık 0,60.** Bunun altındaki her değer açık modda AA'yı karşılamıyor.
+
+**Renk tek gösterge değildir (1.4.1).** BR-8'in kanıtsız dönem işareti kesik çizgiyle _ve_ metinle veriliyor ("kaynakta ayrıntı yok"); kiralık dönem rozeti de metin taşıyor. Biçimi ayırt edemeyen kullanıcı için bilgi kaybolmuyor.
+
+**Armalar süslemedir (1.1.1).** `alt=""` ve `aria-hidden` taşırlar; yanlarındaki kulüp adı zaten okunuyor, "Galatasaray arması" demek aynı bilgiyi ikinci kez seslendirmek olurdu.
+
+**Bu denetimin DIŞINDA kalanlar — dürüstçe.** jsdom yerleşim hesaplamadığı için görünürlük, gerçek odak sırası, hedef boyutu (2.5.5) ve yeniden akış (1.4.10) ölçülmedi. Bunlar gerçek tarayıcı gerektirir ve ilk dağıtımdan sonra elle denetlenecektir (Faz 4.5).
 
 ---
 
@@ -679,9 +842,19 @@ Denetimler ETL'in kendi çıktısına bakar; kabul kontrolü ise **veritabanına
 
 Zorunlu kulüp listesi keyfi değil: her satır bir kez bozulmuş bir kulüptür ve orada aynı hatanın sessizce geri gelmesini engellemek için durur.
 
+#### Kanıtsız dönem oranı (BR-8)
+
+Kanıtsız dönemler elenmiyor, etiketleniyor (§1.4). Etiketlemenin dürüst kalması oranın **izlenmesine** bağlıdır: oran sessizce büyürse arayüzdeki uyarı bir istisnayı değil çoğunluğu tarif etmeye başlar ve anlamını yitirir. Bu yüzden `db:verify`, kanıtsız dönem oranını ölçer ve tavanı aşarsa hatalı çıkar. Ölçülen değer: **%11,7** (193.003'ün 22.520'si).
+
+Bu, ETL'i durduran bir kapı olduğu için tavan gerçekçi bir tamponla konur — amaç mevcut gürültüyü cezalandırmak değil, **kötüleşmeyi** yakalamaktır.
+
 ### 8.3 CI Ardışık Düzeni
 
-Her push'ta sırayla: `typecheck` → `lint` → `test` → `build` → `npm audit --audit-level=high`. Herhangi biri başarısızsa birleştirme (merge) engellenir.
+**Kod (her push).** `npm run verify` → `typecheck` → `lint` → `format:check` → `test` → `build`, ardından `npm run audit:ci`. Herhangi biri başarısızsa birleştirme (merge) engellenir.
+
+**Veri (zamanlanmış).** Yılda iki kez — transfer dönemleri kapandıktan **birkaç hafta sonra** — ve elle tetiklenebilir. Sıra: `etl` → `db:verify` → yayımla → dağıt. `db:verify` kapıdır: geçmezse dağıtım oluşmaz ve site bir önceki veriyle çalışmaya devam eder (§3.1).
+
+> **Neden pencere kapanır kapanmaz değil.** Kaynak Wikidata'dır ve gönüllü katkısıyla güncellenir. Transferin sisteme yansıması, o transferin Wikidata'ya girilmiş olmasına bağlıdır; büyük kulüplerde bu günler sürer, küçüklerde daha uzun. Pencere kapanır kapanmaz koşmak, eksik bir anlık görüntüyü altı ay boyunca yayında tutmak demektir.
 
 ---
 
@@ -754,12 +927,28 @@ Bu modlar mevcut `Spell` modelini kullanır; yeni tablo değil, yeni **alan** ge
 - [x] Duyarlı tasarım, karanlık mod
 - [x] CSP nonce doğrulamasının tekrarı (§7.3)
 
-### Faz 4 — Sertleştirme
+### Faz 4 — Sertleştirme ve yayına hazırlık
 
-- [ ] Önbellek katmanı, sorgu performans ölçümü (p95 hedefi)
-- [ ] Erişilebilirlik denetimi (WCAG 2.1 AA)
-- [ ] Güvenlik gözden geçirmesi (§7 maddelerinin tek tek doğrulanması)
-- [ ] CI ardışık düzeni, dağıtım (deploy)
+Hedef: **eksiksiz bir proje**, sonra yayın. Sıra kasten bu — yayına çıkmak eksikleri kapatmaz, görünür kılar.
+
+- [x] Sorgu performans ölçümü — `npm run bench`, p95 16,8 ms (§1.4)
+- [x] Sorgu şeklinin kesişime çevrilmesi (p95 47,7 → 16,8 ms)
+- [x] Güvenilmez `isCurrent` alanının sözleşmeden çıkarılması (§6.2)
+- [x] Kanıt düzeyi kuralının ölçülmesi ve BR-8'in tanımlanması (§1.4, §5.4)
+- [x] BR-8'in koda geçirilmesi (domain + DTO + arayüz işareti)
+- [x] Arma URL'lerinin normalize edilmesi — 114/114, ölçülen 120 px kısıtıyla
+- [x] Arayüzde kapsam bildirimi ve veri güncellik tarihi (`DatasetMeta`)
+- [x] Önbellek politikası (§7.9)
+- [x] Erişilebilirlik denetimi (WCAG 2.1 AA) — 5 ihlal bulundu ve düzeltildi (§7.10)
+- [x] Güvenlik gözden geçirmesi (§7 maddelerinin tek tek doğrulanması)
+- [x] CI ardışık düzeni (§8.3)
+- [x] Zamanlanmış ETL iş akışı + dağıtım yapılandırması (§3.1)
+
+### Faz 4.5 — Yayın
+
+- [ ] Vercel projesi, alan adı, ilk dağıtım
+- [ ] §7.9'daki önbellek geçersizleştirme varsayımının doğrulanması
+- [ ] Üretimde CSP nonce ölçümünün tekrarı
 
 ### Faz 5 — Genişleme
 
@@ -769,21 +958,37 @@ Bu modlar mevcut `Spell` modelini kullanır; yeni tablo değil, yeni **alan** ge
 
 ### 10.1 Şu Anki Odak
 
-**Faz 4 — Sertleştirme.** Faz 3 tamamlandı; uygulama uçtan uca çalışıyor. Sonraki somut adım: sorgu performansının ölçülmesi (§1.4'teki p95 < 150 ms hedefi henüz ÖLÇÜLMEDİ) ve erişilebilirlik denetimi.
+**Faz 4 tamamlandı — sıradaki Faz 4.5 (yayın).** Sertleştirme bitti; proje eksiksiz. Kalan iş kod değil: hesap açma ve ilk dağıtımda üç varsayımın ölçülmesi — CDN önbellek geçersizleştirme (§7.9), `process.cwd()` yerleşimi (§3.1) ve gerçek tarayıcıda yerleşime bağlı erişilebilirlik ölçütleri (§7.10).
 
-Faz 3'ün bıraktığı doğrulanabilir taban:
+Doğrulanabilir taban (Faz 4 kapanışı, 2026-07-30):
 
-| Komut                   | Sonuç                                                             |
-| ----------------------- | ----------------------------------------------------------------- |
-| `npm run typecheck`     | temiz                                                             |
-| `npm run lint`          | temiz (0 uyarı)                                                   |
-| `npm run test`          | 312/312 geçiyor (birim, bileşen, entegrasyon, sözleşme, doğruluk) |
-| `npm run test:coverage` | `domain/` + `application/` %100 satır, dal, fonksiyon             |
-| `npm run build`         | başarılı, tüm rotalar dinamik (nonce için gerekli)                |
-| `npm run audit:ci`      | 0 açık (üretim ağacı)                                             |
-| `npm run etl`           | 388 kulüp · 76.358 oyuncu · 193.003 dönem                         |
-| `npm run db:verify`     | 18/18 kontrol geçiyor (10 zorunlu kulüp, bütünlük, 5 çift)        |
-| CSP nonce ölçümü        | 14/14 script eşleşti, 3/3 benzersiz nonce (§7.3)                  |
+| Komut                  | Sonuç                                                                    |
+| ---------------------- | ------------------------------------------------------------------------ |
+| `npm run typecheck`    | temiz                                                                    |
+| `npm run lint`         | temiz (0 uyarı)                                                          |
+| `npm run format:check` | temiz                                                                    |
+| `npm run test`         | 361/361 geçiyor (birim, bileşen, erişilebilirlik, entegrasyon, doğruluk) |
+| `npm run build`        | başarılı, tüm rotalar dinamik (nonce için gerekli)                       |
+| `npm run audit:ci`     | 0 açık (üretim ağacı)                                                    |
+| `npm run etl`          | 388 kulüp · 76.358 oyuncu · 193.003 dönem                                |
+| `npm run db:verify`    | 19/19 kontrol geçiyor (kanıt oranı dâhil)                                |
+| `npm run bench`        | p50 4,2 ms · **p95 16,8 ms** · p99 21,0 ms (bütçe 150 ms)                |
+| CSP nonce ölçümü       | **15/15** script eşleşti, 3/3 benzersiz nonce (§7.3)                     |
+| Üretimde arma ölçümü   | 12 arma, **12'si** `upload.wikimedia.org`, izinsiz köken **0**           |
+| Üretimde önbellek      | `200` → `public, s-maxage=300…` · `400` → `no-store` (§7.9)              |
+
+**Faz 4'ün ölçüm karnesi.** Fazın tamamı aynı biçimde ilerledi: bir varsayım ölçüldü, çoğu yanlış çıktı.
+
+| Varsayım                           | Ölçüm                                                | Sonuç                    |
+| ---------------------------------- | ---------------------------------------------------- | ------------------------ |
+| `isCurrent` = "hâlâ kulüpte"       | Man Utd'ın "kadrosunda" 1909 doğumlular              | Sözleşmeden çıkarıldı    |
+| Sorgu şekli yeterince iyi          | Her istekte 76.358 oyuncu taranıyordu                | p95 47,7 → 16,8 ms       |
+| Sunucusuz ⇒ Postgres zorunlu       | Prisma salt-okunur SQLite'ı açıyor, 18,4 ms          | Postgres gereksiz (§3.1) |
+| Tarihsiz kayıtlar elenebilir       | Eleme Bill Dale'i de siliyor; Wikidata ayırt etmiyor | BR-8: etiketle, silme    |
+| Küçük resim genişliği serbest      | 96 px'de 114 adresin **tamamı** 400 döndü            | 120 px (izinli liste)    |
+| `prisma/*.db` kalıbı yeterince dar | Yanına bırakılmış yedek de pakete girdi              | Tek dosya adlandı        |
+| `file:` + URL pathname doğru biçim | Windows'ta `file:/C:/…` → "Error code 14"            | Düz dosya yolu           |
+| Arayüz kontrastı yeterli           | 5 yerde AA eşiğinin altında                          | Saydamlık tabanı 0,60    |
 
 **Faz 1'in asıl dersi.** Çekim mantığı üç kez üst üste kırıldı ve üçünde de aynı hatayı yaptım: veriden okunabilecek bir şeyi kuralla tahmin ettim. `P831`'in yönü, hangi hataların yeniden denenebilir olduğu, kaç bozuk kaydın kabul edilebilir olduğu — üçü de "şöyle olmalı" diye varsayıldı, sonra ölçümle çürütüldü. Kalıcı düzeltmeler tahmini ölçümle değiştirdi: kulüp seçimi dönem sayısına, yeniden deneme hatanın kaynağına, doğrulama ayıklama oranına bakıyor.
 
@@ -793,26 +998,30 @@ Bunun süreçteki karşılığı `npm run db:verify`. Faz 1 boyunca doğrulama "
 
 ### 10.2 Bilinen Teknik Borç / İleri Kararlar
 
-| Konu                                      | Şimdiki karar                                                                            | Ne zaman değişir                                                            |
-| ----------------------------------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| SQLite                                    | Yeterli                                                                                  | Eşzamanlı yazma veya çok örnekli dağıtım gerekirse                          |
-| Bellek içi hız sınırlama                  | Yeterli                                                                                  | Birden fazla sunucu örneği çalıştırılırsa                                   |
-| Wikidata tek kaynak                       | Kabul, override'larla                                                                    | Kapsam boşlukları %5'i aşarsa ikinci kaynak eklenir                         |
-| i18n                                      | Yalnızca TR metinler                                                                     | İngilizce talep edilirse (yapı hazır)                                       |
-| Tümüyle dinamik render                    | Nonce'lu CSP için kabul edildi (§7.3)                                                    | Next kararlı SRI sunarsa statik + hash tabanlı CSP'ye geçilir               |
-| `brace-expansion` açığı                   | Dev-only, izleniyor (§7.7)                                                               | `eslint-config-next` eslint 10 uyumlu eklentilerle çıkarsa                  |
-| Yalnızca erkek ligleri                    | Kapsam kararı (BR-7)                                                                     | Kadın futbolu kendi lig kümesiyle ayrı kapsam olarak eklenebilir            |
-| Kulüp sınıfı beyaz listesi                | 6 sınıf, ölçülerek belirlendi                                                            | Yeni bir kulüp farklı `P31` ile listeden düşerse genişletilir               |
-| Tam kariyer verisi yok                    | Faz 1 kapsam sınırı (§1.3)                                                               | Kariyer bilmecesi / bağlantı zinciri modları için gerekli olacak            |
-| `isYouth` hiç tetiklenmiyor               | Kabul — veri kümesinde altyapı takımı yok (388 kulübün 0'ı)                              | Alt lig kapsamı eklenirse altyapı/rezerv takımlar girer, BR-2 devreye girer |
-| Kulüp kuruluş yılı gürültülü              | Uyarı, bloklamıyor (§8.2)                                                                | 9158 dönem kulüp kuruluşundan önce; `P571` sık sık selef kulübü gösteriyor  |
-| `db:verify` elle çalışır                  | Faz 1'de yeterli                                                                         | Dağıtım ardışık düzenine girince veri yükleme adımının parçası olur         |
-| Tarihsiz dönemler yanlış pozitif üretiyor | Ölçülüyor (%11,7), izleniyor; §1.4 ölçütü karşılanmıyor                                  | Faz 4: tarihsiz + maçsız kayıtlar için ayıklama ölçütü tasarlanacak         |
-| Ortak oyuncu sayısı sınırsız              | Kabul — ölçülen en büyük sonuç 128 oyuncu                                                | Sayfalama, arayüz gerektirdiğinde (Faz 3) veya sonuç 500'ü aştığında        |
-| Altın veri seti elle bakımlı              | 31 olgu, elle doğrulandı                                                                 | Kapsam genişledikçe büyütülür; otomatik türetme yapılMAZ (kendini doğrular) |
-| Kulüp armaları gösterilmiyor              | Veri `http://commons.wikimedia.org/…`, beyaz liste `https://upload.wikimedia.org` (§7.3) | ETL, `P154` değerini doğrudan `upload` adresine normalize edince açılır     |
-| p95 gecikme ölçülmedi                     | §1.4 hedefi (150 ms) doğrulanMADI                                                        | Faz 4: gerçek veri kümesiyle ölçüm, gerekirse önbellek katmanı              |
-| Erişilebilirlik denetlenmedi              | ARIA sözleşmesi testlerle korunuyor; WCAG denetimi yapılMADI                             | Faz 4: WCAG 2.1 AA denetimi                                                 |
+| Konu                                      | Şimdiki karar                                                                                             | Ne zaman değişir                                                                 |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| SQLite                                    | Salt-okunur derleme çıktısı (§3.1); ölçüldü, yazma yolu yok                                               | Skor tablosu yazma getirdiğinde — ayrı veri kümesi olarak                        |
+| Fonksiyon paketi 125,4 MB                 | Ölçüldü; sınır 250 MB, marj ~2 kat. Veri %62, Prisma motoru %34 (§3.1)                                    | Sınıra yaklaşılırsa ETL'e özgü sütun + indeks düşürülür (~20 MB)                 |
+| Derlemede NFT uyarısı                     | Kabul — `resolveDatabaseUrl` içindeki `path.resolve` tetikliyor; iz ÖLÇÜLDÜ, şişme yok (280 dosya)        | Turbopack daha dar analiz sunarsa                                                |
+| Bellek içi hız sınırlama                  | Sunucusuzda örnek başına çalışır; katmanlardan biri, tek savunma değil (§7.5)                             | Skor tablosu geldiğinde paylaşımlı sayaç **zorunlu** olur                        |
+| Wikidata tek kaynak                       | Kabul, override'larla                                                                                     | Kapsam boşlukları %5'i aşarsa ikinci kaynak eklenir                              |
+| i18n                                      | Yalnızca TR metinler                                                                                      | İngilizce talep edilirse (yapı hazır)                                            |
+| Tümüyle dinamik render                    | Nonce'lu CSP için kabul edildi (§7.3)                                                                     | Next kararlı SRI sunarsa statik + hash tabanlı CSP'ye geçilir                    |
+| `brace-expansion` açığı                   | Dev-only, izleniyor (§7.7)                                                                                | `eslint-config-next` eslint 10 uyumlu eklentilerle çıkarsa                       |
+| Yalnızca erkek ligleri                    | Kapsam kararı (BR-7)                                                                                      | Kadın futbolu kendi lig kümesiyle ayrı kapsam olarak eklenebilir                 |
+| Kulüp sınıfı beyaz listesi                | 6 sınıf, ölçülerek belirlendi                                                                             | Yeni bir kulüp farklı `P31` ile listeden düşerse genişletilir                    |
+| Tam kariyer verisi yok                    | Faz 1 kapsam sınırı (§1.3)                                                                                | Kariyer bilmecesi / bağlantı zinciri modları için gerekli olacak                 |
+| `isYouth` hiç tetiklenmiyor               | Kabul — veri kümesinde altyapı takımı yok (388 kulübün 0'ı)                                               | Alt lig kapsamı eklenirse altyapı/rezerv takımlar girer, BR-2 devreye girer      |
+| Kulüp kuruluş yılı gürültülü              | Uyarı, bloklamıyor (§8.2)                                                                                 | 9158 dönem kulüp kuruluşundan önce; `P571` sık sık selef kulübü gösteriyor       |
+| `db:verify` elle çalışır                  | Faz 1'de yeterli                                                                                          | Dağıtım ardışık düzenine girince veri yükleme adımının parçası olur              |
+| Tarihsiz dönemler yanlış pozitif üretiyor | **Çözüldü (Faz 4):** elenmiyor, BR-8 ile etiketleniyor; oran `db:verify`'da tavanlı                       | İkinci bir veri kaynağı eklenirse kayıtlar teker teker doğrulanabilir hâle gelir |
+| Ortak oyuncu sayısı sınırsız              | Kabul — ölçülen en büyük sonuç 128 oyuncu                                                                 | Sayfalama, arayüz gerektirdiğinde (Faz 3) veya sonuç 500'ü aştığında             |
+| Altın veri seti elle bakımlı              | 31 olgu, elle doğrulandı                                                                                  | Kapsam genişledikçe büyütülür; otomatik türetme yapılMAZ (kendini doğrular)      |
+| Kulüp armaları gösterilmiyor              | **Çözüldü (Faz 4):** ETL normalize ediyor, `ClubCrest` gösteriyor; 114/114 izinli kökende                 | —                                                                                |
+| `P154` bazı kulüplerde arma DEĞİL         | Kabul — ölçüldü: Barcelona'nın değeri tesis fotoğrafı, Middlesbrough'nunki sokak fotoğrafı                | İkinci kaynak veya elle override listesi eklenirse                               |
+| CDN önbellek geçersizleştirme             | Varsayım; bu yüzden `s-maxage` temkinli (300 sn) tutuluyor (§7.9)                                         | Faz 4.5'te ölçülür; doğrulanırsa süre uzatılır                                   |
+| p95 gecikme                               | **Ölçüldü (Faz 4):** 16,8 ms, bütçe 150 ms; `npm run bench` kalıcı kapı                                   | Kapsam genişleyince yeniden ölçülür (betik zaten var)                            |
+| Erişilebilirlik: yerleşime bağlı ölçütler | Yapısal denetim (axe-core) ve kontrast ölçüldü; görünürlük, odak sırası ve hedef boyutu ölçülMEDİ (§7.10) | Faz 4.5: gerçek tarayıcıda elle denetim                                          |
 
 ---
 

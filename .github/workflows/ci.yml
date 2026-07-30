@@ -1,0 +1,53 @@
+# Kod kapısı — PROJECT.md §8.3.
+#
+# Her push ve her PR'da çalışır. Yayındaki bir siteye elle doğrulamayla
+# güvenilemez: `npm run verify` yerelde unutulabilir, burada unutulamaz.
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+# Aynı dal için üst üste gelen koşularda öncekini iptal et: eski bir commit'in
+# sonucunu beklemek hem yavaş hem yanıltıcı.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          cache: npm
+
+      # `npm ci` — `npm install` DEĞİL. Kilit dosyasına birebir uyar; aksi
+      # hâlde CI, geliştiricinin makinesinden farklı sürümleri test eder (§7.7).
+      - run: npm ci
+
+      # Prisma istemcisi üretilmiş kodda değil, kurulum sonrası üretilir
+      # (`src/generated/` gitignore'da). Tip denetimi buna bağlı.
+      - run: npm run db:generate
+
+      # Testler geçici veritabanlarını migration'lardan kurar; şema dosyası
+      # yeterli, veri gerekmez.
+      - run: npm run verify
+        env:
+          DATABASE_URL: file:./dev.db
+          RATE_LIMIT_REQUESTS_PER_MINUTE: "60"
+          RATE_LIMIT_BURST: "10"
+          TRUSTED_PROXY_HOPS: "1"
+
+      # Üretim ağacında yüksek/kritik açık sıfır olmalı (§7.7). Ayrı adım:
+      # başarısız olduğunda hangi kapının kapandığı log'dan tek bakışta okunur.
+      - run: npm run audit:ci

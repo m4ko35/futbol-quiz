@@ -34,6 +34,27 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
 
+  /**
+   * Veritabanı dosyasını sunucu paketine dâhil et (PROJECT.md §3.1).
+   *
+   * Veri bu projede bir DERLEME ÇIKTISIDIR: üretimde yazılmaz, salt-okunur
+   * olarak dağıtımla birlikte gider. Next'in dosya izleme (file tracing)
+   * mekanizması yalnızca `import` ile ulaşılan dosyaları bulur; `.db` dosyası
+   * çalışma zamanında yol üzerinden açıldığı için izlenemez ve bu satır
+   * olmadan pakete GİRMEZ — uygulama üretimde "veritabanı yok" diye ölür.
+   *
+   * Anahtar `/*`: bütün sunucu rotaları. Hem sayfa hem API uçları veriye
+   * erişiyor, dolayısıyla daraltmanın kazancı yok.
+   *
+   * Kalıp TEK DOSYAYI adlar, `*.db` gibi bir joker DEĞİL. Ölçüldü: joker
+   * kullanıldığında yanına bırakılmış bir yedek (`dev.db.bak`) de pakete
+   * girdi. Dağıtım paketine ne gireceği tahmine bırakılamaz — 73 MB'lık bir
+   * dosyanın yanlışlıkla ikizlenmesi paket sınırını (§3.1) sessizce tüketir.
+   */
+  outputFileTracingIncludes: {
+    "/*": ["prisma/dev.db"],
+  },
+
   // Sunucu parmak izini azalt: "X-Powered-By: Next.js" bilgisini gönderme.
   poweredByHeader: false,
 

@@ -1,4 +1,6 @@
 import { PrismaClient } from "@/generated/prisma";
+import { serverEnv } from "../config/env";
+import { resolveDatabaseUrl } from "./database-url";
 
 /**
  * Tekil PrismaClient örneği.
@@ -15,6 +17,9 @@ const globalForPrisma = globalThis as unknown as {
 export const prisma: PrismaClient =
   globalForPrisma.prisma ??
   new PrismaClient({
+    // Adres açıkça veriliyor: sunucusuz dağıtımda göreli yol çözümlemesi
+    // Prisma'ya bırakılamaz (bkz. database-url.ts).
+    datasourceUrl: resolveDatabaseUrl(serverEnv().DATABASE_URL),
     // Üretimde sorgu logu tutulmaz: hem gürültü hem de sorgu metinleri
     // üzerinden veri sızıntısı riski (§7.8).
     log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],

@@ -57,6 +57,21 @@ const KNOWN_PAIRS: readonly [string, string][] = [
  */
 const MIN_SPELLS = MIN_SPELLS_FOR_SELECTABLE;
 
+/**
+ * BR-8 — kanıtsız dönem oranının tavanı (PROJECT.md §8.2).
+ *
+ * Kanıtsız dönemler elenmiyor, etiketleniyor. Etiketlemenin dürüst kalması
+ * oranın küçük kalmasına bağlıdır: oran büyürse arayüzdeki uyarı bir istisnayı
+ * değil ÇOĞUNLUĞU tarif etmeye başlar ve hiçbir şey ifade etmez.
+ *
+ * Ölçülen değer %11,7 (2026-07-30). Tavan, mevcut gürültüyü cezalandırmak için
+ * değil KÖTÜLEŞMEYİ yakalamak için var; bu yüzden gerçekçi bir tamponla konur.
+ * Wikidata'nın belgelenmemiş kayıtları temizlemesi oranı düşürebilir, yeni lig
+ * kapsamı yükseltebilir — %18'i aşması ise kaynakta yapısal bir değişiklik
+ * demektir ve bakılmadan yayına çıkmamalıdır.
+ */
+const MAX_UNEVIDENCED_RATIO = 0.18;
+
 const failures: string[] = [];
 
 function check(ok: boolean, message: string): void {
@@ -139,6 +154,41 @@ async function verifyIntegrity(): Promise<void> {
   );
 }
 
+/**
+ * BR-8 kanıt oranı — §8.2.
+ *
+ * Ölçüt `hasEvidence`'ın olumsuzudur ve DOMAIN'DEKİ kuralla aynı dört alana
+ * bakar. Burada Prisma `where`'i olarak yazılmış olması bir kopya değil bir
+ * çeviridir; kural değişirse önce `hasEvidence` güncellenir, sonra burası.
+ */
+async function verifyEvidenceRatio(): Promise<void> {
+  console.log("\n=== Kanıt düzeyi (BR-8) ===");
+
+  const [total, unevidenced] = await Promise.all([
+    prisma.spell.count(),
+    prisma.spell.count({
+      where: {
+        startYear: null,
+        endYear: null,
+        appearances: null,
+        goals: null,
+      },
+    }),
+  ]);
+
+  if (total === 0) {
+    check(false, "hiç dönem kaydı yok");
+    return;
+  }
+
+  const ratio = unevidenced / total;
+  check(
+    ratio <= MAX_UNEVIDENCED_RATIO,
+    `kanıtsız dönem ${unevidenced}/${total} = %${(ratio * 100).toFixed(1)} ` +
+      `(tavan %${(MAX_UNEVIDENCED_RATIO * 100).toFixed(0)})`,
+  );
+}
+
 async function verifyKnownPairs(): Promise<void> {
   console.log("\n=== Ortak oyuncu çiftleri ===");
 
@@ -179,6 +229,7 @@ async function main(): Promise<void> {
     await reportCounts();
     await verifyTargetClubs();
     await verifyIntegrity();
+    await verifyEvidenceRatio();
     await verifyKnownPairs();
   } finally {
     await prisma.$disconnect();

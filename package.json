@@ -25,7 +25,9 @@
     "db:studio": "prisma studio",
     "etl": "tsx scripts/etl/index.ts",
     "db:verify": "tsx scripts/etl/verify-data.ts",
-    "bench": "tsx scripts/benchmark.ts"
+    "bench": "tsx scripts/benchmark.ts",
+    "dataset:fetch": "tsx scripts/fetch-dataset.ts",
+    "vercel-build": "npm run dataset:fetch && prisma generate && next build"
   },
   "dependencies": {
     "@prisma/client": "^6.19.1",
@@ -43,6 +45,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitest/coverage-v8": "^4.1.10",
+    "axe-core": "^4.12.1",
     "eslint": "^9.39.5",
     "eslint-config-next": "16.2.12",
     "eslint-config-prettier": "^10.1.8",
