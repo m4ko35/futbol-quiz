@@ -6,6 +6,7 @@ import {
   searchPlayers,
 } from "@/application/use-cases/search-players";
 import { ValidationError } from "@/domain/errors/domain-error";
+import { isStatKey } from "@/domain/services/stat-match";
 import { repositories } from "@/infrastructure/db/repositories";
 import {
   rateLimiter,
@@ -27,6 +28,15 @@ import { handleApiRequest } from "@/lib/http/api-handler";
 const querySchema = z.object({
   q: z.string().max(MAX_PLAYER_TERM_LENGTH),
   limit: z.coerce.number().int().min(1).max(MAX_PLAYER_RESULTS).optional(),
+  /**
+   * §9.2 BR-16 — sonucu o istatistikte puanlanabilir oyuncularla sınırlar.
+   *
+   * İsteğe bağlı: ızgara modu her oyuncuyu cevap olarak kabul eder ve bu
+   * alanı göndermez. Tanınmayan bir değer sessizce YOK SAYILMAZ, reddedilir —
+   * yazım hatası, süzgeci sessizce kapatıp kullanıcıyı seçemeyeceği
+   * oyuncularla baş başa bırakırdı.
+   */
+  stat: z.string().refine(isStatKey).optional(),
 });
 
 export async function GET(request: NextRequest): Promise<Response> {
@@ -55,6 +65,9 @@ export async function GET(request: NextRequest): Promise<Response> {
           ...(parsed.data.limit === undefined
             ? {}
             : { limit: parsed.data.limit }),
+          ...(parsed.data.stat === undefined
+            ? {}
+            : { scoreableFor: parsed.data.stat }),
         },
         { players: repositories.players },
       );

@@ -1,3 +1,4 @@
+import type { StatKey } from "@/domain/services/stat-match";
 import { toPlayerDto, type PlayerDto } from "../dto/player-dto";
 import type { PlayerRepository } from "../ports/player-repository";
 
@@ -26,6 +27,11 @@ export const MIN_PLAYER_TERM_LENGTH = 2;
 export interface SearchPlayersInput {
   readonly term: string;
   readonly limit?: number;
+  /**
+   * Verilirse sonuç, o istatistikte puanlanabilir oyuncularla sınırlanır
+   * (§9.2, BR-16). Izgara modu bunu göndermez.
+   */
+  readonly scoreableFor?: StatKey;
 }
 
 export interface SearchPlayersDeps {
@@ -46,6 +52,9 @@ export async function searchPlayers(
   const players = await deps.players.search({
     term,
     limit: clampLimit(input.limit),
+    ...(input.scoreableFor === undefined
+      ? {}
+      : { scoreableFor: input.scoreableFor }),
   });
 
   return players.map(toPlayerDto);

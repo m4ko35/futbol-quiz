@@ -110,6 +110,11 @@ export async function loadDataset(
           birthDate: player.birthDate,
           nationality: player.nationality,
           position: player.position,
+          // §9.2 — eksik olması normaldir; `null` yazmak doğru davranış,
+          // alanı atlamak eski bir değeri sessizce ayakta bırakırdı.
+          nationalCaps: player.nationalCaps,
+          heightCm: player.heightCm,
+          weightKg: player.weightKg,
         };
         return prisma.player.upsert({
           where: { wikidataId: player.wikidataId },

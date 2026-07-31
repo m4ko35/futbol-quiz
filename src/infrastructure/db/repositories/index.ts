@@ -4,10 +4,12 @@ import { prisma } from "../client";
 import { PrismaClubRepository } from "./prisma-club-repository";
 import { PrismaDatasetRepository } from "./prisma-dataset-repository";
 import { PrismaPlayerRepository } from "./prisma-player-repository";
+import { PrismaStatMatchRepository } from "./prisma-stat-match-repository";
 
 export { PrismaClubRepository } from "./prisma-club-repository";
 export { PrismaDatasetRepository } from "./prisma-dataset-repository";
 export { PrismaPlayerRepository } from "./prisma-player-repository";
+export { PrismaStatMatchRepository } from "./prisma-stat-match-repository";
 
 /**
  * Uygulamanın çalışma zamanı bağımlılıkları — tek yerden kurulur.
@@ -21,6 +23,7 @@ export { PrismaPlayerRepository } from "./prisma-player-repository";
 export const repositories: GameModeDeps = {
   clubs: new PrismaClubRepository(prisma),
   players: new PrismaPlayerRepository(prisma),
+  statMatch: new PrismaStatMatchRepository(prisma),
 };
 
 /**

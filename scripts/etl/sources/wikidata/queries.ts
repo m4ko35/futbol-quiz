@@ -154,6 +154,73 @@ SELECT ?player ?playerLabel ?dob ?positionLabel ?countryCode ?gender WHERE {
 }
 
 /**
+ * Erkek A millî futbol takımlarının tamamı — PROJECT.md §9.2.
+ *
+ * ETL'de **BİR KEZ** çalışır ve sonucu bellekte tutulur. Ölçüm: 350 takım,
+ * 924 ms.
+ *
+ * NEDEN AYRI BİR SORGU (ölçüldü, 22 kat fark). Millî maç sayısını sorarken
+ * takım sınıfını sorgunun içinde denetlemek — `?team wdt:P31 wd:Q135408445` —
+ * motoru her `P54` ifadesinin takımını aramaya zorluyor:
+ *
+ *   sınıf süzgeci      yığın  40 → 17.851 ms/yığın → tam çekim ~9,5 SAAT
+ *   VALUES üyeliği     yığın  40 →  3.092 ms/yığın → URL sınırına takılıyor
+ *   süzmesiz + JS      yığın 250 →    809 ms/yığın → tam çekim ~5 DAKİKA
+ *
+ * Liste bir kez alınıp süzme bellekte yapılıyor. İki yöntemin aynı sonucu
+ * verdiği sekiz oyuncuda birebir doğrulandı (8/8).
+ */
+export function mensNationalTeams(): string {
+  return `
+SELECT ?team WHERE {
+  ?team wdt:P31 wd:${assertQid(WD.CLASS_MENS_NATIONAL_TEAM)} .
+}`.trim();
+}
+
+/**
+ * Oyuncu istatistikleri — toplu (§9.2).
+ *
+ * `playerDetails`'ten AYRI tutuldu: o sorgu oyuncu başına tek satır döndürür,
+ * bu ise millî takım ifadesi başına bir satır. İkisini birleştirmek hem
+ * kartezyen çarpım üretir hem de `VALUES` bloğunu iki kez yazdırıp URL'i
+ * `HTTP 414`'e taşırır (ölçüldü).
+ *
+ * Takım süzgeci burada YOK; çağıran taraf `mensNationalTeams()` listesiyle
+ * süzer. Gerekçe o fonksiyonun başında.
+ *
+ * `?caps` ifade başına gelir ve **toplanmaz** — BR-14 gereği en büyüğü alınır.
+ */
+export function playerStats(playerQids: readonly string[]): string {
+  const values = playerQids.map((id) => `wd:${assertQid(id)}`).join(" ");
+
+  return `
+SELECT ?player ?team ?caps WHERE {
+  VALUES ?player { ${values} }
+  ?player p:${WD.PROP_MEMBER_OF_TEAM} ?st .
+  ?st ps:${WD.PROP_MEMBER_OF_TEAM} ?team ; pq:${WD.PROP_MATCHES_PLAYED} ?caps .
+}`.trim();
+}
+
+/**
+ * Oyuncunun fiziksel ölçüleri — toplu (§9.2).
+ *
+ * Ölçülen kapsam: boy %69, kilo %49. İkisi de `OPTIONAL`; zorunlu kılmak
+ * ölçüsü olmayan oyuncuyu sessizce düşürürdü.
+ *
+ * Yığın 250'de 1.441 ms; 500'de `HTTP 414` (URL çok uzun).
+ */
+export function playerPhysical(playerQids: readonly string[]): string {
+  const values = playerQids.map((id) => `wd:${assertQid(id)}`).join(" ");
+
+  return `
+SELECT ?player ?height ?mass WHERE {
+  VALUES ?player { ${values} }
+  OPTIONAL { ?player wdt:${WD.PROP_HEIGHT} ?height }
+  OPTIONAL { ?player wdt:${WD.PROP_MASS} ?mass }
+}`.trim();
+}
+
+/**
  * Lig kimliklerinin gerçekten beklenen ligler olduğunu denetler.
  *
  * Bu sorgu `Q170323 = Nintendo DS` hatasını yakalayan denetimin kalıcı

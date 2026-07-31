@@ -3,18 +3,20 @@ import type {
   PlayerRepository,
   PlayerSearchQuery,
 } from "@/application/ports/player-repository";
+import { CURATED_CLUB_QIDS } from "@/application/curated-clubs";
 import type { Player } from "@/domain/entities/player";
 import type { Spell } from "@/domain/entities/spell";
 import type { PlayerSpells } from "@/domain/services/common-players";
 import type { GridCriterion } from "@/domain/services/grid";
 import type { SpellFilter } from "@/domain/services/spell-filter";
+import type { StatKey } from "@/domain/services/stat-match";
 import { toSearchKey } from "@/domain/value-objects/search-key";
 import {
   clubId,
   playerId,
   type PlayerId,
 } from "@/domain/value-objects/identifiers";
-import type { PrismaClient } from "@/generated/prisma";
+import type { Prisma, PrismaClient } from "@/generated/prisma";
 
 /**
  * `PlayerRepository` port'unun Prisma uygulaması (PROJECT.md §4.1).
@@ -177,7 +179,10 @@ export class PrismaPlayerRepository implements PlayerRepository {
     if (key.length === 0) return [];
 
     const rows = await this.#prisma.player.findMany({
-      where: { searchKey: { contains: key } },
+      where: {
+        searchKey: { contains: key },
+        ...scoreableWhere(query.scoreableFor),
+      },
       // Kısa adlar önce: "Kaka" arayan kullanıcı "Kakabadze"yi değil onu bekler.
       orderBy: [{ searchKey: "asc" }],
       take: query.limit,
@@ -196,6 +201,49 @@ export class PrismaPlayerRepository implements PlayerRepository {
       position: row.position,
     }));
   }
+}
+
+/**
+ * BR-16 — o istatistikte puanlanabilir oyuncuların `where` koşulu (§9.2).
+ *
+ * Kulüp kaynaklı istatistikler (maç, gol, kulüp sayısı) için koşul, KÜRATÖRLÜ
+ * kulüplerde eksiksiz bir döneminin bulunmasıdır. Kapsam tutarlılığı zorunlu:
+ * hedef bu kulüplerle sınırlı sayıldığı için cevap da öyle sayılır
+ * (`PrismaStatMatchRepository.findStatValue` ile aynı ölçüt).
+ *
+ * `undefined` verilirse süzgeç YOK — ızgara modu her oyuncuyu cevap olarak
+ * kabul eder ve o mod bu alanı hiç göndermez.
+ */
+function scoreableWhere(key: StatKey | undefined): Prisma.PlayerWhereInput {
+  if (key === undefined) return {};
+
+  if (key === "nationalCaps") return { nationalCaps: { not: null } };
+  if (key === "heightCm") return { heightCm: { not: null } };
+  if (key === "weightKg") return { weightKg: { not: null } };
+
+  // Küratörlü kulüpteki profesyonel dönemler — hem varlık hem eksiklik
+  // koşulunun tabanı.
+  const curated: Prisma.SpellWhereInput = {
+    isYouth: false,
+    club: { wikidataId: { in: [...CURATED_CLUB_QIDS] } },
+  };
+
+  // Kulüp sayısı için bir dönem yeter.
+  if (key === "clubs") return { spells: { some: curated } };
+
+  /*
+   * Maç ve golde koşul "EN AZ BİR dolu dönem" DEĞİL, "HİÇBİR dönem eksik
+   * değil". İkisi farklı ve fark bir kusura yol açmıştı: süzgeç "en az bir
+   * dolu" derken `findStatValue` "hiçbiri eksik olmasın" diyordu; seçici
+   * oyuncuyu gösteriyor, sunucu reddediyordu — yani süzgecin kaldırmak için
+   * eklendiği duvarın aynısı. Kural artık `findStatValue` ile birebir aynı.
+   */
+  const missing: Prisma.SpellWhereInput = {
+    ...curated,
+    ...(key === "appearances" ? { appearances: null } : { goals: null }),
+  };
+
+  return { spells: { some: curated, none: missing } };
 }
 
 /**

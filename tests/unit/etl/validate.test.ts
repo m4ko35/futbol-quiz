@@ -32,6 +32,9 @@ const player = (id: string): NormalizedPlayer => ({
   nationality: null,
   position: null,
   genderQid: null,
+  nationalCaps: null,
+  heightCm: null,
+  weightKg: null,
 });
 
 const spell = (

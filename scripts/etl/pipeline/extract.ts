@@ -5,15 +5,21 @@ import {
   clubsByLeagueLink,
   clubsFromSeasonParents,
   clubsFromSeasons,
+  mensNationalTeams,
   playerDetails,
+  playerPhysical,
+  playerStats,
   spellsAtClub,
   verifyLeagues,
 } from "../sources/wikidata/queries";
 import { int, qid, str } from "../sources/wikidata/schemas";
 import {
+  applyPlayerStats,
   dedupeBy,
   isInScope,
   looksLikeYouthOrReserve,
+  nationalCapsFrom,
+  physicalFrom,
   toClub,
   toPlayer,
   toSpell,
@@ -209,11 +215,70 @@ export async function extractDataset(
     }
   }
 
+  // ─── 4. Oyuncu istatistikleri (§9.2) ──────────────────────────────────
+  //
+  // AYRI GEÇİŞ, `playerDetails`'e eklenmedi. İki gerekçe, ikisi de ölçüldü:
+  //   · Millî maç sorgusu ifade başına satır döndürür, oyuncu başına değil;
+  //     tek sorguda birleştirmek kartezyen çarpım üretir.
+  //   · `VALUES` bloğunu iki kez yazdırmak URL'i `HTTP 414`'e taşıyor.
+  //
+  // Millî takım listesi BİR KEZ çekilir; süzme bellekte yapılır. Sorgunun
+  // içinde sınıf denetimi yapmak aynı işi ~9,5 saate çıkarıyordu (§9.2).
+  console.log(`\n[4/4] Oyuncu istatistikleri (millî maç, boy, kilo)…`);
+
+  const teamBindings = await client.query(mensNationalTeams(), {
+    label: "national-teams",
+    noCache,
+  });
+  const nationalTeamIds = new Set(
+    teamBindings
+      .map((binding) => qid(binding, "team"))
+      .filter((id): id is string => id !== undefined),
+  );
+  console.log(`      ${nationalTeamIds.size} erkek millî takım`);
+
+  const caps = new Map<string, number>();
+  const physical = new Map<
+    string,
+    { heightCm: number | null; weightKg: number | null }
+  >();
+
+  for (let i = 0; i < playerIds.length; i += PLAYER_BATCH_SIZE) {
+    const batch = playerIds.slice(i, i + PLAYER_BATCH_SIZE);
+    const group = i / PLAYER_BATCH_SIZE;
+
+    const capsBindings = await client.query(playerStats(batch), {
+      label: `player-caps-${group}-${batch.length}`,
+      noCache,
+    });
+    for (const [player, value] of nationalCapsFrom(capsBindings, (team) =>
+      nationalTeamIds.has(team),
+    )) {
+      caps.set(player, value);
+    }
+
+    const physicalBindings = await client.query(playerPhysical(batch), {
+      label: `player-physical-${group}-${batch.length}`,
+      noCache,
+    });
+    for (const [player, value] of physicalFrom(physicalBindings)) {
+      physical.set(player, value);
+    }
+  }
+
+  const playersWithStats = applyPlayerStats(players, caps, physical);
+  const sizes = [...physical.values()];
+  console.log(
+    `      millî maç ${caps.size} · ` +
+      `boy ${sizes.filter((p) => p.heightCm !== null).length} · ` +
+      `kilo ${sizes.filter((p) => p.weightKg !== null).length}`,
+  );
+
   // ─── Kapsam filtresi: erkek ligleri ───────────────────────────────────
   // Kapsam dışı oyuncular ve dönemleri burada, ayıklama adımından ÖNCE
   // çıkarılır. Aksi hâlde dönemleri "öksüz kayıt" sayılıp §8.2'deki ayıklama
   // oranını şişirir ve bilinçli bir kapsam kararı veri hatası gibi görünürdü.
-  const uniquePlayers = dedupeBy(players, (p) => p.wikidataId);
+  const uniquePlayers = dedupeBy(playersWithStats, (p) => p.wikidataId);
   const inScopePlayers = uniquePlayers.filter(isInScope);
   const inScopeIds = new Set(inScopePlayers.map((p) => p.wikidataId));
 

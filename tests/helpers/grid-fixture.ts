@@ -1,5 +1,5 @@
-import type { GridDeps } from "@/application/game-modes/grid/generate";
-import { GRID_CLUB_QIDS } from "@/application/game-modes/grid/pool";
+﻿import type { GridDeps } from "@/application/game-modes/grid/generate";
+import { CURATED_CLUB_QIDS } from "@/application/curated-clubs";
 import type { PlayerSpells } from "@/domain/services/common-players";
 import type { GridCriterion } from "@/domain/services/grid";
 import { MIN_CELL_ANSWERS } from "@/domain/services/grid";
@@ -46,7 +46,7 @@ class CountingPlayerRepository extends FakePlayerRepository {
 }
 
 export function gridFixture(): GridFixture {
-  const clubIds = GRID_CLUB_QIDS.slice(0, CLUB_COUNT);
+  const clubIds = CURATED_CLUB_QIDS.slice(0, CLUB_COUNT);
   const clubs = clubIds.map((qid) =>
     // Fake depo QID'yi kulübün kimliği sayar; kısa ad da ondan türetilir ki
     // etiketler testte okunabilir olsun.

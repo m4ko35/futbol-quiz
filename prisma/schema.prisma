@@ -80,6 +80,21 @@ model Player {
   nationality String? // ISO 3166-1 alpha-2
   position    String? // normalize edilmiş: "Kaleci" | "Defans" | ...
 
+  /// A millî takım maç sayısı — PROJECT.md §9.2, BR-14.
+  ///
+  /// TEK BİR millî takım için yapılan EN ÇOK maçtır, toplam DEĞİL. Toplama
+  /// iki yerde bozuluyor ve ölçüldü: U-21 takımları A millî takımla aynı
+  /// Wikidata sınıfını paylaşıyor (Buffon 176+11=187), ve FIFA dışı millî
+  /// takımlar da sayılıyor (Zubizarreta İspanya 126 + Bask 4 = 130).
+  /// Sekiz bilinen oyuncuda: toplama 4/8, en büyük 7/8.
+  nationalCaps Int?
+
+  /// Boy (cm) ve kilo (kg) — Wikidata P2048 / P2067.
+  /// Ölçülen kapsam: boy %69, kilo %49. Eksikliği normaldir; §9.2'nin
+  /// BR-16'sı gereği o istatistiğin cevap havuzunu daraltır, oyunu durdurmaz.
+  heightCm Int?
+  weightKg Int?
+
   spells Spell[]
 
   @@index([searchKey])

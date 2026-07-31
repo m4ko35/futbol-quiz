@@ -1,6 +1,6 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+﻿import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";
-import { GRID_CLUB_QIDS } from "@/application/game-modes/grid/pool";
+import { CURATED_CLUB_QIDS } from "@/application/curated-clubs";
 import { GRID_SIZE } from "@/domain/services/grid";
 import { toSearchKey } from "@/domain/value-objects/search-key";
 import {
@@ -29,7 +29,7 @@ const CLUB_COUNT = 6;
 /** BR-9 alt sınırının (5) hemen üstü. */
 const PER_PAIR = 6;
 
-const clubQids = GRID_CLUB_QIDS.slice(0, CLUB_COUNT);
+const clubQids = CURATED_CLUB_QIDS.slice(0, CLUB_COUNT);
 const clubIdOf = (qid: string) => `club-${qid}`;
 
 /** `Q…` çiftinden üretilmiş oyuncuların kimlikleri. */

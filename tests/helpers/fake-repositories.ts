@@ -7,8 +7,13 @@ import type {
   PlayerRepository,
   PlayerSearchQuery,
 } from "@/application/ports/player-repository";
+import type {
+  DailyStatPlayer,
+  StatMatchRepository,
+} from "@/application/ports/stat-match-repository";
 import type { Club } from "@/domain/entities/club";
 import type { Player } from "@/domain/entities/player";
+import type { StatKey } from "@/domain/services/stat-match";
 import type { PlayerSpells } from "@/domain/services/common-players";
 import type { GridCriterion } from "@/domain/services/grid";
 import { spellQualifies } from "@/domain/services/spell-filter";
@@ -145,5 +150,32 @@ export class FakePlayerRepository implements PlayerRepository {
         .filter((player) => toSearchKey(player.name).includes(term))
         .slice(0, query.limit),
     );
+  }
+}
+
+/**
+ * §9.2 — istatistik eşleştirme deposunun bellek içi uygulaması.
+ *
+ * Aday listesi VERİLDİĞİ SIRADA döner: port sözleşmesi kararlı sıra ister
+ * (BR-19) ve testin hangi oyuncunun seçileceğini bilebilmesi buna bağlı.
+ */
+export class FakeStatMatchRepository implements StatMatchRepository {
+  readonly #candidates: DailyStatPlayer[];
+
+  constructor(candidates: readonly DailyStatPlayer[] = []) {
+    this.#candidates = [...candidates];
+  }
+
+  findDailyCandidates(): Promise<readonly DailyStatPlayer[]> {
+    return Promise.resolve(this.#candidates);
+  }
+
+  /**
+   * Aday listesindeki oyuncular kendi değerlerini verir; listede olmayan
+   * oyuncu `null` döner — BR-16'nın "verisi yok" durumu.
+   */
+  findStatValue(id: string, key: StatKey): Promise<number | null> {
+    const player = this.#candidates.find((c) => c.id === id);
+    return Promise.resolve(player?.stats[key] ?? null);
   }
 }

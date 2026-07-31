@@ -2,6 +2,7 @@ import type { Player } from "@/domain/entities/player";
 import type { PlayerSpells } from "@/domain/services/common-players";
 import type { GridCriterion } from "@/domain/services/grid";
 import type { SpellFilter } from "@/domain/services/spell-filter";
+import type { StatKey } from "@/domain/services/stat-match";
 import type { ClubId, PlayerId } from "@/domain/value-objects/identifiers";
 
 /**
@@ -73,4 +74,14 @@ export interface PlayerSearchQuery {
   readonly term: string;
   /** Çağıran tarafın kelepçelemesi beklenir (§7.1). */
   readonly limit: number;
+  /**
+   * Verilirse sonuç, o istatistikte PUANLANABİLİR oyuncularla sınırlanır
+   * (§9.2, BR-16).
+   *
+   * NEDEN GEREKLİ, ölçüldü: arama alfabetik sırayla dönüyor ve "Buffon"
+   * araması önce hiç verisi olmayan "Armando Buffon"u getiriyordu. Kullanıcı
+   * onu seçiyor, sunucu haklı olarak reddediyor ve oyun bir duvara dönüşüyordu.
+   * Süzgeç, BR-16'nın tanımladığı havuzu seçicide GÖRÜNÜR kılar.
+   */
+  readonly scoreableFor?: StatKey;
 }

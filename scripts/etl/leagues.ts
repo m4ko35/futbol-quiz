@@ -158,4 +158,22 @@ export const WD = {
   /** Gol sayısı. DİKKAT: P6509 değil — ölçüm P1351 olduğunu gösterdi. */
   PROP_GOALS: "P1351",
   PROP_ACQUISITION: "P1642",
+
+  /**
+   * Erkek A millî futbol takımı sınıfı — PROJECT.md §9.2.
+   *
+   * DEĞER TAHMİN EDİLMEDİ, OKUNDU. Önce `Q6979593` ("millî futbol takımı")
+   * denendi ve Buffon'un 176 maçlık İtalya kaydını HİÇ getirmedi; sonra
+   * `Q23905105` denendi, o da boş döndü. Doğru sınıf, Buffon'un kendi
+   * verisindeki takımın `P31` değeri okunarak bulundu.
+   *
+   * UYARI: bu sınıf U-21 takımlarını da kapsıyor (350 takımın 2'si) ve FIFA
+   * dışı takımları da (Bask Bölgesi). Bu yüzden BR-14 "topla" değil "en
+   * büyüğünü al" der.
+   */
+  CLASS_MENS_NATIONAL_TEAM: "Q135408445",
+
+  /** Boy (cm) ve kütle (kg) — §9.2. */
+  PROP_HEIGHT: "P2048",
+  PROP_MASS: "P2067",
 } as const;

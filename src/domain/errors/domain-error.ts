@@ -95,3 +95,18 @@ export class GridUnavailableError extends DomainError {
     super("Bugünün ızgarası hazırlanamadı.");
   }
 }
+
+/**
+ * Günün istatistik oyuncusu seçilemedi (§9.2).
+ *
+ * `GridUnavailableError` ile aynı sınıf hata: kullanıcı hatası DEĞİL, sunucu
+ * tarafı bir başarısızlık. Buraya düşülüyorsa ya yeni alanlar hiç çekilmemiş
+ * ya da BR-15'i sağlayan oyuncu kalmamıştır — ölçülen havuz ~2.060 kişi.
+ */
+export class StatMatchUnavailableError extends DomainError {
+  readonly code = "STAT_MATCH_UNAVAILABLE";
+
+  constructor() {
+    super("Bugünün oyuncusu hazırlanamadı.");
+  }
+}

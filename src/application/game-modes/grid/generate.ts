@@ -1,4 +1,4 @@
-import {
+﻿import {
   isCellPlayable,
   isGridShapeValid,
   isSameCriterion,
@@ -14,7 +14,8 @@ import {
 import { countryName } from "@/lib/country-name";
 import type { ClubRepository } from "../../ports/club-repository";
 import type { PlayerRepository } from "../../ports/player-repository";
-import { GRID_CLUB_QIDS, GRID_NATIONALITY_CODES } from "./pool";
+import { CURATED_CLUB_QIDS } from "../../curated-clubs";
+import { GRID_NATIONALITY_CODES } from "./pool";
 
 /**
  * Günlük ızgara üretimi — PROJECT.md §9.1.
@@ -52,7 +53,7 @@ export async function generateGrid(
   seed: number,
   deps: GridDeps,
 ): Promise<Grid | null> {
-  const clubs = await deps.clubs.findByWikidataIds(GRID_CLUB_QIDS);
+  const clubs = await deps.clubs.findByWikidataIds(CURATED_CLUB_QIDS);
 
   const clubCriteria: GridCriterion[] = clubs.map((club) => ({
     type: "club",

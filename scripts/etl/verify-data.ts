@@ -1,4 +1,5 @@
-import { GRID_CLUB_QIDS } from "../../src/application/game-modes/grid/pool";
+﻿import { CURATED_CLUB_QIDS } from "../../src/application/curated-clubs";
+import { PrismaStatMatchRepository } from "../../src/infrastructure/db/repositories/prisma-stat-match-repository";
 import { PrismaClient } from "../../src/generated/prisma";
 import { MIN_SPELLS_FOR_SELECTABLE } from "./leagues";
 import { POSITIONS } from "./pipeline/normalize";
@@ -244,21 +245,118 @@ async function verifyGridPool(): Promise<void> {
   console.log("\n=== Izgara havuzu (§9.1) ===");
 
   const found = await prisma.club.findMany({
-    where: { wikidataId: { in: [...GRID_CLUB_QIDS] }, isSelectable: true },
+    where: { wikidataId: { in: [...CURATED_CLUB_QIDS] }, isSelectable: true },
     select: { wikidataId: true },
   });
 
   const present = new Set(found.map((club) => club.wikidataId));
-  const missing = GRID_CLUB_QIDS.filter((qid) => !present.has(qid));
+  const missing = CURATED_CLUB_QIDS.filter((qid) => !present.has(qid));
 
   check(
     missing.length === 0,
-    `havuzdaki ${GRID_CLUB_QIDS.length} QID'den ${present.size} tanesi seçilebilir` +
+    `havuzdaki ${CURATED_CLUB_QIDS.length} QID'den ${present.size} tanesi seçilebilir` +
       (missing.length > 0 ? ` — eksik: ${missing.join(", ")}` : ""),
   );
   check(
     present.size >= 4,
     `üretim için yeterli kulüp var (${present.size} ≥ 4)`,
+  );
+}
+
+/**
+ * İstatistik eşleştirme verisi — §9.2.
+ *
+ * ÜÇ AYRI ŞEY DENETLENİR ve üçü de farklı bir kusuru yakalar:
+ *
+ *  1. KAPSAM ALT SINIRI. Yeni alanlar hiç çekilmemişse ya da sorgu bozulmuşsa
+ *     tablo sessizce boş kalır ve mod "bugünün oyuncusu hazırlanamadı" der.
+ *
+ *     ÖLÇÜLEN DEĞERLER (76.358 oyuncunun TAMAMI, 2026-07-31):
+ *       millî maç %19,3 · boy %35,4 · kilo %22,4
+ *
+ *     Eşikler bunların dörtte üçüne konur. İlk denemede millî maç için %20
+ *     yazılmıştı ve kontrol ilk koşuda düştü — çünkü o sayı havuzdaki
+ *     TANINMIŞ oyuncularda ölçülen %73'ten akıl yürütülmüştü. Veri kümesinin
+ *     tamamı alt lig oyuncularını da içeriyor ve onların millî maçı yok.
+ *     Amaç mevcut durumu cezalandırmak değil ÇÖKÜŞÜ yakalamak (BR-8'in kanıt
+ *     oranı tavanıyla aynı gerekçe).
+ *
+ *  2. AKLA YATKIN ARALIK. `normalize.ts` aralık dışını eliyor; bu kontrol
+ *     elemenin gerçekten çalıştığını veride ölçer.
+ *
+ *  3. ADAY HAVUZU. BR-15 altı istatistiğin de dolu olmasını ister. Havuz
+ *     365'in altına düşerse yıl dolmadan oyuncular tekrar etmeye başlar.
+ */
+const MIN_STAT_COVERAGE = { caps: 0.14, height: 0.26, weight: 0.16 } as const;
+const MIN_DAILY_CANDIDATES = 365;
+
+async function verifyPlayerStats(): Promise<void> {
+  console.log("\n=== Oyuncu istatistikleri (§9.2) ===");
+
+  const [total, caps, height, weight] = await Promise.all([
+    prisma.player.count(),
+    prisma.player.count({ where: { nationalCaps: { not: null } } }),
+    prisma.player.count({ where: { heightCm: { not: null } } }),
+    prisma.player.count({ where: { weightKg: { not: null } } }),
+  ]);
+
+  if (total === 0) {
+    check(false, "hiç oyuncu yok");
+    return;
+  }
+
+  const ratio = (n: number) => n / total;
+  const pct = (n: number) => `%${(ratio(n) * 100).toFixed(1)}`;
+
+  check(
+    ratio(caps) >= MIN_STAT_COVERAGE.caps,
+    `millî maç ${caps}/${total} = ${pct(caps)} (alt sınır %${String(MIN_STAT_COVERAGE.caps * 100)})`,
+  );
+  check(
+    ratio(height) >= MIN_STAT_COVERAGE.height,
+    `boy ${height}/${total} = ${pct(height)} (alt sınır %${String(MIN_STAT_COVERAGE.height * 100)})`,
+  );
+  check(
+    ratio(weight) >= MIN_STAT_COVERAGE.weight,
+    `kilo ${weight}/${total} = ${pct(weight)} (alt sınır %${String(MIN_STAT_COVERAGE.weight * 100)})`,
+  );
+
+  // Aralık dışı değer "bilinmiyor"dan kötüdür: 2 cm boyunda futbolcu.
+  const [badHeight, badWeight, badCaps] = await Promise.all([
+    prisma.player.count({
+      where: { OR: [{ heightCm: { lt: 140 } }, { heightCm: { gt: 220 } }] },
+    }),
+    prisma.player.count({
+      where: { OR: [{ weightKg: { lt: 40 } }, { weightKg: { gt: 140 } }] },
+    }),
+    // Kimse 400'den fazla A millî maç yapmadı; aşan değer BR-14'ün
+    // bozulduğunu (toplama geri döndüğünü) gösterir.
+    prisma.player.count({ where: { nationalCaps: { gt: 400 } } }),
+  ]);
+
+  check(badHeight === 0, `aralık dışı boy: ${badHeight}`);
+  check(badWeight === 0, `aralık dışı kilo: ${badWeight}`);
+  check(badCaps === 0, `400'den fazla millî maç: ${badCaps}`);
+}
+
+async function verifyDailyCandidates(): Promise<void> {
+  console.log("\n=== Günün oyuncusu havuzu (BR-15) ===");
+
+  const repository = new PrismaStatMatchRepository(prisma);
+  const candidates = await repository.findDailyCandidates();
+
+  check(
+    candidates.length >= MIN_DAILY_CANDIDATES,
+    `altı istatistiği de dolu aday: ${candidates.length} ` +
+      `(alt sınır ${MIN_DAILY_CANDIDATES} = bir yıl)`,
+  );
+
+  // Sıra KARARLI olmalı: günün seçimi bu listeye tohumla indekslenir ve
+  // sıranın değişmesi aynı günün oyuncusunu değiştirirdi (BR-19).
+  const second = await repository.findDailyCandidates();
+  check(
+    candidates.map((c) => c.id).join() === second.map((c) => c.id).join(),
+    "aday sırası iki çağrıda aynı",
   );
 }
 
@@ -305,6 +403,8 @@ async function main(): Promise<void> {
     await verifyEvidenceRatio();
     await verifyPositions();
     await verifyGridPool();
+    await verifyPlayerStats();
+    await verifyDailyCandidates();
     await verifyKnownPairs();
   } finally {
     await prisma.$disconnect();

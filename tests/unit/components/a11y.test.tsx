@@ -6,11 +6,13 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { ClubDto } from "@/application/dto/club-dto";
 import type { CommonPlayersResultDto } from "@/application/dto/common-players-dto";
 import type { DailyGridDto } from "@/application/use-cases/daily-grid";
+import type { DailyStatMatchDto } from "@/application/use-cases/daily-stat-match";
 import { ClubPicker } from "@/components/club-picker";
 import { CommonPlayersResult } from "@/components/common-players-result";
 import { GridGame } from "@/components/grid-game";
 import { ModeNav } from "@/components/mode-nav";
 import { SiteFooter } from "@/components/site-footer";
+import { StatMatchGame } from "@/components/stat-match-game";
 import { describeViolations, findA11yViolations } from "../../helpers/a11y";
 
 afterEach(cleanup);
@@ -26,6 +28,19 @@ const GRID: DailyGridDto = {
     { kind: "club", label: "Arsenal" },
     { kind: "club", label: "Inter" },
     { kind: "club", label: "Galatasaray" },
+  ],
+};
+
+const DAILY_STATS: DailyStatMatchDto = {
+  date: "2026-07-31",
+  player: { id: "gunun", name: "Éric Cantona", nationality: "FR" },
+  stats: [
+    { key: "appearances", label: "Kulüp maçı", value: 194, scoped: true },
+    { key: "goals", label: "Kulüp golü", value: 83, scoped: true },
+    { key: "clubs", label: "Oynadığı kulüp", value: 3, scoped: true },
+    { key: "nationalCaps", label: "A millî maç", value: 45, scoped: false },
+    { key: "heightCm", label: "Boy (cm)", value: 188, scoped: false },
+    { key: "weightKg", label: "Kilo (kg)", value: 86, scoped: false },
   ],
 };
 
@@ -250,6 +265,35 @@ describe("erişilebilirlik — WCAG 2.1 AA (§7.10)", () => {
 
   it("mod gezinmesinde ihlal yok", async () => {
     const { container } = render(<ModeNav current="grid" />);
+
+    await expectNoViolations(container);
+  });
+
+  it("istatistik eşleştirmede ihlal yok", async () => {
+    const { container } = render(
+      <StatMatchGame
+        daily={DAILY_STATS}
+        submitAnswer={() => Promise.resolve({ value: 1, score: 1 })}
+        searchPlayers={() => Promise.resolve([])}
+      />,
+    );
+
+    await expectNoViolations(container);
+  });
+
+  it("istatistik seçicisi AÇIKKEN ihlal yok", async () => {
+    const { container } = render(
+      <StatMatchGame
+        daily={DAILY_STATS}
+        submitAnswer={() => Promise.resolve({ value: 1, score: 1 })}
+        searchPlayers={() => Promise.resolve([])}
+      />,
+    );
+
+    await userEvent.click(
+      screen.getAllByRole("button", { name: /Oyuncu seç/u })[0]!,
+    );
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
 
     await expectNoViolations(container);
   });

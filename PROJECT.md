@@ -5,7 +5,7 @@
 
 **Sürüm:** 0.1.0
 **Tarih:** 2026-07-31
-**Durum:** Faz 4.4 tamamlandı — iki oyun modu (ortak oyuncu, 3×3 ızgara) çalışıyor. Sıradaki Faz 4.5: yayın.
+**Durum:** Faz 4.4 tamamlandı — iki oyun modu (ortak oyuncu, 3×3 ızgara) çalışıyor. Sırada Faz 4.6 (istatistik eşleştirme), sonra Faz 4.5: yayın.
 
 ---
 
@@ -332,14 +332,17 @@ model Club {
 }
 
 model Player {
-  id          String  @id @default(cuid())
-  wikidataId  String  @unique
-  name        String
-  searchKey   String
-  birthDate   DateTime?
-  nationality String?                 // ISO 3166-1 alpha-2
-  position    String?                 // normalize edilmiş enum metni
-  spells      Spell[]
+  id           String  @id @default(cuid())
+  wikidataId   String  @unique
+  name         String
+  searchKey    String
+  birthDate    DateTime?
+  nationality  String?                // ISO 3166-1 alpha-2
+  position     String?                // §6.2'deki kapalı küme ya da null
+  nationalCaps Int?                   // BR-14: tek takım için EN ÇOK maç
+  heightCm     Int?
+  weightKg     Int?
+  spells       Spell[]
 
   @@index([searchKey])
 }
@@ -610,10 +613,11 @@ Kulüp arama / otomatik tamamlama.
 
 #### `GET /api/players`
 
-| Parametre | Tip    | Zorunlu  | Kural               |
-| --------- | ------ | -------- | ------------------- |
-| `q`       | string | **evet** | 2–50 karakter       |
-| `limit`   | int    | hayır    | 1–20, varsayılan 10 |
+| Parametre | Tip    | Zorunlu  | Kural                                  |
+| --------- | ------ | -------- | -------------------------------------- |
+| `q`       | string | **evet** | 2–50 karakter                          |
+| `limit`   | int    | hayır    | 1–20, varsayılan 10                    |
+| `stat`    | string | hayır    | §6.5'teki altı anahtardan biri (BR-16) |
 
 ```jsonc
 // 200 OK
@@ -632,6 +636,73 @@ Kulüp arama / otomatik tamamlama.
 `q` burada **zorunludur**, kulüp aramasındaki gibi isteğe bağlı değil: 76.358 kayıtlık bir tabloda "hepsini listele" anlamlı bir istek olamaz. İki karakterden kısa metin boş liste döner — bu bir kural ihlali değil, henüz tamamlanmamış bir girdidir.
 
 **Yanıt oyuncunun kulüp geçmişini taşımaz.** Taşısaydı arama kutusu ızgaranın cevap anahtarına dönüşürdü. `nationality` ve `position` kalır çünkü aynı adı taşıyan iki oyuncuyu ayırt etmek gerekir; ikisi de ızgara kriteri olabildiği için küçük bir ipucu taşırlar — kabul edilen bir maliyet, alternatifi ayırt edilemeyen bir listedir.
+
+**`stat` neden var (BR-16).** İstatistik eşleştirme modunda bir cevabın puanlanabilmesi için o oyuncunun o istatistiğinin dolu olması gerekir. Süzgeç olmadan seçici, olmayanları da listeliyordu ve arama alfabetik sıralı: `q=Buffon` önce hiç verisi olmayan **Armando Buffon**'u getiriyor, kullanıcı onu seçiyor, sunucu haklı olarak reddediyordu. Süzgeçle aynı arama **Gianluigi** ve **Lorenzo Buffon**'u döndürüyor.
+
+Izgara modu bu alanı **göndermez**: orada her oyuncu geçerli bir cevaptır. Tanınmayan bir `stat` değeri sessizce yok sayılmaz, `400` döner — yazım hatası süzgeci sessizce kapatıp kullanıcıyı seçemeyeceği oyuncularla baş başa bırakırdı.
+
+**Süzgecin ölçütü `POST /api/stat-match/answer` ile BİREBİR aynıdır.** İlk uygulamada değildi: süzgeç "en az bir dolu dönem" derken doğrulama "hiçbir dönem eksik olmasın" diyordu ve seçicinin gösterdiği oyuncu reddediliyordu — yani süzgecin kaldırmak için eklendiği duvarın aynısı. Entegrasyon testi bunu yakaladı.
+
+### 6.5 İstatistik eşleştirme uçları
+
+§9.2'nin iki ucu. Izgara uçlarıyla aynı iki kural geçerlidir: tarihi sunucu okur, doğrulamayı sunucu yapar.
+
+#### `GET /api/stat-match`
+
+Parametresi yoktur (BR-19).
+
+```jsonc
+// 200 OK — önbelleklenebilir (§7.9)
+{
+  "data": {
+    "date": "2026-07-31",
+    "player": { "id": "clx…", "name": "Éric Cantona", "nationality": "FR" },
+    "stats": [
+      {
+        "key": "appearances",
+        "label": "Kulüp maçı",
+        "value": 194,
+        "scoped": true,
+      },
+      { "key": "goals", "label": "Kulüp golü", "value": 83, "scoped": true },
+      { "key": "clubs", "label": "Oynadığı kulüp", "value": 3, "scoped": true },
+      {
+        "key": "nationalCaps",
+        "label": "A millî maç",
+        "value": 45,
+        "scoped": false,
+      },
+      { "key": "heightCm", "label": "Boy (cm)", "value": 188, "scoped": false },
+      { "key": "weightKg", "label": "Kilo (kg)", "value": 86, "scoped": false },
+    ],
+  },
+}
+```
+
+**Hedef değerler AÇIKÇA verilir** — ızgaranın tersine. Orada değerleri saklamak oyunun kendisiydi; burada oyun "bu değere yakın başka kimi biliyorsun" sorusudur ve hedef gizlenirse soru sorulamaz (§2.4 sızıntı kuralı, sunulan bilgi için geçerli değildir).
+
+`scoped: true`, o sayının **yalnızca §1.3'teki altı ligi** kapsadığını söyler. Arayüz bunu göstermek zorundadır.
+
+#### `POST /api/stat-match/answer`
+
+| Alan       | Tip    | Zorunlu | Kural                           |
+| ---------- | ------ | ------- | ------------------------------- |
+| `statKey`  | string | evet    | Yukarıdaki altı anahtardan biri |
+| `playerId` | string | evet    | Geçerli kimlik biçimi           |
+
+```jsonc
+// 200 OK — ÖNBELLEKLENMEZ
+{
+  "data": {
+    "value": 172, // seçilen oyuncunun o istatistikteki değeri
+    "score": 88, // BR-18 formülüyle, 0–100
+  },
+}
+```
+
+**Puanı sunucu hesaplar (BR-20).** İstemci hedef değeri gönderemez; gönderebilseydi kendi hedefini uydurup %100 alırdı. Seçilen oyuncunun **değeri** yanıta girer — kullanıcı zaten "ne kadar yaklaştım" sorusunun cevabını hak eder ve bu, oyunun sunulan parçasıdır.
+
+Seçilen oyuncunun o istatistiği **boşsa** `VALIDATION_ERROR` döner (BR-16): puanlanamayan bir seçim sessizce 0 sayılmaz, reddedilir.
 
 ---
 
@@ -971,13 +1042,14 @@ export interface GameMode<TInput, TOutput> {
 
 ### Planlanan Modlar
 
-| Mod                    | Açıklama                                              | Durum                         |
-| ---------------------- | ----------------------------------------------------- | ----------------------------- |
-| **Ortak oyuncu** (MVP) | İki kulüpte de oynamış oyuncular                      | ✅ Faz 3                      |
-| **3×3 ızgara**         | Satır/sütun kriterlerini sağlayan oyuncu bulma        | ✅ Faz 4.4 — §9.1             |
-| Kariyer bilmecesi      | Kulüp geçmişi verilir, oyuncu tahmin edilir           | Tam kariyer verisi gerektirir |
-| Bağlantı zinciri       | İki oyuncu arasında ortak kulüp üzerinden en kısa yol | Tam kariyer verisi gerektirir |
-| Az mı çok mu           | Maç/gol sayısı karşılaştırması                        | Veri %73 dolu; havuz daralır  |
+| Mod                       | Açıklama                                              | Durum                         |
+| ------------------------- | ----------------------------------------------------- | ----------------------------- |
+| **Ortak oyuncu** (MVP)    | İki kulüpte de oynamış oyuncular                      | ✅ Faz 3                      |
+| **3×3 ızgara**            | Satır/sütun kriterlerini sağlayan oyuncu bulma        | ✅ Faz 4.4 — §9.1             |
+| **İstatistik eşleştirme** | Her istatistik için değeri en yakın oyuncuyu bulma    | Faz 4.6 — §9.2                |
+| Kariyer bilmecesi         | Kulüp geçmişi verilir, oyuncu tahmin edilir           | Tam kariyer verisi gerektirir |
+| Bağlantı zinciri          | İki oyuncu arasında ortak kulüp üzerinden en kısa yol | Tam kariyer verisi gerektirir |
+| Az mı çok mu              | Maç/gol sayısı karşılaştırması                        | Veri %73 dolu; havuz daralır  |
 
 > **Kariyer bilmecesi ve bağlantı zinciri neden ertelendi.** İkisi de oyuncunun kulüp geçmişini TAM olarak bilmeyi gerektirir; §1.3'teki kapsam sınırı gereği bu altı lig dışındaki kariyerler çekilmiyor. Ajax'ta oynamış bir oyuncunun o dönemi görünmez — bilmece eksik bir kariyer üzerinden kurulur ve bağlantı zincirinin bulduğu "en kısa yol" gerçekte en kısa olmayabilir. 3×3 ızgara bu sınırdan etkilenMEZ: sorusu "bu kulüpte oynadı mı", "başka nerede oynadı" değil.
 
@@ -1080,6 +1152,102 @@ Depodan okunan veri **dış girdi** sayılır ve şekli denetlenmeden kullanılm
 
 Izgara yanıtı **cevapları taşımaz** — yalnızca kriterleri. Hücre başına kaç cevap olduğu da verilmez: sayı, tahmin alanını daraltan bir ipucudur ve oyunun bir parçası olarak sunulmadıkça sızıntıdır (§2.4).
 
+### 9.2 İstatistik Eşleştirme
+
+Her gün bir oyuncu seçilir ve **istatistikleri açıkça gösterilir**. Kullanıcı her istatistik için **ayrı bir oyuncu** seçer: değeri günün oyuncusuna en yakın olduğunu düşündüğü kişiyi. Sonunda her seçim ayrı puanlanır ve toplam yüzde verilir.
+
+Soru "bu oyuncuyu tanıyor musun" değil, **"başka oyuncuların büyüklüklerini biliyor musun"**. Kullanıcı Cantona'nın 194 maç yaptığını görür ve buna yakın maç sayısına sahip birini bulmaya çalışır.
+
+#### Kullanılan istatistikler
+
+Ürün sahibi altı istatistik seçti. Üçü elimizde, üçü Wikidata'dan çekilecek:
+
+| İstatistik     | Kaynak                      | Kapsam | Not                               |
+| -------------- | --------------------------- | ------ | --------------------------------- |
+| Kulüp maçı     | `Spell.appearances` toplamı | %61    | Yalnızca §1.3 kapsamındaki ligler |
+| Kulüp golü     | `Spell.goals` toplamı       | %61    | Yalnızca §1.3 kapsamındaki ligler |
+| Oynadığı kulüp | türetilir                   | %100   | Yalnızca §1.3 kapsamındaki ligler |
+| A millî maç    | `P54` + `P1350` (yeni)      | %73    | Kural aşağıda — toplam DEĞİL      |
+| Boy            | `P2048` (yeni)              | %69    |                                   |
+| Kilo           | `P2067` (yeni)              | %49    |                                   |
+
+**İki istatistik istendi ama YOK ve eklenemez.** Kayda geçiyor ki tekrar sorulmasın:
+
+- **Sarı/kırmızı kart** — Wikidata'da böyle bir özellik **hiç yok**. Katalog tarandı: "card" geçen 14 özelliğin hepsi alakasız (`MalaCards ID`, `Yu-Gi-Oh! TCG cards ID`, `card network`). Bu veri ancak başka bir kaynakla gelir ve §7.4'teki tek-kaynak kararını değiştirir.
+- **Kazandığı kupa sayısı** — takım kupaları oyuncu kaydında tutulmuyor. `P166` (aldığı ödül) var ama o **bireysel** ödüldür (Ballon d'Or, yılın kalecisi) ve ölçülen kapsamı %13 — bir oyun ekseni olamayacak kadar seyrek.
+
+#### Ölçüm: BR-14 — millî maç TOPLANMAZ, EN BÜYÜĞÜ alınır
+
+İlk kural "oyuncunun tüm millî takım maçlarını topla" idi. Bilinen sekiz oyuncuyla sınandı ve **4/8 tutturdu**. Sebep iki ayrı kirlilik:
+
+```
+Buffon       İtalya A 176  +  İtalya U-21  11  = 187   (beklenen 176)
+Panucci      İtalya A  57  +  İtalya U-21  19  =  76   (beklenen  57)
+Zubizarreta  İspanya  126  +  Bask Bölgesi  4  = 130   (beklenen 126)
+```
+
+U-21 takımları A millî takımla **aynı sınıfı** (`Q135408445`) paylaşıyor — 350 takımın 2'sinde. Bask Bölgesi ise gerçek bir millî takım, sadece FIFA üyesi değil.
+
+**Tek takım için en çok maç** kuralı ikisini birden çözüyor: **7/8**. Tek sapma Drogba (Wikidata 104, genel kaynaklar 105) ve o kuralın değil kaynağın farkı.
+
+| Kural                         | Doğruluk |
+| ----------------------------- | -------- |
+| Millî maçları topla           | 4/8      |
+| **Tek takım için en çok maç** | **7/8**  |
+
+#### Ölçüm: sorgu şekli — 9,5 saatten 5 dakikaya
+
+Millî maç sorgusunun ilk hâli her `P54` ifadesinin takımının **sınıfını** denetliyordu. Ölçüm:
+
+| Yaklaşım                        | Çalışan yığın | Süre/yığın | Tam çekim     |
+| ------------------------------- | ------------- | ---------- | ------------- |
+| Sınıf süzgeci (`?team wdt:P31`) | 40            | 17.851 ms  | **~9,5 saat** |
+| `VALUES` üyelik testi           | 40            | 3.092 ms   | ~1,6 saat¹    |
+| **Süzmesiz çek, JS'te süz**     | **250**       | **809 ms** | **~5 dakika** |
+
+¹ 350 takım QID'i URL'i şişiriyor; yığın 100'de `HTTP 431`, 250'de `HTTP 414`.
+
+Sınıf süzgeci motoru her ifadenin takımını aramaya zorluyor. Millî takım listesi **bir kez** çekilip (350 takım, 924 ms) süzme bellekte yapılınca aynı sonuç 22 kat hızlı geliyor — iki yöntemin aynı değeri verdiği 8/8 doğrulandı.
+
+**Toplam ek ETL maliyeti: ~13 dakika** (millî maç 306 istek ≈ 5 dk, boy+kilo 306 istek ≈ 8 dk).
+
+#### Ölçüm: günün oyuncusu havuzu
+
+Günün oyuncusunun **altı istatistiği de** dolu olmalı; yoksa o gün bir soru eksik kalır. Ölçülen kesişim:
+
+| Ölçüt                                                                              | Sonuç      |
+| ---------------------------------------------------------------------------------- | ---------- |
+| Yerel koşulu geçen (havuz kulübü, 100+ maç, 2+ kulüp, tüm dönemlerde maç+gol dolu) | 4.762      |
+| Altı istatistiği de dolu (400'lük örnekten yansıtıldı)                             | **~2.060** |
+| Günde bir oyuncu → kaç yıllık malzeme                                              | **~6 yıl** |
+
+#### Ölçüm: puanlama formülü
+
+"Yüzde puan" için ham oransal fark **adaletsiz**. Ölçülen yayılımlar: kulüp maçı sd=106, kulüp golü sd=44, kulüp sayısı sd=1,0. Aynı formül iki uçta şunu veriyor:
+
+| Senaryo                   | Oransal            | sd-bazlı |
+| ------------------------- | ------------------ | -------- |
+| 400 maç hedef, 300 tahmin | %75 (fazla cömert) | %6       |
+| 3 gol hedef, 8 tahmin     | **%0 (acımasız)**  | %89      |
+
+Küçük hedeflerde oransal formül oyunu bozuyor. Kural bu yüzden istatistiğin **kendi yayılımına** göre normalize eder.
+
+#### Kurallar
+
+- **BR-14 — Millî maç tek takımdan.** Bir oyuncunun millî maç sayısı, **tek bir millî takım için** yaptığı en çok maçtır. Toplama, U-21 kayıtlarını ve FIFA dışı takımları da katıp yanlış sonuç verir (yukarıda ölçüldü).
+- **BR-15 — Günün oyuncusu tam veri ister.** Seçilebilmesi için altı istatistiğin **hepsi** dolu olmalıdır. Eksik veriyle soru sorulmaz; "bilinmiyor" bir cevap değildir.
+- **BR-16 — Cevap havuzu istatistik başınadır.** Kullanıcının bir istatistik için seçebileceği oyuncular, **o istatistiği dolu olanlardır**. Altı istatistiğin kesişimiyle sınırlamak havuzu gereksiz daraltırdı; kullanıcı gol sorusunda kilosu bilinmeyen birini seçebilmelidir.
+- **BR-17 — Bir oyuncu bir kez.** Aynı oyuncu birden çok istatistikte kullanılamaz; kullanıcı **her istatistik için ayrı** bir isim verir.
+- **BR-18 — Puan yayılıma göre.** Bir seçimin puanı
+  `100 × max(0, 1 − |seçilen − hedef| / (2 × sd))`
+  formülüyle hesaplanır; `sd` o istatistiğin havuzdaki standart sapmasıdır. Toplam puan altı seçimin ortalamasıdır. Çarpan **2** ürün kararıdır ve oyunun zorluğunu ayarlayan tek sayıdır: 1 birim sapma ≈ %99, yarım sd ≈ %75, 2 sd ≈ %0.
+- **BR-19 — Günlük ve deterministik.** BR-11 ile aynı: gün tohumundan üretilir, herkes aynı oyuncuyu görür, tarihi sunucu okur.
+- **BR-20 — Doğrulama sunucuda.** BR-12 ile aynı: istemci hedef değerleri gönderemez, puanı sunucu hesaplar. Aksi hâlde istemci kendi hedefini uydurup %100 alırdı.
+
+#### Kapsam bildirimi
+
+Maç, gol ve kulüp sayısı **yalnızca §1.3 kapsamındaki altı ligi** sayar. Ajax veya Boca Juniors'ta geçen yıllar bu sayılara **girmez**. Arayüz bunu istatistiğin yanında söyler; söylemezse kullanıcı bildiği gerçek toplamla karşılaştırıp siteyi yanlış sanır — §1.3'ün kapsam bildirimi kuralının aynısı.
+
 ---
 
 ## 10. Yol Haritası
@@ -1158,6 +1326,23 @@ Yayından **önce** eklendi. Gerekçe Faz 4'ün gerekçesiyle aynı: mimarinin i
 | Uyruk arayüzde ham ISO kodu olarak görünüyordu         | Havuzda 30 kod elle yazılmıştı, veride **170** kod var               | `Intl.DisplayNames` + iki bilinçli sapma |
 
 **Bir erişilebilirlik kusuru da ortaya çıktı ve `ClubPicker`'da da vardı:** `role="listbox"` yalnızca `option` çocuğu barındırabilir, "Sonuç yok" metni listenin içindeydi. Mevcut testler listeyi hep dolu kurduğu için görünmemişti; boş liste durumu artık iki seçici için de denetleniyor.
+
+### Faz 4.6 — Üçüncü oyun modu: istatistik eşleştirme
+
+> **Numarası 4.5'ten büyük ama SIRASI önce.** Bu mod, önceki ikisinden farklı
+> olarak **veri kümesini genişletiyor** — üç yeni alan çekiliyor. Yayın (4.5)
+> zaten tek bir ETL koşusu içeriyor; ikisini ayırmak ~1 saatlik işi iki kez
+> ödemek olurdu. Numaralar sabit kaldı çünkü "§10 Faz 4.5" belgede ve kodda
+> birden çok yerde geçiyor.
+
+- [ ] Prisma şeması + migration: `nationalCaps`, `heightCm`, `weightKg`
+- [ ] ETL: millî takım listesi (bir kez) + oyuncu istatistik sorgusu (yığın 250)
+- [ ] BR-14'ün ETL'de uygulanması: **en büyük**, toplam değil
+- [ ] `db:verify`: yeni alanların kapsam alt sınırı
+- [ ] Domain: BR-15…BR-20, puanlama formülü
+- [ ] `GET /api/stat-match`, `POST /api/stat-match/answer` (§6.5)
+- [ ] Arayüz: istatistik başına seçici + sonuç kartı
+- [ ] Kapsam bildirimi: "bu sayılar yalnızca altı ligi kapsar"
 
 ### Faz 4.5 — Yayın
 

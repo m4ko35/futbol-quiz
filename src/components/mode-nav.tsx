@@ -12,7 +12,7 @@ import Link from "next/link";
  * yönlendirmeyi kullanır ve sayfa baştan yüklenmez.
  */
 
-export type ModeId = "common-players" | "grid";
+export type ModeId = "common-players" | "grid" | "stat-match";
 
 const MODES: readonly {
   readonly id: ModeId;
@@ -21,6 +21,7 @@ const MODES: readonly {
 }[] = [
   { id: "common-players", href: "/", title: "Ortak Oyuncu" },
   { id: "grid", href: "/izgara", title: "3×3 Izgara" },
+  { id: "stat-match", href: "/istatistik", title: "İstatistik" },
 ];
 
 export interface ModeNavProps {
@@ -29,7 +30,7 @@ export interface ModeNavProps {
 
 export function ModeNav({ current }: ModeNavProps) {
   return (
-    <nav aria-label="Oyun modları" className="flex gap-2">
+    <nav aria-label="Oyun modları" className="flex flex-wrap gap-2">
       {MODES.map((mode) => {
         const isCurrent = mode.id === current;
         return (

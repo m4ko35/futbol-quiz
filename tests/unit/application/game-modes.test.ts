@@ -17,6 +17,7 @@ import { aClub, aPlayer, aSpell } from "../../helpers/builders";
 import {
   FakeClubRepository,
   FakePlayerRepository,
+  FakeStatMatchRepository,
 } from "../../helpers/fake-repositories";
 
 /** §9 — oyun modu sözleşmesi. */
@@ -36,6 +37,7 @@ function deps(): GameModeDeps {
         spells: [aSpell({ clubId: CLUB_A }), aSpell({ clubId: CLUB_B })],
       },
     ]),
+    statMatch: new FakeStatMatchRepository(),
   };
 }
 

@@ -37,6 +37,11 @@ export interface NormalizedPlayer {
    * veritabanına yazılmaz ve arayüzde gösterilmez.
    */
   genderQid: string | null;
+
+  /** §9.2 — ayrı bir sorgudan gelir, `toPlayer` bunları doldurmaz. */
+  nationalCaps: number | null;
+  heightCm: number | null;
+  weightKg: number | null;
 }
 
 export interface NormalizedSpell {
@@ -256,7 +261,113 @@ export function toPlayer(binding: SparqlBinding): NormalizedPlayer | null {
     nationality: normalizeCountryCode(str(binding, "countryCode")),
     position: normalizePosition(str(binding, "positionLabel")),
     genderQid: qid(binding, "gender") ?? null,
+    // Ayrı sorgulardan gelir; `applyPlayerStats` doldurur.
+    nationalCaps: null,
+    heightCm: null,
+    weightKg: null,
   };
+}
+
+/**
+ * BR-14 — millî maç sayısı: tek takım için EN ÇOK maç, toplam DEĞİL.
+ *
+ * NEDEN TOPLAMA DEĞİL, ölçüldü (bilinen 8 oyuncu: toplama 4/8, en büyük 7/8):
+ *
+ *   Buffon       İtalya A 176  +  İtalya U-21  11  = 187   (doğrusu 176)
+ *   Panucci      İtalya A  57  +  İtalya U-21  19  =  76   (doğrusu  57)
+ *   Zubizarreta  İspanya  126  +  Bask Bölgesi  4  = 130   (doğrusu 126)
+ *
+ * İki ayrı kirlilik var ve ikisi de sınıfa bakarak ayıklanamıyor: U-21
+ * takımları A millî takımla AYNI Wikidata sınıfını paylaşıyor (350 takımın
+ * 2'si), Bask Bölgesi ise gerçek bir millî takım — sadece FIFA üyesi değil.
+ *
+ * "En çok maç yaptığı millî takım" ikisini birden çözüyor. Kusuru şudur:
+ * A millî takımından çok U-21 maçı olan bir oyuncuda yanlış değeri verir.
+ * Bu, listedeki 2 altyapı takımıyla sınırlı ve kabul edildi.
+ *
+ * `teamFilter` dışarıdan verilir çünkü millî takım listesi AĞDAN gelir; bu
+ * dosyanın saf kalması (§8.1) test edilebilirliğin ön koşulu.
+ */
+export function nationalCapsFrom(
+  bindings: readonly SparqlBinding[],
+  isNationalTeam: (teamQid: string) => boolean,
+): Map<string, number> {
+  const best = new Map<string, number>();
+
+  for (const binding of bindings) {
+    const player = qid(binding, "player");
+    const team = qid(binding, "team");
+    const caps = int(binding, "caps");
+    if (player === undefined || team === undefined || caps === undefined) {
+      continue;
+    }
+    if (!isNationalTeam(team)) continue;
+
+    const current = best.get(player);
+    if (current === undefined || caps > current) best.set(player, caps);
+  }
+
+  return best;
+}
+
+/**
+ * Boy/kilo bağlamalarını kimliğe göre eşler.
+ *
+ * Değerler AKLA YATKIN ARALIKTA olmalı. Wikidata'da birim karışıklığı olur
+ * (metre yerine santimetre, pound yerine kilogram) ve aralık dışı bir değer
+ * "bilinmiyor"dan daha kötüdür — kullanıcıya 2 cm boyunda bir futbolcu
+ * gösterilir. Aralık dışı değer `null` sayılır (§2.7).
+ */
+const HEIGHT_RANGE = { min: 140, max: 220 } as const;
+const WEIGHT_RANGE = { min: 40, max: 140 } as const;
+
+export function physicalFrom(
+  bindings: readonly SparqlBinding[],
+): Map<string, { heightCm: number | null; weightKg: number | null }> {
+  const result = new Map<
+    string,
+    { heightCm: number | null; weightKg: number | null }
+  >();
+
+  for (const binding of bindings) {
+    const player = qid(binding, "player");
+    if (player === undefined) continue;
+
+    result.set(player, {
+      heightCm: inRange(int(binding, "height"), HEIGHT_RANGE),
+      weightKg: inRange(int(binding, "mass"), WEIGHT_RANGE),
+    });
+  }
+
+  return result;
+}
+
+function inRange(
+  value: number | undefined,
+  range: { min: number; max: number },
+): number | null {
+  if (value === undefined) return null;
+  return value >= range.min && value <= range.max ? value : null;
+}
+
+/** Ayrı sorgulardan gelen istatistikleri oyuncu kayıtlarına işler. */
+export function applyPlayerStats(
+  players: readonly NormalizedPlayer[],
+  caps: ReadonlyMap<string, number>,
+  physical: ReadonlyMap<
+    string,
+    { heightCm: number | null; weightKg: number | null }
+  >,
+): NormalizedPlayer[] {
+  return players.map((player) => {
+    const size = physical.get(player.wikidataId);
+    return {
+      ...player,
+      nationalCaps: caps.get(player.wikidataId) ?? null,
+      heightCm: size?.heightCm ?? null,
+      weightKg: size?.weightKg ?? null,
+    };
+  });
 }
 
 /**
