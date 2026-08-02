@@ -8,7 +8,9 @@ import {
   normalizeCountryCode,
   normalizePosition,
   parseWikidataDate,
+  seasonYearAt,
   statementIdFromUri,
+  tallies,
   toSearchKey,
   toSeasonYearOrNull,
   toShortName,
@@ -191,10 +193,139 @@ describe("normalizeCountryCode", () => {
   });
 });
 
+/**
+ * BR-6 — hassasiyete duyarlı sezon yılı.
+ *
+ * Wikidata tarihlerin %93,7'sini YIL hassasiyetinde tutuyor ve WDQS bunları
+ * `YYYY-01-01` diye normalleştiriyor. Bu testler tam olarak o durumu kovalıyor:
+ * gerçek bir Ocak tarihiyle "yalnızca yıl biliniyor" AYNI DEĞİLDİR.
+ */
+describe("seasonYearAt — BR-6 hassasiyet", () => {
+  it("yıl hassasiyetinde başlangıcı O YILA yazar", () => {
+    // "+2025-00-00" → WDQS "2025-01-01"; naif kural 2024 derdi (yanlış).
+    expect(seasonYearAt("2025-01-01T00:00:00Z", 9, "start")).toBe(2025);
+  });
+
+  it("yıl hassasiyetinde bitişi ÖNCEKİ sezona yazar", () => {
+    // "2025'te ayrıldı" = 2024/25 sezonunun sonu.
+    expect(seasonYearAt("2025-01-01T00:00:00Z", 9, "end")).toBe(2024);
+  });
+
+  it("gün hassasiyetinde normal sezon kuralını uygular", () => {
+    expect(seasonYearAt("2025-08-15T00:00:00Z", 11, "start")).toBe(2025);
+    expect(seasonYearAt("2025-01-31T00:00:00Z", 11, "start")).toBe(2024);
+    expect(seasonYearAt("2025-06-30T00:00:00Z", 11, "end")).toBe(2024);
+  });
+
+  it("ay hassasiyetinde normal sezon kuralını uygular", () => {
+    expect(seasonYearAt("2025-08-01T00:00:00Z", 10, "start")).toBe(2025);
+    expect(seasonYearAt("2026-01-01T00:00:00Z", 10, "start")).toBe(2025);
+  });
+
+  /** On yıl/yüzyıl bir sezona indirgenemez; uydurulmaz (§2.7). */
+  it("yıldan kaba hassasiyette null döner", () => {
+    expect(seasonYearAt("2020-01-01T00:00:00Z", 8, "start")).toBeNull();
+    expect(seasonYearAt("1900-01-01T00:00:00Z", 7, "end")).toBeNull();
+  });
+
+  it("hassasiyet bildirilmemişse normal kurala düşer", () => {
+    expect(seasonYearAt("2011-08-15T00:00:00Z", undefined, "start")).toBe(2011);
+  });
+
+  it("tarih yoksa null döner", () => {
+    expect(seasonYearAt(undefined, 9, "start")).toBeNull();
+  });
+});
+
+/** BR-22 — maç/gol akla yatkınlık denetimi. */
+describe("tallies — BR-22", () => {
+  it("normal değerleri olduğu gibi geçirir", () => {
+    expect(tallies(64, 3)).toEqual({ appearances: 64, goals: 3 });
+  });
+
+  /** Ölçülen hata: Maldini @ Milan 1987 — maç değil, katılış yılı. */
+  it("yıl kılıklı maç sayısını düşürür", () => {
+    expect(tallies(1987, undefined).appearances).toBeNull();
+    expect(tallies(5000, undefined).appearances).toBeNull();
+  });
+
+  /** Gerçek rekorlar kesilmemeli: Trollope 770, Messi 474 gol. */
+  it("gerçek rekorları korur", () => {
+    expect(tallies(770, undefined).appearances).toBe(770);
+    expect(tallies(778, 474).goals).toBe(474);
+  });
+
+  /** Oynamadığı maçta gol atılamaz — 922 dönemde ihlal ediliyor. */
+  it("gol maçtan fazlaysa GOLÜ düşürür, maçı korur", () => {
+    expect(tallies(30, 780)).toEqual({ appearances: 30, goals: null });
+  });
+
+  it("maç bilinmiyorsa golü yalnızca sınıra göre değerlendirir", () => {
+    expect(tallies(undefined, 474)).toEqual({ appearances: null, goals: 474 });
+    expect(tallies(undefined, 5603)).toEqual({
+      appearances: null,
+      goals: null,
+    });
+  });
+
+  /** Sıfırlamak DEĞİL null yapmak: "0 maç" bir iddiadır (§2.7). */
+  it("eksik değeri null yapar, sıfır YAPMAZ", () => {
+    expect(tallies(undefined, undefined)).toEqual({
+      appearances: null,
+      goals: null,
+    });
+  });
+
+  it("negatif değeri reddeder", () => {
+    expect(tallies(-5, -1)).toEqual({ appearances: null, goals: null });
+  });
+});
+
 describe("toSpell", () => {
   const statementUri =
     "http://www.wikidata.org/entity/statement/Q161089-AD66DA21";
   const playerUri = "http://www.wikidata.org/entity/Q161089";
+
+  /**
+   * ÖLÇÜLMÜŞ GERİLEME KORUMASI. Yıl hassasiyetli "2024 → 2024" kaydında iki
+   * kural ters düşer (başlangıç 2024, bitiş 2023) ve `sanitizeSpells` kaydı
+   * atardı. Veride böyle 19.478 dönem var; ayıklama oranı %1 eşiğini aşar ve
+   * ETL hiç tamamlanamazdı.
+   */
+  it("tek takvim yılına sığan dönemde bitişi başlangıca hizalar", () => {
+    const spell = toSpell(
+      bind({
+        st: statementUri,
+        player: playerUri,
+        start: "2024-01-01T00:00:00Z",
+        startPrecision: "9",
+        end: "2024-01-01T00:00:00Z",
+        endPrecision: "9",
+      }),
+      "Q495299",
+      false,
+    );
+
+    expect(spell).toMatchObject({ startYear: 2024, endYear: 2024 });
+  });
+
+  it("yıl hassasiyetli çok sezonluk dönemi doğru çevirir", () => {
+    const spell = toSpell(
+      bind({
+        st: statementUri,
+        player: playerUri,
+        start: "2020-01-01T00:00:00Z",
+        startPrecision: "9",
+        end: "2025-01-01T00:00:00Z",
+        endPrecision: "9",
+      }),
+      "Q495299",
+      false,
+    );
+
+    // Wikidata "2020–2025" = 2020/21'den 2024/25'e, yani beş sezon.
+    expect(spell).toMatchObject({ startYear: 2020, endYear: 2024 });
+  });
 
   it("tam bir dönem kaydını çevirir", () => {
     const spell = toSpell(

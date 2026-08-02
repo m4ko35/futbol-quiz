@@ -455,6 +455,24 @@ Bunlar `domain/services/` içinde saf fonksiyon olarak yaşar ve birim testi ile
 - **BR-4 — Aynı kulüp seçimi:** A ile B aynı kulüp ise istek reddedilir (`400`).
 - **BR-5 — Sıralama:** Sonuçlar, iki kulüpteki toplam maç sayısına göre azalan; maç bilgisi yoksa en son dönem yılına göre azalan sıralanır.
 - **BR-6 — Tarih normalizasyonu:** Wikidata'nın gün hassasiyetli tarihleri sezon yılına indirgenir (Temmuz–Aralık → o yıl; Ocak–Haziran → bir önceki yıl sezonuna ait).
+
+  **Hassasiyet ayrımı zorunludur.** Wikidata tarihlerin çoğunu yalnızca YIL hassasiyetinde tutar (`+2025-00-00`, `precision: 9`) ve WDQS bunları `2025-01-01` diye normalleştirir. Bu değeri gerçek bir Ocak tarihi sanmak, yukarıdaki kural gereği kaydı bir önceki sezona yazar. Ölçüm (Arsenal, Galatasaray, Real Madrid, Liverpool — 3.454 başlangıç tarihi):
+
+  | Hassasiyet | Kayıt |      Oran |
+  | ---------- | ----: | --------: |
+  | yıl (9)    | 3.235 | **%93,7** |
+  | ay (10)    |    78 |      %2,3 |
+  | gün (11)   |   140 |      %4,1 |
+
+  Yani başlangıç yıllarının neredeyse tamamı bir sezon erkendi. Belirti, kaydın kendi içinde çelişmesiydi: Šeško aynı anda Leipzig'de (2022–2025) ve Manchester United'da (2024–) görünüyordu; veritabanında 5.020 çakışan kalıcı dönem çifti vardı. Çözüm, `pqv:` değer düğümünden `wikibase:timePrecision` okumaktır. Yıl hassasiyetinde iki uç ZITTIR ve bu bir varsayım değil, Avrupa futbol takviminin sonucudur:
+
+  - başlangıç `2025` → 2025/26 sezonu → **2025** (yaz transferi)
+  - bitiş `2025` → 2024/25 sezonunun sonu → **2024**
+
+  Yıldan kaba hassasiyet (on yıl, yüzyıl) bir sezona indirgenemez ve `null` olur (§2.7).
+
+  **Tek takvim yılına sığan dönem istisnası.** `2024 → 2024` kaydında iki kural ters düşer (başlangıç 2024, bitiş 2023). Bitiş kuralının dayanağı "ayrılış, Y−1 sezonunun sonundadır" varsayımıdır; katılış aynı yıl olduğunda bu geçersizdir. Bu durumda bitiş başlangıca hizalanır. İhmal edilemez: veri kümesinde başlangıcı bitişine eşit **19.478** dönem var, yani düzeltilmezse ayıklama oranı §8.2'deki %1 eşiğini katlayarak aşar ve ETL hiç tamamlanamaz.
+
 - **BR-7 — Kapsam: erkek ligleri.** Veri kümesi hedeflenen altı erkek ligiyle sınırlıdır. Wikidata kadın takımı dönemlerini çoğu zaman **aynı kulüp varlığına** bağladığı için ayrım kulüp düzeyinde yapılamıyor; `P21` (cinsiyet) alanı yalnızca bu kapsamı uygulamak üzere okunur, veritabanına yazılmaz ve arayüzde gösterilmez. `P21` kaydı olmayan oyuncular **kapsamda kalır** — eksik meta veri dışlama gerekçesi değildir. Kadın futbolu ileride kendi lig kümesiyle ayrı bir kapsam olarak eklenebilir (§10.2).
 - **BR-8 — Kanıt düzeyi.** Bir `Spell`, `startYear`, `endYear`, `appearances` ve `goals` alanlarının **dördü de** boşsa **kanıtsızdır**; en az biri doluysa kanıtlıdır. Kanıtsız dönemler BR-1 kapsamında **sayılır** (elenmez), fakat API yanıtında ve arayüzde açıkça işaretlenir. Gerekçe ve ölçüm §1.4'tedir; özeti: eleme, uydurma kayıtlarla birlikte doğru kayıtları da siliyor ve Wikidata ikisini ayıracak bir sinyal taşımıyor. BR-5'in sıralaması bu dönemleri kendiliğinden en sona koyar (ne maç sayısı ne yıl bilgisi vardır), dolayısıyla ayrı bir sıralama kuralı gerekmez.
 
@@ -904,17 +922,11 @@ Denetim **iki parçadır**, çünkü tek bir araç ikisini birden ölçemiyor.
 
 > Denetimin kendisi de test ediliyor: bilerek bozuk bir işaretlemeye (`<img>` alt'sız, `<button>` adsız) karşı koşturulup ihlalleri **yakaladığı** doğrulanıyor. Hiç kırmızıya dönemeyen bir kapı kapı değildir.
 
-**2. Kontrast — elle hesaplandı.** jsdom'un yerleşim motoru olmadığı için `color-contrast` kuralı orada çalışamaz; açık bırakılsaydı "geçti" derdi ve bu yanıltıcı olurdu. Kural bilerek kapatıldı, kontrast ayrıca hesaplandı. Renkler `#171717`/`#ffffff` (açık) ve `#ededed`/`#0a0a0a` (koyu); arayüz tonları `currentColor` üzerine saydamlıkla kuruluyor, yani her saydamlık değeri bir kontrast oranına karşılık geliyor:
+**2. Kontrast — elle hesaplandı.** jsdom'un yerleşim motoru olmadığı için `color-contrast` kuralı orada çalışamaz; açık bırakılsaydı "geçti" derdi ve bu yanıltıcı olurdu. Kural bilerek kapatıldı, kontrast ayrıca hesaplandı.
 
-| Saydamlık | Açık mod | Koyu mod | Normal metin (4,5) | Arayüz/odak (3,0) |
-| --------- | -------- | -------- | ------------------ | ----------------- |
-| 0,70      | 6,58     | 8,42     | ✅                 | ✅                |
-| 0,60      | 4,67     | 6,36     | ✅                 | ✅                |
-| 0,50      | 3,41     | 4,74     | ❌ açık modda      | ✅                |
-| 0,30      | 1,96     | 2,38     | ❌                 | ❌                |
-| 0,20      | 1,53     | 1,66     | ❌                 | ❌                |
+> **Ölçümün kendisi §7.12'ye taşındı.** Arayüz artık `currentColor` üzerine saydamlıkla değil, adlandırılmış belirteçlerle kuruluyor; ölçüm de saydamlık değerlerinin değil, belirteç çiftlerinin tablosu. Aşağıdaki ilk denetim tarihsel kayıt olarak duruyor.
 
-Ölçüm beş ihlal buldu ve beşi de düzeltildi:
+Saydamlık düzenindeki ilk ölçüm beş ihlal buldu ve beşi de düzeltildi:
 
 | Yer                                | Neydi                      | Ne oldu           | Hangi ölçüt            |
 | ---------------------------------- | -------------------------- | ----------------- | ---------------------- |
@@ -924,9 +936,9 @@ Denetim **iki parçadır**, çünkü tek bir araç ikisini birden ölçemiyor.
 | Hata kimliği metni                 | `opacity-50` (3,41)        | `/70`             | 1.4.3 metin kontrastı  |
 | Boş sonuç açıklaması               | `opacity-50` + `text-xs`   | `/70` + `text-sm` | 1.4.3                  |
 
-**Kural: metin için asgari saydamlık 0,60.** Bunun altındaki her değer açık modda AA'yı karşılamıyor.
+**Renk tek gösterge değildir (1.4.1).** BR-8'in kanıtsız dönem işareti kesik çizgiyle _ve_ metinle veriliyor ("kaynakta ayrıntı yok"); kiralık dönem rozeti de metin taşıyor. Izgarada doğru/yanlış hücreler "✓"/"✗" işareti ve ekran okuyucuya giden sözcükle ayrılıyor; istatistik ekranındaki puan rozetinde yüzde değerinin kendisi yazılı. Biçimi ya da rengi ayırt edemeyen kullanıcı için hiçbir yerde bilgi kaybolmuyor.
 
-**Renk tek gösterge değildir (1.4.1).** BR-8'in kanıtsız dönem işareti kesik çizgiyle _ve_ metinle veriliyor ("kaynakta ayrıntı yok"); kiralık dönem rozeti de metin taşıyor. Biçimi ayırt edemeyen kullanıcı için bilgi kaybolmuyor.
+**Simge yerine sözcük (4.1.2).** Ortak oyuncu başlığı gözde `∩` gösteriyor ama erişilebilir adı `aria-label` ile veriliyor: "Galatasaray ve Arsenal, 12 ortak oyuncu". İki sebep var. Seslendiriciler `∩` karakterini tutarsız okuyor — kimi "kesişim" diyor, kimi tamamen atlıyor. İkincisi ölçüldü: ad iç içe elemanların metninden türetildiğinde aradaki boşluk CSS `display` değerine bağlı kalıyor ve `display` bilgisi olmayan bir ortamda "GalatasarayveArsenal12 ortak oyuncu" çıkıyor. Görsel `gap` erişilebilir ada yansımaz.
 
 **Armalar süslemedir (1.1.1).** `alt=""` ve `aria-hidden` taşırlar; yanlarındaki kulüp adı zaten okunuyor, "Galatasaray arması" demek aynı bilgiyi ikinci kez seslendirmek olurdu.
 
@@ -952,6 +964,75 @@ robots.txt        User-Agent: *  /  Disallow: /
 > **Görsel üretilmiyor.** `twitter:card` bilerek `summary` (görselli `summary_large_image` değil): olmayan bir görseli vaat etmek boş bir kart üretir. Üretilmiş bir paylaşım görseli (`opengraph-image`) istenirse eklenebilir; MVP için gerekli görülmedi.
 
 **Diğer.** 404 sayfası Türkçedir (arayüz dili TR — §1.2) ve denenen adresi **yansıtmaz**: adresi sayfaya basmak, kullanıcı girdisini sayfaya basmanın en kolay yoludur ve buna hiçbir sebep yok (§6.3). Simge, iskeletten kalan Next logosu yerine uygulamanın kendi işaretidir — iki kesişen çember, yani `A ∩ B`.
+
+### 7.12 Tasarım Sistemi
+
+**Neden değişti.** İlk arayüz iki değişken taşıyordu: `--background` ve `--foreground`. Derinlik `opacity` ve `currentColor` saydamlıklarıyla üretiliyordu. Ölçülünce iki sorun çıktı:
+
+1. **Durum bilgisi renksizdi.** Doğru hücre, yanlış hücre, kiralık dönem, puan bandı — hepsi aynı gri tondaydı. Üç oyun modu da tek renkte görünüyordu, yani oyunun geri bildirimi yalnızca metne kalmıştı.
+2. **Her saydamlık ayrı bir ölçüm borcuydu.** `/20`, `/50`, `/60`… her biri ayrı bir kontrast oranına karşılık geliyor ve yeni bir değer yazan herkesin tabloya bakması gerekiyordu (§7.10'daki beş ihlal tam olarak böyle oluştu).
+
+**Belirteçler role bağlıdır, tona değil.** `--accent` "yeşil" demek değil, "bu arayüzün vurgu rengi" demek. Bileşenler rolü kullanır; ton değiştiğinde düzeltilecek tek yer `globals.css`. Karanlık mod da bu sayede tek bir medya sorgusuna sığıyor — **hiçbir bileşen `dark:` varyantı taşımıyor.**
+
+| Rol               | Ne için                                | Açık                  | Koyu                  |
+| ----------------- | -------------------------------------- | --------------------- | --------------------- |
+| `background`      | Sayfa zemini                           | `#f5f7f6`             | `#0b100e`             |
+| `surface`         | Kart, panel, açılır liste              | `#ffffff`             | `#151b19`             |
+| `foreground`      | Ana metin                              | `#0f1513`             | `#e9eeec`             |
+| `muted`           | İkincil metin, etiket                  | `#59635f`             | `#9ba5a1`             |
+| `line`            | Ayırıcı (süsleme — kontrast şartı yok) | `#e0e5e3`             | `#272f2d`             |
+| `line-strong`     | Arayüz bileşeni sınırı (girdi, hücre)  | `#79837f`             | `#6b7672`             |
+| `accent`          | Marka, odak konturu, birincil düğme    | `#15803d`             | `#4ade80`             |
+| `accent-fg`       | Vurgu dolgusu üzerindeki metin         | `#ffffff`             | `#04120a`             |
+| `accent-soft`     | Vurgulu zemin (seçili kulüp, seçenek)  | `#edf7f0`             | `#12241a`             |
+| `correct`/`-soft` | Doğru hücre                            | `#15803d` / `#edf7f0` | `#4ade80` / `#12241a` |
+| `wrong`/`-soft`   | Yanlış hücre, hata kutusu              | `#b4232a` / `#fdecea` | `#fb8a8a` / `#2a1517` |
+| `warn`/`-soft`    | Kiralık rozeti, orta puan bandı        | `#8a5a00` / `#fdf4e3` | `#e5b567` / `#251d0d` |
+
+**İki ayrı kenarlık rolü, bilinçli.** `line` bir ayırıcıdır ve WCAG 1.4.11 süsleme sınırlarını kapsamaz. `line-strong` bir arayüz bileşeninin sınırıdır ve 3:1'i karşılamak **zorundadır**. Tek değişkende toplansaydı ya ayırıcılar gereksiz koyu olurdu ya da girdi kenarlıkları ölçüsüz kalırdı.
+
+**Marka tonu ölçüyle seçildi.** Favicon'daki `#16a34a` sekme çubuğunda iyi çalışıyor ama beyaz üzerine metin olarak 3,58:1 veriyor ve AA'yı karşılamıyor. Metin rolü için `#15803d` kullanılıyor (5,02:1); simge dosyası kendi rengini koruyor, çünkü tarayıcı sekmesi sayfanın temasını devralmaz.
+
+#### Ölçüm
+
+**Yirmi beş çiftin tamamı hesaplandı, ikisi geçemedi ve düzeltildi.** İlk denemede `line-strong` her iki modda da 3:1'in altındaydı (2,44 / 2,26) ve `accent` kendi yumuşak zemininde 4,42 ile eşiğin hemen altında kalıyordu. Tonlar oran tutana kadar koyulaştırıldı/açıldı.
+
+| Çift                                | Eşik | Açık  | Koyu  |
+| ----------------------------------- | ---- | ----- | ----- |
+| `foreground` / `background`         | 4,5  | 17,17 | 16,36 |
+| `foreground` / `surface`            | 4,5  | 18,47 | 14,89 |
+| `muted` / `background`              | 4,5  | 5,78  | 7,57  |
+| `muted` / `surface`                 | 4,5  | 6,22  | 6,89  |
+| `accent` / `surface`                | 4,5  | 5,02  | 10,02 |
+| `accent-fg` / `accent`              | 4,5  | 5,02  | 11,00 |
+| `accent` / `accent-soft`            | 4,5  | 4,58  | 9,32  |
+| `wrong` / `wrong-soft`              | 4,5  | 5,71  | 7,47  |
+| `warn` / `warn-soft`                | 4,5  | 5,43  | 8,84  |
+| `line-strong` / `surface`           | 3,0  | 3,91  | 3,71  |
+| `line-strong` / `background`        | 3,0  | 3,64  | 4,07  |
+| `accent` (odak konturu) / `surface` | 3,0  | 5,02  | 10,02 |
+
+**Ölçüm bir KAPIDIR, bir kerelik denetim değil** — `tests/unit/app/contrast.test.ts`. Test `globals.css`'i okuyup belirteçleri ayrıştırıyor ve yukarıdaki çiftlerin tamamını her iki modda hesaplıyor. Değerler testin içine kopyalanmadı ve bu bilinçli: iki kaynak olsaydı asıl kaçırmak istediğimiz durumu — CSS'te değişip testte değişmeyen bir ton — hiç yakalayamazdı.
+
+> Denetimin kendisi de test ediliyor: siyah/beyaz için tam 21:1 beklendiği doğrulanıyor ve elenmiş bir tonun (`#16a34a` beyaz üzerine) eşiğin altında kaldığı gösteriliyor. Ayrıca bozuk bir belirteçle koşturulup **kırmızıya döndüğü** ölçüldü — `--muted` açık modda `#b9c3bf` yapıldığında üç çift birden düşüyor (1,68 / 1,81 / 1,73).
+
+**Bu testin kapsamadığı şey — dürüstçe:** belirteçlerin ORANLARINI doğruluyor, hangi bileşenin hangi belirteci kullandığını değil. `text-muted` yazılması gereken yere `text-line` yazılırsa bu test görmez; onu ancak gerçek tarayıcıda bir denetim yakalar (Faz 4.5).
+
+#### Odak göstergesi
+
+Odak `ring` ile değil **`outline`** ile veriliyor: `outline` elemanın dışına çizilir ve üzerinde durduğu zeminden bağımsızdır. `ring` iç gölge olduğu için her kapsayıcıda ayrı bir `ring-offset` rengi ayarlamayı gerektiriyordu. Renk tam güçte `accent` — saydamlaştırılmış bir halka ölçümü yeniden açardı.
+
+Düğme ve bağlantılarda `focus-visible`, girdi kutularında `focus` kullanılıyor. Ayrım kasıtlı: girdi kutusunda odak her zaman görünmeli (fareyle tıklayan kullanıcı da metin imlecinin nerede olduğunu bilmeli), düğmede yalnızca klavye gezinmesinde.
+
+#### Hareket
+
+Geçişler (`transition-colors`) süslemedir. `prefers-reduced-motion: reduce` seçen kullanıcı için `globals.css`'te **genel olarak** kapatılıyor; karar tek tek bileşenlere bırakılsaydı eklenen ilk yeni geçişte unutulurdu (WCAG 2.3.3).
+
+#### Başlık düzende, altbilgi sayfalarda
+
+`SiteHeader` `layout.tsx`'e taşındı: aynı gezinme üç sayfada birebir tekrarlanıyordu ve her sayfa bulunduğu modu elle bildiriyordu. Artık yol adresinden türetiliyor ve 404 ile hata ekranı da gezinmeye kavuşuyor.
+
+`SiteFooter` **taşınmadı ve bu bilinçli.** Altbilgi veri kümesinin tarihini gösteriyor, yani veritabanına gidiyor. Düzene konsaydı hata sayfası da o sorguya bağımlı olurdu ve veritabanı bozulduğunda hata ekranının kendisi çökerdi — kullanıcıya gösterilecek son sayfa tam da o an kaybolurdu.
 
 ---
 
@@ -1002,6 +1083,31 @@ Denetim **iki aşamalıdır**. Tek aşamalı ilk tasarım kullanılamaz çıktı
 2. **Oran denetimi** (`validateDataset`) — ayıklama oranı `MAX_REJECT_RATIO` (%1) eşiğini aşarsa süreç **hata ile biter** ve veritabanı güncellenmez. Örtüşen kalıcı dönem, kuruluş yılından önceki dönem ve 50'den az dönem gelen kulüp **uyarı** üretir; bunlar kaynaktaki bilinen gürültüdür (kulüp kuruluş yılı sık sık selef kulübü gösterir) ve yüklemeyi durdurmaz.
 
 Yükleme ayrıca **otoriter**dir: tam koşuda gelen listede olmayan kulüpler, dönemi kalmayan kulüpler ve dönemi kalmayan oyuncular silinir. Bu olmadan veritabanı önceki koşuların artıklarını biriktiriyordu.
+
+#### Elle düzeltmeler — `scripts/etl/overrides/`
+
+Wikidata'da **hiç olmayan** dönemler burada elle tanımlanır. Mekanizmanın gerekçesi ölçüldü (2026-07-31) — güncel kadronun veri kümesinde bulunma oranı:
+
+| Kulüp       | Kapsam    |
+| ----------- | --------- |
+| Real Madrid | 24/24     |
+| Arsenal     | 23/24     |
+| Galatasaray | **13/24** |
+| Beşiktaş    | **10/22** |
+| Trabzonspor | **5/15**  |
+
+Boşluk **kaynaktadır, bizde değil**. Abdülkerim Bardakçı'nın (`Q318069`) yedi `P54` kaydı var; hiçbiri Galatasaray değil. Alternatif bir Galatasaray ögesi de yok — eksik oyuncuların tamamının kulüp bağları tek tek okundu. Boru hattının kayıpsızlığının kanıtı: Galatasaray ∩ Konyaspor **bizde 30, Wikidata'da 30**.
+
+Neden bir uyarı değil de düzeltme: ızgara cevabı `matchesAll` ile veri kümesine bakarak doğrular (BR-12). Eksik dönem listeyi kısaltmakla kalmaz — **doğru cevabı yanlış saydırır**. Kullanıcının bildirdiği hata tam olarak buydu.
+
+Dört kural, dördü de bu mekanizmanın kötüye kullanılmasını engellemek için:
+
+1. **Yalnızca ekler, asla üzerine yazmaz.** Aynı (oyuncu, kulüp, başlangıç yılı) üçlüsü Wikidata'dan geldiyse override **yok sayılır**. Kaynağı elle "düzeltmek" bu mekanizmanın işi değildir; oradaki hata Wikidata'da düzeltilir.
+2. **Kendini iptal eder.** Wikidata bir dönemi sonradan eklediğinde override gereksizleşir. `db:verify` gereksizleşenleri **sayar ve raporlar**, böylece dosya sessizce şişmez.
+3. **Kaynak zorunludur.** Her kaydın `note` alanı, o bilginin nereden geldiğini yazar. Kaynaksız kayıt şema doğrulamasında reddedilir.
+4. **Yıl uydurulmaz.** Bilinmiyorsa `null` (§2.7: belirsizlik veri kaybından iyidir). Izgara eşleştirmesi yılı kullanmaz; yanlış bir yıl yalnızca ekranda yalan söyler.
+
+Dosya `scripts/etl/overrides/spells.json`, sınırda Zod ile doğrulanır (§2.3) ve versiyon kontrolüne girer. Sentetik ifade kimliği `override-<oyuncu>-<kulüp>-<yıl>` biçimindedir; Wikidata'nınkiyle (`Q…-<UUID>`) çakışamaz, bu yüzden yükleme idempotent kalır.
 
 #### Yükleme sonrası kabul kontrolü — `npm run db:verify`
 
@@ -1243,6 +1349,37 @@ Küçük hedeflerde oransal formül oyunu bozuyor. Kural bu yüzden istatistiği
   formülüyle hesaplanır; `sd` o istatistiğin havuzdaki standart sapmasıdır. Toplam puan altı seçimin ortalamasıdır. Çarpan **2** ürün kararıdır ve oyunun zorluğunu ayarlayan tek sayıdır: 1 birim sapma ≈ %99, yarım sd ≈ %75, 2 sd ≈ %0.
 - **BR-19 — Günlük ve deterministik.** BR-11 ile aynı: gün tohumundan üretilir, herkes aynı oyuncuyu görür, tarihi sunucu okur.
 - **BR-20 — Doğrulama sunucuda.** BR-12 ile aynı: istemci hedef değerleri gönderemez, puanı sunucu hesaplar. Aksi hâlde istemci kendi hedefini uydurup %100 alırdı.
+
+#### Arama ve veri sağlığı (her iki mod)
+
+- **BR-21 — Oyuncu araması en çok oynayana göre sıralanır.** Ölçüt, altyapı dışı dönemlerdeki toplam maç sayısıdır (`Player.careerAppearances`, §5.2).
+
+  Alfabetik sıra ölçülerek kullanılamaz bulundu — aranan oyuncu çoğu zaman listenin görünen kısmında bile değildi:
+
+  | Arama    | Kastedilen oyuncu | Alfabetik sırası |
+  | -------- | ----------------- | ---------------- |
+  | `buffon` | Gianluigi Buffon  | 5 adayın 3.'sü   |
+  | `messi`  | Lionel Messi      | 14 adayın 9.'su  |
+  | `sane`   | Leroy Sané        | 51 adayın 34.'sü |
+
+  Dönem SAYISI da denendi ve elendi: "zidane"de Luca (5 dönem) Zinedine'i (4), "kaka"da Stefano Okaka (9) Kaká'yı (3) geçiyordu. Maç sayısı üç örnekte de doğru ayırıyor (Zidane 506/2/0 · Kaká 308, Okaka 194 · Buffon 755/377/0).
+
+  Değer **denormalize** tutulur: maç sayısı `Spell`'de durur ve Prisma ilişki toplamına göre sıralayamaz. Ham SQL'e geçmek BR-16 süzgecini ikinci bir yerde yeniden yazmak olurdu — ölçülmüş bir hata sınıfı. İkincil sıralama anahtarı alfabetiktir; oyuncuların **%33,9'unun** toplam maçı 0 ve eşitlikte sıranın sabit kalması gerekir.
+
+- **BR-22 — Akla yatkın olmayan maç/gol sayısı `null` sayılır.** Tek dönemde 1000'i aşan değer kabul edilmez ve gol sayısı maç sayısını aşamaz.
+
+  Sınır tahmin değil, veriden okundu — sıralamada açık bir uçurum var:
+
+  ```
+  5000  Renaldo Lopes da Cruz @ Las Palmas   ← iki yıllık dönem, imkânsız
+  1987  Paolo Maldini @ Milan                ← maç sayısı değil, KATILIŞ YILI
+  ─────────────────────────────────────────  sınır 1000
+   770  John Trollope @ Swindon Town         ← gerçek İngiltere rekoru
+  ```
+
+  Gollerde de aynı kalıp (5603, 5509, 2000, 1817 — hepsi yıl kılıklı); en yüksek gerçek değer Messi'nin Barcelona'daki 474'ü, yani sınır hiçbir gerçek kaydı kesmiyor. **922 dönemde** gol sayısı maç sayısından fazla; hangi alanın bozuk olduğu bilinemediği için yalnızca gol düşürülür — maç sayısı hem BR-21'in hem BR-15 aday havuzunun girdisi olduğu için daha çok yerde kullanılıyor.
+
+  Sıfırlamak değil `null` yapmak kasıtlıdır (§2.7): "0 maç oynadı" bir iddiadır, "bilmiyoruz" ise gerçektir.
 
 #### Kapsam bildirimi
 

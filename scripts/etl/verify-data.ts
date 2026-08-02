@@ -1,8 +1,9 @@
 ﻿import { CURATED_CLUB_QIDS } from "../../src/application/curated-clubs";
 import { PrismaStatMatchRepository } from "../../src/infrastructure/db/repositories/prisma-stat-match-repository";
-import { PrismaClient } from "../../src/generated/prisma";
+import { Prisma, PrismaClient } from "../../src/generated/prisma";
 import { MIN_SPELLS_FOR_SELECTABLE } from "./leagues";
-import { POSITIONS } from "./pipeline/normalize";
+import { MAX_SPELL_TALLY, POSITIONS } from "./pipeline/normalize";
+import { overrideStatementId, readOverrideSpells } from "./pipeline/overrides";
 
 /**
  * Yüklenen veri kümesinin kabul kontrolü — `npm run db:verify`.
@@ -290,6 +291,48 @@ async function verifyGridPool(): Promise<void> {
 const MIN_STAT_COVERAGE = { caps: 0.14, height: 0.26, weight: 0.16 } as const;
 const MIN_DAILY_CANDIDATES = 365;
 
+/**
+ * BR-21 / BR-22 — arama ağırlığı ve maç/gol akla yatkınlığı.
+ *
+ * Üçü de bir kez ölçülerek bulunmuş hatadır; buradaki amaç aynı hatanın
+ * sessizce geri gelmesini engellemek:
+ *
+ *   · 5000 maçlık dönem (Renaldo Lopes da Cruz) — sıralamayı ele geçirirdi
+ *   · 1987 maçlık dönem (Maldini) — aslında katılış yılı
+ *   · gol > maç olan 922 dönem — yapısal olarak imkânsız
+ */
+async function verifySpellTallies(): Promise<void> {
+  console.log("\n=== Maç/gol akla yatkınlığı (BR-22) ===");
+
+  const [absurdApps, absurdGoals, goalsOverApps] = await Promise.all([
+    prisma.spell.count({ where: { appearances: { gt: MAX_SPELL_TALLY } } }),
+    prisma.spell.count({ where: { goals: { gt: MAX_SPELL_TALLY } } }),
+    prisma.$queryRaw<{ n: bigint }[]>(Prisma.sql`
+      SELECT COUNT(*) AS n FROM spells
+      WHERE goals IS NOT NULL AND appearances IS NOT NULL AND goals > appearances`),
+  ]);
+
+  check(absurdApps === 0, `${MAX_SPELL_TALLY}+ maçlı dönem: ${absurdApps}`);
+  check(absurdGoals === 0, `${MAX_SPELL_TALLY}+ gollü dönem: ${absurdGoals}`);
+  check(
+    Number(goalsOverApps[0]?.n ?? 0) === 0,
+    `golü maçından fazla dönem: ${Number(goalsOverApps[0]?.n ?? 0)}`,
+  );
+
+  // BR-21 sıralaması bu sütuna dayanıyor; hiç dolmadıysa arama alfabetiğe
+  // düşer ve kullanıcı aradığı oyuncuyu bulamaz — sessiz bir gerileme.
+  const ranked = await prisma.player.count({
+    where: { careerAppearances: { gt: 0 } },
+  });
+  const players = await prisma.player.count();
+  const ratio = players === 0 ? 0 : ranked / players;
+  check(
+    ratio >= 0.5,
+    `arama ağırlığı dolu oyuncu: ${ranked}/${players} ` +
+      `(%${(ratio * 100).toFixed(1)}, alt sınır %50)`,
+  );
+}
+
 async function verifyPlayerStats(): Promise<void> {
   console.log("\n=== Oyuncu istatistikleri (§9.2) ===");
 
@@ -395,6 +438,59 @@ async function verifyKnownPairs(): Promise<void> {
   }
 }
 
+/**
+ * Elle düzeltmeler veritabanına GERÇEKTEN girdi mi? (§8.2)
+ *
+ * Bir override sessizce düşebilir: oyuncunun meta verisi çekilemezse
+ * `sanitizeSpells` dönemi "oyuncu bilgisi çekilemedi" diye atar, kulüp
+ * evrenden düşerse aynısı olur. Her iki durumda da ETL başarıyla biter ve
+ * düzelttiğini sandığımız hata yerinde durur — kullanıcı yine "doğru cevap
+ * yanlış sayıldı" der. Bu kontrol tam olarak o sessiz düşüşü yakalar.
+ */
+async function verifyOverrides(): Promise<void> {
+  console.log("\n=== Elle düzeltmeler ===");
+
+  const overrides = await readOverrideSpells();
+  if (overrides.length === 0) {
+    console.log("  (tanımlı elle düzeltme yok)");
+    return;
+  }
+
+  const ids = overrides.map(overrideStatementId);
+  const landed = await prisma.spell.findMany({
+    where: { wikidataStatementId: { in: ids } },
+    select: { wikidataStatementId: true },
+  });
+  const landedIds = new Set(landed.map((s) => s.wikidataStatementId));
+
+  // Wikidata aynı dönemi eklediyse override gereksizleşir ve `mergeOverrides`
+  // onu ATLAR — yani eksik olması bir HATA DEĞİL, beklenen sonuçtur. Ayrımı
+  // yapabilmek için oyuncu-kulüp çiftinin dönemi var mı diye ayrıca bakılır.
+  for (const override of overrides) {
+    const id = overrideStatementId(override);
+    if (landedIds.has(id)) {
+      check(true, `${override.player} → ${override.club} eklendi`);
+      continue;
+    }
+
+    const fromSource = await prisma.spell.count({
+      where: {
+        player: { wikidataId: override.player },
+        club: { wikidataId: override.club },
+      },
+    });
+
+    check(
+      fromSource > 0,
+      fromSource > 0
+        ? `${override.player} → ${override.club} artık Wikidata'da var ` +
+            `(override gereksiz, spells.json'dan silinebilir)`
+        : `${override.player} → ${override.club} DÜŞTÜ — ne override ne ` +
+            `kaynak kaydı var; oyuncu meta verisi çekilememiş olabilir`,
+    );
+  }
+}
+
 async function main(): Promise<void> {
   try {
     await reportCounts();
@@ -403,8 +499,10 @@ async function main(): Promise<void> {
     await verifyEvidenceRatio();
     await verifyPositions();
     await verifyGridPool();
+    await verifySpellTallies();
     await verifyPlayerStats();
     await verifyDailyCandidates();
+    await verifyOverrides();
     await verifyKnownPairs();
   } finally {
     await prisma.$disconnect();

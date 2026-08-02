@@ -95,9 +95,22 @@ model Player {
   heightCm Int?
   weightKg Int?
 
+  /// Arama sıralama ağırlığı — PROJECT.md §6.1, BR-21.
+  ///
+  /// Altyapı dışı dönemlerdeki maç sayılarının toplamı. TÜRETİLMİŞ bir
+  /// değerdir ve kasten denormalize edilmiştir: maç sayısı `Spell`'de durur,
+  /// Prisma ise ilişki toplamına göre sıralayamaz. Ham SQL'e geçmek BR-16
+  /// süzgecini ikinci bir yerde tekrar yazmak olurdu — ölçülmüş bir hata
+  /// sınıfı (süzgeç ile doğrulayıcı ayrışmıştı, §9.2).
+  ///
+  /// ETL her tam koşuda yeniden hesaplar; elle güncellenmez.
+  careerAppearances Int @default(0)
+
   spells Spell[]
 
   @@index([searchKey])
+  /// Arama, ada göre süzüp bu sütuna göre sıralar (BR-21).
+  @@index([careerAppearances])
   @@map("players")
 }
 

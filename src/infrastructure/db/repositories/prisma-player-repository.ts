@@ -183,8 +183,24 @@ export class PrismaPlayerRepository implements PlayerRepository {
         searchKey: { contains: key },
         ...scoreableWhere(query.scoreableFor),
       },
-      // Kısa adlar önce: "Kaka" arayan kullanıcı "Kakabadze"yi değil onu bekler.
-      orderBy: [{ searchKey: "asc" }],
+      /**
+       * BR-21 — en çok oynayan önce.
+       *
+       * Alfabetik sıra ÖLÇÜLEREK kullanılamaz bulundu: "buffon" araması
+       * Gianluigi'yi 5 adayın 3.'sü, "sane" Leroy'u 51 adayın 34.'sü,
+       * "messi" Lionel'i 14 adayın 9.'su olarak veriyordu — yani kullanıcının
+       * kastettiği oyuncu çoğu zaman listenin görünen kısmında bile değildi.
+       *
+       * Dönem SAYISI da denendi ve elendi: "zidane"de Luca (5 dönem)
+       * Zinedine'i (4), "kaka"da Stefano Okaka (9) Kaká'yı (3) geçiyordu.
+       * Maç sayısı üç örnekte de doğru ayırıyor — Zidane 506/2/0,
+       * Kaká 308 / Okaka 194, Buffon 755/377/0.
+       *
+       * İkincil anahtar alfabetik: oyuncuların %33,9'unun toplam maçı 0 ve
+       * eşitlik hâlinde sıranın SABİT olması gerekir; aksi hâlde aynı arama
+       * her çağrıda farklı sıralanır.
+       */
+      orderBy: [{ careerAppearances: "desc" }, { searchKey: "asc" }],
       take: query.limit,
       select: {
         id: true,

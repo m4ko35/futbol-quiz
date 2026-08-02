@@ -101,6 +101,24 @@ export async function loadDataset(
   }
 
   // ─── Oyuncular ────────────────────────────────────────────────────────
+  //
+  // Arama sıralama ağırlığı (BR-21) burada, YAZMADAN ÖNCE hesaplanır. Dönemler
+  // henüz veritabanında olmadığı için sonradan bir SQL toplaması yapmak ikinci
+  // bir geçiş demek olurdu; girdi zaten bellekte ve tek tarama yetiyor.
+  //
+  // Altyapı dönemleri sayılmaz (BR-2): amaç "bu adı arayan kullanıcı hangi
+  // oyuncuyu kastediyor" sorusunu yanıtlamak ve altyapı kayıtları bu konuda
+  // sinyal taşımıyor.
+  const appearancesByPlayer = new Map<string, number>();
+  for (const spell of input.spells) {
+    if (spell.isYouth || spell.appearances === null) continue;
+    appearancesByPlayer.set(
+      spell.playerWikidataId,
+      (appearancesByPlayer.get(spell.playerWikidataId) ?? 0) +
+        spell.appearances,
+    );
+  }
+
   for (const chunk of chunked(input.players, CHUNK_SIZE)) {
     await prisma.$transaction(
       chunk.map((player) => {
@@ -115,6 +133,7 @@ export async function loadDataset(
           nationalCaps: player.nationalCaps,
           heightCm: player.heightCm,
           weightKg: player.weightKg,
+          careerAppearances: appearancesByPlayer.get(player.wikidataId) ?? 0,
         };
         return prisma.player.upsert({
           where: { wikidataId: player.wikidataId },

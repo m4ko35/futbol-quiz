@@ -119,14 +119,35 @@ ${CLUB_FIELDS}
  *
  * `?st` ifade (statement) URI'sidir; sonda gelen kimlik Spell için doğal
  * anahtar olarak kullanılır ve ETL'i idempotent yapar.
+ *
+ * NEDEN `pq:` DEĞİL `pqv:` — HASSASİYET (BR-6). Wikidata tarihleri çoğunlukla
+ * YIL hassasiyetinde tutuyor (`+2025-00-00`, `precision: 9`); WDQS bunu
+ * `2025-01-01` diye normalleştirdiği için `pq:` ile gelen değer gerçek bir
+ * Ocak tarihinden AYIRT EDİLEMİYOR. Sonuç ölçüldü: Ocak, sezon kuralı gereği
+ * bir önceki sezona yazılıyordu ve 2025 yazı transferi 2024 sezonu olarak
+ * kaydediliyordu.
+ *
+ * Ölçüm (Arsenal, Galatasaray, Real Madrid, Liverpool — 3.454 başlangıç):
+ *   yıl (9)  3.235  %93,7   ← hepsi bir sezon kayıyordu
+ *   ay  (10)    78   %2,3
+ *   gün (11)   140   %4,1
+ *
+ * `pqv:` değer düğümü `wikibase:timePrecision` taşır; kayma böyle kapanır.
+ * Maliyeti ölçüldü: aynı kulüpte 0,94 sn → 1,3 sn (sıcak).
  */
 export function spellsAtClub(clubQid: string): string {
   return `
-SELECT ?st ?player ?start ?end ?apps ?goals ?acq WHERE {
+SELECT ?st ?player ?start ?startPrecision ?end ?endPrecision ?apps ?goals ?acq WHERE {
   ?player p:${WD.PROP_MEMBER_OF_TEAM} ?st .
   ?st ps:${WD.PROP_MEMBER_OF_TEAM} wd:${assertQid(clubQid)} .
-  OPTIONAL { ?st pq:${WD.PROP_START_TIME}      ?start }
-  OPTIONAL { ?st pq:${WD.PROP_END_TIME}        ?end }
+  OPTIONAL {
+    ?st pqv:${WD.PROP_START_TIME} ?startNode .
+    ?startNode wikibase:timeValue ?start ; wikibase:timePrecision ?startPrecision .
+  }
+  OPTIONAL {
+    ?st pqv:${WD.PROP_END_TIME} ?endNode .
+    ?endNode wikibase:timeValue ?end ; wikibase:timePrecision ?endPrecision .
+  }
   OPTIONAL { ?st pq:${WD.PROP_MATCHES_PLAYED}  ?apps }
   OPTIONAL { ?st pq:${WD.PROP_GOALS}           ?goals }
   OPTIONAL { ?st pq:${WD.PROP_ACQUISITION}     ?acq }

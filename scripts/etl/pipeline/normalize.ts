@@ -112,6 +112,73 @@ export function toSeasonYearOrNull(value: string | undefined): number | null {
 }
 
 /**
+ * Tek bir dönemde akla yatkın en yüksek maç/gol sayısı — BR-22.
+ *
+ * Boy/kilo aralıklarıyla aynı gerekçe (§2.7): ölçülerek yanlış olduğu görülen
+ * bir değeri göstermek, "bilinmiyor" demekten kötüdür. Sınır tahmin değil,
+ * veriden okundu — sıralamada 1987 ile 770 arasında açık bir uçurum var:
+ *
+ *   5000  Renaldo Lopes da Cruz @ Las Palmas   ← iki yıllık dönem, imkânsız
+ *   1987  Paolo Maldini @ Milan                ← maç sayısı değil, KATILIŞ YILI
+ *   ────────────────────────────────────────── sınır
+ *    770  John Trollope @ Swindon Town         ← gerçek İngiltere rekoru
+ *    764  Jimmy Dickinson @ Portsmouth
+ *
+ * Gollerde de aynı kalıp var (5603, 5509, 2000, 1817 — hepsi yıl kılıklı).
+ * En yüksek GERÇEK değer Messi'nin Barcelona'daki 474'ü, yani 1000 sınırı
+ * hiçbir gerçek kaydı kesmiyor.
+ */
+export const MAX_SPELL_TALLY = 1000;
+
+/** Wikidata zaman hassasiyeti: 9 = yıl, 10 = ay, 11 = gün. */
+export const PRECISION_YEAR = 9;
+export const PRECISION_MONTH = 10;
+
+/**
+ * Dönemin ucu hangi anlama geliyor — kural yönü buna bağlı.
+ */
+export type SpellBoundary = "start" | "end";
+
+/**
+ * Hassasiyete duyarlı sezon yılı — PROJECT.md BR-6.
+ *
+ * NEDEN AYRI BİR KURAL. Wikidata tarihlerin %93,7'sini YIL hassasiyetinde
+ * tutuyor ve WDQS bunları `YYYY-01-01` diye normalleştiriyor. Bu tarihi
+ * olduğu gibi sezon kuralından geçirmek Ocak'ı bir önceki sezona yazar; yani
+ * "2025'te katıldı" bilgisi 2024 sezonu olarak kaydedilirdi. Ölçülen belirti:
+ * Šeško'nun kaydı kendi içinde çelişiyordu — Leipzig 2022–2025 ve Manchester
+ * United 2024'ten itibaren.
+ *
+ * Yıl hassasiyetinde iki uç ZITTIR ve bu bir varsayım değil, Avrupa futbol
+ * takviminin sonucudur:
+ *
+ *   başlangıç "2025" → 2025/26 sezonu   → 2025   (yaz transferi)
+ *   bitiş     "2025" → 2024/25 sezonunun sonu → 2024
+ *
+ * Ay ve gün hassasiyetinde gerçek tarih bilindiği için normal sezon kuralı
+ * (BR-6) doğrudur ve olduğu gibi uygulanır. Yıldan kaba hassasiyet (on yıl,
+ * yüzyıl) bir sezona indirgenemez; UYDURULMAZ, null döner (§2.7).
+ */
+export function seasonYearAt(
+  value: string | undefined,
+  precision: number | undefined,
+  boundary: SpellBoundary,
+): number | null {
+  const date = parseWikidataDate(value);
+  if (date === null) return null;
+
+  if (precision === undefined || precision > PRECISION_YEAR) {
+    // Ay/gün biliniyor (veya hassasiyet bildirilmemiş): normal kural.
+    return toSeasonYear(date);
+  }
+
+  if (precision < PRECISION_YEAR) return null;
+
+  const year = date.getUTCFullYear();
+  return boundary === "start" ? year : year - 1;
+}
+
+/**
  * `.../statement/Q161089-AD66DA21-...` → `Q161089-AD66DA21-...`
  *
  * Bu kimlik Spell'in doğal anahtarıdır; biçim beklenmedikse kayıt atlanır.
@@ -399,8 +466,41 @@ export function toSpell(
 
   if (statementId === null || playerId === undefined) return null;
 
-  const startYear = toSeasonYearOrNull(str(binding, "start"));
-  const endYear = toSeasonYearOrNull(str(binding, "end"));
+  // Hassasiyete duyarlı (BR-6): yıl hassasiyetli tarihler iki uçta farklı
+  // yorumlanır. Gerekçe ve ölçüm `seasonYearAt` üzerinde.
+  const startYear = seasonYearAt(
+    str(binding, "start"),
+    int(binding, "startPrecision"),
+    "start",
+  );
+  const rawEndYear = seasonYearAt(
+    str(binding, "end"),
+    int(binding, "endPrecision"),
+    "end",
+  );
+
+  /**
+   * TEK TAKVİM YILI İÇİNDE BAŞLAYIP BİTEN DÖNEM.
+   *
+   * Yıl hassasiyetli "2024 → 2024" kaydında iki kural birbirine ters düşer:
+   * başlangıç 2024, bitiş 2023 çıkar. Bitiş kuralının (Y−1) dayanağı
+   * "ayrılış, Y−1 sezonunun SONUNDADIR" varsayımıdır; oysa katılış aynı yıl
+   * olduğunda bu varsayım geçersizdir — dönem tek sezonluktur.
+   *
+   * Düzeltilmezse `sanitizeSpells` bu kayıtları "başlangıç bitişten sonra"
+   * diye atardı. Ölçüldü: veri kümesinde başlangıcı bitişine eşit 19.478
+   * dönem var, yani ayıklama oranı %1'lik eşiği (MAX_REJECT_RATIO) katlayarak
+   * aşar ve ETL hiç tamamlanamazdı.
+   *
+   * Takvim yılı iki sezona yayıldığı için hangi sezon olduğu KAYNAKTAN
+   * OKUNAMAZ. Başlangıçla hizalamak, iki tutarsız değerden birini seçmek
+   * yerine tek tutarlı değere indirger — dönemin başladığı sezonu kapsadığı
+   * kesindir.
+   */
+  const endYear =
+    startYear !== null && rawEndYear !== null && rawEndYear < startYear
+      ? startYear
+      : rawEndYear;
 
   // Başlangıcı olup bitişi olmayan kayıt, Wikidata'da "hâlâ kulüpte"
   // anlamına gelir. Bitiş yılı bilinmediği için null bırakılır (§2.7).
@@ -415,8 +515,44 @@ export function toSpell(
     isCurrent,
     isLoan: qid(binding, "acq") === WD.VALUE_LOAN,
     isYouth: clubIsYouth,
-    appearances: int(binding, "apps") ?? null,
-    goals: int(binding, "goals") ?? null,
+    ...tallies(int(binding, "apps"), int(binding, "goals")),
+  };
+}
+
+/**
+ * Maç ve gol sayılarını akla yatkınlık denetiminden geçirir — BR-22.
+ *
+ * İki kural, ikisi de ÖLÇÜLMÜŞ hataya karşı:
+ *
+ * 1. `MAX_SPELL_TALLY` üstü değer `null` olur. Bu değerlerin çoğu maç/gol
+ *    değil, kutuya yanlış yazılmış bir YILDIR (Maldini @ Milan: 1987).
+ *
+ * 2. Gol sayısı maç sayısını AŞAMAZ. Veri kümesinde bunu ihlal eden 922 dönem
+ *    var; oynamadığı maçta gol atmış bir futbolcu, tek bir alanın bozuk olduğu
+ *    anlamına gelir. Hangisinin bozuk olduğu bilinemediği için yalnızca GOL
+ *    düşürülür: maç sayısı hem arama sıralamasının (BR-21) hem BR-15 aday
+ *    havuzunun girdisi, dolayısıyla ikisinden daha çok yerde kullanılıyor;
+ *    şüpheli olanı atmak, sağlam olanı da atmaktan iyidir.
+ *
+ * Sıfırlamak DEĞİL `null` yapmak kasıtlı (§2.7): "0 maç oynadı" bir iddiadır,
+ * "bilmiyoruz" ise gerçektir.
+ */
+export function tallies(
+  rawAppearances: number | undefined,
+  rawGoals: number | undefined,
+): { appearances: number | null; goals: number | null } {
+  const plausible = (value: number | undefined): number | null =>
+    value === undefined || value > MAX_SPELL_TALLY || value < 0 ? null : value;
+
+  const appearances = plausible(rawAppearances);
+  const goals = plausible(rawGoals);
+
+  return {
+    appearances,
+    goals:
+      goals !== null && appearances !== null && goals > appearances
+        ? null
+        : goals,
   };
 }
 
