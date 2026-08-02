@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { connection } from "next/server";
+import { SiteHeader } from "@/components/site-header";
 import { serverEnv } from "@/infrastructure/config/env";
 
 import "./globals.css";
@@ -74,7 +75,13 @@ export default async function RootLayout({
       lang="tr"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        {/* Başlık DÜZENDE: üç sayfada birebir tekrarlanıyordu ve her biri
+            bulunduğu modu elle bildiriyordu. Burada yol adresinden türetiliyor
+            ve 404 ile hata ekranı da gezinmeye kavuşuyor. */}
+        <SiteHeader />
+        {children}
+      </body>
     </html>
   );
 }

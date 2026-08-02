@@ -168,7 +168,10 @@ export function ClubPicker({
 
   return (
     <div className="flex flex-col gap-2">
-      <label htmlFor={inputId} className="text-sm font-medium">
+      <label
+        htmlFor={inputId}
+        className="text-xs font-semibold tracking-wide text-muted uppercase"
+      >
         {label}
       </label>
 
@@ -186,11 +189,11 @@ export function ClubPicker({
             aria-activedescendant={activeOptionId}
             autoComplete="off"
             placeholder="Kulüp arayın…"
-            // Kenarlık ve odak halkası ÖLÇÜLEREK seçildi (WCAG 1.4.11: arayüz
-            // bileşeni sınırı ve odak göstergesi için 3:1). Metin rengi
-            // arka planla harmanlandığında: /20 → 1,53:1 (kalıyor),
-            // /50 → 3,41:1, /60 → 4,67:1. Eski değerler /20 ve /20 idi.
-            className="w-full rounded-md border border-current/50 bg-transparent px-3 py-2 text-base outline-none focus:border-current/80 focus:ring-2 focus:ring-current/60"
+            // Kenarlık ve odak göstergesi ÖLÇÜLEREK seçildi (WCAG 1.4.11:
+            // arayüz bileşeni sınırı ve odak göstergesi için 3:1). `line-strong`
+            // 3,91:1 (açık) / 3,71:1 (koyu); odak konturu `accent` 5,02:1 /
+            // 10,02:1 — §7.12 tablosu.
+            className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-base transition-colors outline-none placeholder:text-muted focus:border-accent focus:outline-2 focus:outline-offset-1 focus:outline-accent"
             onChange={(event) => {
               setTerm(event.target.value);
               setIsOpen(true);
@@ -202,7 +205,7 @@ export function ClubPicker({
           />
 
           {isOpen && (
-            <div className="absolute z-10 mt-1 max-h-72 w-full overflow-auto rounded-md border border-current/50 bg-[var(--background)] shadow-lg">
+            <div className="absolute z-20 mt-1.5 max-h-72 w-full overflow-auto rounded-xl border border-line bg-surface p-1 shadow-pop">
               {/*
                 DURUM METNİ LİSTENİN DIŞINDA.
                 `role="listbox"` yalnızca `option` çocuğu barındırabilir
@@ -211,7 +214,7 @@ export function ClubPicker({
                 ihlali oluşur ve ekran okuyucu boş listede gezinmeye çalışır.
               */}
               {visible.length === 0 && (
-                <p className="px-3 py-2 text-sm opacity-70">
+                <p className="px-3 py-2.5 text-sm text-muted">
                   {isLoading
                     ? "Aranıyor…"
                     : failed
@@ -231,8 +234,8 @@ export function ClubPicker({
                     id={`${listboxId}-${String(index)}`}
                     role="option"
                     aria-selected={index === highlighted}
-                    className={`cursor-pointer px-3 py-2 text-sm ${
-                      index === highlighted ? "bg-current/10" : ""
+                    className={`cursor-pointer rounded-lg px-3 py-2 text-sm ${
+                      index === highlighted ? "bg-accent-soft" : ""
                     }`}
                     // `onMouseDown`, `onClick` değil: `onClick` girdi alanının
                     // blur olayından sonra gelir ve o sırada liste kapanmış olur.
@@ -248,7 +251,7 @@ export function ClubPicker({
                       <ClubCrest club={club} />
                       <span className="font-medium">{club.shortName}</span>
                       {club.country !== null && (
-                        <span className="opacity-60">{club.country}</span>
+                        <span className="text-muted">{club.country}</span>
                       )}
                     </span>
                   </li>
@@ -258,14 +261,16 @@ export function ClubPicker({
           )}
         </div>
       ) : (
-        <div className="flex items-center justify-between gap-3 rounded-md border border-current/50 px-3 py-2">
-          <span className="flex min-w-0 items-center gap-2">
-            <ClubCrest club={selected} size={24} />
-            <span className="truncate font-medium">{selected.shortName}</span>
+        // Seçili kulüp DOLU görünür: arama kutusuyla aynı çerçeveyi taşısaydı
+        // kullanıcı seçimin tamamlandığını görsel olarak ayırt edemezdi.
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-accent bg-accent-soft px-3 py-2.5">
+          <span className="flex min-w-0 items-center gap-2.5">
+            <ClubCrest club={selected} size={28} />
+            <span className="truncate font-semibold">{selected.shortName}</span>
           </span>
           <button
             type="button"
-            className="rounded px-2 py-1 text-sm underline underline-offset-2 opacity-70 hover:opacity-100 focus:ring-2 focus:ring-current/60 focus:outline-none"
+            className="shrink-0 rounded-md px-2 py-1 text-sm font-medium text-accent underline underline-offset-2 hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             onClick={() => {
               onSelect(null);
               // Seçim kaldırıldığında odak arama kutusuna dönmeli; aksi hâlde

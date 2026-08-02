@@ -169,8 +169,11 @@ describe("CommonPlayersResult", () => {
   it("başlık sonuç bölgesine bağlıdır (erişilebilirlik)", () => {
     render(<CommonPlayersResult result={result()} />);
 
+    // Erişilebilir ad "∩" DEĞİL "ve" içerir ve bu bilinçli: seslendiriciler
+    // "∩" karakterini tutarsız okur — kimi "kesişim" der, kimi tamamen atlar.
+    // Simge gözde kalıyor (`aria-hidden`), sözcük ekran okuyucuya gidiyor.
     const section = screen.getByRole("region", {
-      name: /Galatasaray ∩ Arsenal/u,
+      name: /Galatasaray ve Arsenal/u,
     });
     expect(within(section).getByText("Emmanuel Eboué")).toBeInTheDocument();
   });

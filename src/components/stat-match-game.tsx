@@ -56,6 +56,34 @@ function emptyRound(date: string): StatMatchState {
   return { date, answers: {} };
 }
 
+/**
+ * Ad → baş harfler. "Éric Cantona" → "EC".
+ *
+ * Türkçe yerel ayarla büyütülüyor: `toUpperCase()` "ı" harfini "I" değil
+ * "I" yapar ama "i" harfini "I" yapar ve Türkçede doğrusu "İ"dir. Adlar
+ * çoğunlukla yabancı olsa da yanlışın maliyeti sıfırken doğrusunu yazmamak
+ * için sebep yok.
+ */
+function initialsOf(name: string): string {
+  const parts = name.split(/\s+/u).filter((part) => part.length > 0);
+  const first = parts[0]?.[0] ?? "";
+  const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : "";
+  return (first + last).toLocaleUpperCase("tr");
+}
+
+/**
+ * Puan bandına göre rozet rengi.
+ *
+ * Eşikler KEYFİ DEĞİL, §9.2'deki puanlama eğrisinden: %80 ve üzeri "isabet",
+ * %50–79 "yakın", altı "uzak". Renk yalnızca destekleyicidir — yüzde değeri
+ * rozetin metninde zaten yazılı (WCAG 1.4.1).
+ */
+function scoreTone(score: number): string {
+  if (score >= 80) return "bg-correct-soft text-correct";
+  if (score >= 50) return "bg-warn-soft text-warn";
+  return "bg-wrong-soft text-wrong";
+}
+
 export function StatMatchGame({
   daily,
   submitAnswer,
@@ -150,22 +178,39 @@ export function StatMatchGame({
 
   return (
     <div className="flex flex-col gap-6">
-      <section className="rounded-md border border-current/25 p-4">
-        <h2 className="text-lg font-semibold">
-          {daily.player.name}
-          {daily.player.nationality !== null && (
-            <span className="ml-2 text-sm font-normal opacity-70">
-              {countryName(daily.player.nationality)}
-            </span>
-          )}
-        </h2>
-        <p className="mt-1 text-sm opacity-70">
-          Her istatistik için, değeri buna <strong>en yakın</strong> olduğunu
-          düşündüğünüz <strong>farklı</strong> bir futbolcu seçin.
-        </p>
+      <section className="flex items-start gap-4 rounded-2xl border border-line bg-surface p-5 shadow-card">
+        {/* Baş harfler: günün oyuncusu ekranın ÖZNESİ ama tek satır metin
+            olarak duruyordu. Fotoğraf yok (veri kümesi taşımıyor); baş harf
+            en azından bir çapa veriyor. Süsleme olduğu için `aria-hidden`. */}
+        <span
+          aria-hidden="true"
+          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xl font-bold text-accent"
+        >
+          {initialsOf(daily.player.name)}
+        </span>
+        <div className="min-w-0">
+          <h2 className="text-xl font-bold tracking-tight">
+            {daily.player.name}
+            {daily.player.nationality !== null && (
+              <span className="ml-2 text-sm font-normal text-muted">
+                {countryName(daily.player.nationality)}
+              </span>
+            )}
+          </h2>
+          <p className="mt-1.5 text-sm text-muted">
+            Her istatistik için, değeri buna{" "}
+            <strong className="font-semibold text-foreground">en yakın</strong>{" "}
+            olduğunu düşündüğünüz{" "}
+            <strong className="font-semibold text-foreground">farklı</strong>{" "}
+            bir futbolcu seçin.
+          </p>
+        </div>
       </section>
 
-      <p className="text-sm font-medium" aria-live="polite">
+      <p
+        className="w-fit rounded-full border border-line bg-surface px-3 py-1.5 text-sm font-semibold tabular-nums shadow-card"
+        aria-live="polite"
+      >
         {String(answers.length)}/{String(STAT_KEYS.length)} cevaplandı
         {answers.length > 0 && ` · ortalama %${String(total)}`}
       </p>
@@ -186,7 +231,7 @@ export function StatMatchGame({
       </ul>
 
       {isChecking && (
-        <p className="text-sm opacity-70" aria-live="polite">
+        <p className="text-sm text-muted" aria-live="polite">
           Puan hesaplanıyor…
         </p>
       )}
@@ -194,7 +239,7 @@ export function StatMatchGame({
       {failure !== null && (
         <p
           role="alert"
-          className="rounded-md border border-current/25 px-4 py-3 text-sm"
+          className="rounded-xl border border-wrong bg-wrong-soft px-4 py-3 text-sm text-wrong"
         >
           {failure}
         </p>
@@ -220,7 +265,7 @@ export function StatMatchGame({
       {finished && (
         <p
           role="status"
-          className="rounded-md border border-current/25 px-4 py-3 text-sm"
+          className="rounded-xl border border-accent bg-accent-soft px-4 py-3 text-sm"
         >
           Tur bitti — ortalama <strong>%{String(total)}</strong>. Yeni oyuncu
           her gün 03.00&apos;te (TSİ) yayınlanır.
@@ -232,7 +277,7 @@ export function StatMatchGame({
         ligi kapsar; söylenmezse kullanıcı bildiği gerçek toplamla
         karşılaştırıp siteyi yanlış sanar.
       */}
-      <p className="text-xs opacity-70">
+      <p className="text-xs text-muted">
         <span aria-hidden="true">*</span> işaretli sayılar yalnızca İngiltere,
         İspanya, İtalya, Almanya, Fransa ve Türkiye&apos;nin en üst liglerindeki
         kariyeri kapsar.
@@ -251,9 +296,9 @@ interface StatRowProps {
 
 function StatRow({ stat, answer, disabled, isOpen, onOpen }: StatRowProps) {
   return (
-    <li className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-current/25 px-4 py-3">
+    <li className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-surface px-4 py-3.5 shadow-card">
       <span className="flex flex-col">
-        <span className="text-sm font-medium">
+        <span className="text-xs font-semibold tracking-wide text-muted uppercase">
           {stat.label}
           {stat.scoped && (
             <>
@@ -262,7 +307,9 @@ function StatRow({ stat, answer, disabled, isOpen, onOpen }: StatRowProps) {
             </>
           )}
         </span>
-        <span className="text-2xl font-semibold tabular-nums">
+        {/* Hedef sayı ekranın SORUSUDUR; etiketiyle aynı ağırlıkta durduğunda
+            hangi değeri yakalamaya çalıştığınız bir bakışta okunmuyordu. */}
+        <span className="text-3xl font-bold text-accent tabular-nums">
           {String(stat.value)}
         </span>
       </span>
@@ -272,16 +319,22 @@ function StatRow({ stat, answer, disabled, isOpen, onOpen }: StatRowProps) {
           type="button"
           disabled={disabled}
           aria-expanded={isOpen}
-          className="rounded-md border border-current/50 px-3 py-2 text-sm hover:bg-current/5 focus:ring-2 focus:ring-current/60 focus:outline-none disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40"
           onClick={onOpen}
         >
           Oyuncu seç
           <span className="sr-only"> — {stat.label}</span>
         </button>
       ) : (
-        <span className="flex flex-col items-end text-sm">
-          <span className="font-medium">{answer.playerName}</span>
-          <span className="opacity-70 tabular-nums">
+        <span className="flex flex-col items-end gap-1 text-sm">
+          <span className="font-semibold">{answer.playerName}</span>
+          {/* Puan bandı RENKLE de gösterilir ama renk tek gösterge değildir
+              (WCAG 1.4.1): yüzde zaten rozetin metninde yazılı. */}
+          <span
+            className={`rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${scoreTone(
+              answer.score,
+            )}`}
+          >
             {String(answer.value)} · %{String(answer.score)}
           </span>
           <span className="sr-only">

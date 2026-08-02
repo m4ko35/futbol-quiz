@@ -50,13 +50,13 @@ function SpellBadges({ spells }: { spells: readonly SpellDto[] }) {
         <li
           key={index}
           className={
-            "inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-xs whitespace-nowrap " +
+            "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs whitespace-nowrap " +
             (spell.hasEvidence
-              ? "border border-current/20"
+              ? "border border-line bg-background font-medium tabular-nums"
               : // BR-8: kanıtsız dönem GÖRSEL OLARAK da ayrılır. Kesik çizgi
                 // tek başına yeterli değildir (renk/biçim tek gösterge
                 // olamaz — WCAG 1.4.1); asıl bilgi metnin kendisindedir.
-                "border border-dashed border-current/50 opacity-75")
+                "border border-dashed border-line-strong text-muted")
           }
         >
           {spell.hasEvidence ? (
@@ -66,14 +66,15 @@ function SpellBadges({ spells }: { spells: readonly SpellDto[] }) {
           )}
 
           {spell.isLoan && (
-            // BR-3: kiralık dönemler sayılır ama açıkça işaretlenir.
-            <span className="rounded bg-current/10 px-1 font-medium">
+            // BR-3: kiralık dönemler sayılır ama açıkça işaretlenir. Renk
+            // yalnızca destekleyici; "kiralık" sözcüğü rozette yazılı.
+            <span className="rounded bg-warn-soft px-1.5 py-0.5 font-semibold text-warn">
               kiralık
             </span>
           )}
 
           {spell.appearances !== null && (
-            <span className="opacity-60">{spell.appearances} maç</span>
+            <span className="text-muted">{spell.appearances} maç</span>
           )}
         </li>
       ))}
@@ -100,25 +101,25 @@ function PlayerRow({
   clubBName: string;
 }) {
   return (
-    <li className="grid gap-3 border-b border-current/10 py-4 last:border-b-0 sm:grid-cols-[minmax(0,14rem)_1fr]">
+    <li className="grid gap-3 border-b border-line px-4 py-4 transition-colors last:border-b-0 hover:bg-background sm:grid-cols-[minmax(0,14rem)_1fr] sm:px-5">
       <div className="min-w-0">
-        <p className="font-medium">{player.name}</p>
-        <p className="text-sm opacity-60">
+        <p className="font-semibold">{player.name}</p>
+        <p className="text-sm text-muted">
           {[player.position, player.nationality]
             .filter((value) => value !== null)
             .join(" · ") || "bilgi yok"}
         </p>
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <p className="mb-1 text-xs font-medium tracking-wide uppercase opacity-60">
+          <p className="mb-1.5 text-xs font-semibold tracking-wide text-muted uppercase">
             {clubAName}
           </p>
           <SpellBadges spells={player.spellsAtA} />
         </div>
         <div>
-          <p className="mb-1 text-xs font-medium tracking-wide uppercase opacity-60">
+          <p className="mb-1.5 text-xs font-semibold tracking-wide text-muted uppercase">
             {clubBName}
           </p>
           <SpellBadges spells={player.spellsAtB} />
@@ -135,15 +136,15 @@ export function CommonPlayersResult({ result }: CommonPlayersResultProps) {
     return (
       <section
         aria-labelledby="sonuc-basligi"
-        className="rounded-lg border border-current/15 p-6 text-center"
+        className="rounded-xl border border-line bg-surface p-8 text-center shadow-card"
       >
-        <h2 id="sonuc-basligi" className="font-medium">
+        <h2 id="sonuc-basligi" className="text-lg font-semibold">
           {clubA.shortName} ve {clubB.shortName}
         </h2>
-        <p className="mt-2 text-sm opacity-70">
+        <p className="mx-auto mt-2 max-w-prose text-sm text-muted">
           Bu iki kulüpte de forma giymiş bir oyuncu bulunamadı.
         </p>
-        <p className="mt-1 text-sm opacity-70">
+        <p className="mx-auto mt-1 max-w-prose text-sm text-muted">
           Veri kümesi altı Avrupa liginin tarihsel kadrolarını kapsar; bu
           kulüpler dışındaki kariyerler yer almaz.
         </p>
@@ -153,19 +154,39 @@ export function CommonPlayersResult({ result }: CommonPlayersResultProps) {
 
   return (
     <section aria-labelledby="sonuc-basligi" className="flex flex-col gap-4">
+      {/*
+        ERİŞİLEBİLİR AD AÇIKÇA VERİLİYOR — iki ayrı sebeple.
+
+        1. "∩" karakterini seslendiriciler tutarsız okur: kimi "kesişim" der,
+           kimi tamamen atlar. Sözcük ("ve") her okuyucuda aynı şeyi söyler.
+        2. Ad, iç içe elemanların metninden TÜRETİLSEYDİ aradaki boşluk CSS'e
+           bağlı kalırdı: `display` bilgisi olmayan bir ortamda ölçüldüğünde
+           "GalatasarayveArsenal1 ortak oyuncu" çıkıyor. Görsel `gap` ada
+           yansımıyor.
+
+        Ad ile görünen metin ANLAMCA aynı; yalnızca simge yerine sözcük ve
+        ayırıcılar netleştirilmiş durumda.
+      */}
       <h2
         id="sonuc-basligi"
-        className="flex flex-wrap items-center gap-x-2 gap-y-1 text-lg font-medium"
+        aria-label={`${clubA.shortName} ve ${clubB.shortName}, ${String(count)} ortak oyuncu`}
+        className="flex flex-wrap items-center gap-x-3 gap-y-2 text-lg font-semibold"
       >
-        <ClubCrest club={clubA} size={24} />
-        {clubA.shortName} ∩ <ClubCrest club={clubB} size={24} />
-        {clubB.shortName}
-        <span className="text-sm font-normal opacity-60">
+        <span className="inline-flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-1.5 shadow-card">
+          <ClubCrest club={clubA} size={24} />
+          {clubA.shortName}
+        </span>
+        <span className="text-muted">∩</span>
+        <span className="inline-flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-1.5 shadow-card">
+          <ClubCrest club={clubB} size={24} />
+          {clubB.shortName}
+        </span>
+        <span className="rounded-full bg-accent px-3 py-1 text-sm font-semibold text-accent-fg">
           {count} ortak oyuncu
         </span>
       </h2>
 
-      <ul className="rounded-lg border border-current/15 px-4">
+      <ul className="overflow-hidden rounded-xl border border-line bg-surface shadow-card">
         {players.map((player) => (
           <PlayerRow
             key={player.id}
@@ -181,8 +202,8 @@ export function CommonPlayersResult({ result }: CommonPlayersResultProps) {
         // kayıtlarla birlikte doğru olanları da siliyor (ölçüldü). Elenmiyorsa
         // da söylenmesi gerekir: kullanıcı hangi satıra ne kadar
         // güvenebileceğini bilmelidir.
-        <p className="text-sm opacity-70">
-          <span className="mr-1.5 inline-block rounded border border-dashed border-current/50 px-1.5 py-0.5 text-xs">
+        <p className="rounded-xl border border-line bg-surface p-4 text-sm text-muted">
+          <span className="mr-1.5 inline-block rounded-md border border-dashed border-line-strong px-1.5 py-0.5 text-xs">
             kaynakta ayrıntı yok
           </span>
           işaretli kayıtlarda transfer yılı ve maç bilgisi bulunmuyor. Bu

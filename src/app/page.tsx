@@ -1,6 +1,5 @@
 import { searchClubs } from "@/application/use-cases/search-clubs";
 import { CommonPlayersQuiz } from "@/components/common-players-quiz";
-import { ModeNav } from "@/components/mode-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { datasets, repositories } from "@/infrastructure/db/repositories";
 
@@ -20,13 +19,17 @@ export default async function Home() {
   ]);
 
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-10 px-5 py-10 sm:px-6 sm:py-16">
+    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 px-5 py-10 sm:px-6 sm:py-14">
       <header>
-        <ModeNav current="common-players" />
-        <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
-          Futbol Quiz
+        {/*
+          Başlık artık "Futbol Quiz" DEĞİL: marka adı site başlığında duruyor
+          ve burada tekrarlanması, sayfanın hangi mod olduğunu söyleyen tek
+          yeri harcıyordu. Diğer iki sayfayla da aynı kalıba giriyor.
+        */}
+        <h1 className="text-3xl font-bold tracking-tight text-balance sm:text-4xl">
+          Ortak Oyuncular
         </h1>
-        <p className="mt-2 opacity-70">
+        <p className="mt-3 max-w-prose text-lg text-muted">
           İki kulüp seçin, ikisinde de forma giymiş oyuncuları görün.
         </p>
         {/*
@@ -34,10 +37,12 @@ export default async function Home() {
           şey bulamayacak; bunu keşfetmek için başarısız aramalar yapmak zorunda
           kalırsa siteyi bozuk sanar. Altbilgiye gömülü bir not bu işi görmez.
         */}
-        <p className="mt-3 rounded-md border border-current/15 px-3 py-2 text-sm opacity-70">
-          Kapsam: İngiltere, İspanya, İtalya, Almanya, Fransa ve
-          Türkiye&apos;nin en üst liglerinde oynamış <strong>345 kulüp</strong>{" "}
-          — bu liglerin bugünkü takımları ve geçmişteki takımları dâhil.
+        <p className="mt-5 rounded-xl border border-line bg-surface p-4 text-sm text-muted shadow-card">
+          <span className="font-semibold text-foreground">Kapsam:</span>{" "}
+          İngiltere, İspanya, İtalya, Almanya, Fransa ve Türkiye&apos;nin en üst
+          liglerinde oynamış{" "}
+          <strong className="font-semibold text-accent">345 kulüp</strong> — bu
+          liglerin bugünkü takımları ve geçmişteki takımları dâhil.
         </p>
       </header>
 

@@ -3,13 +3,18 @@ import Link from "next/link";
 /**
  * Oyun modları arasında gezinme — PROJECT.md §9.
  *
- * NEDEN `nav` VE `aria-current`. İki bağlantıdan hangisinde olduğumuz görsel
+ * NEDEN `nav` VE `aria-current`. Üç bağlantıdan hangisinde olduğumuz görsel
  * olarak vurgulanıyor; `aria-current="page"` aynı bilgiyi ekran okuyucuya
- * verir. Vurgunun yalnızca kalınlık/renk ile yapılması, o kullanıcıya hiçbir
- * şey söylemezdi (§7.10).
+ * verir. Vurgunun yalnızca dolgu/renk ile yapılması, o kullanıcıya hiçbir şey
+ * söylemezdi (§7.10).
  *
  * `Link`, `a` değil: aynı uygulama içindeki gezinmede Next istemci tarafı
  * yönlendirmeyi kullanır ve sayfa baştan yüklenmez.
+ *
+ * GÖRÜNÜM: segment denetimi (§7.12). Üç mod tek bir kapsayıcının içinde durur
+ * ve aralarından biri doludur. Ayrı ayrı duran üç kutu, modların birbirinin
+ * ALTERNATİFİ olduğunu göstermiyordu — birbirinden bağımsız üç bağlantı gibi
+ * duruyorlardı.
  */
 
 export type ModeId = "common-players" | "grid" | "stat-match";
@@ -25,12 +30,20 @@ const MODES: readonly {
 ];
 
 export interface ModeNavProps {
-  readonly current: ModeId;
+  /**
+   * Bulunulan mod; bilinen bir moda ait olmayan sayfalarda (404) `null`.
+   * O durumda hiçbir segment dolu görünmez — rastgele birini seçili
+   * göstermek kullanıcıya yanlış yer bildirmek olurdu.
+   */
+  readonly current: ModeId | null;
 }
 
 export function ModeNav({ current }: ModeNavProps) {
   return (
-    <nav aria-label="Oyun modları" className="flex flex-wrap gap-2">
+    <nav
+      aria-label="Oyun modları"
+      className="flex flex-wrap items-center gap-1 rounded-full border border-line bg-background p-1"
+    >
       {MODES.map((mode) => {
         const isCurrent = mode.id === current;
         return (
@@ -38,10 +51,10 @@ export function ModeNav({ current }: ModeNavProps) {
             key={mode.id}
             href={mode.href}
             aria-current={isCurrent ? "page" : undefined}
-            className={`rounded-md border px-3 py-1.5 text-sm focus:ring-2 focus:ring-current/60 focus:outline-none ${
+            className={`rounded-full px-3 py-1.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
               isCurrent
-                ? "border-current/60 bg-current/10 font-semibold"
-                : "border-current/25 opacity-80 hover:opacity-100"
+                ? "bg-accent font-semibold text-accent-fg shadow-card"
+                : "font-medium text-muted hover:bg-surface hover:text-foreground"
             }`}
           >
             {mode.title}

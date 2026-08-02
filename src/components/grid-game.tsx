@@ -117,14 +117,20 @@ export function GridGame({ grid, checkAnswer, searchPlayers }: GridGameProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
-        <p className="text-sm opacity-70">
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+        <p className="max-w-prose text-sm text-muted">
           Her hücreye, satır ve sütun ölçütlerinin{" "}
-          <strong>ikisini birden</strong> sağlayan bir oyuncu yazın.
+          <strong className="font-semibold text-foreground">
+            ikisini birden
+          </strong>{" "}
+          sağlayan bir oyuncu yazın.
         </p>
         {/* Sayaçlar ekran okuyucuya da bildirilir; sayıların değişmesi
             yalnızca görsel bir olay olamaz. */}
-        <p className="text-sm font-medium" aria-live="polite">
+        <p
+          className="rounded-full border border-line bg-surface px-3 py-1.5 text-sm font-semibold tabular-nums shadow-card"
+          aria-live="polite"
+        >
           {String(solvedCells)}/{String(MAX_GUESSES)} doğru ·{" "}
           {String(remaining)} hak kaldı
         </p>
@@ -137,8 +143,8 @@ export function GridGame({ grid, checkAnswer, searchPlayers }: GridGameProps) {
         Brezilya" diye okur; `div`'lerden kurulmuş bir ızgarada bu bağ kurulamaz
         ve kullanıcı hangi soruyu cevapladığını bilemezdi.
       */}
-      <div className="overflow-x-auto">
-        <table className="w-full border-separate border-spacing-1">
+      <div className="overflow-x-auto rounded-2xl border border-line bg-surface p-2 shadow-card sm:p-3">
+        <table className="w-full border-separate border-spacing-1.5">
           <caption className="sr-only">
             {grid.date} tarihli 3×3 ızgara. Sütunlar:{" "}
             {grid.columns.map((column) => column.label).join(", ")}. Satırlar:{" "}
@@ -152,7 +158,7 @@ export function GridGame({ grid, checkAnswer, searchPlayers }: GridGameProps) {
                 <th
                   key={`col-${String(index)}`}
                   scope="col"
-                  className="w-1/4 px-2 py-2 text-center text-sm font-semibold"
+                  className="w-1/4 p-0 text-sm font-semibold"
                 >
                   <CriterionLabel criterion={column} />
                 </th>
@@ -162,10 +168,7 @@ export function GridGame({ grid, checkAnswer, searchPlayers }: GridGameProps) {
           <tbody>
             {grid.rows.map((row, rowIndex) => (
               <tr key={`row-${String(rowIndex)}`}>
-                <th
-                  scope="row"
-                  className="w-1/4 px-2 py-2 text-right text-sm font-semibold"
-                >
+                <th scope="row" className="w-1/4 p-0 text-sm font-semibold">
                   <CriterionLabel criterion={row} />
                 </th>
                 {grid.columns.map((column, columnIndex) => {
@@ -198,7 +201,7 @@ export function GridGame({ grid, checkAnswer, searchPlayers }: GridGameProps) {
       </div>
 
       {isChecking && (
-        <p className="text-sm opacity-70" aria-live="polite">
+        <p className="text-sm text-muted" aria-live="polite">
           Cevap kontrol ediliyor…
         </p>
       )}
@@ -206,7 +209,7 @@ export function GridGame({ grid, checkAnswer, searchPlayers }: GridGameProps) {
       {failure !== null && (
         <p
           role="alert"
-          className="rounded-md border border-current/25 px-4 py-3 text-sm"
+          className="rounded-xl border border-wrong bg-wrong-soft px-4 py-3 text-sm text-wrong"
         >
           {failure}
         </p>
@@ -230,7 +233,7 @@ export function GridGame({ grid, checkAnswer, searchPlayers }: GridGameProps) {
 
       {finished && (
         <p
-          className="rounded-md border border-current/25 px-4 py-3 text-sm"
+          className="rounded-xl border border-accent bg-accent-soft px-4 py-3 text-sm"
           role="status"
         >
           Oyun bitti —{" "}
@@ -256,9 +259,9 @@ function CriterionLabel({
   readonly criterion: GridCriterionDto;
 }) {
   return (
-    <span className="flex flex-col items-center gap-0.5">
-      <span>{criterion.label}</span>
-      <span className="text-xs font-normal opacity-70">
+    <span className="flex h-full flex-col items-center justify-center gap-0.5 rounded-xl bg-background px-2 py-3 text-center">
+      <span className="leading-tight text-balance">{criterion.label}</span>
+      <span className="text-[0.7rem] font-medium tracking-wide text-muted uppercase">
         {criterion.kind === "club" ? "kulüp" : "uyruk"}
       </span>
     </span>
@@ -286,16 +289,23 @@ function Cell({ answer, isOpen, disabled, label, onOpen }: CellProps) {
     const isCorrect = answer.status === "correct";
     return (
       <div
-        className={`flex h-24 flex-col items-center justify-center gap-1 rounded-md border px-2 text-center text-sm ${
+        className={`flex h-24 flex-col items-center justify-center gap-1 rounded-xl border-2 px-2 text-center text-sm sm:h-28 ${
           isCorrect
-            ? "border-current/60 bg-current/10"
-            : "border-current/25 opacity-70"
+            ? "border-correct bg-correct-soft"
+            : "border-wrong bg-wrong-soft"
         }`}
       >
-        <span aria-hidden="true" className="text-base">
+        <span
+          aria-hidden="true"
+          className={`text-lg leading-none font-bold ${
+            isCorrect ? "text-correct" : "text-wrong"
+          }`}
+        >
           {isCorrect ? "✓" : "✗"}
         </span>
-        <span className="leading-tight">{answer.playerName}</span>
+        <span className="leading-tight font-medium text-balance">
+          {answer.playerName}
+        </span>
         <span className="sr-only">
           {label}: {answer.playerName} — {isCorrect ? "doğru" : "yanlış"}
         </span>
@@ -308,10 +318,13 @@ function Cell({ answer, isOpen, disabled, label, onOpen }: CellProps) {
       type="button"
       disabled={disabled}
       aria-expanded={isOpen}
-      className="flex h-24 w-full items-center justify-center rounded-md border border-current/50 text-sm hover:bg-current/5 focus:ring-2 focus:ring-current/60 focus:outline-none disabled:cursor-not-allowed disabled:opacity-40"
+      className="group flex h-24 w-full items-center justify-center rounded-xl border-2 border-dashed border-line-strong bg-background text-sm transition-colors hover:border-accent hover:bg-accent-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-line-strong disabled:hover:bg-background sm:h-28"
       onClick={onOpen}
     >
-      <span aria-hidden="true" className="text-lg opacity-70">
+      <span
+        aria-hidden="true"
+        className="text-2xl leading-none font-light text-muted transition-colors group-hover:text-accent"
+      >
         +
       </span>
       <span className="sr-only">{label} için oyuncu seçin</span>

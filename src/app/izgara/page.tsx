@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { getDailyGrid } from "@/application/use-cases/daily-grid";
 import { GridQuiz } from "@/components/grid-quiz";
-import { ModeNav } from "@/components/mode-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { datasets, repositories } from "@/infrastructure/db/repositories";
 
@@ -32,19 +31,18 @@ export default async function GridPage() {
   ]);
 
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 px-5 py-10 sm:px-6 sm:py-16">
-      <header className="flex flex-col gap-4">
-        <ModeNav current="grid" />
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            3×3 Izgara
-          </h1>
-          <p className="mt-2 opacity-70">
-            Günün ızgarası —{" "}
-            <time dateTime={grid.date}>{formatGridDate(grid.date)}</time>.
-            Herkes aynı ızgarayı görür.
-          </p>
-        </div>
+    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 px-5 py-10 sm:px-6 sm:py-14">
+      <header>
+        <h1 className="text-3xl font-bold tracking-tight text-balance sm:text-4xl">
+          3×3 Izgara
+        </h1>
+        <p className="mt-3 text-lg text-muted">
+          Günün ızgarası —{" "}
+          <time dateTime={grid.date} className="font-medium text-foreground">
+            {formatGridDate(grid.date)}
+          </time>
+          . Herkes aynı ızgarayı görür.
+        </p>
       </header>
 
       <GridQuiz grid={grid} />

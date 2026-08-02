@@ -31,12 +31,12 @@ export function formatDataDate(date: Date): string {
 
 export function SiteFooter({ dataGeneratedAt }: SiteFooterProps) {
   return (
-    <footer className="mt-auto flex flex-col gap-1 border-t border-current/10 pt-6 text-sm opacity-70">
+    <footer className="mt-auto flex flex-col gap-1 border-t border-line pt-6 text-sm text-muted">
       <p>
         Veriler{" "}
         <a
           href="https://www.wikidata.org"
-          className="underline underline-offset-2"
+          className="font-medium text-accent underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           rel="noreferrer noopener"
           target="_blank"
         >

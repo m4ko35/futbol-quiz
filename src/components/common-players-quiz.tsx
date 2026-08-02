@@ -142,7 +142,10 @@ export function CommonPlayersQuiz({ initialClubs }: CommonPlayersQuizProps) {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="grid gap-4 sm:grid-cols-2">
+      {/* İki seçici arasındaki "∩", sorunun ne olduğunu bir bakışta söyler:
+          birleşim değil KESİŞİM. Yalnızca geniş ekranda görünür; dar ekranda
+          seçiciler alt alta gelince aradaki işaret anlamını yitirirdi. */}
+      <div className="grid items-end gap-4 sm:grid-cols-[1fr_auto_1fr]">
         <ClubPicker
           label="Birinci kulüp"
           selected={clubA}
@@ -151,6 +154,12 @@ export function CommonPlayersQuiz({ initialClubs }: CommonPlayersQuizProps) {
           initialOptions={initialClubs}
           search={searchClubs}
         />
+        <span
+          aria-hidden="true"
+          className="hidden pb-2.5 text-xl font-semibold text-muted sm:block"
+        >
+          ∩
+        </span>
         <ClubPicker
           label="İkinci kulüp"
           selected={clubB}
@@ -166,19 +175,41 @@ export function CommonPlayersQuiz({ initialClubs }: CommonPlayersQuizProps) {
           aksi hâlde bir şey olduğunu anlamaz. */}
       <div aria-live="polite" aria-busy={state.status === "loading"}>
         {state.status === "idle" && (
-          <p className="text-sm opacity-60">
-            Karşılaştırmayı başlatmak için iki kulüp seçin.
-          </p>
+          <div className="rounded-xl border border-dashed border-line-strong px-6 py-12 text-center">
+            {/* İki kesişen çember — SVG değil, iki `div`. Marka işaretiyle
+                aynı fikir ama kendi `clipPath` kimliğini taşımadığı için
+                sayfada ikinci kez çizilmesi kimlik çakışması üretmiyor. */}
+            <span
+              aria-hidden="true"
+              className="mx-auto flex w-fit items-center"
+            >
+              <span className="h-10 w-10 rounded-full border-2 border-line-strong" />
+              <span className="-ml-4 h-10 w-10 rounded-full border-2 border-line-strong" />
+            </span>
+            <p className="mt-4 text-sm text-muted">
+              Karşılaştırmayı başlatmak için iki kulüp seçin.
+            </p>
+          </div>
         )}
 
         {state.status === "loading" && (
-          <p className="text-sm opacity-60">Ortak oyuncular aranıyor…</p>
+          <div className="rounded-xl border border-line bg-surface p-6 shadow-card">
+            <p className="text-sm text-muted">Ortak oyuncular aranıyor…</p>
+            {/* İskelet satırlar: beklemenin NE KADAR süreceğini değil, neyin
+                geleceğini gösterir. Tek satırlık "aranıyor" metni, sonuç
+                gelince sayfanın boyunu birden değiştiriyordu. */}
+            <div aria-hidden="true" className="mt-4 flex flex-col gap-3">
+              <span className="h-4 w-1/3 animate-pulse rounded bg-line" />
+              <span className="h-4 w-2/3 animate-pulse rounded bg-line" />
+              <span className="h-4 w-1/2 animate-pulse rounded bg-line" />
+            </div>
+          </div>
         )}
 
         {state.status === "error" && (
           <p
             role="alert"
-            className="rounded-md border border-current/25 px-4 py-3 text-sm"
+            className="rounded-xl border border-wrong bg-wrong-soft px-4 py-3 text-sm text-wrong"
           >
             {state.message}
           </p>

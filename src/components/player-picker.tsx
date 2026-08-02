@@ -146,14 +146,16 @@ export function PlayerPicker({
     highlighted >= 0 ? `${listboxId}-${String(highlighted)}` : undefined;
 
   return (
-    <div className="flex flex-col gap-2 rounded-md border border-current/25 p-4">
+    // Seçici paneli VURGU KENARLIĞI taşır: sayfada o an eylem bekleyen tek
+    // yer burasıdır ve nötr bir kutu bunu söylemiyordu.
+    <div className="flex flex-col gap-2 rounded-xl border border-accent bg-surface p-4 shadow-pop">
       <div className="flex items-baseline justify-between gap-3">
-        <label htmlFor={inputId} className="text-sm font-medium">
+        <label htmlFor={inputId} className="text-sm font-semibold">
           {label}
         </label>
         <button
           type="button"
-          className="rounded px-2 py-1 text-sm underline underline-offset-2 opacity-70 hover:opacity-100 focus:ring-2 focus:ring-current/60 focus:outline-none"
+          className="shrink-0 rounded-md px-2 py-1 text-sm font-medium text-muted underline underline-offset-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           onClick={onCancel}
         >
           Vazgeç
@@ -174,8 +176,8 @@ export function PlayerPicker({
         aria-activedescendant={activeOptionId}
         autoComplete="off"
         placeholder="Oyuncu arayın…"
-        // Kenarlık ve odak halkası WCAG 1.4.11 (3:1) ölçümüne göre (§7.10).
-        className="w-full rounded-md border border-current/50 bg-transparent px-3 py-2 text-base outline-none focus:border-current/80 focus:ring-2 focus:ring-current/60"
+        // Kenarlık ve odak göstergesi WCAG 1.4.11 (3:1) ölçümüne göre (§7.12).
+        className="w-full rounded-lg border border-line-strong bg-background px-3 py-2.5 text-base transition-colors outline-none placeholder:text-muted focus:border-accent focus:outline-2 focus:outline-offset-1 focus:outline-accent"
         onChange={(event) => {
           setTerm(event.target.value);
         }}
@@ -190,7 +192,7 @@ export function PlayerPicker({
         işaretliyor ve ekran okuyucu boş listede gezinmeye çalışıyor.
       */}
       {visible.length === 0 && (
-        <p className="px-3 py-2 text-sm opacity-70">
+        <p className="px-3 py-2 text-sm text-muted">
           {isTermTooShort
             ? `Aramak için en az ${String(MIN_PLAYER_TERM_LENGTH)} karakter yazın.`
             : isLoading
@@ -213,8 +215,8 @@ export function PlayerPicker({
             id={`${listboxId}-${String(index)}`}
             role="option"
             aria-selected={index === highlighted}
-            className={`cursor-pointer rounded px-3 py-2 text-sm ${
-              index === highlighted ? "bg-current/10" : ""
+            className={`cursor-pointer rounded-lg px-3 py-2 text-sm ${
+              index === highlighted ? "bg-accent-soft" : ""
             }`}
             // `onMouseDown`, `onClick` değil: `onClick` girdi alanının blur
             // olayından sonra gelir.
@@ -230,7 +232,7 @@ export function PlayerPicker({
             {/* Uyruk ham KOD olarak gösterilmez; "IT" bir Türkçe arayüzde
                 kullanıcıya hiçbir şey söylemez (§1.2). */}
             {(player.nationality !== null || player.position !== null) && (
-              <span className="ml-2 opacity-70">
+              <span className="ml-2 text-muted">
                 {[
                   player.nationality === null
                     ? null

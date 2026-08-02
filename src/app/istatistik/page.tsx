@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { getDailyStatMatch } from "@/application/use-cases/daily-stat-match";
-import { ModeNav } from "@/components/mode-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { StatMatchQuiz } from "@/components/stat-match-quiz";
 import { datasets, repositories } from "@/infrastructure/db/repositories";
@@ -26,19 +25,18 @@ export default async function StatMatchPage() {
   ]);
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-5 py-10 sm:px-6 sm:py-16">
-      <header className="flex flex-col gap-4">
-        <ModeNav current="stat-match" />
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            İstatistik Eşleştirme
-          </h1>
-          <p className="mt-2 opacity-70">
-            Günün oyuncusu —{" "}
-            <time dateTime={daily.date}>{formatDate(daily.date)}</time>. Herkes
-            aynı oyuncuyu görür.
-          </p>
-        </div>
+    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-5 py-10 sm:px-6 sm:py-14">
+      <header>
+        <h1 className="text-3xl font-bold tracking-tight text-balance sm:text-4xl">
+          İstatistik Eşleştirme
+        </h1>
+        <p className="mt-3 text-lg text-muted">
+          Günün oyuncusu —{" "}
+          <time dateTime={daily.date} className="font-medium text-foreground">
+            {formatDate(daily.date)}
+          </time>
+          . Herkes aynı oyuncuyu görür.
+        </p>
       </header>
 
       <StatMatchQuiz daily={daily} />
