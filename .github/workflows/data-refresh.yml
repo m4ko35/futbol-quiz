@@ -29,8 +29,17 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    # ETL ölçülen süresi ~55 dakika; Wikidata yavaşlarsa pay kalsın.
-    timeout-minutes: 180
+    # ÖLÇÜLEN SÜRE, tahmin değil. İlk sürümde 180 yazıyordu ve gerekçesi
+    # "ETL ~55 dakika" idi; ikisi de artık geçerli değil:
+    #
+    #   · Vikipedi katmanı (§4.3) ~1 saat ekliyor — ~1.760 istek
+    #   · WDQS'in gecikmesi gün içinde dalgalanıyor; ölçülen bir koşuda
+    #     oyuncu grubu başına ortalama 13,8 sn (tekil değerler 32 sn'ye çıktı)
+    #
+    # O koşu uçtan uca ~3,5 saat sürdü, yani 180 dakikalık sınır payı
+    # tüketmekle kalmayıp aşıyordu. 330, GitHub'ın 360 dakikalık üst sınırının
+    # altında kalarak yavaş bir güne yer bırakır.
+    timeout-minutes: 330
 
     steps:
       - uses: actions/checkout@v4
