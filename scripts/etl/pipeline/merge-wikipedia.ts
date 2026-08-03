@@ -1,3 +1,4 @@
+import { isPlausibleSeasonYear } from "../../../src/domain/value-objects/season";
 import { tallies, type NormalizedSpell } from "./normalize";
 
 /**
@@ -32,6 +33,16 @@ export interface MergeStats {
   skippedAmbiguous: number;
   /** Başlangıç yılı yok: ne eşleştirilebilir ne kalıcı kimlik verilebilir. */
   skippedNoYear: number;
+  /**
+   * Vikipedi'nin yılı, kaydın diğer ucuyla tutarsız bir aralık üretiyordu;
+   * Wikidata'nın aralığı korundu (kural 4).
+   */
+  rejectedYearConflict: number;
+  /**
+   * Vikipedi'nin aralığı, aynı kulüpteki başka bir dönemin üstüne binecekti;
+   * Wikidata'nın aralığı korundu (kural 4).
+   */
+  rejectedYearCollision: number;
 }
 
 export interface MergeResult {
@@ -57,6 +68,23 @@ export function syntheticSpellId(spell: {
   return `wikipedia-${spell.playerWikidataId}-${spell.clubWikidataId}-${spell.startYear}`;
 }
 
+/**
+ * Vikipedi'nin yıllarını akla yatkınlık denetiminden geçirir — §8.2.
+ *
+ * `tallies`'in maç/gol için yaptığının yıl karşılığı ve gerekçesi aynı:
+ * ölçülerek yanlış olduğu görülen bir değeri "bilinmiyor" saymak, onu
+ * kullanmaktan da kaydı çöpe atmaktan da iyidir (§2.7).
+ *
+ * ÖLÇÜLDÜ, VE ÖNCE YANLIŞ YAPILDI. Denetim yokken tam koşuda 70 dönem
+ * "yıl makul aralık dışında" diye AYIKLANIYORDU — oysa bunların 66'sı
+ * Wikidata'da sağlam duran, Vikipedi'nin bozduğu kayıtlardı. Yani katman
+ * kural 4'ü ("Vikipedi asla silmez") ikinci bir yoldan daha ihlal ediyordu.
+ * Bozuk yıl artık kaydı öldürmüyor, sadece yok sayılıyor.
+ */
+function plausibleYear(year: number | null): number | null {
+  return year !== null && isPlausibleSeasonYear(year) ? year : null;
+}
+
 export function mergeWikipediaSpells(input: {
   readonly spells: readonly NormalizedSpell[];
   readonly wikipedia: readonly WikipediaSpell[];
@@ -72,6 +100,8 @@ export function mergeWikipediaSpells(input: {
     skippedOutOfUniverse: 0,
     skippedAmbiguous: 0,
     skippedNoYear: 0,
+    rejectedYearConflict: 0,
+    rejectedYearCollision: 0,
   };
 
   // Mevcut dönemler oyuncu+kulüp kırılımında gruplanır; birleştirme kararı
@@ -117,7 +147,10 @@ export function mergeWikipediaSpells(input: {
 
       if (match !== null) {
         used.add(match);
-        const merged = enrich(match, record, stats);
+        // Kardeş dönemler: aynı oyuncunun AYNI kulüpteki diğer kayıtları.
+        // Genişleyen bir aralığın onlara değmemesi gerekiyor (bkz. `enrich`).
+        const siblings = [...existing, ...addedHere].filter((s) => s !== match);
+        const merged = enrich(match, record, siblings, stats);
         if (merged !== match) patched.set(match.wikidataStatementId, merged);
         continue;
       }
@@ -125,7 +158,7 @@ export function mergeWikipediaSpells(input: {
       // KURAL 1 — eksik dönem eklenir. Yalnızca ÇAKIŞMA YOKSA: bir dönemle
       // örtüşen kayıt, o dönemin kendisi olabilir ve iki kopya üretmek veri
       // hatasıdır (§8.2 örtüşen dönem uyarısı).
-      const startYear = record.startYear;
+      const startYear = plausibleYear(record.startYear);
       if (startYear === null) {
         stats.skippedNoYear++;
         continue;
@@ -157,6 +190,22 @@ export function mergeWikipediaSpells(input: {
 
 function groupKey(playerId: string, clubId: string): string {
   return `${playerId}|${clubId}`;
+}
+
+/** Verilen aralık, kardeş dönemlerden herhangi birine değiyor mu? */
+function rangesOverlap(
+  startYear: number | null,
+  endYear: number | null,
+  siblings: readonly NormalizedSpell[],
+): boolean {
+  if (startYear === null) return false;
+
+  const end = endYear ?? Number.POSITIVE_INFINITY;
+  return siblings.some((other) => {
+    if (other.startYear === null) return false;
+    const otherEnd = other.endYear ?? Number.POSITIVE_INFINITY;
+    return other.startYear <= end && startYear <= otherEnd;
+  });
 }
 
 /** İki dönem aynı yıl aralığına değiyor mu? Uçlardan biri bilinmiyorsa evet. */
@@ -225,6 +274,7 @@ function findMatch(
 function enrich(
   spell: NormalizedSpell,
   record: WikipediaSpell,
+  siblings: readonly NormalizedSpell[],
   stats: MergeStats,
 ): NormalizedSpell {
   const checked = tallies(
@@ -232,10 +282,51 @@ function enrich(
     record.goals ?? undefined,
   );
 
-  const startYear = record.startYear ?? spell.startYear;
-  const endYear = record.endYear ?? spell.endYear;
+  /**
+   * YIL ÇİFTİ BİRLİKTE DEĞERLENDİRİLİR — kural 4'ün ince ihlali buradaydı.
+   *
+   * Alanlar tek tek birleştirilince Vikipedi'nin başlangıcı Wikidata'nın
+   * bitişiyle eşleşebiliyor ve ortaya tutarsız bir aralık çıkıyor:
+   * 2010–2012 kaydı, Vikipedi 2013 derse 2013–2012 oluyor. Böyle bir kaydı
+   * `sanitizeSpells` "başlangıç bitişten sonra" diye ATIYOR — yani Vikipedi
+   * dolaylı yoldan var olan bir dönemi SİLDİRİYOR.
+   *
+   * ÖLÇÜLDÜ: tam koşuda tam olarak 15 dönem böyle kayboluyordu. Sayı küçük
+   * ama yön yanlış; zenginleştirmenin bir kaydı kullanılamaz hâle getirmesi
+   * kabul edilemez. Çift tutarsızsa Wikidata'nın aralığı OLDUĞU GİBİ kalır —
+   * eldeki tutarlı veri, tutarsız bir karışımdan iyidir.
+   */
+  const mergedStart = plausibleYear(record.startYear) ?? spell.startYear;
+  const mergedEnd = plausibleYear(record.endYear) ?? spell.endYear;
+
+  /**
+   * GENİŞLEYEN ARALIK KARDEŞ DÖNEME DEĞMEMELİ — ölçülmüş üçüncü ihlal.
+   *
+   * Wikidata bir kulüpteki kiralık ve kalıcı dönemi AYRI iki kayıtta tutuyor;
+   * bilgi kutusu ikisini çoğu zaman TEK satırda birleştiriyor. Trippier
+   * örneği: Wikidata'da Burnley 2011 (kiralık) ve 2012–2014 (kalıcı), bilgi
+   * kutusunda tek satır 2011–2015. Kiralık kaydı bu aralıkla zenginleşince
+   * 2011–2014 oluyor ve kalıcı dönemin üstüne biniyor — §8.2'nin "örtüşen
+   * kalıcı dönem" uyarısı tam olarak bu.
+   *
+   * Aralık zaten örtüşüyorduysa (Wikidata'nın kendi tutarsızlığı) Vikipedi
+   * suçlanmaz; yalnızca YENİ doğan örtüşme geri alınır.
+   */
+  const wouldCollide =
+    !rangesOverlap(spell.startYear, spell.endYear, siblings) &&
+    rangesOverlap(mergedStart, mergedEnd, siblings);
+
+  const yearsConsistent =
+    mergedStart === null || mergedEnd === null || mergedStart <= mergedEnd;
+  const yearsUsable = yearsConsistent && !wouldCollide;
+
+  const startYear = yearsUsable ? mergedStart : spell.startYear;
+  const endYear = yearsUsable ? mergedEnd : spell.endYear;
   const appearances = checked.appearances ?? spell.appearances;
   const goals = checked.goals ?? spell.goals;
+
+  if (!yearsConsistent) stats.rejectedYearConflict++;
+  else if (wouldCollide) stats.rejectedYearCollision++;
 
   const changes = [
     [spell.startYear, startYear],
@@ -284,13 +375,18 @@ function toNewSpell(
     record.goals ?? undefined,
   );
 
+  // Bitiş de denetimden geçer ve tutarsızsa BİLİNMİYOR sayılır; başlangıcı
+  // sağlam bir kaydı, bozuk bir bitiş yüzünden tamamen atmak veri kaybıdır.
+  const end = plausibleYear(record.endYear);
+  const endYear = end !== null && end < startYear ? null : end;
+
   return {
     wikidataStatementId: syntheticSpellId({ ...record, startYear }),
     playerWikidataId: record.playerWikidataId,
     clubWikidataId: record.clubWikidataId,
     startYear,
-    endYear: record.endYear,
-    isCurrent: record.endYear === null,
+    endYear,
+    isCurrent: endYear === null,
     isLoan: record.isLoan,
     isYouth,
     appearances: checked.appearances,

@@ -193,6 +193,77 @@ describe("kural 4 — Vikipedi asla silmez", () => {
     expect(result.spells[0]?.clubWikidataId).toBe(KONYA);
   });
 
+  /**
+   * TAM KOŞUDA ÖLÇÜLDÜ: 15 dönem tam olarak böyle kayboluyordu. Vikipedi'nin
+   * başlangıcı Wikidata'nın bitişiyle eşleşince aralık tersine dönüyor
+   * (2013–2012) ve `sanitizeSpells` kaydı atıyor — yani Vikipedi dolaylı
+   * yoldan SİLMİŞ oluyor.
+   */
+  it("tutarsız yıl aralığı üretecekse Wikidata'nın aralığını korur", () => {
+    // Tek sezonluk kayıt (2012–2012), Vikipedi başlangıcı 2013 diyor. ±1
+    // hoşgörüsü eşleşmeyi kabul ediyor, ama Vikipedi'nin bitişi YOK; birleşim
+    // 2013–2012 olurdu.
+    const result = merge(
+      [spell({ startYear: 2012, endYear: 2012, appearances: null })],
+      [fromWikipedia({ startYear: 2013, endYear: null, appearances: 30 })],
+    );
+
+    expect(result.spells).toHaveLength(1);
+    expect(result.spells[0]).toMatchObject({
+      startYear: 2012,
+      endYear: 2012,
+      // Yıllar reddedilse de sayılar zenginleşmeye devam eder: reddedilen
+      // şey tutarsız ÇİFT, kaydın tamamı değil.
+      appearances: 30,
+    });
+    expect(result.stats.rejectedYearConflict).toBe(1);
+  });
+
+  /**
+   * TRIPPIER DURUMU, tam koşuda 418 kez ölçüldü. Wikidata bir kulüpteki
+   * kiralık ve kalıcı dönemi ayrı tutuyor (Burnley 2011 kiralık, 2012–2014
+   * kalıcı); bilgi kutusu ikisini tek satırda birleştiriyor (2011–2015).
+   * Kiralık kaydı o aralıkla zenginleşirse kalıcı dönemin üstüne biner.
+   */
+  it("genişleyen aralık kardeş dönemin üstüne binecekse yılları almaz", () => {
+    const loan = spell({
+      wikidataStatementId: "Q1-LOAN",
+      startYear: 2011,
+      endYear: 2011,
+      isLoan: true,
+      appearances: null,
+    });
+    const permanent = spell({
+      wikidataStatementId: "Q1-PERM",
+      startYear: 2012,
+      endYear: 2014,
+    });
+
+    const result = merge(
+      [loan, permanent],
+      [
+        fromWikipedia({
+          startYear: 2011,
+          endYear: 2014,
+          appearances: 60,
+          isLoan: false,
+        }),
+      ],
+    );
+
+    const byId = new Map(result.spells.map((s) => [s.wikidataStatementId, s]));
+    expect(byId.get("Q1-LOAN")).toMatchObject({
+      startYear: 2011,
+      endYear: 2011,
+      appearances: 60,
+    });
+    expect(byId.get("Q1-PERM")).toMatchObject({
+      startYear: 2012,
+      endYear: 2014,
+    });
+    expect(result.stats.rejectedYearCollision).toBe(1);
+  });
+
   it("Vikipedi'nin boş değeri dolu değeri silmez", () => {
     const result = merge(
       [spell({ appearances: 50, endYear: 2018 })],

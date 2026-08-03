@@ -363,14 +363,39 @@ Vikipedi'den gelen dönemin sentetik bir ifade kimliği olur: `wikipedia-<oyuncu
 
 #### Ölçülen kazanç
 
-İki bağımsız koşu, iki tabaka (400 rastgele + 250 Süper Lig oyuncusu):
+Katman yazılmadan önce 400 oyunculuk örneklemlerle **+%9,5** tahmin edilmişti. Tam koşu tahmini aştı. Aşağıdaki iki sütun aynı önbellekten, aynı anda, yalnızca `--skip-wikipedia` farkıyla üretildi:
 
-| Tabaka    | Mevcut dönem | Vikipedi'nin eklediği       |
-| --------- | ------------ | --------------------------- |
-| Rastgele  | 1014 / 967   | +102 (%10,1) / +104 (%10,8) |
-| Süper Lig | 619 / 611    | +142 (%22,9) / +112 (%18,3) |
+| Ölçüt                 | Yalnız Wikidata | + Vikipedi               |
+| --------------------- | --------------- | ------------------------ |
+| Dönem                 | 193.051         | **215.892** (**+%11,8**) |
+| Zenginleşen dönem     | —               | 22.799                   |
+| Düzeltilen değer      | —               | 21.703                   |
+| **Seçilebilir kulüp** | 345 / 423       | **353 / 423**            |
+| Makalesi olan oyuncu  | —               | 59.882 / 76.372 (%78,4)  |
 
-Lig lig (150'şer oyuncu): TR %22,1 · ES %12,8 · DE %8,2 · FR %7,3 · GB %6,6 · IT %5,1 — **genel %9,5**. Eklenen dönemlerin **tamamının yılı**, %99'unun maç sayısı var; yani katman "kaynakta ayrıntı yok" etiketini de azaltır.
+**+8 kulüp oynanabilir hâle geldi** — kazancın kullanıcıya doğrudan yansıyan kısmı bu. 526.604 kariyer satırı okundu; 43.526'sı ikinci dilin kopyası, 316.566'sı evrendeki bir kulübe ait değil (5. kuralın işlemesi).
+
+#### Katman veri kümesini bozmamalı — üç ihlal ölçüldü ve kapatıldı
+
+Kazancın yanında **maliyeti** de ölçüldü ve ilk hâli kabul edilemezdi. §8.2 denetimleri üç ayrı yoldan kötüleşti; üçü de aynı kök sebepten: zenginleştirme, alanları tek tek birleştirip kaydın BÜTÜNLÜĞÜNÜ gözetmiyordu.
+
+| İhlal                                                           | Ölçülen | Düzeltme                                               |
+| --------------------------------------------------------------- | ------- | ------------------------------------------------------ |
+| Vikipedi başlangıcı + Wikidata bitişi ⇒ ters aralık (2013–2012) | 15      | Yıl çifti birlikte değerlendirilir; tutarsızsa alınmaz |
+| Vikipedi'nin makul olmayan yılı var olan kaydı öldürüyor        | 66      | Yıllar `isPlausibleSeasonYear`'dan geçer, `null` olur  |
+| Genişleyen aralık aynı kulüpteki kardeş dönemin üstüne biniyor  | 418     | Yeni doğan çakışmada Wikidata'nın aralığı korunur      |
+
+Üçüncüsünün sebebi kaynakların farklı modellemesi: Wikidata bir kulüpteki kiralık ve kalıcı dönemi **ayrı** kayıtlarda tutuyor, bilgi kutusu ikisini çoğu zaman **tek satırda** birleştiriyor. Trippier'de Wikidata Burnley'i 2011 (kiralık) ve 2012–2014 (kalıcı) diye ayırmış, bilgi kutusunda tek satır 2011–2015 yazıyor.
+
+Sonuç, ayıklama oranında ölçüldü: katman **hiçbir dönemi kaybettirmiyor**.
+
+```
+ayıklanan dönem:  4 (temel)  →  85  →  70  →  3
+```
+
+3'ün 4'ten küçük olması tesadüf değil: Vikipedi, Wikidata'da bozuk duran bir yılı da düzeltti.
+
+**Kapanmayan tek uyarı örtüşen dönemler:** 1.263 → 1.988. Kalan 725'i aynı kulüpte değil, FARKLI kulüplerde örtüşüyor ve bir kısmı **gerçek** — sezon ortası transferde yıl hassasiyetli model iki kulübe de aynı sezonu yazmak zorunda. Uyarı seviyesinde bırakıldı.
 
 #### Sınırlar — dürüstçe
 
@@ -1593,11 +1618,12 @@ veri kümesi kendini güncel tutabilir.
 - [x] Vikipedi istemcisi: wikitext (akış) + yönlendirme takma adları
 - [x] Birleştirme (`merge-wikipedia.ts`, saf) — kural başına test, 19 adet
 - [x] ETL'e bağlanması; `--skip-wikipedia` ile katmanın kazancı ölçülebilir
-- [ ] Tam kuru koşu: gerçek kazancı tahminle (+%9,5) karşılaştır
+- [x] Tam kuru koşu: gerçek kazanç **+%11,8** (tahmin +%9,5), +8 seçilebilir
+      kulüp; katmanın veri kümesine verdiği üç hasar ölçülüp kapatıldı
 - [ ] Faz 2 — ana dil ayrıştırıcıları (`it`/`de`/`es`/`fr`), kazancı ayrıca
       ölçüldükten sonra (§10.2)
 
-**Ölçümler kararları değiştirdi, üç kez.**
+**Her varsayım ölçüldü, beşi de yanlış çıktı.**
 
 | Varsayım                              | Ölçüm                                                | Sonuç                          |
 | ------------------------------------- | ---------------------------------------------------- | ------------------------------ |
@@ -1605,6 +1631,9 @@ veri kümesi kendini güncel tutabilir.
 | Bitiş yılı olduğu gibi alınır         | Ham hâli %2,7, bir eksiği **%95,4** uyum             | Bitişten bir çıkarılır         |
 | Her bağlantı QID'ye çözülür           | Okunan satırların **%51'i** evren dışı               | Eşleştirme tersine çevrildi    |
 | Makale metinleri bellekte tutulabilir | 59.000 İngilizce makale ≈ **2,4 GB**                 | Grup grup akıtılır             |
+| Alanlar tek tek birleştirilebilir     | **499 dönem** bozuluyor ya da siliniyordu            | Kaydın bütünü gözetilir        |
+
+Sonuncusu en pahalı dersti ve yalnızca **tam koşu** gösterdi: birim testleri de, iki kulüplük deneme de temizdi. Kazancı ölçmek için kurulan `--skip-wikipedia` karşılaştırması, kazancın yanında maliyeti de ortaya çıkardı — ayıklanan dönem 4'ten 85'e fırlamıştı ve o 81 kaydın hepsi Wikidata'da **sağlam duran**, katmanın bozduğu verilerdi.
 
 ### Faz 4.5 — Yayın
 

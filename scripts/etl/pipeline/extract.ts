@@ -406,7 +406,8 @@ export async function extractDataset(
     );
     console.log(
       `      atlandı: ${s.skippedOutOfUniverse} kapsam dışı kulüp · ` +
-        `${s.skippedAmbiguous} belirsiz eşleşme · ${s.skippedNoYear} yılsız`,
+        `${s.skippedAmbiguous} belirsiz eşleşme · ${s.skippedNoYear} yılsız · ` +
+        `${s.rejectedYearConflict} tutarsız + ${s.rejectedYearCollision} çakışan yıl aralığı`,
     );
   }
 
