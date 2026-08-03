@@ -3,7 +3,6 @@ import { PrismaStatMatchRepository } from "../../src/infrastructure/db/repositor
 import { Prisma, PrismaClient } from "../../src/generated/prisma";
 import { MIN_SPELLS_FOR_SELECTABLE } from "./leagues";
 import { MAX_SPELL_TALLY, POSITIONS } from "./pipeline/normalize";
-import { overrideStatementId, readOverrideSpells } from "./pipeline/overrides";
 
 /**
  * Yüklenen veri kümesinin kabul kontrolü — `npm run db:verify`.
@@ -438,59 +437,6 @@ async function verifyKnownPairs(): Promise<void> {
   }
 }
 
-/**
- * Elle düzeltmeler veritabanına GERÇEKTEN girdi mi? (§8.2)
- *
- * Bir override sessizce düşebilir: oyuncunun meta verisi çekilemezse
- * `sanitizeSpells` dönemi "oyuncu bilgisi çekilemedi" diye atar, kulüp
- * evrenden düşerse aynısı olur. Her iki durumda da ETL başarıyla biter ve
- * düzelttiğini sandığımız hata yerinde durur — kullanıcı yine "doğru cevap
- * yanlış sayıldı" der. Bu kontrol tam olarak o sessiz düşüşü yakalar.
- */
-async function verifyOverrides(): Promise<void> {
-  console.log("\n=== Elle düzeltmeler ===");
-
-  const overrides = await readOverrideSpells();
-  if (overrides.length === 0) {
-    console.log("  (tanımlı elle düzeltme yok)");
-    return;
-  }
-
-  const ids = overrides.map(overrideStatementId);
-  const landed = await prisma.spell.findMany({
-    where: { wikidataStatementId: { in: ids } },
-    select: { wikidataStatementId: true },
-  });
-  const landedIds = new Set(landed.map((s) => s.wikidataStatementId));
-
-  // Wikidata aynı dönemi eklediyse override gereksizleşir ve `mergeOverrides`
-  // onu ATLAR — yani eksik olması bir HATA DEĞİL, beklenen sonuçtur. Ayrımı
-  // yapabilmek için oyuncu-kulüp çiftinin dönemi var mı diye ayrıca bakılır.
-  for (const override of overrides) {
-    const id = overrideStatementId(override);
-    if (landedIds.has(id)) {
-      check(true, `${override.player} → ${override.club} eklendi`);
-      continue;
-    }
-
-    const fromSource = await prisma.spell.count({
-      where: {
-        player: { wikidataId: override.player },
-        club: { wikidataId: override.club },
-      },
-    });
-
-    check(
-      fromSource > 0,
-      fromSource > 0
-        ? `${override.player} → ${override.club} artık Wikidata'da var ` +
-            `(override gereksiz, spells.json'dan silinebilir)`
-        : `${override.player} → ${override.club} DÜŞTÜ — ne override ne ` +
-            `kaynak kaydı var; oyuncu meta verisi çekilememiş olabilir`,
-    );
-  }
-}
-
 async function main(): Promise<void> {
   try {
     await reportCounts();
@@ -502,7 +448,6 @@ async function main(): Promise<void> {
     await verifySpellTallies();
     await verifyPlayerStats();
     await verifyDailyCandidates();
-    await verifyOverrides();
     await verifyKnownPairs();
   } finally {
     await prisma.$disconnect();

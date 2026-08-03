@@ -27,7 +27,6 @@ import {
   type NormalizedPlayer,
   type NormalizedSpell,
 } from "./normalize";
-import { mergeOverrides, readOverrideSpells } from "./overrides";
 
 export interface ExtractedDataset {
   readonly clubs: NormalizedClub[];
@@ -167,40 +166,16 @@ export async function extractDataset(
     );
   }
 
+  // Bu koşuda dönemleri fiilen çekilen kulüpler; kısmi koşuda (`--max-clubs`)
+  // hepsi değildir ve çağıran bunu bilmek zorundadır.
   const fetchedClubIds = new Set(targetClubs.map((c) => c.wikidataId));
-  const wikidataSpells = dedupeBy(spells, (s) => s.wikidataStatementId);
 
-  // ─── Elle düzeltmeler (§8.2) ──────────────────────────────────────────
-  //
-  // Kaynakta hiç olmayan dönemler burada eklenir. Oyuncu meta verisi ADIMDAN
-  // ÖNCE eklenmeleri kasıtlı: aşağıdaki [3/3] ve [4/4] geçişleri oyuncu
-  // kimliklerini dönemlerden türetiyor, yani override'la gelen oyuncuların
-  // adı, mevkisi ve istatistikleri de kendiliğinden çekilir. Sonrasında
-  // eklenselerdi adsız oyuncular olarak ayıklanırlardı.
-  //
-  // Yalnızca dönemleri FİİLEN ÇEKİLEN kulüpler için uygulanır: kulübün
-  // Wikidata dönemleri elimizde yoksa bir override'ın gereksiz olup olmadığı
-  // bilinemez ve kısmi koşu (`--max-clubs`) her override'ı "eklendi" sayardı.
-  const allOverrides = await readOverrideSpells();
-  const applicable = allOverrides.filter((o) => fetchedClubIds.has(o.club));
-  const merged = mergeOverrides(wikidataSpells, applicable);
-  const uniqueSpells = merged.spells;
-
-  if (allOverrides.length > 0) {
-    console.log(
-      `      elle düzeltme: ${merged.added} eklendi, ` +
-        `${merged.redundant.length} gereksiz (Wikidata artık taşıyor)` +
-        (applicable.length === allOverrides.length
-          ? ""
-          : `, ${allOverrides.length - applicable.length} kapsam dışı`),
-    );
-    for (const spell of merged.redundant) {
-      console.warn(
-        `      ⚠ gereksiz override, dosyadan silinebilir: ` +
-          `${spell.player} → ${spell.club}`,
-      );
-    }
-  }
+  // ELLE DÜZELTME YOK ve bu bilinçli (§4.3). Kaynakta olmayan bir dönemi elle
+  // eklemek, veri kümesini insan emeğine bağımlı kılıyordu: her transfer
+  // döneminde birinin oturup eksikleri bulması gerekirdi. Kapsam boşlukları
+  // ikinci bir KAYNAKLA kapatılır, elle değil — böylece veri kümesi kendini
+  // güncel tutabilir.
+  const uniqueSpells = dedupeBy(spells, (s) => s.wikidataStatementId);
 
   // Seçim listesi küratörlüğü: yalnızca anlamlı sayıda dönem kaydı olan
   // kulüpler seçilebilir olur. Aksi hâlde `P118` üzerinden gelen feshedilmiş

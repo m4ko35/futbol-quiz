@@ -233,7 +233,6 @@ futbol-quiz/
 │   │   ├── normalize.ts           ← ad/tarih normalizasyonu, dedupe
 │   │   ├── validate.ts            ← tutarlılık denetimleri
 │   │   └── load.ts                ← veritabanına upsert
-│   ├── overrides/                 ← elle düzeltmeler (JSON, versiyonlanır)
 │   └── .cache/                    ← ham yanıtlar; git'e girmez
 │
 ├── src/
@@ -1084,9 +1083,9 @@ Denetim **iki aşamalıdır**. Tek aşamalı ilk tasarım kullanılamaz çıktı
 
 Yükleme ayrıca **otoriter**dir: tam koşuda gelen listede olmayan kulüpler, dönemi kalmayan kulüpler ve dönemi kalmayan oyuncular silinir. Bu olmadan veritabanı önceki koşuların artıklarını biriktiriyordu.
 
-#### Elle düzeltmeler — `scripts/etl/overrides/`
+#### Kapsam boşlukları — ikinci KAYNAK, elle düzeltme değil
 
-Wikidata'da **hiç olmayan** dönemler burada elle tanımlanır. Mekanizmanın gerekçesi ölçüldü (2026-07-31) — güncel kadronun veri kümesinde bulunma oranı:
+Wikidata'da **hiç olmayan** dönemler var. Boşluk ölçüldü (2026-07-31) — güncel kadronun veri kümesinde bulunma oranı:
 
 | Kulüp       | Kapsam    |
 | ----------- | --------- |
@@ -1098,16 +1097,15 @@ Wikidata'da **hiç olmayan** dönemler burada elle tanımlanır. Mekanizmanın g
 
 Boşluk **kaynaktadır, bizde değil**. Abdülkerim Bardakçı'nın (`Q318069`) yedi `P54` kaydı var; hiçbiri Galatasaray değil. Alternatif bir Galatasaray ögesi de yok — eksik oyuncuların tamamının kulüp bağları tek tek okundu. Boru hattının kayıpsızlığının kanıtı: Galatasaray ∩ Konyaspor **bizde 30, Wikidata'da 30**.
 
-Neden bir uyarı değil de düzeltme: ızgara cevabı `matchesAll` ile veri kümesine bakarak doğrular (BR-12). Eksik dönem listeyi kısaltmakla kalmaz — **doğru cevabı yanlış saydırır**. Kullanıcının bildirdiği hata tam olarak buydu.
+Neden önemli: ızgara cevabı `matchesAll` ile veri kümesine bakarak doğrular (BR-12). Eksik dönem listeyi kısaltmakla kalmaz — **doğru cevabı yanlış saydırır**.
 
-Dört kural, dördü de bu mekanizmanın kötüye kullanılmasını engellemek için:
+**ELLE DÜZELTME DENENDİ VE KALDIRILDI.** Boşluk ilk fark edildiğinde `scripts/etl/overrides/` altında elle tanımlanan 49 dönemlik bir mekanizma yazıldı: kaynak zorunluluğu, üzerine yazmama kuralı, kendini iptal etme, `db:verify` denetimi. Çalışıyordu ama **yanlış problemi çözüyordu.**
 
-1. **Yalnızca ekler, asla üzerine yazmaz.** Aynı (oyuncu, kulüp, başlangıç yılı) üçlüsü Wikidata'dan geldiyse override **yok sayılır**. Kaynağı elle "düzeltmek" bu mekanizmanın işi değildir; oradaki hata Wikidata'da düzeltilir.
-2. **Kendini iptal eder.** Wikidata bir dönemi sonradan eklediğinde override gereksizleşir. `db:verify` gereksizleşenleri **sayar ve raporlar**, böylece dosya sessizce şişmez.
-3. **Kaynak zorunludur.** Her kaydın `note` alanı, o bilginin nereden geldiğini yazar. Kaynaksız kayıt şema doğrulamasında reddedilir.
-4. **Yıl uydurulmaz.** Bilinmiyorsa `null` (§2.7: belirsizlik veri kaybından iyidir). Izgara eşleştirmesi yılı kullanmaz; yanlış bir yıl yalnızca ekranda yalan söyler.
+Kusuru ölçekte: veri kümesi yılda iki kez tazeleniyor ve her tazelemede birinin oturup yeni boşlukları bulup elle yazması gerekiyordu. Kendini güncelleyebilen bir sistem, insan emeğine bağımlı bir adım barındıramaz — o adım er geç atlanır ve veri sessizce eskir. Mekanizma **tamamen silindi** (kod, veri dosyası, testler).
 
-Dosya `scripts/etl/overrides/spells.json`, sınırda Zod ile doğrulanır (§2.3) ve versiyon kontrolüne girer. Sentetik ifade kimliği `override-<oyuncu>-<kulüp>-<yıl>` biçimindedir; Wikidata'nınkiyle (`Q…-<UUID>`) çakışamaz, bu yüzden yükleme idempotent kalır.
+**Boşluklar ikinci bir KAYNAKLA kapatılır** (§4.3). Ölçüldü: elle yazılan 49 kaydın **45'i** (%92) Türkçe Vikipedi bilgi kutusunda zaten duruyor — üstelik bizim yazdığımızdan zengin. Bardakçı örneği: elle kayıtta yıl bile yoktu, Vikipedi `2022-`, `119 maç`, `10 gol` diyor.
+
+Kalan 4 kayıt (Karbownik, Skov Olsen, Umut Bozok → Başakşehir; Kutucu → Rizespor) hiçbir kaynakta yok; hepsi 2026 yaz dönemi transferi. Bunlar **bilerek kaybedildi**: kaynak güncellendiğinde kendiliğinden geri gelecekler, kimsenin elle girmesi gerekmeyecek. Bir kaydın altı ay geç gelmesi, sistemin her altı ayda bir insan gerektirmesinden iyidir.
 
 #### Yükleme sonrası kabul kontrolü — `npm run db:verify`
 
@@ -1557,7 +1555,7 @@ Bunun süreçteki karşılığı `npm run db:verify`. Faz 1 boyunca doğrulama "
 | Fonksiyon paketi 125,4 MB                 | Ölçüldü; sınır 250 MB, marj ~2 kat. Veri %62, Prisma motoru %34 (§3.1)                                    | Sınıra yaklaşılırsa ETL'e özgü sütun + indeks düşürülür (~20 MB)                 |
 | Derlemede NFT uyarısı                     | Kabul — `resolveDatabaseUrl` içindeki `path.resolve` tetikliyor; iz ÖLÇÜLDÜ, şişme yok (280 dosya)        | Turbopack daha dar analiz sunarsa                                                |
 | Bellek içi hız sınırlama                  | Sunucusuzda örnek başına çalışır; katmanlardan biri, tek savunma değil (§7.5)                             | Skor tablosu geldiğinde paylaşımlı sayaç **zorunlu** olur                        |
-| Wikidata tek kaynak                       | Kabul, override'larla                                                                                     | Kapsam boşlukları %5'i aşarsa ikinci kaynak eklenir                              |
+| Wikidata tek kaynak                       | Kapsam boşluğu ölçüldü ve %5'i aştı; ikinci kaynak (Vikipedi) ekleniyor — elle düzeltme kaldırıldı (§4.3) | Ana dil Vikipedileri, kazanç ayrıca ölçülürse                                    |
 | i18n                                      | Yalnızca TR metinler                                                                                      | İngilizce talep edilirse (yapı hazır)                                            |
 | Tümüyle dinamik render                    | Nonce'lu CSP için kabul edildi (§7.3)                                                                     | Next kararlı SRI sunarsa statik + hash tabanlı CSP'ye geçilir                    |
 | `brace-expansion` açığı                   | Dev-only, izleniyor (§7.7)                                                                                | `eslint-config-next` eslint 10 uyumlu eklentilerle çıkarsa                       |
@@ -1571,7 +1569,7 @@ Bunun süreçteki karşılığı `npm run db:verify`. Faz 1 boyunca doğrulama "
 | Ortak oyuncu sayısı sınırsız              | Kabul — ölçülen en büyük sonuç 128 oyuncu                                                                 | Sayfalama, arayüz gerektirdiğinde (Faz 3) veya sonuç 500'ü aştığında             |
 | Altın veri seti elle bakımlı              | 31 olgu, elle doğrulandı                                                                                  | Kapsam genişledikçe büyütülür; otomatik türetme yapılMAZ (kendini doğrular)      |
 | Kulüp armaları gösterilmiyor              | **Çözüldü (Faz 4):** ETL normalize ediyor, `ClubCrest` gösteriyor; 114/114 izinli kökende                 | —                                                                                |
-| `P154` bazı kulüplerde arma DEĞİL         | Kabul — ölçüldü: Barcelona'nın değeri tesis fotoğrafı, Middlesbrough'nunki sokak fotoğrafı                | İkinci kaynak veya elle override listesi eklenirse                               |
+| `P154` bazı kulüplerde arma DEĞİL         | Kabul — ölçüldü: Barcelona'nın değeri tesis fotoğrafı, Middlesbrough'nunki sokak fotoğrafı                | İkinci kaynak (Vikipedi) armaları da taşırsa                                     |
 | CDN önbellek geçersizleştirme             | Varsayım; bu yüzden `s-maxage` temkinli (300 sn) tutuluyor (§7.9)                                         | Faz 4.5'te ölçülür; doğrulanırsa süre uzatılır                                   |
 | p95 gecikme                               | **Ölçüldü (Faz 4):** 16,8 ms, bütçe 150 ms; `npm run bench` kalıcı kapı                                   | Kapsam genişleyince yeniden ölçülür (betik zaten var)                            |
 | Erişilebilirlik: yerleşime bağlı ölçütler | Yapısal denetim (axe-core) ve kontrast ölçüldü; görünürlük, odak sırası ve hedef boyutu ölçülMEDİ (§7.10) | Faz 4.5: gerçek tarayıcıda elle denetim                                          |
