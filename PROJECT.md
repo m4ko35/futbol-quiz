@@ -375,15 +375,18 @@ Katman yazılmadan önce 400 oyunculuk örneklemlerle **+%9,5** tahmin edilmişt
 
 **+8 kulüp oynanabilir hâle geldi** — kazancın kullanıcıya doğrudan yansıyan kısmı bu. 526.604 kariyer satırı okundu; 43.526'sı ikinci dilin kopyası, 316.566'sı evrendeki bir kulübe ait değil (5. kuralın işlemesi).
 
-#### Katman veri kümesini bozmamalı — üç ihlal ölçüldü ve kapatıldı
+#### Katman veri kümesini bozmamalı — dört ihlal ölçüldü ve kapatıldı
 
-Kazancın yanında **maliyeti** de ölçüldü ve ilk hâli kabul edilemezdi. §8.2 denetimleri üç ayrı yoldan kötüleşti; üçü de aynı kök sebepten: zenginleştirme, alanları tek tek birleştirip kaydın BÜTÜNLÜĞÜNÜ gözetmiyordu.
+Kazancın yanında **maliyeti** de ölçüldü ve ilk hâli kabul edilemezdi. §8.2 denetimleri dört ayrı yoldan kötüleşti; dördü de aynı kök sebepten: zenginleştirme, alanları tek tek birleştirip kaydın BÜTÜNLÜĞÜNÜ gözetmiyordu.
 
-| İhlal                                                           | Ölçülen | Düzeltme                                               |
-| --------------------------------------------------------------- | ------- | ------------------------------------------------------ |
-| Vikipedi başlangıcı + Wikidata bitişi ⇒ ters aralık (2013–2012) | 15      | Yıl çifti birlikte değerlendirilir; tutarsızsa alınmaz |
-| Vikipedi'nin makul olmayan yılı var olan kaydı öldürüyor        | 66      | Yıllar `isPlausibleSeasonYear`'dan geçer, `null` olur  |
-| Genişleyen aralık aynı kulüpteki kardeş dönemin üstüne biniyor  | 418     | Yeni doğan çakışmada Wikidata'nın aralığı korunur      |
+| İhlal                                                           | Ölçülen | Yakalayan       | Düzeltme                                               |
+| --------------------------------------------------------------- | ------- | --------------- | ------------------------------------------------------ |
+| Vikipedi başlangıcı + Wikidata bitişi ⇒ ters aralık (2013–2012) | 15      | tam kuru koşu   | Yıl çifti birlikte değerlendirilir; tutarsızsa alınmaz |
+| Vikipedi'nin makul olmayan yılı var olan kaydı öldürüyor        | 66      | tam kuru koşu   | Yıllar `isPlausibleSeasonYear`'dan geçer, `null` olur  |
+| Genişleyen aralık aynı kulüpteki kardeş dönemin üstüne biniyor  | 418     | tam kuru koşu   | Yeni doğan çakışmada Wikidata'nın aralığı korunur      |
+| Wikidata'nın maçı + Vikipedi'nin golü ⇒ gol > maç (BR-22)       | 9       | **`db:verify`** | Maç/gol çifti de birlikte değerlendirilir              |
+
+**Dördüncüsünü yalnızca kabul kontrolü gördü.** Birim testleri de kuru koşu da temizdi: iki değer tek başına geçerli — Vikipedi yalnızca gol veriyor, Wikidata yalnızca maç — ama BİRLEŞİMLERİ geçersiz. `db:verify` yükleme sonrası 9 böyle dönem sayıp kabulü düşürdü; §8.2'nin "kuralın kodda doğru olması yetmez, üretilen VERİNİN ona uyduğu ölçülmelidir" ilkesi dördüncü kez işe yaradı.
 
 Üçüncüsünün sebebi kaynakların farklı modellemesi: Wikidata bir kulüpteki kiralık ve kalıcı dönemi **ayrı** kayıtlarda tutuyor, bilgi kutusu ikisini çoğu zaman **tek satırda** birleştiriyor. Trippier'de Wikidata Burnley'i 2011 (kiralık) ve 2012–2014 (kalıcı) diye ayırmış, bilgi kutusunda tek satır 2011–2015 yazıyor.
 
@@ -1631,9 +1634,11 @@ veri kümesi kendini güncel tutabilir.
 | Bitiş yılı olduğu gibi alınır         | Ham hâli %2,7, bir eksiği **%95,4** uyum             | Bitişten bir çıkarılır         |
 | Her bağlantı QID'ye çözülür           | Okunan satırların **%51'i** evren dışı               | Eşleştirme tersine çevrildi    |
 | Makale metinleri bellekte tutulabilir | 59.000 İngilizce makale ≈ **2,4 GB**                 | Grup grup akıtılır             |
-| Alanlar tek tek birleştirilebilir     | **499 dönem** bozuluyor ya da siliniyordu            | Kaydın bütünü gözetilir        |
+| Alanlar tek tek birleştirilebilir     | **508 dönem** bozuluyor ya da siliniyordu            | Kaydın bütünü gözetilir        |
 
-Sonuncusu en pahalı dersti ve yalnızca **tam koşu** gösterdi: birim testleri de, iki kulüplük deneme de temizdi. Kazancı ölçmek için kurulan `--skip-wikipedia` karşılaştırması, kazancın yanında maliyeti de ortaya çıkardı — ayıklanan dönem 4'ten 85'e fırlamıştı ve o 81 kaydın hepsi Wikidata'da **sağlam duran**, katmanın bozduğu verilerdi.
+Sonuncusu en pahalı dersti ve **birim testleriyle görünmüyordu**: iki kulüplük deneme de temizdi. Üç ihlali kazancı ölçmek için kurulan `--skip-wikipedia` karşılaştırması gösterdi — ayıklanan dönem 4'ten 85'e fırlamıştı ve o 81 kaydın hepsi Wikidata'da **sağlam duran**, katmanın bozduğu verilerdi. Dördüncüsü ise yalnızca yükleme sonrası `db:verify` ile ortaya çıktı.
+
+**Uçtan uca doğrulama.** Katmanın var oluş sebebi olan somut şikâyet kapandı: Galatasaray ∩ Konyaspor **38** ortak oyuncu döndürüyor ve Abdülkerim Bardakçı canlı API'de, bilgi kutusuyla birebir aynı verilerle görünüyor (Galatasaray 2022–, 119 maç, 10 gol).
 
 ### Faz 4.5 — Yayın
 
@@ -1674,10 +1679,10 @@ Doğrulanabilir taban (Faz 4.4 kapanışı, 2026-07-31):
 | `npm run typecheck`    | temiz                                                                    |
 | `npm run lint`         | temiz (0 uyarı)                                                          |
 | `npm run format:check` | temiz                                                                    |
-| `npm run test`         | 520/520 geçiyor (birim, bileşen, erişilebilirlik, entegrasyon, doğruluk) |
+| `npm run test`         | 744/744 geçiyor (birim, bileşen, erişilebilirlik, entegrasyon, doğruluk) |
 | `npm run build`        | başarılı, tüm rotalar dinamik (nonce için gerekli)                       |
 | `npm run audit:ci`     | 0 açık (üretim ağacı)                                                    |
-| `npm run etl`          | 388 kulüp · 76.358 oyuncu · 193.003 dönem                                |
+| `npm run etl`          | 390 kulüp · 76.371 oyuncu · **215.889 dönem** (§4.3 katmanıyla)          |
 | `npm run db:verify`    | 22/22 kontrol geçiyor (kanıt oranı, mevki kümesi, ızgara havuzu dâhil)   |
 | `npm run bench`        | p50 4,2 ms · **p95 16,8 ms** · p99 21,0 ms (bütçe 150 ms)                |
 | CSP nonce ölçümü       | **15/15** script eşleşti, 3/3 benzersiz nonce (§7.3)                     |

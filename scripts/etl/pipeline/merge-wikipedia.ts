@@ -43,6 +43,11 @@ export interface MergeStats {
    * Wikidata'nın aralığı korundu (kural 4).
    */
   rejectedYearCollision: number;
+  /**
+   * Vikipedi'nin maç/gol değeri karışınca gol maçı aşıyordu (BR-22);
+   * Wikidata'nın çifti korundu (kural 4).
+   */
+  rejectedTallyConflict: number;
 }
 
 export interface MergeResult {
@@ -102,6 +107,7 @@ export function mergeWikipediaSpells(input: {
     skippedNoYear: 0,
     rejectedYearConflict: 0,
     rejectedYearCollision: 0,
+    rejectedTallyConflict: 0,
   };
 
   // Mevcut dönemler oyuncu+kulüp kırılımında gruplanır; birleştirme kararı
@@ -322,11 +328,31 @@ function enrich(
 
   const startYear = yearsUsable ? mergedStart : spell.startYear;
   const endYear = yearsUsable ? mergedEnd : spell.endYear;
-  const appearances = checked.appearances ?? spell.appearances;
-  const goals = checked.goals ?? spell.goals;
+
+  /**
+   * MAÇ/GOL ÇİFTİ DE BİRLİKTE DEĞERLENDİRİLİR — aynı hatanın dördüncüsü.
+   *
+   * `tallies` Vikipedi'nin ÇİFTİNİ denetliyor, ama birleştirme iki alanı ayrı
+   * ayrı seçince kaynaklar karışabiliyor: Wikidata'nın 50 maçı, Vikipedi'nin
+   * 90 golüyle eşleşiyor ve "oynamadığı maçta gol atmış" bir kayıt çıkıyor.
+   *
+   * ÖLÇÜLDÜ: `db:verify` yükleme sonrası tam 9 böyle dönem saydı ve kabul
+   * kontrolünü düşürdü. Birim testleri göremezdi — ikisi de tek başına
+   * geçerli, birleşimleri geçersiz.
+   */
+  const mergedAppearances = checked.appearances ?? spell.appearances;
+  const mergedGoals = checked.goals ?? spell.goals;
+  const talliesUsable =
+    mergedAppearances === null ||
+    mergedGoals === null ||
+    mergedGoals <= mergedAppearances;
+
+  const appearances = talliesUsable ? mergedAppearances : spell.appearances;
+  const goals = talliesUsable ? mergedGoals : spell.goals;
 
   if (!yearsConsistent) stats.rejectedYearConflict++;
   else if (wouldCollide) stats.rejectedYearCollision++;
+  if (!talliesUsable) stats.rejectedTallyConflict++;
 
   const changes = [
     [spell.startYear, startYear],

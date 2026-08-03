@@ -179,6 +179,22 @@ describe("kural 3 — çelişkide Vikipedi kazanır", () => {
 
     expect(result.spells[0]).toMatchObject({ appearances: 60, goals: 3 });
   });
+
+  /**
+   * KAYNAKLARIN KARIŞMASI, `db:verify` tarafından yakalandı: yüklemeden sonra
+   * "golü maçından fazla dönem: 9". İki değer tek başına geçerli — Vikipedi
+   * yalnızca gol veriyor, Wikidata yalnızca maç — ama BİRLEŞİMLERİ geçersiz.
+   * Birim testleri bunu göremezdi; kabul kontrolü gördü.
+   */
+  it("maç ve gol farklı kaynaklardan gelip çelişirse Wikidata'nın çiftini korur", () => {
+    const result = merge(
+      [spell({ appearances: 50, goals: 3 })],
+      [fromWikipedia({ appearances: null, goals: 90 })],
+    );
+
+    expect(result.spells[0]).toMatchObject({ appearances: 50, goals: 3 });
+    expect(result.stats.rejectedTallyConflict).toBe(1);
+  });
 });
 
 describe("kural 4 — Vikipedi asla silmez", () => {

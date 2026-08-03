@@ -84,12 +84,31 @@ export const GOLDEN_FACTS: readonly GoldenFact[] = [
 ];
 
 /**
- * Dondurulmuş sayımlar — 2026-07-29 tarihli veri kümesinden ÖLÇÜLDÜ.
+ * Dondurulmuş sayımlar — 2026-08-03 tarihli veri kümesinden ÖLÇÜLDÜ.
  *
  * DİKKAT: bunlar "doğru cevap" DEĞİL, o günkü cevaptır. Amaçları gerileme
  * yakalamak: sorgu mantığı bozulduğunda sayı sessizce değişir ve bu test
  * bağırır. ETL yeniden çalıştıktan sonra sayıların bir miktar oynaması
  * beklenir; o yüzden eşleşme tam değil, tolerans aralığıyladır.
+ *
+ * SAYILAR BİR KEZ TOPTAN GÜNCELLENDİ (2026-07-29 → 2026-08-03) ve sebebi
+ * gerileme değil, bilinçli bir KAYNAK değişikliğidir: Vikipedi ikinci kaynak
+ * olarak eklendi (§4.3). Testin bunu yakalaması doğru davranıştı — tolerans
+ * aralığı tam da böyle bir sıçramayı görmek için var.
+ *
+ * Değişimin DAĞILIMI katmanın ölçülen lig profilini bağımsız olarak
+ * doğruluyor; §4.3'teki lig lig kazanç tablosuyla aynı sıra:
+ *
+ *   Fenerbahçe ∩ Beşiktaş     41 → 55  (+%34)   ← tr Vikipedi güçlü
+ *   Galatasaray ∩ Fenerbahçe  62 → 72  (+%16)
+ *   Liverpool ∩ Everton       51 → 56  (+%10)
+ *   Barcelona ∩ Real Madrid   49 → 53  (+%8)
+ *   Man Utd ∩ Man City        76 → 79  (+%4)
+ *   Milan ∩ Inter            128 → 128 (%0)     ← it Vikipedi okunmuyor
+ *
+ * Serie A'nın sıfır kazanması bir kusur değil, §4.3'ün açıkça yazdığı
+ * sınırın ta kendisi: İtalyanca bilgi kutusu ayrı bir ayrıştırıcı istiyor ve
+ * kazancı ölçülmeden yazılmayacak.
  */
 export const FROZEN_COUNTS: readonly {
   a: string;
@@ -97,12 +116,12 @@ export const FROZEN_COUNTS: readonly {
   count: number;
   label: string;
 }[] = [
-  { a: CLUBS.LIV, b: CLUBS.EVE, count: 51, label: "Liverpool ∩ Everton" },
-  { a: CLUBS.FB, b: CLUBS.BJK, count: 41, label: "Fenerbahçe ∩ Beşiktaş" },
-  { a: CLUBS.GS, b: CLUBS.FB, count: 62, label: "Galatasaray ∩ Fenerbahçe" },
+  { a: CLUBS.LIV, b: CLUBS.EVE, count: 56, label: "Liverpool ∩ Everton" },
+  { a: CLUBS.FB, b: CLUBS.BJK, count: 55, label: "Fenerbahçe ∩ Beşiktaş" },
+  { a: CLUBS.GS, b: CLUBS.FB, count: 72, label: "Galatasaray ∩ Fenerbahçe" },
   { a: CLUBS.MIL, b: CLUBS.INT, count: 128, label: "Milan ∩ Inter" },
-  { a: CLUBS.BAR, b: CLUBS.RMA, count: 49, label: "Barcelona ∩ Real Madrid" },
-  { a: CLUBS.MUN, b: CLUBS.MCI, count: 76, label: "Man Utd ∩ Man City" },
+  { a: CLUBS.BAR, b: CLUBS.RMA, count: 53, label: "Barcelona ∩ Real Madrid" },
+  { a: CLUBS.MUN, b: CLUBS.MCI, count: 79, label: "Man Utd ∩ Man City" },
 ];
 
 /** Dondurulmuş sayımlarda kabul edilen sapma oranı. */
