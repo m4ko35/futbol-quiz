@@ -8,6 +8,7 @@ import { extractDataset, verifyLeagueIds } from "./pipeline/extract";
 import { loadDataset } from "./pipeline/load";
 import { sanitizeSpells, validateDataset } from "./pipeline/validate";
 import { WikidataClient } from "./sources/wikidata/client";
+import { WikipediaClient } from "./sources/wikipedia/client";
 
 /**
  * ETL komut satırı aracı — PROJECT.md §4.2.
@@ -18,9 +19,10 @@ import { WikidataClient } from "./sources/wikidata/client";
  *   npm run etl -- --max-clubs=3     küçük deneme koşusu
  *   npm run etl -- --no-cache        disk önbelleğini atla
  *   npm run etl -- --dry-run         çek ve doğrula, veritabanına YAZMA
+ *   npm run etl -- --skip-wikipedia  yalnızca Wikidata (§4.3 katmanını ölç)
  *
  * Bu, ağa çıkan tek süreçtir (§7.4). Web uygulaması çalışırken Wikidata'ya
- * hiçbir bağlantı kurulmaz.
+ * veya Vikipedi'ye hiçbir bağlantı kurulmaz.
  */
 
 const CACHE_DIR = path.join(
@@ -33,6 +35,7 @@ interface CliOptions {
   maxClubs?: number;
   noCache: boolean;
   dryRun: boolean;
+  skipWikipedia: boolean;
 }
 
 function parseArgs(argv: readonly string[]): CliOptions {
@@ -40,6 +43,7 @@ function parseArgs(argv: readonly string[]): CliOptions {
     command: "run",
     noCache: false,
     dryRun: false,
+    skipWikipedia: false,
   };
 
   for (const arg of argv) {
@@ -49,6 +53,8 @@ function parseArgs(argv: readonly string[]): CliOptions {
       options.noCache = true;
     } else if (arg === "--dry-run") {
       options.dryRun = true;
+    } else if (arg === "--skip-wikipedia") {
+      options.skipWikipedia = true;
     } else if (arg.startsWith("--max-clubs=")) {
       const value = Number.parseInt(arg.slice("--max-clubs=".length), 10);
       if (!Number.isInteger(value) || value < 1) {
@@ -67,6 +73,7 @@ async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
   const config = loadEtlConfig();
   const client = new WikidataClient(config, CACHE_DIR);
+  const wikipedia = new WikipediaClient(config, CACHE_DIR);
 
   // ─── Lig doğrulaması — her koşuda çalışır ─────────────────────────────
   console.log("Lig kimlikleri doğrulanıyor…");
@@ -88,9 +95,10 @@ async function main(): Promise<void> {
   }
 
   // ─── Çekim ────────────────────────────────────────────────────────────
-  const dataset = await extractDataset(client, {
+  const dataset = await extractDataset(client, wikipedia, {
     maxClubs: options.maxClubs,
     noCache: options.noCache,
+    skipWikipedia: options.skipWikipedia,
   });
 
   console.log(

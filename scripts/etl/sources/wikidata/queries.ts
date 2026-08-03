@@ -263,3 +263,26 @@ GROUP BY ?league ?leagueLabel`.trim();
 
 /** Bir sorguda sorulacak azami oyuncu sayısı — zaman aşımını önler. */
 export const PLAYER_BATCH_SIZE = 250;
+
+/**
+ * Varlıkların Vikipedi makale adresleri — PROJECT.md §4.3.
+ *
+ * NEDEN SPARQL, MEDIAWIKI API'Sİ DEĞİL (ölçüldü, 5 kat fark). Aynı bilgi
+ * `wbgetentities` ile de alınabiliyor ama o uç bir istekte en çok 50 kimlik
+ * kabul ediyor; SPARQL 250'yi tek sorguda dönüyor. 76 bin oyuncuda fark
+ * 1.520 istek yerine 304 sorgu — Vikipedi katmanının en pahalı adımlarından
+ * biri böylece Wikidata geçişinin yanına iliştirilmiş oluyor.
+ *
+ * Hem oyuncular hem KULÜPLER için kullanılır: kulüp makale adları, bilgi
+ * kutusundaki bağlantıları evrendeki kulüplerle eşleştirmenin anahtarı.
+ */
+export function wikipediaArticles(qids: readonly string[]): string {
+  const values = qids.map((id) => `wd:${assertQid(id)}`).join(" ");
+
+  return `
+SELECT ?item ?trArticle ?enArticle WHERE {
+  VALUES ?item { ${values} }
+  OPTIONAL { ?trArticle schema:about ?item ; schema:isPartOf <https://tr.wikipedia.org/> }
+  OPTIONAL { ?enArticle schema:about ?item ; schema:isPartOf <https://en.wikipedia.org/> }
+}`.trim();
+}

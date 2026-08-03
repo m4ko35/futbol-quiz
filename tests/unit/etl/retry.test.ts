@@ -4,7 +4,7 @@ import {
   isRetryable,
   TransientHttpError,
   TransientResponseError,
-} from "../../../scripts/etl/sources/wikidata/client";
+} from "../../../scripts/etl/sources/http";
 
 /**
  * Bu testler iki gerçek arızadan doğdu. Tam çekim iki kez, farklı sebeplerle

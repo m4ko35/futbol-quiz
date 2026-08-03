@@ -224,13 +224,20 @@ futbol-quiz/
 │   ├── verify-data.ts             ← yükleme sonrası kabul kontrolü (§8.2)
 │   ├── config.ts                  ← Zod ile doğrulanmış ETL ortamı
 │   ├── leagues.ts                 ← doğrulanmış lig QID'leri ve WD sabitleri
-│   ├── sources/wikidata/
-│   │   ├── client.ts              ← rate-limit + retry + User-Agent + önbellek
-│   │   ├── queries.ts             ← parametreli SPARQL kurucuları (QID guard'lı)
-│   │   └── schemas.ts             ← gelen yanıtın Zod şeması + okuyucular
+│   ├── sources/
+│   │   ├── http.ts                ← ortak taşıma: rate-limit + retry + önbellek
+│   │   ├── wikidata/
+│   │   │   ├── client.ts          ← SPARQL istemcisi (taşımanın üzerinde)
+│   │   │   ├── queries.ts         ← parametreli SPARQL kurucuları (QID guard'lı)
+│   │   │   └── schemas.ts         ← gelen yanıtın Zod şeması + okuyucular
+│   │   └── wikipedia/             ← §4.3 ikinci kaynak
+│   │       ├── client.ts          ← wikitext + yönlendirme takma adları
+│   │       └── infobox.ts         ← bilgi kutusu ayrıştırıcısı (SAF)
 │   ├── pipeline/
-│   │   ├── extract.ts             ← üç geçişli çekim orkestrasyonu
+│   │   ├── extract.ts             ← beş geçişli çekim orkestrasyonu
 │   │   ├── normalize.ts           ← ad/tarih normalizasyonu, dedupe
+│   │   ├── wikipedia-pass.ts      ← bilgi kutularını çek, ayrıştır, eşleştir
+│   │   ├── merge-wikipedia.ts     ← §4.3'ün altı birleştirme kuralı (SAF)
 │   │   ├── validate.ts            ← tutarlılık denetimleri
 │   │   └── load.ts                ← veritabanına upsert
 │   └── .cache/                    ← ham yanıtlar; git'e girmez
@@ -287,6 +294,95 @@ futbol-quiz/
     ├── fixtures/                  ← elle doğrulanmış olgular (§8.1)
     └── helpers/                   ← kurucular, sahte port'lar, test DB'si
 ```
+
+### 4.3 Kaynak Sözleşmesi — Wikidata + Vikipedi
+
+**Neden iki kaynak.** Wikidata'nın kapsam boşluğu ölçüldü ve kabul edilemez çıktı: Galatasaray'ın güncel kadrosunun 13/24'ü, Trabzonspor'un 5/15'i veri kümesinde yoktu (§8.2). Boşluk bir süre elle kapatıldı; o mekanizma **kaldırıldı**, çünkü her tazelemede insan emeği gerektiriyordu ve kendini güncelleyen bir sistemle bağdaşmıyordu.
+
+Boşluk artık ikinci bir **kaynakla** kapanıyor: Vikipedi bilgi kutuları. Aynı ekosistem, aynı özgür lisans, sıfır maliyet — ama farklı bir katman. Vikipedi'yi **insanlar** yazıyor ve maç sonrası güncelliyor; Wikidata'ya aktarım ayrı, gönüllü ve düzensiz bir iş. Sorgulanabilir olanı okuyorduk, insanların yazdığını değil.
+
+#### Rollerin ayrımı
+
+|           | **Wikidata**                                                       | **Vikipedi**                                |
+| --------- | ------------------------------------------------------------------ | ------------------------------------------- |
+| Rol       | Yapılandırılmış **omurga**                                         | **Tamamlayıcı** katman                      |
+| Sağladığı | QID kimlikleri, kulüp evreni, oyuncu meta verisi, ifade kimlikleri | Eksik dönemler, eksik yıl/maç/gol değerleri |
+| Okunuş    | SPARQL                                                             | Bilgi kutusu wikitext'i (`tr` + `en`)       |
+
+**Vikipedi bir üst küme DEĞİL** ve bu ölçüldü: 400 oyunculuk örneklemde Wikidata'da olup Vikipedi bilgi kutusunda olmayan **320–346 kulüp** çıktı. Kaynağı değiştirmek değil, eklemek doğru olan.
+
+#### Eşleştirme
+
+Bir bilgi kutusu kaydı, bir Wikidata dönemiyle **kulüp QID'si** üzerinden eşleşir. Kulüp adı değil QID: ad eşleştirmesi bu projede dört kez yanılttı (§5.3).
+
+**Yön TERSİNE çevrildi ve bu ölçülmüş bir karardır.** İlk tasarım bilgi kutusundaki her bağlantıyı MediaWiki'ye sorup QID'ye çeviriyordu. İki kulüplük denemede 3.250 başlık için 65 istek gerekti ve okunan satırların **%51'i evren dışı** çıktı — yani isteklerin çoğu atılacak veriyi çözmek için harcanıyordu. Şimdi tersi yapılıyor: **evrendeki 423 kulübün** makale adları (SPARQL) ve yönlendirme takma adları (`prop=redirects`) bir kez indekslenir, bilgi kutusundaki bağlantı bu indekste aranır. Ağ maliyeti kulüp sayısıyla sınırlı, oyuncu sayısıyla değil; 5. kural da böylece **yapısal olarak** sağlanır — evren dışı bir kulübü tanımanın yolu kalmaz.
+
+Yönlendirmeler okunmak zorunda: bilgi kutuları kulübe her adıyla bağlanıyor. Ölçüldü — tek başına Konyaspor'un 5 (`Torku Konyaspor`, `Atiker Konyaspor`, `Konya SK`…), Galatasaray'ın 11 takma adı var. İndekste bulunmayan bağlantı **atlanır**, tahmin edilmez.
+
+Aynı kulüpte birden çok dönem varsa (gidip dönen oyuncu) eşleştirme **başlangıç yılına** bakar: önce tam yıl eşleşmesi, sonra tek aday kaldıysa **±1 yıl** hoşgörüsü (ölçüm: 624 eşleşmede %96,2 birebir, ±1'de %2,8 daha).
+
+Hiçbiri tutmuyorsa kayıt yalnızca **aralıklar örtüşmüyorsa** yeni dönem sayılır. Örtüşme belirsizliğin ta kendisidir: aynı dönemin iki kaynaktaki farklı yazımı olabilir ve ikinci bir kopya üretmek §8.2'nin "örtüşen kalıcı dönem" uyarısını tetikler, arayüzde kulüp iki kez görünürdü. Ayrık aralıklar ise tanım gereği farklı dönemlerdir — belirsizlik yok, kayıt eklenir.
+
+#### Birleştirme kuralları
+
+1. **Eksik dönem eklenir.** O kulüpte hiç Wikidata dönemi yoksa, bilgi kutusu kaydı yeni bir dönem olur.
+2. **Var olan dönem zenginleşir.** Wikidata'da alan `null` ise Vikipedi'nin değeri yazılır.
+3. **Çelişkide Vikipedi kazanır.** İki kaynak da doluysa ve değerler farklıysa Vikipedi'ninki kullanılır.
+4. **Vikipedi asla SİLMEZ.** Wikidata'da olup Vikipedi'de olmayan bir dönem korunur (yukarıdaki 320–346 ölçümü).
+5. **Kulüp evrenini Vikipedi belirlemez.** Kapsam dışı bir kulüp (alt lig, yabancı lig) bilgi kutusunda görünse de atlanır; evren §5.3'teki sorgudan gelir.
+6. **Altyapı ve millî takım okunmaz.** Yalnızca `kulüpN`/`clubsN` alanları; `altyapıkulübüN`/`youthclubsN` ve `millitakımN`/`nationalteamN` bilerek dışarıda (BR-2).
+
+> **3. kural ölçümle doğrulandı, tercihle değil.** İki risk vardı ve ikisi de sınandı.
+>
+> **Maç sayıları aynı şeyi mi sayıyor?** Endişe, Wikidata'nın `P1350`'sinin tüm kulvarları, bilgi kutusunun yalnızca ligi sayması ve tercihin sayının ANLAMINI değiştirmesiydi. 738 eşleşen dönemde: **%89 birebir aynı**, Vikipedi düşük %7, yüksek %4, fark ortancası **0**. Fark simetrik, yani kapsam farkı yok. (%89 birebir uyum, Wikidata'nın bu değerleri geçmişte Vikipedi'den robotla almış olmasıyla tutarlı — ayrıştıkları yerde Vikipedi büyük olasılıkla daha yeni olan.)
+>
+> **Yıllar sezon düzeltmesini geri alır mı?** BR-6 kayması yeni düzeltilmişti; Vikipedi sistematik olarak 1 yıl kaymış olsaydı bu kural düzeltmeyi geri alırdı. 554 belirsizliksiz eşleşmede: **%94,0 tam uyum**, −1 yıl %2,0, +1 yıl %1,8. Simetrik ve dar; sistematik kayma **yok**. Kalan uyuşmazlıkların çoğu savaş yılı kayıtları (Peter Croker: 1946 / 1941). Ayrıştırıcı yazıldıktan sonra aynı ölçüm 624 eşleşmeyle tekrarlandı: **%96,2**.
+>
+> **Kiralık bayrağı da 3. kurala tabidir.** 660 eşleşmenin %2'sinde iki kaynak ayrışıyor ve ayrışma iki yöne de dağılıyor (8 / 5) — sistematik fark yok. Risk zaten düşük: BR-3'e göre kiralık dönemler **sayılır**, yalnızca rozetle işaretlenir; yanlış bayrak bir rozeti bozar, bir dönemi kaybettirmez.
+
+#### Bitiş yılının okunuşu
+
+Bilgi kutusundaki yıllar tarih değil kariyer aralığıdır ve **iki ucu farklı okunur**. Başlangıç olduğu gibi alınır, bitişten **bir çıkarılır**:
+
+```
+| kulüpyıl1 = 2011-2022   Konyaspor    → 2011 … 2021 sezonu
+| kulüpyıl8 = 2022-       Galatasaray  → 2022 … (devam ediyor)
+```
+
+Bardakçı 2022 yazında Konyaspor'dan ayrılıp Galatasaray'a katıldı; Konyaspor'daki son sezonu 2021/22'dir. Çıkarma, Wikidata'nın yıl hassasiyetli tarihlerine uygulanan kuralın (`seasonYearAt`, BR-6) aynısıdır — iki kaynak aynı ölçeğe indirgenmezse aynı kulüpte biri 2021 biri 2022 biten iki dönem görünür.
+
+> **Çıkarma tahmin değil, ölçüldü.** 471 makalelik korpusta belirsizliksiz 589 bitiş eşleşmesi: bir çıkarılmış hâliyle **%95,4** tam uyum, ham hâliyle **%2,7** — kayıtların %95,4'ü tam +1'de yığılıyordu.
+
+Sezon gösterimi (`2015–16`) aynı kuralla doğru sonuca varır (uzatılmış bitiş 2016, bir eksiği 2015). **Tek yıl** (`2014`) bir sezonun kendisidir, ayrılma yılı değil; çıkarma uygulanmaz.
+
+#### Kimlik ve idempotenslik
+
+Vikipedi'den gelen dönemin sentetik bir ifade kimliği olur: `wikipedia-<oyuncuQID>-<kulüpQID>-<başlangıçYılı>`. Wikidata'nınkiyle (`Q…-<UUID>`) çakışamaz, bu yüzden yükleme idempotent kalır — aynı veriyle ikinci koşu satır çoğaltmaz.
+
+> Bu, kaldırılan elle düzeltme mekanizmasının sentetik kimliğine benziyor ama **aynı şey değil**: değer bir KAYNAKTAN türetiliyor, birinin elle yazdığı dosyadan değil. Fark mekanizmada değil, kaynağın kendini güncelleyip güncelleyemediğinde.
+
+#### Ölçülen kazanç
+
+İki bağımsız koşu, iki tabaka (400 rastgele + 250 Süper Lig oyuncusu):
+
+| Tabaka    | Mevcut dönem | Vikipedi'nin eklediği       |
+| --------- | ------------ | --------------------------- |
+| Rastgele  | 1014 / 967   | +102 (%10,1) / +104 (%10,8) |
+| Süper Lig | 619 / 611    | +142 (%22,9) / +112 (%18,3) |
+
+Lig lig (150'şer oyuncu): TR %22,1 · ES %12,8 · DE %8,2 · FR %7,3 · GB %6,6 · IT %5,1 — **genel %9,5**. Eklenen dönemlerin **tamamının yılı**, %99'unun maç sayısı var; yani katman "kaynakta ayrıntı yok" etiketini de azaltır.
+
+#### Sınırlar — dürüstçe
+
+- **Yalnızca `tr` ve `en` okunuyor.** İkisi aynı ayrıştırıcıyla okunabiliyor (`kulüpN`/`clubsN` düz numaralı alanlar) ve oyuncuların **%79'una** ulaşıyor.
+- **Ana dil Vikipedileri okunmuyor** ve bu ölçülmüş bir eksik: oyuncuların **%17'sinin** makalesi yalnızca kendi dilinde (Serie A'da %37, Bundesliga'da %27). Bunlar bugün katmandan sıfır kazanç sağlıyor. Eklenmemelerinin sebebi yapı: İtalyanca iç içe `{{Carriera sportivo}}`, Almanca tekrarlı `{{Team-Station}}`, Fransızca `{{deux colonnes}}` — her biri **ayrı bir ayrıştırıcı** demek. Kazançları ayrıca ölçülmeden yazılmayacak (§10.2).
+- **%5'in makalesi hiçbir dilde yok.** Çoğu bir asır öncesinin oyuncusu; onlara hiçbir katman yardım edemez.
+- **Ayrıştırıcı bilgi kutusuna bağlı.** Makale metninde geçen kariyer tabloları okunmaz; bilgi kutusu yoksa (ya da `Infobox person` gibi kariyer alanı taşımayan bir kutu varsa) o oyuncudan kazanç yoktur. Ölçüldü: 471 makalenin 6'sı (%1,1) böyle.
+- **Bilgi kutusu satırlarının yarısı evren dışı.** Alt lig ve kapsam dışı lig kulüpleri okunur ama eşleşmez; 17.457 satırın 8.864'ü bu yüzden atıldı. Bu bir kayıp değil, 5. kuralın işlemesi.
+- **ETL süresi artar.** Ölçüm: 1.903 oyunculuk denemede 76 istek, istek başına ~2,0 sn. Tam koşuya ölçeklenince Vikipedi katmanı **~1.760 istek ≈ 1 saat**, Wikidata'nın ~55 dakikasının üstüne biner. Toplam ~2 saat ve `data-refresh` iş akışının 180 dakikalık sınırının altında. İlk tasarım (bağlantı başına QID çözümü, 20'lik metin grupları) **~8.900 istek ≈ 4,9 saat** sürüyordu ve o sınırı aşıyordu; üç ölçülmüş değişiklikle indirildi: makale adları SPARQL'den (250'lik grup), metin grupları 50'ye çıkarıldı, kulüp eşleştirmesi tersine çevrildi.
+- **Makale metni bellekte tutulmaz.** İngilizce Vikipedi'de ~59.000 oyuncu makalesi, ortalama ~40 KB; hepsini biriktirmek ~2,4 GB ederdi (tek başına Harry Kane 289 KB). Metin grup grup ayrıştırılıp bırakılır.
+
+**Atıf.** Wikidata CC0, Vikipedi CC BY-SA. Çıkarılan şey olgudur ve olgular telife tabi değildir; yine de altbilgi her iki kaynağı da anar (§7.11).
 
 ---
 
@@ -1479,15 +1575,46 @@ Yayından **önce** eklendi. Gerekçe Faz 4'ün gerekçesiyle aynı: mimarinin i
 - [ ] Arayüz: istatistik başına seçici + sonuç kartı
 - [ ] Kapsam bildirimi: "bu sayılar yalnızca altı ligi kapsar"
 
+### Faz 4.7 — İkinci kaynak: Vikipedi
+
+> **Bu da 4.5'ten önce gelir ve gerekçesi aynı.** Katman veri kümesini
+> değiştiriyor; yayın zaten tek bir ETL koşusu içeriyor ve ikisini ayırmak
+> ~2 saatlik işi iki kez ödemek olurdu.
+
+Sözleşmesi §4.3'te. Kaldırılan elle düzeltme mekanizmasının yerini alır: aynı
+boşluğu kapatır ama insan emeğiyle değil, ikinci bir **kaynakla** — böylece
+veri kümesi kendini güncel tutabilir.
+
+- [x] §4.3 kaynak sözleşmesi: roller, eşleştirme, altı birleştirme kuralı
+- [x] Bilgi kutusu ayrıştırıcısı (`tr`+`en`, saf) — 51 birim testi, fikstürler
+      gerçek makale metinleri
+- [x] Ortak HTTP taşıma katmanı: iki istemci de aynı yeniden deneme
+      sınıflandırmasını kullanır (o sınıflandırma Faz 1'de iki kez çöktü)
+- [x] Vikipedi istemcisi: wikitext (akış) + yönlendirme takma adları
+- [x] Birleştirme (`merge-wikipedia.ts`, saf) — kural başına test, 19 adet
+- [x] ETL'e bağlanması; `--skip-wikipedia` ile katmanın kazancı ölçülebilir
+- [ ] Tam kuru koşu: gerçek kazancı tahminle (+%9,5) karşılaştır
+- [ ] Faz 2 — ana dil ayrıştırıcıları (`it`/`de`/`es`/`fr`), kazancı ayrıca
+      ölçüldükten sonra (§10.2)
+
+**Ölçümler kararları değiştirdi, üç kez.**
+
+| Varsayım                              | Ölçüm                                                | Sonuç                          |
+| ------------------------------------- | ---------------------------------------------------- | ------------------------------ |
+| Bilgi kutusu satır satır okunabilir   | 1657 `years` alanının **700'ü** aynı satıra sıkışmış | Ayraç sayan gövde ayrıştırması |
+| Bitiş yılı olduğu gibi alınır         | Ham hâli %2,7, bir eksiği **%95,4** uyum             | Bitişten bir çıkarılır         |
+| Her bağlantı QID'ye çözülür           | Okunan satırların **%51'i** evren dışı               | Eşleştirme tersine çevrildi    |
+| Makale metinleri bellekte tutulabilir | 59.000 İngilizce makale ≈ **2,4 GB**                 | Grup grup akıtılır             |
+
 ### Faz 4.5 — Yayın
 
 Kod tarafı hazır. Kalanlar hesap açmayı ve dağıtımda ölçüm yapmayı gerektirir.
 
 **Sıra önemlidir.** Vercel önce bağlanırsa ilk derleme **kasten** düşer: `dataset:fetch` indireceği sürüm varlığını bulamaz (§3.1). Doğru sıra:
 
-1. [ ] GitHub deposu; bu dalın `main`'e birleştirilmesi
-2. [ ] `ETL_USER_AGENT` depo değişkeni — Wikidata kimliksiz istemcileri engeller
-3. [ ] Veri iş akışını **elle bir kez** çalıştır (~1 saat; GitHub'da yerel önbellek yok)
+1. [x] GitHub deposu; bu dalın `main`'e birleştirilmesi
+2. [x] `ETL_USER_AGENT` depo değişkeni — Wikidata kimliksiz istemcileri engeller
+3. [ ] Veri iş akışını **elle bir kez** çalıştır (~2 saat; GitHub'da yerel önbellek yok — Vikipedi katmanıyla birlikte, §4.3)
 4. [ ] Vercel projesi: derleme komutu `npm run vercel-build`, `DATASET_URL` ve hız sınırı değişkenleri
 5. [ ] Alan adı ve `SITE_URL`
 

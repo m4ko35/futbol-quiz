@@ -1,6 +1,11 @@
 import { MIN_SPELLS_FOR_SELECTABLE, TARGET_LEAGUES } from "../leagues";
 import type { WikidataClient } from "../sources/wikidata/client";
 import {
+  articleTitleFromUrl,
+  type ArticleTitles,
+  type WikipediaClient,
+} from "../sources/wikipedia/client";
+import {
   PLAYER_BATCH_SIZE,
   clubsByLeagueLink,
   clubsFromSeasonParents,
@@ -11,8 +16,10 @@ import {
   playerStats,
   spellsAtClub,
   verifyLeagues,
+  wikipediaArticles,
 } from "../sources/wikidata/queries";
 import { int, qid, str } from "../sources/wikidata/schemas";
+import { mergeWikipediaSpells } from "./merge-wikipedia";
 import {
   applyPlayerStats,
   dedupeBy,
@@ -27,6 +34,7 @@ import {
   type NormalizedPlayer,
   type NormalizedSpell,
 } from "./normalize";
+import { collectWikipediaSpells } from "./wikipedia-pass";
 
 export interface ExtractedDataset {
   readonly clubs: NormalizedClub[];
@@ -41,6 +49,13 @@ export interface ExtractOptions {
   /** Yalnızca ilk N kulübü çeker — küçük deneme koşuları için. */
   readonly maxClubs?: number;
   readonly noCache?: boolean;
+  /**
+   * Vikipedi katmanını atlar (§4.3).
+   *
+   * Yalnızca ölçüm için: iki koşuyu karşılaştırıp katmanın gerçek kazancını
+   * görmek istediğinizde. Üretim koşusunda kapatılmaz.
+   */
+  readonly skipWikipedia?: boolean;
 }
 
 /**
@@ -104,14 +119,60 @@ export async function verifyLeagueIds(
   return { ok, lines };
 }
 
+/**
+ * Varlıkların Vikipedi makale adlarını SPARQL üzerinden toplar (§4.3).
+ *
+ * Hem oyuncular hem kulüpler için kullanılır; ikisinde de aynı sorgu, aynı
+ * grup boyutu. Makalesi olmayan varlık sonuçta HİÇ görünmez — "makalesi yok"
+ * ile "boş makale" ayrımını çağıranın yapmasına gerek kalmaz.
+ */
+async function fetchArticleTitles(
+  client: WikidataClient,
+  qids: readonly string[],
+  label: string,
+  noCache: boolean,
+): Promise<Map<string, ArticleTitles>> {
+  const result = new Map<string, ArticleTitles>();
+
+  for (let i = 0; i < qids.length; i += PLAYER_BATCH_SIZE) {
+    const batch = qids.slice(i, i + PLAYER_BATCH_SIZE);
+    const bindings = await client.query(wikipediaArticles(batch), {
+      label: `articles-${label}-${i / PLAYER_BATCH_SIZE}-${batch.length}`,
+      noCache,
+    });
+
+    for (const binding of bindings) {
+      const id = qid(binding, "item");
+      if (id === undefined) continue;
+
+      const titles: ArticleTitles = {};
+      for (const [site, key] of [
+        ["tr", "trArticle"],
+        ["en", "enArticle"],
+      ] as const) {
+        const url = str(binding, key);
+        if (url === undefined) continue;
+
+        const title = articleTitleFromUrl(url);
+        if (title !== null) titles[site] = title;
+      }
+
+      if (Object.keys(titles).length > 0) result.set(id, titles);
+    }
+  }
+
+  return result;
+}
+
 export async function extractDataset(
   client: WikidataClient,
+  wikipedia: WikipediaClient,
   options: ExtractOptions = {},
 ): Promise<ExtractedDataset> {
   const noCache = options.noCache ?? false;
 
   // ─── 1. Ligdeki kulüpler ──────────────────────────────────────────────
-  console.log("\n[1/3] Kulüpler çekiliyor…");
+  console.log("\n[1/5] Kulüpler çekiliyor…");
   const clubs: NormalizedClub[] = [];
 
   for (const league of TARGET_LEAGUES) {
@@ -145,7 +206,7 @@ export async function extractDataset(
       : uniqueClubs.slice(0, options.maxClubs);
 
   // ─── 2. Kulüplerdeki dönemler ─────────────────────────────────────────
-  console.log(`\n[2/3] ${targetClubs.length} kulübün dönemleri çekiliyor…`);
+  console.log(`\n[2/5] ${targetClubs.length} kulübün dönemleri çekiliyor…`);
   const spells: NormalizedSpell[] = [];
 
   for (const [index, club] of targetClubs.entries()) {
@@ -177,37 +238,11 @@ export async function extractDataset(
   // güncel tutabilir.
   const uniqueSpells = dedupeBy(spells, (s) => s.wikidataStatementId);
 
-  // Seçim listesi küratörlüğü: yalnızca anlamlı sayıda dönem kaydı olan
-  // kulüpler seçilebilir olur. Aksi hâlde `P118` üzerinden gelen feshedilmiş
-  // selef kulüpler (SC Fives, Olympique Lillois…) listede görünüp boş sonuç
-  // döndürürdü.
-  const spellCountByClub = new Map<string, number>();
-  for (const spell of uniqueSpells) {
-    spellCountByClub.set(
-      spell.clubWikidataId,
-      (spellCountByClub.get(spell.clubWikidataId) ?? 0) + 1,
-    );
-  }
-
-  const selectableClubIds = new Set(
-    targetClubs
-      .filter(
-        (c) =>
-          (spellCountByClub.get(c.wikidataId) ?? 0) >=
-          MIN_SPELLS_FOR_SELECTABLE,
-      )
-      .map((c) => c.wikidataId),
-  );
-  console.log(
-    `      ${selectableClubIds.size}/${targetClubs.length} kulüp seçilebilir ` +
-      `(en az ${MIN_SPELLS_FOR_SELECTABLE} dönem kaydı olanlar)`,
-  );
-
   // ─── 3. Oyuncu meta verisi ────────────────────────────────────────────
   const playerIds = [...new Set(uniqueSpells.map((s) => s.playerWikidataId))];
   const batches = Math.ceil(playerIds.length / PLAYER_BATCH_SIZE);
   console.log(
-    `\n[3/3] ${playerIds.length} oyuncunun bilgisi çekiliyor (${batches} grup)…`,
+    `\n[3/5] ${playerIds.length} oyuncunun bilgisi çekiliyor (${batches} grup)…`,
   );
 
   const players: NormalizedPlayer[] = [];
@@ -233,7 +268,7 @@ export async function extractDataset(
   //
   // Millî takım listesi BİR KEZ çekilir; süzme bellekte yapılır. Sorgunun
   // içinde sınıf denetimi yapmak aynı işi ~9,5 saate çıkarıyordu (§9.2).
-  console.log(`\n[4/4] Oyuncu istatistikleri (millî maç, boy, kilo)…`);
+  console.log(`\n[4/5] Oyuncu istatistikleri (millî maç, boy, kilo)…`);
 
   const teamBindings = await client.query(mensNationalTeams(), {
     label: "national-teams",
@@ -302,10 +337,112 @@ export async function extractDataset(
       `${scopedSpells.length} dönem`,
   );
 
+  // ─── 5. Vikipedi katmanı (§4.3) ───────────────────────────────────────
+  //
+  // KAPSAM FİLTRESİNDEN SONRA. Kapsam dışı oyuncuların makalelerini çekmek
+  // hem gereksiz istek hem de sonradan atılacak dönem üretirdi.
+  //
+  // Kulüp evreni ve oyuncu kimlikleri Wikidata'dan gelir; Vikipedi yalnızca
+  // eksikleri doldurur (kural 5). Bu yüzden geçiş EN SONDA durur — omurga
+  // tamamlanmadan tamamlayıcı katman çalıştırılamaz.
+  const clubIds = new Set(uniqueClubs.map((c) => c.wikidataId));
+  const youthClubIds = new Set(
+    uniqueClubs
+      .filter((c) => looksLikeYouthOrReserve(c.name))
+      .map((c) => c.wikidataId),
+  );
+
+  let finalSpells = scopedSpells;
+
+  if (options.skipWikipedia === true) {
+    console.log("\n[5/5] Vikipedi katmanı atlandı (--skip-wikipedia).");
+  } else {
+    console.log(`\n[5/5] Vikipedi bilgi kutuları okunuyor (§4.3)…`);
+
+    // Makale adları SPARQL'den gelir, MediaWiki'den değil: 250'lik gruplar
+    // 50'lik uçların beşte biri kadar istekle aynı bilgiyi veriyor.
+    const playerArticles = await fetchArticleTitles(
+      client,
+      inScopePlayers.map((p) => p.wikidataId),
+      "players",
+      noCache,
+    );
+    const clubArticles = await fetchArticleTitles(
+      client,
+      uniqueClubs.map((c) => c.wikidataId),
+      "clubs",
+      noCache,
+    );
+
+    const pass = await collectWikipediaSpells(wikipedia, {
+      playerArticles,
+      clubArticles,
+      noCache,
+    });
+
+    console.log(
+      `      makale: ${pass.stats.playersWithArticle}/${inScopePlayers.length} oyuncu · ` +
+        `tr ${pass.stats.articlesBySite.tr} · en ${pass.stats.articlesBySite.en} · ` +
+        `${pass.stats.clubTitlesIndexed} kulüp adı indekslendi`,
+    );
+    console.log(
+      `      ${pass.stats.parsedRows} kariyer satırı okundu · ` +
+        `${pass.stats.duplicateRows} ikinci dil kopyası · ` +
+        `${pass.stats.unmatchedClubLinks} satır evrendeki bir kulübe bağlanamadı`,
+    );
+
+    const merged = mergeWikipediaSpells({
+      spells: scopedSpells,
+      wikipedia: pass.spells,
+      clubIds,
+      isYouthClub: (id) => youthClubIds.has(id),
+    });
+    finalSpells = merged.spells;
+
+    const s = merged.stats;
+    console.log(
+      `      +${s.added} yeni dönem · ${s.enriched} dönem zenginleşti · ` +
+        `${s.overridden} değer düzeltildi`,
+    );
+    console.log(
+      `      atlandı: ${s.skippedOutOfUniverse} kapsam dışı kulüp · ` +
+        `${s.skippedAmbiguous} belirsiz eşleşme · ${s.skippedNoYear} yılsız`,
+    );
+  }
+
+  // ─── Seçim listesi küratörlüğü ────────────────────────────────────────
+  //
+  // BİRLEŞTİRMEDEN SONRA hesaplanır: Vikipedi'nin eklediği dönemler bir
+  // kulübü eşiğin üstüne taşıyabilir ve o kulüp artık seçilebilir olmalıdır.
+  // Yalnızca anlamlı sayıda dönem kaydı olan kulüpler listeye girer; aksi
+  // hâlde `P118` üzerinden gelen feshedilmiş selef kulüpler (SC Fives,
+  // Olympique Lillois…) listede görünüp boş sonuç döndürürdü.
+  const spellCountByClub = new Map<string, number>();
+  for (const spell of finalSpells) {
+    spellCountByClub.set(
+      spell.clubWikidataId,
+      (spellCountByClub.get(spell.clubWikidataId) ?? 0) + 1,
+    );
+  }
+
+  const selectableClubIds = new Set(
+    targetClubs
+      .filter(
+        (c) =>
+          (spellCountByClub.get(c.wikidataId) ?? 0) >=
+          MIN_SPELLS_FOR_SELECTABLE,
+      )
+      .map((c) => c.wikidataId),
+  );
+  console.log(
+    `\n      ${selectableClubIds.size}/${targetClubs.length} kulüp seçilebilir ` +
+      `(en az ${MIN_SPELLS_FOR_SELECTABLE} dönem kaydı olanlar)`,
+  );
+
   return {
     clubs: uniqueClubs,
     players: inScopePlayers,
-    spells: scopedSpells,
+    spells: finalSpells,
     selectableClubIds,
     fetchedClubIds,
   };
