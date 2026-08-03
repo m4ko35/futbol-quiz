@@ -403,12 +403,33 @@ ayıklanan dönem:  4 (temel)  →  85  →  70  →  3
 #### Sınırlar — dürüstçe
 
 - **Yalnızca `tr` ve `en` okunuyor.** İkisi aynı ayrıştırıcıyla okunabiliyor (`kulüpN`/`clubsN` düz numaralı alanlar) ve oyuncuların **%79'una** ulaşıyor.
-- **Ana dil Vikipedileri okunmuyor** ve bu ölçülmüş bir eksik: oyuncuların **%17'sinin** makalesi yalnızca kendi dilinde (Serie A'da %37, Bundesliga'da %27). Bunlar bugün katmandan sıfır kazanç sağlıyor. Eklenmemelerinin sebebi yapı: İtalyanca iç içe `{{Carriera sportivo}}`, Almanca tekrarlı `{{Team-Station}}`, Fransızca `{{deux colonnes}}` — her biri **ayrı bir ayrıştırıcı** demek. Kazançları ayrıca ölçülmeden yazılmayacak (§10.2).
+- **Ana dil Vikipedileri okunmuyor** ve bu bilinçli: kazancı ölçüldü, **yazmaya değmiyor** (aşağıda).
 - **%5'in makalesi hiçbir dilde yok.** Çoğu bir asır öncesinin oyuncusu; onlara hiçbir katman yardım edemez.
 - **Ayrıştırıcı bilgi kutusuna bağlı.** Makale metninde geçen kariyer tabloları okunmaz; bilgi kutusu yoksa (ya da `Infobox person` gibi kariyer alanı taşımayan bir kutu varsa) o oyuncudan kazanç yoktur. Ölçüldü: 471 makalenin 6'sı (%1,1) böyle.
 - **Bilgi kutusu satırlarının yarısı evren dışı.** Alt lig ve kapsam dışı lig kulüpleri okunur ama eşleşmez; 17.457 satırın 8.864'ü bu yüzden atıldı. Bu bir kayıp değil, 5. kuralın işlemesi.
 - **ETL süresi artar.** Ölçüm: 1.903 oyunculuk denemede 76 istek, istek başına ~2,0 sn. Tam koşuya ölçeklenince Vikipedi katmanı **~1.760 istek ≈ 1 saat**, Wikidata'nın ~55 dakikasının üstüne biner. Toplam ~2 saat ve `data-refresh` iş akışının 180 dakikalık sınırının altında. İlk tasarım (bağlantı başına QID çözümü, 20'lik metin grupları) **~8.900 istek ≈ 4,9 saat** sürüyordu ve o sınırı aşıyordu; üç ölçülmüş değişiklikle indirildi: makale adları SPARQL'den (250'lik grup), metin grupları 50'ye çıkarıldı, kulüp eşleştirmesi tersine çevrildi.
 - **Makale metni bellekte tutulmaz.** İngilizce Vikipedi'de ~59.000 oyuncu makalesi, ortalama ~40 KB; hepsini biriktirmek ~2,4 GB ederdi (tek başına Harry Kane 289 KB). Metin grup grup ayrıştırılıp bırakılır.
+
+#### Ana dil ayrıştırıcıları ölçüldü ve YAZILMADI
+
+Aşama 2 olarak planlanan `it`/`de`/`es`/`fr` ayrıştırıcıları için önce kazanç ölçüldü. 1500 oyunculuk örneklemde `tr`/`en` makalesi olmayan ama ana dilinde makalesi olan **269 oyuncu** (%17,9) var — üst sınır bu. Dört dile de birer deneme ayrıştırıcısı yazılıp evrendeki kulüplerin ad indeksinde arandı:
+
+| Dil | Ulaşılmaz | Kutu okundu | Satır | Evrende | **YENİ dönem** | Zaten Wikidata'da |
+| --- | --------- | ----------- | ----- | ------- | -------------- | ----------------- |
+| it  | 126       | 91/120      | 340   | 69      | **3**          | %96               |
+| de  | 89        | 52/89       | 214   | 98      | **12**         | %88               |
+| fr  | 29        | 17/29       | 82    | 47      | **3**          | %94               |
+| es  | 25        | 2/25        | 6     | 0       | **0**          | —                 |
+
+Toplam **18 yeni dönem**; tam veri kümesine ölçeklenince ~900, yani **+%0,4**. Aşama 1'in kazancının (+%11,8) **yirmi beşte biri** — üstelik dört ayrı ayrıştırıcı, dört ayrı bakım yükü karşılığında.
+
+Sebep ölçümde açıkça görünüyor ve tahmin edilenden farklı: darboğaz ayrıştırıcı kapsamı değil. Okunan 642 satırın yalnızca **214'ü** (%33) evrendeki bir kulübe düşüyor — bu oyuncular zaten "yalnızca kendi dilinde makalesi olacak kadar" bilinmedik oldukları için kariyerleri büyük ölçüde kapsam dışı liglerde. Evrene düşenlerin de **%88–96'sı Wikidata'da zaten var**.
+
+İspanyolca ayrıca kendi başına elenir: 25 makalenin yalnızca **2'sinde** `equipos` alanı dolu, kariyer düzyazıda anlatılıyor ve bilgi kutusu **maç/gol hiç taşımıyor**.
+
+> **Yapı zannedildiği kadar zor değildi** ve karar bu yüzden yapıya değil kazanca dayanıyor. Üç dil de aynı soyut şekli kullanıyor — konumsal üçlü (`yıl | kulüp | maç (gol)`): İtalyanca `{{Carriera sportivo}}` içinde düz liste, Almanca `vereine_tabelle` içinde tekrarlı `{{Team-Station}}`, Fransızca `parcours senior` içinde `{{trois colonnes}}`. Yani iş teknik olarak yapılabilirdi; yapılmamasının sebebi ölçülen kazancın küçüklüğü.
+
+**Ölçüm sırasında bir tuzağa yeniden düşüldü.** Kalan boşluğu ararken kadro listeleri ADLA eşleştirildi ve Kvaratskhelia "eksik" göründü; oysa veri kümesinde **"Hviça Kvaratshelia"** olarak duruyordu. Ada güvenmenin bedeli bu projede beşinci kez ödendi (§5.3, §10.1). Ölçüm QID'e çevrildiğinde sonuç değişti.
 
 **Atıf.** Wikidata CC0, Vikipedi CC BY-SA. Çıkarılan şey olgudur ve olgular telife tabi değildir; yine de altbilgi her iki kaynağı da anar (§7.11).
 
@@ -1623,8 +1644,26 @@ veri kümesi kendini güncel tutabilir.
 - [x] ETL'e bağlanması; `--skip-wikipedia` ile katmanın kazancı ölçülebilir
 - [x] Tam kuru koşu: gerçek kazanç **+%11,8** (tahmin +%9,5), +8 seçilebilir
       kulüp; katmanın veri kümesine verdiği üç hasar ölçülüp kapatıldı
-- [ ] Faz 2 — ana dil ayrıştırıcıları (`it`/`de`/`es`/`fr`), kazancı ayrıca
-      ölçüldükten sonra (§10.2)
+- [x] Aşama 2 — ana dil ayrıştırıcıları (`it`/`de`/`es`/`fr`): kazancı ölçüldü
+      (**+%0,4**, Aşama 1'in yirmi beşte biri) ve **YAZILMAMASINA karar
+      verildi**. Gerekçe ve tablo §4.3'te.
+
+**Ölçüm asıl boşluğu başka yerde buldu.** Sekiz büyük kulübün güncel kadrosu
+bağımsız kaynaktan (Vikipedi kadro şablonları) okunup QID ile karşılaştırıldı:
+
+|                 | kadro | veri kümesinde | kapsam  |
+| --------------- | ----- | -------------- | ------- |
+| 8 kulüp toplamı | 179   | 133            | **%74** |
+
+Eksik 46 oyuncunun **tamamı** "oyuncu hiç yok" sınıfında — dönemi eksik olan
+tek bir oyuncu bile yok. Sebep yapısal: oyuncu evrenimizi Wikidata'nın `P54`
+ifadeleri tanımlıyor. Bir oyuncunun evrendeki bir kulüple `P54` bağı yoksa
+veri kümesine hiç girmiyor ve **Vikipedi katmanı ona ulaşamıyor** — katman
+yalnızca zaten tanınan oyuncuları zenginleştiriyor.
+
+Eksiklerin profili tutarlı: 2003–2007 doğumlu genç oyuncular ve yeni
+transferler (Leny Yoro, Patrick Dorgu, Andrey Santos, Matteo Gabbia). Wikidata
+bu kayıtlarda geriden geliyor.
 
 **Her varsayım ölçüldü, beşi de yanlış çıktı.**
 
