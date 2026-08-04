@@ -232,7 +232,7 @@ futbol-quiz/
 │   │   │   └── schemas.ts         ← gelen yanıtın Zod şeması + okuyucular
 │   │   └── wikipedia/             ← §4.3 ikinci kaynak
 │   │       ├── client.ts          ← wikitext + yönlendirme takma adları
-│   │       └── infobox.ts         ← bilgi kutusu ayrıştırıcısı (SAF)
+│   │       └── infobox.ts         ← bilgi kutusu ayrıştırıcısı, 5 dil (SAF)
 │   ├── pipeline/
 │   │   ├── extract.ts             ← beş geçişli çekim orkestrasyonu
 │   │   ├── normalize.ts           ← ad/tarih normalizasyonu, dedupe
@@ -307,7 +307,7 @@ Boşluk artık ikinci bir **kaynakla** kapanıyor: Vikipedi bilgi kutuları. Ayn
 | --------- | ------------------------------------------------------------------ | ------------------------------------------- |
 | Rol       | Yapılandırılmış **omurga**                                         | **Tamamlayıcı** katman                      |
 | Sağladığı | QID kimlikleri, kulüp evreni, oyuncu meta verisi, ifade kimlikleri | Eksik dönemler, eksik yıl/maç/gol değerleri |
-| Okunuş    | SPARQL                                                             | Bilgi kutusu wikitext'i (`tr` + `en`)       |
+| Okunuş    | SPARQL                                                             | Bilgi kutusu wikitext'i (5 dil, iki kademe) |
 
 **Vikipedi bir üst küme DEĞİL** ve bu ölçüldü: 400 oyunculuk örneklemde Wikidata'da olup Vikipedi bilgi kutusunda olmayan **320–346 kulüp** çıktı. Kaynağı değiştirmek değil, eklemek doğru olan.
 
@@ -330,7 +330,7 @@ Hiçbiri tutmuyorsa kayıt yalnızca **aralıklar örtüşmüyorsa** yeni dönem
 3. **Çelişkide Vikipedi kazanır.** İki kaynak da doluysa ve değerler farklıysa Vikipedi'ninki kullanılır.
 4. **Vikipedi asla SİLMEZ.** Wikidata'da olup Vikipedi'de olmayan bir dönem korunur (yukarıdaki 320–346 ölçümü).
 5. **Kulüp evrenini Vikipedi belirlemez.** Kapsam dışı bir kulüp (alt lig, yabancı lig) bilgi kutusunda görünse de atlanır; evren §5.3'teki sorgudan gelir.
-6. **Altyapı ve millî takım okunmaz.** Yalnızca `kulüpN`/`clubsN` alanları; `altyapıkulübüN`/`youthclubsN` ve `millitakımN`/`nationalteamN` bilerek dışarıda (BR-2).
+6. **Altyapı ve millî takım okunmaz.** Yalnızca A takımı alanı okunur — `tr`/`en`'de `kulüpN`/`clubsN`, ana dillerde `Squadre`/`vereine_tabelle`/`parcours senior`. Karşılıkları (`altyapıkulübüN`, `youthclubsN`, `SquadreGiovanili`, `jugendvereine_tabelle`, `parcours junior`, `millitakımN`, `nationalteamN`, `nationalmannschaft_tabelle`, `sélection nationale`) ve teknik direktörlük alanları (`trainer_tabelle`, `SquadreAllenate`) bilerek dışarıda (BR-2).
 
 > **3. kural ölçümle doğrulandı, tercihle değil.** İki risk vardı ve ikisi de sınandı.
 >
@@ -363,17 +363,20 @@ Vikipedi'den gelen dönemin sentetik bir ifade kimliği olur: `wikipedia-<oyuncu
 
 #### Ölçülen kazanç
 
-Katman yazılmadan önce 400 oyunculuk örneklemlerle **+%9,5** tahmin edilmişti. Tam koşu tahmini aştı. Aşağıdaki iki sütun aynı önbellekten, aynı anda, yalnızca `--skip-wikipedia` farkıyla üretildi:
+Katman yazılmadan önce 400 oyunculuk örneklemlerle **+%9,5** tahmin edilmişti. Tam koşu tahmini aştı. Aşağıdaki sütunlar aynı önbellekten üretildi; ilk ikisi yalnızca `--skip-wikipedia` farkıyla:
 
-| Ölçüt                 | Yalnız Wikidata | + Vikipedi               |
-| --------------------- | --------------- | ------------------------ |
-| Dönem                 | 193.051         | **215.892** (**+%11,8**) |
-| Zenginleşen dönem     | —               | 22.799                   |
-| Düzeltilen değer      | —               | 21.703                   |
-| **Seçilebilir kulüp** | 345 / 423       | **353 / 423**            |
-| Makalesi olan oyuncu  | —               | 59.882 / 76.372 (%78,4)  |
+| Ölçüt                 | Yalnız Wikidata | + `tr`/`en` (Aşama 1)   | + ana diller (Aşama 2)   |
+| --------------------- | --------------- | ----------------------- | ------------------------ |
+| Dönem                 | 193.051         | 215.892 (**+%11,8**)    | **217.680** (**+%12,8**) |
+| Eklenen dönem         | —               | 22.841                  | 24.629                   |
+| Zenginleşen dönem     | —               | 22.799                  | 28.338                   |
+| Düzeltilen değer      | —               | 21.703                  | 22.862                   |
+| **Seçilebilir kulüp** | 345 / 423       | 353 / 423               | **354 / 423**            |
+| Makalesi olan oyuncu  | —               | 59.882 / 76.372 (%78,4) | 72.780 / 76.372 (%95,3)  |
 
-**+8 kulüp oynanabilir hâle geldi** — kazancın kullanıcıya doğrudan yansıyan kısmı bu. 526.604 kariyer satırı okundu; 43.526'sı ikinci dilin kopyası, 316.566'sı evrendeki bir kulübe ait değil (5. kuralın işlemesi).
+**+9 kulüp oynanabilir hâle geldi** — kazancın kullanıcıya doğrudan yansıyan kısmı bu. 586.992 kariyer satırı okundu; 44.287'si ikinci dilin kopyası, 359.812'si evrendeki bir kulübe ait değil (5. kuralın işlemesi).
+
+Kazancın **ezici çoğunluğu Aşama 1'den** geliyor; ana dillerin net katkısı +1.788 dönem, +5.539 zenginleşen dönem ve +1 kulüp. Neden bu kadar az olduğu aşağıda ölçülüyor.
 
 #### Katman veri kümesini bozmamalı — dört ihlal ölçüldü ve kapatıldı
 
@@ -402,34 +405,69 @@ ayıklanan dönem:  4 (temel)  →  85  →  70  →  3
 
 #### Sınırlar — dürüstçe
 
-- **Yalnızca `tr` ve `en` okunuyor.** İkisi aynı ayrıştırıcıyla okunabiliyor (`kulüpN`/`clubsN` düz numaralı alanlar) ve oyuncuların **%79'una** ulaşıyor.
-- **Ana dil Vikipedileri okunmuyor** ve bu bilinçli: kazancı ölçüldü, **yazmaya değmiyor** (aşağıda).
-- **%5'in makalesi hiçbir dilde yok.** Çoğu bir asır öncesinin oyuncusu; onlara hiçbir katman yardım edemez.
+- **Beş dil okunuyor, iki kademede.** `tr`/`en` her oyuncu için (%78,4 kapsam); `it`/`de`/`fr` yalnızca ikisinde de makalesi olmayanlar için. Toplam kapsam **%95,3**.
+- **%4,7'nin makalesi hiçbir dilde yok** (3.592 oyuncu). Çoğu bir asır öncesinin oyuncusu; onlara hiçbir katman yardım edemez.
+- **İtalyanca satırların %10,6'sı okunamıyor** ve bu kapatılmadı — gerekçesi ölçümle birlikte aşağıda.
 - **Ayrıştırıcı bilgi kutusuna bağlı.** Makale metninde geçen kariyer tabloları okunmaz; bilgi kutusu yoksa (ya da `Infobox person` gibi kariyer alanı taşımayan bir kutu varsa) o oyuncudan kazanç yoktur. Ölçüldü: 471 makalenin 6'sı (%1,1) böyle.
-- **Bilgi kutusu satırlarının yarısı evren dışı.** Alt lig ve kapsam dışı lig kulüpleri okunur ama eşleşmez; 17.457 satırın 8.864'ü bu yüzden atıldı. Bu bir kayıp değil, 5. kuralın işlemesi.
-- **ETL süresi artar.** Ölçüm: 1.903 oyunculuk denemede 76 istek, istek başına ~2,0 sn. Tam koşuya ölçeklenince Vikipedi katmanı **~1.760 istek ≈ 1 saat**, Wikidata'nın ~55 dakikasının üstüne biner. Toplam ~2 saat ve `data-refresh` iş akışının 180 dakikalık sınırının altında. İlk tasarım (bağlantı başına QID çözümü, 20'lik metin grupları) **~8.900 istek ≈ 4,9 saat** sürüyordu ve o sınırı aşıyordu; üç ölçülmüş değişiklikle indirildi: makale adları SPARQL'den (250'lik grup), metin grupları 50'ye çıkarıldı, kulüp eşleştirmesi tersine çevrildi.
+- **Bilgi kutusu satırlarının çoğu evren dışı.** Alt lig ve kapsam dışı lig kulüpleri okunur ama eşleşmez; 586.992 satırın 359.812'si bu yüzden atıldı. Bu bir kayıp değil, 5. kuralın işlemesi.
+- **ETL süresi artar.** Ölçüm: 1.903 oyunculuk denemede 76 istek, istek başına ~2,0 sn. Tam koşuya ölçeklenince `tr`/`en` katmanı **~1.760 istek ≈ 1 saat**, ana diller **~366 istek** daha ekliyor (66 SPARQL sorgusu, 24 takma ad, 276 metin grubu) — Wikidata'nın ~55 dakikasının üstüne toplam ~70 dakika. Genel toplam ~2 saat; `data-refresh` iş akışının sınırı bu yüzden 330 dakikaya çıkarıldı. İlk tasarım (bağlantı başına QID çözümü, 20'lik metin grupları) **~8.900 istek ≈ 4,9 saat** sürüyordu; üç ölçülmüş değişiklikle indirildi: makale adları SPARQL'den (250'lik grup), metin grupları 50'ye çıkarıldı, kulüp eşleştirmesi tersine çevrildi.
 - **Makale metni bellekte tutulmaz.** İngilizce Vikipedi'de ~59.000 oyuncu makalesi, ortalama ~40 KB; hepsini biriktirmek ~2,4 GB ederdi (tek başına Harry Kane 289 KB). Metin grup grup ayrıştırılıp bırakılır.
 
-#### Ana dil ayrıştırıcıları ölçüldü ve YAZILMADI
+#### Aşama 2 — ana dil ayrıştırıcıları (`it` / `de` / `fr`)
 
-Aşama 2 olarak planlanan `it`/`de`/`es`/`fr` ayrıştırıcıları için önce kazanç ölçüldü. 1500 oyunculuk örneklemde `tr`/`en` makalesi olmayan ama ana dilinde makalesi olan **269 oyuncu** (%17,9) var — üst sınır bu. Dört dile de birer deneme ayrıştırıcısı yazılıp evrendeki kulüplerin ad indeksinde arandı:
+**Bu aşama önce ölçülüp "yazmaya değmez" diye reddedildi, sonra bilerek yazıldı.** Ret gerekçesi kayıtta kalsın: 1500 oyunculuk örneklemde deneme ayrıştırıcıları toplam 18 yeni dönem üretmişti; tam kümeye ölçeklenince ~900, yani **+%0,4**. Karar gözden geçirildi ve katman yine de yazıldı.
 
-| Dil | Ulaşılmaz | Kutu okundu | Satır | Evrende | **YENİ dönem** | Zaten Wikidata'da |
-| --- | --------- | ----------- | ----- | ------- | -------------- | ----------------- |
-| it  | 126       | 91/120      | 340   | 69      | **3**          | %96               |
-| de  | 89        | 52/89       | 214   | 98      | **12**         | %88               |
-| fr  | 29        | 17/29       | 82    | 47      | **3**          | %94               |
-| es  | 25        | 2/25        | 6     | 0       | **0**          | —                 |
+**Gerçek kazanç tahminin iki katı çıktı: +1.788 dönem (+%0,83) ve +1 seçilebilir kulüp.** Fark ayrıştırıcıdan geliyor — üretim ayrıştırıcısı deneme sürümlerinden ölçülebilir biçimde daha iyi okuyor (`fr`: 17/29 makale → **26/29**, 75 satır → **130**).
 
-Toplam **18 yeni dönem**; tam veri kümesine ölçeklenince ~900, yani **+%0,4**. Aşama 1'in kazancının (+%11,8) **yirmi beşte biri** — üstelik dört ayrı ayrıştırıcı, dört ayrı bakım yükü karşılığında.
+Yapı üç dilde de aynı: kariyer satırı **konumsal üçlü** (`yıl | kulüp | maç (gol)`), alan adı yok. Bu yüzden üçüne tek bir üçlü okuyucu yetiyor; diller yalnızca kabıyla ayrışıyor.
 
-Sebep ölçümde açıkça görünüyor ve tahmin edilenden farklı: darboğaz ayrıştırıcı kapsamı değil. Okunan 642 satırın yalnızca **214'ü** (%33) evrendeki bir kulübe düşüyor — bu oyuncular zaten "yalnızca kendi dilinde makalesi olacak kadar" bilinmedik oldukları için kariyerleri büyük ölçüde kapsam dışı liglerde. Evrene düşenlerin de **%88–96'sı Wikidata'da zaten var**.
+| Dil  | Dış kutu                     | Kariyer alanı                      | Kap                                       |
+| ---- | ---------------------------- | ---------------------------------- | ----------------------------------------- |
+| `it` | `{{Sportivo}}`               | `Squadre`                          | `{{Carriera sportivo}}`                   |
+| `de` | `{{Infobox Fußballspieler}}` | `vereine_tabelle`                  | tekrarlı `{{Team-Station}}`               |
+| `fr` | `{{Infobox Footballeur}}`    | `parcours senior` / `parcours pro` | `{{trois colonnes}}` / `{{parcours pro}}` |
 
-İspanyolca ayrıca kendi başına elenir: 25 makalenin yalnızca **2'sinde** `equipos` alanı dolu, kariyer düzyazıda anlatılıyor ve bilgi kutusu **maç/gol hiç taşımıyor**.
+**`es` bilerek dışarıda.** 25 makalenin yalnızca 2'sinde `equipos` alanı dolu, kariyer düzyazıda anlatılıyor ve bilgi kutusu **maç/gol hiç taşımıyor**.
 
-> **Yapı zannedildiği kadar zor değildi** ve karar bu yüzden yapıya değil kazanca dayanıyor. Üç dil de aynı soyut şekli kullanıyor — konumsal üçlü (`yıl | kulüp | maç (gol)`): İtalyanca `{{Carriera sportivo}}` içinde düz liste, Almanca `vereine_tabelle` içinde tekrarlı `{{Team-Station}}`, Fransızca `parcours senior` içinde `{{trois colonnes}}`. Yani iş teknik olarak yapılabilirdi; yapılmamasının sebebi ölçülen kazancın küçüklüğü.
+##### İki kademeli sorgu — maliyet kararı
+
+Ana diller **yalnızca `tr`/`en` makalesi olmayan oyuncular için** sorulur. Tam koşuda bu 76.372 oyuncunun **16.490'ı**; ana diller bunların **13.735'ine** ulaştı ve makale kapsamını %78,4'ten **%95,3'e** çıkardı.
+
+Ayrımın sebebi ölçüldü: `tr`/`en` makalesi olan bir oyuncunun ana dil kutusundaki satırların **%88–96'sı Wikidata'da zaten var**. Beş dili herkese sormak isteğin çoğunu kopya veriye harcardı — üstelik her dil SPARQL'de ayrı bir `OPTIONAL` birleştirmesi demek.
+
+##### Dil başına verim — asıl karar sayısı
+
+Toplam kazanç bir dilin değerini göstermiyor. Okunan satırın **evrendeki bir kulübe düşme oranı** gösteriyor:
+
+| Dil  | Okunan satır | Evrene düşen | Oran    |
+| ---- | ------------ | ------------ | ------- |
+| `tr` | 97.604       | 45.375       | %46     |
+| `en` | 429.000      | 164.663      | %38     |
+| `it` | 37.088       | 5.417        | **%15** |
+| `de` | 13.859       | 5.591        | %40     |
+| `fr` | 9.441        | 6.134        | **%65** |
+
+Sıralama sezgiye aykırı ve sebebi ölçülebildi. **Fransızca en verimli dil** (%65) çünkü kulübü gerçek bir bağlantıyla yazıyor. **İtalyanca en verimsizi** (%15) çünkü kulübü düz metin olarak yazıyor ve o düz adlar kulübe değil **şehre** çözülüyor: `Torino`, `Napoli`, `Bologna`, `Catania`, `Novara`, `Pescara`, `Livorno` — hepsi it.wikipedia'da şehir maddesi (yalnızca `Milan` ve `Cremonese` kulübe gidiyor).
+
+Bu bir hata değil, **doğru davranış**: indekste bulunmayan ad atlanır, tahmin edilmez. Yanlış kulübe bağlamaktansa satırı kaybetmek doğrudur (§2.7).
+
+##### Kapatılmayan boşluk: İtalyanca kulüp şablonları
+
+İtalyanca satırların **%10,6'sı** (699'un 74'ü) kulübü ne bağlantı ne düz metin olarak yazıyor, **şablonla** yazıyor: `{{Calcio Torino|G}}`. Şablon adından "Torino" çıkarmak mümkün ama **işe yaramaz** — yukarıdaki ölçüm gösterdi ki o ad şehre gidiyor. Doğru çözüm `prop=linkshere` ile şablon → kulüp indeksi kurmak; yeni bir API katmanı, dil başına 9 istek ve navbox şablonlarından gelen belirsizlik riski karşılığında toplam kazancın ~%0,04'ü. **Yapılmadı.**
+
+##### Ayrıştırıcıyı birim testleri değil, korpus düzeltti
+
+Üç fikstürle yazılan 26 birim testi temizdi. Ayrıştırıcı 471 makalelik gerçek korpusa koşturulunca **iki sessiz hata** çıktı — ikisi de "hiç okumama" biçiminde, yani hata vermeden veri kaybettiren türden (§8.2):
+
+| Bulgu                                                                | Etkisi                                     | Düzeltme                 |
+| -------------------------------------------------------------------- | ------------------------------------------ | ------------------------ |
+| `fr` yılları bağlantı içinde: `[[1984 en football\|1984]]-[[1990…]]` | aralık tek yıl okunuyor, dönem sonu kayıp  | bağlantı düzleştirme     |
+| Kap adı alan adıyla aynı değil: `parcours senior = {{parcours pro}}` | 29 makalenin **9'u** sessizce boş          | kap listesi genişletildi |
+| `{{nobr\|{{FRA-d}} [[FC Sochaux]]}}` sargısı                         | şablon atılırken bağlantı da gidiyor (22×) | ayraç sayarak sargı açma |
 
 **Ölçüm sırasında bir tuzağa yeniden düşüldü.** Kalan boşluğu ararken kadro listeleri ADLA eşleştirildi ve Kvaratskhelia "eksik" göründü; oysa veri kümesinde **"Hviça Kvaratshelia"** olarak duruyordu. Ada güvenmenin bedeli bu projede beşinci kez ödendi (§5.3, §10.1). Ölçüm QID'e çevrildiğinde sonuç değişti.
+
+**Katman veri kümesini yine bozmadı.** Ayıklanan dönem Aşama 1'deki gibi **3**; bloklayıcı hata yok. Yükleme sonrası `db:verify` de temiz — özellikle **"golü maçından fazla dönem: 0"**, yani dördüncü ihlalin (§4.3 tablosu) düzeltmesi ana dil verisiyle de tutuyor. İki uyarı büyüdü: örtüşen dönem 1.988 → 2.053, kuruluş yılından önceki dönem 9.158 → 10.162. İkincisi §10.2'de zaten "P571 sık sık selef kulübü gösteriyor" diye kayıtlı gürültülü bir denetim.
 
 **Atıf.** Wikidata CC0, Vikipedi CC BY-SA. Çıkarılan şey olgudur ve olgular telife tabi değildir; yine de altbilgi her iki kaynağı da anar (§7.11).
 
@@ -1636,7 +1674,7 @@ veri kümesi kendini güncel tutabilir.
 
 - [x] §4.3 kaynak sözleşmesi: roller, eşleştirme, altı birleştirme kuralı
 - [x] Bilgi kutusu ayrıştırıcısı (`tr`+`en`, saf) — 51 birim testi, fikstürler
-      gerçek makale metinleri
+      gerçek makale metinleri; ana dillerle birlikte **77**
 - [x] Ortak HTTP taşıma katmanı: iki istemci de aynı yeniden deneme
       sınıflandırmasını kullanır (o sınıflandırma Faz 1'de iki kez çöktü)
 - [x] Vikipedi istemcisi: wikitext (akış) + yönlendirme takma adları
@@ -1644,9 +1682,13 @@ veri kümesi kendini güncel tutabilir.
 - [x] ETL'e bağlanması; `--skip-wikipedia` ile katmanın kazancı ölçülebilir
 - [x] Tam kuru koşu: gerçek kazanç **+%11,8** (tahmin +%9,5), +8 seçilebilir
       kulüp; katmanın veri kümesine verdiği üç hasar ölçülüp kapatıldı
-- [x] Aşama 2 — ana dil ayrıştırıcıları (`it`/`de`/`es`/`fr`): kazancı ölçüldü
-      (**+%0,4**, Aşama 1'in yirmi beşte biri) ve **YAZILMAMASINA karar
-      verildi**. Gerekçe ve tablo §4.3'te.
+- [x] Aşama 2 — ana dil ayrıştırıcıları (`it`/`de`/`fr`). Önce kazancı ölçülüp
+      (**+%0,4**) yazılmaması kararlaştırıldı, karar gözden geçirildi ve katman
+      yazıldı. Gerçek kazanç tahminin iki katı: **+1.788 dönem (+%0,83)**, +1
+      seçilebilir kulüp, makale kapsamı %78,4 → **%95,3**. `es` ölçümle elendi
+      (25 makalenin 2'sinde alan dolu, maç/gol hiç yok). Tablolar §4.3'te.
+- [x] Ana dil ayrıştırıcısı 471 makalelik korpusa koşturuldu: birim testlerinin
+      göremediği **iki sessiz veri kaybı** bulundu ve kapatıldı (§4.3)
 
 **Ölçüm asıl boşluğu başka yerde buldu.** Sekiz büyük kulübün güncel kadrosu
 bağımsız kaynaktan (Vikipedi kadro şablonları) okunup QID ile karşılaştırıldı:
@@ -1711,19 +1753,19 @@ Kod tarafı hazır. Kalanlar hesap açmayı ve dağıtımda ölçüm yapmayı ge
 
 **Faz 4.4 tamamlandı — sıradaki Faz 4.5 (yayın).** İki oyun modu çalışıyor, sertleştirme bitti. Kalan iş kod değil: hesap açma ve ilk dağıtımda üç varsayımın ölçülmesi — CDN önbellek geçersizleştirme (§7.9), `process.cwd()` yerleşimi (§3.1) ve gerçek tarayıcıda yerleşime bağlı erişilebilirlik ölçütleri (§7.10).
 
-Doğrulanabilir taban (Faz 4.4 kapanışı, 2026-07-31):
+Doğrulanabilir taban (Faz 4.7 kapanışı, 2026-08-04):
 
 | Komut                  | Sonuç                                                                    |
 | ---------------------- | ------------------------------------------------------------------------ |
 | `npm run typecheck`    | temiz                                                                    |
 | `npm run lint`         | temiz (0 uyarı)                                                          |
 | `npm run format:check` | temiz                                                                    |
-| `npm run test`         | 744/744 geçiyor (birim, bileşen, erişilebilirlik, entegrasyon, doğruluk) |
+| `npm run test`         | 770/770 geçiyor (birim, bileşen, erişilebilirlik, entegrasyon, doğruluk) |
 | `npm run build`        | başarılı, tüm rotalar dinamik (nonce için gerekli)                       |
 | `npm run audit:ci`     | 0 açık (üretim ağacı)                                                    |
-| `npm run etl`          | 390 kulüp · 76.371 oyuncu · **215.889 dönem** (§4.3 katmanıyla)          |
-| `npm run db:verify`    | 22/22 kontrol geçiyor (kanıt oranı, mevki kümesi, ızgara havuzu dâhil)   |
-| `npm run bench`        | p50 4,2 ms · **p95 16,8 ms** · p99 21,0 ms (bütçe 150 ms)                |
+| `npm run etl`          | 395 kulüp · 76.371 oyuncu · **217.677 dönem** (§4.3 katmanıyla, 5 dil)   |
+| `npm run db:verify`    | KABUL BAŞARILI — 24 denetim + 10 kulüp örneklemi, tamamı geçiyor         |
+| `npm run bench`        | p50 5,3 ms · **p95 11,6 ms** · p99 16,4 ms (bütçe 150 ms)                |
 | CSP nonce ölçümü       | **15/15** script eşleşti, 3/3 benzersiz nonce (§7.3)                     |
 | Üretimde arma ölçümü   | 12 arma, **12'si** `upload.wikimedia.org`, izinsiz köken **0**           |
 | Üretimde önbellek      | `200` → `public, s-maxage=300…` · `400` → `no-store` (§7.9)              |
@@ -1763,7 +1805,7 @@ Bunun süreçteki karşılığı `npm run db:verify`. Faz 1 boyunca doğrulama "
 | Kulüp sınıfı beyaz listesi                | 6 sınıf, ölçülerek belirlendi                                                                             | Yeni bir kulüp farklı `P31` ile listeden düşerse genişletilir                    |
 | Tam kariyer verisi yok                    | Faz 1 kapsam sınırı (§1.3)                                                                                | Kariyer bilmecesi / bağlantı zinciri modları için gerekli olacak                 |
 | `isYouth` hiç tetiklenmiyor               | Kabul — veri kümesinde altyapı takımı yok (388 kulübün 0'ı)                                               | Alt lig kapsamı eklenirse altyapı/rezerv takımlar girer, BR-2 devreye girer      |
-| Kulüp kuruluş yılı gürültülü              | Uyarı, bloklamıyor (§8.2)                                                                                 | 9158 dönem kulüp kuruluşundan önce; `P571` sık sık selef kulübü gösteriyor       |
+| Kulüp kuruluş yılı gürültülü              | Uyarı, bloklamıyor (§8.2)                                                                                 | 10.162 dönem kulüp kuruluşundan önce; `P571` sık sık selef kulübü gösteriyor     |
 | `db:verify` elle çalışır                  | Faz 1'de yeterli                                                                                          | Dağıtım ardışık düzenine girince veri yükleme adımının parçası olur              |
 | Tarihsiz dönemler yanlış pozitif üretiyor | **Çözüldü (Faz 4):** elenmiyor, BR-8 ile etiketleniyor; oran `db:verify`'da tavanlı                       | İkinci bir veri kaynağı eklenirse kayıtlar teker teker doğrulanabilir hâle gelir |
 | Ortak oyuncu sayısı sınırsız              | Kabul — ölçülen en büyük sonuç 128 oyuncu                                                                 | Sayfalama, arayüz gerektirdiğinde (Faz 3) veya sonuç 500'ü aştığında             |

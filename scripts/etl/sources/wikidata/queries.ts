@@ -275,14 +275,37 @@ export const PLAYER_BATCH_SIZE = 250;
  *
  * Hem oyuncular hem KULÜPLER için kullanılır: kulüp makale adları, bilgi
  * kutusundaki bağlantıları evrendeki kulüplerle eşleştirmenin anahtarı.
+ *
+ * DİLLER ÇAĞIRANDAN GELİR ve bu bir maliyet kararıdır (§4.3, Aşama 2). Her
+ * dil ayrı bir `OPTIONAL` birleştirmesi; beş dili her oyuncu için sormak
+ * sorguyu ana geçişte gereksiz yere ağırlaştırır. Ana diller yalnızca
+ * tr/en makalesi OLMAYAN oyuncular için, ayrı bir turda sorulur.
  */
-export function wikipediaArticles(qids: readonly string[]): string {
+export function wikipediaArticles(
+  qids: readonly string[],
+  sites: readonly string[],
+): string {
   const values = qids.map((id) => `wd:${assertQid(id)}`).join(" ");
+  // Dil kodu sorgu metnine giriyor; SPARQL enjeksiyonuna karşı biçim
+  // denetlenir (§2.3 — sınırda doğrulama, iç katmanda güven).
+  const safe = sites.map((site) => {
+    if (!/^[a-z]{2,3}$/u.test(site)) {
+      throw new Error(`Geçersiz viki dil kodu: ${site}`);
+    }
+    return site;
+  });
+
+  const select = safe.map((site) => `?${site}Article`).join(" ");
+  const optionals = safe
+    .map(
+      (site) =>
+        `  OPTIONAL { ?${site}Article schema:about ?item ; schema:isPartOf <https://${site}.wikipedia.org/> }`,
+    )
+    .join("\n");
 
   return `
-SELECT ?item ?trArticle ?enArticle WHERE {
+SELECT ?item ${select} WHERE {
   VALUES ?item { ${values} }
-  OPTIONAL { ?trArticle schema:about ?item ; schema:isPartOf <https://tr.wikipedia.org/> }
-  OPTIONAL { ?enArticle schema:about ?item ; schema:isPartOf <https://en.wikipedia.org/> }
+${optionals}
 }`.trim();
 }

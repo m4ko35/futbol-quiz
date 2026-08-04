@@ -2,8 +2,12 @@ import { MIN_SPELLS_FOR_SELECTABLE, TARGET_LEAGUES } from "../leagues";
 import type { WikidataClient } from "../sources/wikidata/client";
 import {
   articleTitleFromUrl,
+  NATIVE_SITES,
+  PRIMARY_SITES,
+  WIKI_SITES,
   type ArticleTitles,
   type WikipediaClient,
+  type WikiSite,
 } from "../sources/wikipedia/client";
 import {
   PLAYER_BATCH_SIZE,
@@ -125,18 +129,22 @@ export async function verifyLeagueIds(
  * Hem oyuncular hem kulüpler için kullanılır; ikisinde de aynı sorgu, aynı
  * grup boyutu. Makalesi olmayan varlık sonuçta HİÇ görünmez — "makalesi yok"
  * ile "boş makale" ayrımını çağıranın yapmasına gerek kalmaz.
+ *
+ * SORULAN DİLLER ÇAĞIRANDAN GELİR: her dil ayrı bir `OPTIONAL` birleştirmesi,
+ * yani sorgunun maliyeti dil sayısıyla artar (§4.3, Aşama 2).
  */
 async function fetchArticleTitles(
   client: WikidataClient,
   qids: readonly string[],
   label: string,
   noCache: boolean,
+  sites: readonly WikiSite[],
 ): Promise<Map<string, ArticleTitles>> {
   const result = new Map<string, ArticleTitles>();
 
   for (let i = 0; i < qids.length; i += PLAYER_BATCH_SIZE) {
     const batch = qids.slice(i, i + PLAYER_BATCH_SIZE);
-    const bindings = await client.query(wikipediaArticles(batch), {
+    const bindings = await client.query(wikipediaArticles(batch, sites), {
       label: `articles-${label}-${i / PLAYER_BATCH_SIZE}-${batch.length}`,
       noCache,
     });
@@ -146,11 +154,8 @@ async function fetchArticleTitles(
       if (id === undefined) continue;
 
       const titles: ArticleTitles = {};
-      for (const [site, key] of [
-        ["tr", "trArticle"],
-        ["en", "enArticle"],
-      ] as const) {
-        const url = str(binding, key);
+      for (const site of sites) {
+        const url = str(binding, `${site}Article`);
         if (url === undefined) continue;
 
         const title = articleTitleFromUrl(url);
@@ -366,12 +371,41 @@ export async function extractDataset(
       inScopePlayers.map((p) => p.wikidataId),
       "players",
       noCache,
+      PRIMARY_SITES,
     );
+
+    // ANA DİLLER YALNIZCA BOŞLUK İÇİN (§4.3, Aşama 2). tr/en makalesi olan
+    // oyuncuya it/de/fr sormak, satırlarının %88-96'sı zaten Wikidata'da
+    // olduğu için isteğin çoğunu kopya veriye harcardı.
+    const gapPlayers = inScopePlayers
+      .map((p) => p.wikidataId)
+      .filter((id) => !playerArticles.has(id));
+
+    console.log(
+      `      ${gapPlayers.length} oyuncunun tr/en makalesi yok — ` +
+        `ana diller (${NATIVE_SITES.join("/")}) bunlar için soruluyor…`,
+    );
+
+    const nativeArticles = await fetchArticleTitles(
+      client,
+      gapPlayers,
+      "players-native",
+      noCache,
+      NATIVE_SITES,
+    );
+    for (const [id, titles] of nativeArticles) {
+      // Boşluktaki oyuncularda tr/en zaten yok; birleştirme çakışmaz.
+      playerArticles.set(id, { ...playerArticles.get(id), ...titles });
+    }
+
+    // Kulüpler her dilde sorulur: ana dil kutusundaki bağlantıyı evrenle
+    // eşleştirmenin tek yolu o dildeki kulüp makale adı. 423 kulüp = 2 sorgu.
     const clubArticles = await fetchArticleTitles(
       client,
       uniqueClubs.map((c) => c.wikidataId),
       "clubs",
       noCache,
+      WIKI_SITES,
     );
 
     const pass = await collectWikipediaSpells(wikipedia, {
@@ -382,13 +416,24 @@ export async function extractDataset(
 
     console.log(
       `      makale: ${pass.stats.playersWithArticle}/${inScopePlayers.length} oyuncu · ` +
-        `tr ${pass.stats.articlesBySite.tr} · en ${pass.stats.articlesBySite.en} · ` +
-        `${pass.stats.clubTitlesIndexed} kulüp adı indekslendi`,
+        WIKI_SITES.map((s) => `${s} ${pass.stats.articlesBySite[s]}`).join(
+          " · ",
+        ) +
+        ` · ${pass.stats.clubTitlesIndexed} kulüp adı indekslendi`,
     );
     console.log(
       `      ${pass.stats.parsedRows} kariyer satırı okundu · ` +
         `${pass.stats.duplicateRows} ikinci dil kopyası · ` +
         `${pass.stats.unmatchedClubLinks} satır evrendeki bir kulübe bağlanamadı`,
+    );
+    console.log(
+      "      dil başına satır (evrene düşen): " +
+        WIKI_SITES.map((s) => {
+          const rows = pass.stats.rowsBySite[s];
+          const hit = pass.stats.matchedBySite[s];
+          const pct = rows === 0 ? 0 : Math.round((hit / rows) * 100);
+          return `${s} ${rows} (${hit}, %${pct})`;
+        }).join(" · "),
     );
 
     const merged = mergeWikipediaSpells({

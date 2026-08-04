@@ -29,6 +29,14 @@ import type { WikipediaSpell } from "./merge-wikipedia";
  *
  * Yan etkisi: §4.3'ün 5. kuralı ("kulüp evrenini Vikipedi belirlemez") artık
  * yapısal olarak sağlanıyor — evren dışı bir kulübü tanımanın yolu yok.
+ *
+ * DİLLER İKİ KADEMELİ (§4.3, Aşama 2). `tr`/`en` her oyuncu için okunur;
+ * `it`/`de`/`fr` yalnızca ikisinde de makalesi OLMAYANLAR için. Bu ayrım da
+ * ölçüldü: birincil makalesi olan oyuncuda ana dil satırlarının %88-96'sı
+ * zaten Wikidata'da var, yani beş dili herkese sormak isteğin çoğunu kopya
+ * veriye harcardı. Ayrımın sağlanma yeri BURASI DEĞİL — çağıran, ana dil
+ * makale adlarını yalnızca boşluktaki oyuncular için toplar (`extract.ts`);
+ * burada tek gereken, hiç makalesi gelmeyen dilin atlanması.
  */
 
 export interface WikipediaPassStats {
@@ -37,6 +45,16 @@ export interface WikipediaPassStats {
   articlesBySite: Record<WikiSite, number>;
   /** Bilgi kutusundan okunan ham kariyer satırı. */
   parsedRows: number;
+  /**
+   * Dil başına okunan satır ve bunların evrendeki bir kulübe DÜŞENİ.
+   *
+   * Toplam kazanç bir dilin değerini göstermiyor: `it`/`de`/`fr` yalnızca
+   * tr/en makalesi olmayan oyuncular için okunuyor ve o oyuncuların kariyeri
+   * ağırlıklı olarak kapsam dışı liglerde geçiyor. Eşleşme ORANI, bir dilin
+   * listede kalmayı hak edip etmediğini gösteren asıl sayı (§4.3).
+   */
+  rowsBySite: Record<WikiSite, number>;
+  matchedBySite: Record<WikiSite, number>;
   /** Evrendeki bir kulübe bağlanamayan satır — atlandı, tahmin edilmedi. */
   unmatchedClubLinks: number;
   /** Aynı dönemin ikinci dildeki kopyası. */
@@ -67,8 +85,10 @@ export async function collectWikipediaSpells(
   const stats: WikipediaPassStats = {
     playersWithArticle: input.playerArticles.size,
     playersWithoutArticle: 0,
-    articlesBySite: { tr: 0, en: 0 },
+    articlesBySite: { tr: 0, en: 0, it: 0, de: 0, fr: 0 },
     parsedRows: 0,
+    rowsBySite: { tr: 0, en: 0, it: 0, de: 0, fr: 0 },
+    matchedBySite: { tr: 0, en: 0, it: 0, de: 0, fr: 0 },
     unmatchedClubLinks: 0,
     duplicateRows: 0,
     clubTitlesIndexed: 0,
@@ -83,6 +103,21 @@ export async function collectWikipediaSpells(
   >();
 
   for (const site of WIKI_SITES) {
+    // ─── 0. Bu dilde okunacak oyuncu var mı ─────────────────────────────
+    //
+    // ÖNCE BU SORULUR. Kulüp ad indeksi dil başına ~9 istek tutuyor ve hiç
+    // makale okunmayacak bir dil için kurmak saf israf olurdu — ana diller
+    // yalnızca tr/en makalesi olmayan oyuncular için sorgulandığından bu
+    // dillerin çoğu koşuda boş gelebilir.
+    const wanted = new Map<string, string[]>();
+    for (const [playerId, article] of input.playerArticles) {
+      const title = article[site];
+      if (title === undefined) continue;
+      wanted.set(title, [...(wanted.get(title) ?? []), playerId]);
+    }
+    stats.articlesBySite[site] = wanted.size;
+    if (wanted.size === 0) continue;
+
     // ─── 1. Evrendeki kulüplerin ad indeksi ─────────────────────────────
     const canonical = new Map<string, string>();
     for (const [clubId, article] of input.clubArticles) {
@@ -109,15 +144,6 @@ export async function collectWikipediaSpells(
     stats.clubTitlesIndexed += index.size;
 
     // ─── 2. Oyuncu makaleleri ───────────────────────────────────────────
-    const wanted = new Map<string, string[]>();
-    for (const [playerId, article] of input.playerArticles) {
-      const title = article[site];
-      if (title === undefined) continue;
-      wanted.set(title, [...(wanted.get(title) ?? []), playerId]);
-    }
-    stats.articlesBySite[site] = wanted.size;
-    if (wanted.size === 0) continue;
-
     console.log(`      ${site}: ${wanted.size} makale çekiliyor…`);
 
     // Metin GRUP GRUP tüketilir ve ayrıştırıldıktan sonra bırakılır; hepsini
@@ -132,7 +158,9 @@ export async function collectWikipediaSpells(
         const playerIdList = wanted.get(title);
         if (playerIdList === undefined) continue;
 
-        const rows = parseInfoboxSpells(text);
+        // DİL AÇIKÇA VERİLİR. `tr`/`en` numaralı alan kullanıyor, `it`/`de`/
+        // `fr` konumsal üçlü; ayrıştırıcı hangi vikiden geldiğini tahmin etmez.
+        const rows = parseInfoboxSpells(text, site);
         if (rows.length === 0) continue;
 
         for (const playerId of playerIdList) {
@@ -140,6 +168,7 @@ export async function collectWikipediaSpells(
           for (const row of rows) {
             list.push({ site, row });
             stats.parsedRows++;
+            stats.rowsBySite[site]++;
           }
           rowsByPlayer.set(playerId, list);
         }
@@ -161,6 +190,7 @@ export async function collectWikipediaSpells(
         stats.unmatchedClubLinks++;
         continue;
       }
+      stats.matchedBySite[site]++;
 
       const key = `${clubId}|${row.startYear ?? "?"}`;
       if (seen.has(key)) {

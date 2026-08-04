@@ -89,12 +89,86 @@ const NON_ARTICLE_NAMESPACE =
 const DASH = "[-–—−‒]";
 
 /**
+ * ANA DİL ŞEMALARI — `it` / `de` / `fr` (§4.3, Aşama 2).
+ *
+ * Bu üç dil numaralı alan kullanmıyor; kariyer satırı **konumsal üçlü**
+ * olarak yazılıyor: `yıl | kulüp | maç (gol)`. Kaplar farklı ama şekil aynı,
+ * bu yüzden tek bir üçlü okuyucu üçüne de yetiyor:
+ *
+ *   it  {{Sportivo}} → `Squadre` alanı → {{Carriera sportivo}} içinde düz liste
+ *   de  {{Infobox Fußballspieler}} → `vereine_tabelle` → tekrarlı {{Team-Station}}
+ *   fr  {{Infobox Footballeur}} → `parcours senior`/`parcours pro` → {{trois colonnes}}
+ *
+ * KARİYER ALANINI YALITMAK ZORUNLU (BR-2). Ölçüldü: Almanca makalelerin
+ * 51'inde `jugendvereine_tabelle` (altyapı), 50'sinde
+ * `nationalmannschaft_tabelle`, 50'sinde `trainer_tabelle` var — yani altyapı
+ * alanı A takımı alanı kadar yaygın. Kutunun tamamında `{{Team-Station}}`
+ * aramak altyapı ve teknik direktörlük dönemlerini kariyer sanırdı.
+ *
+ * `es` BİLEREK YOK. Ölçüldü: 25 makalenin yalnızca 2'sinde `equipos` alanı
+ * dolu, kariyer düzyazıda anlatılıyor ve bilgi kutusu maç/gol hiç taşımıyor.
+ */
+interface NativeScheme {
+  /** Dış bilgi kutusunun adı (regex, şablon adının başına uyar). */
+  readonly infobox: RegExp;
+  /** A takımı kariyerini taşıyan alan adları — TAM eşleşir. */
+  readonly careerFields: readonly string[];
+  /** Satırların içinde durduğu kap şablonları; boşsa alan doğrudan okunur. */
+  readonly containers: readonly string[];
+  /** Kap yoksa satırlar bu şablonun tekrarıdır (`de`). */
+  readonly rowTemplate?: string;
+}
+
+const NATIVE_SCHEMES: Readonly<Record<string, NativeScheme>> = {
+  it: {
+    infobox: /^sportivo\b/iu,
+    careerFields: ["squadre"],
+    containers: ["Carriera sportivo"],
+  },
+  de: {
+    infobox: /^infobox\s+fußballspieler/iu,
+    careerFields: ["vereine_tabelle"],
+    containers: [],
+    rowTemplate: "Team-Station",
+  },
+  fr: {
+    infobox: /^infobox\s+footballeur/iu,
+    // İKİ ALAN DA A TAKIMI. Ölçüldü: `parcours senior` 16, `parcours pro` 11
+    // makalede geçiyor; yalnızca birine bakmak diğerini kaybettirirdi.
+    // `parcours junior` (14) ve `parcours amateur` bilerek dışarıda (BR-2).
+    careerFields: ["parcours senior", "parcours pro"],
+    // KAP ADI ALAN ADIYLA AYNI OLABİLİR. Ölçüldü: 29 Fransızca makalenin
+    // 17'sinde kap `{{trois colonnes}}`, 9'unda `{{parcours pro}}` — yani
+    // `| parcours pro = {{parcours pro|…}}`. Yalnızca `trois colonnes`
+    // aramak makalelerin üçte birini sessizce okunamaz bırakıyordu.
+    // `{{parcours national}}` (1) millî takım kabıdır, bilerek dışarıda.
+    containers: [
+      "trois colonnes",
+      "deux colonnes",
+      "parcours pro",
+      "parcours senior",
+    ],
+  },
+};
+
+/** Ayrıştırıcının tanıdığı diller. */
+export type ParserSite = "tr" | "en" | "it" | "de" | "fr";
+
+/**
  * Kaynak kariyer satırlarını çıkarır. Bilgi kutusu bulunamazsa boş dizi.
  *
- * Sıra bilgi kutusundaki alan numarasına göredir; wikitext'te alanlar
- * karışık sırada yazılmış olabilir.
+ * DİL AÇIKÇA VERİLİR, tahmin edilmez. `tr`/`en` ailesi numaralı alanları
+ * kendi arasında sayarak ayırt edebiliyordu, ama beş dilin şablonlarını
+ * otomatik tanımaya çalışmak yanlış kutuyu seçme riski taşır — çağıran
+ * makaleyi hangi vikiden çektiğini zaten biliyor.
  */
-export function parseInfoboxSpells(wikitext: string): InfoboxSpell[] {
+export function parseInfoboxSpells(
+  wikitext: string,
+  site: ParserSite = "tr",
+): InfoboxSpell[] {
+  const native = NATIVE_SCHEMES[site];
+  if (native !== undefined) return parseNativeInfobox(wikitext, native);
+
   const body = findInfobox(wikitext);
   if (body === null) return [];
 
@@ -193,14 +267,16 @@ function readTemplate(text: string, openIndex: number): string | null {
 }
 
 /**
- * Şablon gövdesini `ad → değer` eşlemesine böler.
+ * Şablon gövdesini ÜST DÜZEY `|` işaretlerinden böler.
  *
  * Bölme yalnızca derinlik SIFIRKEN yapılır; `{{…}}` ve `[[…]]` içindeki
- * borular korunur. Aynı ad iki kez geçerse İLKİ kazanır (MediaWiki'nin
- * davranışı bunun tersi ama tekrar eden alan zaten bozuk bir kutudur ve iki
- * seçenek de tahmindir).
+ * borular korunur — `[[1922 Konyaspor|Anadolu Selçukspor]]` tek parça kalır.
+ * İlk parça şablon adıdır.
+ *
+ * Hem adlandırılmış alanlar (`tr`/`en`) hem konumsal argümanlar (`it`/`de`/
+ * `fr`) bu bölmeyi kullanır; ikisinin farkı yorumlamada, ayırmada değil.
  */
-function splitFields(body: string): Map<string, string> {
+function splitTop(body: string): string[] {
   const parts: string[] = [];
   let current = "";
   let curly = 0;
@@ -231,6 +307,18 @@ function splitFields(body: string): Map<string, string> {
     current += body[i];
   }
   parts.push(current);
+
+  return parts;
+}
+
+/**
+ * Şablon gövdesini `ad → değer` eşlemesine böler.
+ *
+ * Aynı ad iki kez geçerse İLKİ kazanır (MediaWiki'nin davranışı bunun tersi
+ * ama tekrar eden alan zaten bozuk bir kutudur ve iki seçenek de tahmindir).
+ */
+function splitFields(body: string): Map<string, string> {
+  const parts = splitTop(body);
 
   const fields = new Map<string, string>();
   // İlk parça şablon adıdır, alan değildir.
@@ -321,7 +409,7 @@ export function parseYearRange(raw: string): {
   startYear: number | null;
   endYear: number | null;
 } {
-  const text = stripTemplates(raw);
+  const text = flattenLinks(stripTemplates(raw));
   const match = new RegExp(
     `(\\d{4})\\s*(?:(${DASH})\\s*(\\d{2,4})?)?`,
     "u",
@@ -337,6 +425,23 @@ export function parseYearRange(raw: string): {
 
   const leaving = expandYear(match[3], startYear);
   return { startYear, endYear: Math.max(leaving - 1, startYear) };
+}
+
+/**
+ * `[[Hedef|Gösterilen]]` → `Gösterilen`, `[[Hedef]]` → `Hedef`.
+ *
+ * YIL ALANLARI İÇİN ZORUNLU. Fransızca kutularda aralığın iki ucu da bağlantı
+ * olarak yazılıyor:
+ *
+ *   [[1984 en football|1984]]-[[1990 en football|1990]]
+ *
+ * Ham metinde ilk dört haneyi tireden ayıran `en football` sözcükleri var;
+ * düzleştirmeden okunursa aralık TEK YIL sanılır ve dönemin sonu kaybolur.
+ * Düz metinde ve `[[2015–16 Süper Lig|2015–16]]` gibi Türkçe/İngilizce
+ * yazımlarda etkisizdir — sonucu değiştirmez, yalnızca gürültüyü atar.
+ */
+function flattenLinks(value: string): string {
+  return value.replace(/\[\[(?:[^\]|]*\|)?([^\]|]*)\]\]/gu, "$1");
 }
 
 /** `2015–16` → 2016, `1999–00` → 2000. Dört haneliyse olduğu gibi. */
@@ -403,6 +508,204 @@ export function parseClubLink(raw: string): string | null {
  */
 export function looksLikeLoan(raw: string): boolean {
   return /→|&rarr;|->/u.test(raw) || /\(\s*(kiral[ıi]k|loan)/iu.test(raw);
+}
+
+/**
+ * Ana dil bilgi kutusunu okur — `it` / `de` / `fr`.
+ *
+ * Üç adım: dış kutuyu bul, KARİYER alanını seç, satırları üçlü olarak oku.
+ * Ortadaki adım BR-2'nin taşıyıcısı; alan adı tam eşleşmezse hiçbir şey
+ * okunmaz, çünkü yanlış alanı okumak altyapı dönemini kariyer sanmaktır.
+ */
+function parseNativeInfobox(
+  wikitext: string,
+  scheme: NativeScheme,
+): InfoboxSpell[] {
+  const text = stripNoise(wikitext);
+
+  for (let i = text.indexOf("{{"); i !== -1; i = text.indexOf("{{", i + 2)) {
+    const head = (text.slice(i + 2, i + 80).split(/[|}\n]/u)[0] ?? "").trim();
+    if (!scheme.infobox.test(head)) continue;
+
+    const body = readTemplate(text, i);
+    if (body === null) continue;
+
+    const spells: InfoboxSpell[] = [];
+    for (const field of splitTop(body)) {
+      const eq = field.indexOf("=");
+      if (eq === -1) continue;
+
+      const name = field.slice(0, eq).trim().toLowerCase();
+      if (!scheme.careerFields.includes(name)) continue;
+
+      spells.push(...readNativeRows(field.slice(eq + 1), scheme));
+    }
+    return spells;
+  }
+
+  return [];
+}
+
+/** Kariyer alanının içinden satırları çıkarır. */
+function readNativeRows(field: string, scheme: NativeScheme): InfoboxSpell[] {
+  // `de`: alan, tekrarlı satır şablonlarından oluşur.
+  if (scheme.rowTemplate !== undefined) {
+    const rows: InfoboxSpell[] = [];
+    for (
+      let i = field.indexOf("{{");
+      i !== -1;
+      i = field.indexOf("{{", i + 2)
+    ) {
+      const head = (
+        field.slice(i + 2, i + 40).split(/[|}\n]/u)[0] ?? ""
+      ).trim();
+      if (head.toLowerCase() !== scheme.rowTemplate.toLowerCase()) continue;
+
+      const body = readTemplate(field, i);
+      if (body === null) continue;
+
+      const row = toNativeRow(splitTop(body).slice(1));
+      if (row !== null) rows.push(row);
+    }
+    return rows;
+  }
+
+  // `it`/`fr`: satırlar tek bir kap şablonunun konumsal argümanlarıdır.
+  for (const container of scheme.containers) {
+    const body = findTemplateBody(field, container);
+    if (body === null) continue;
+
+    const positional = splitTop(body)
+      .slice(1)
+      // Adlandırılmış argümanlar (`sport = calcio`, `pos = G`) satır değildir.
+      .filter((part) => !/^\s*[\p{L}]+\s*=/u.test(part));
+
+    // Üçlü ADIMLA ilerlenir. Son grupta maç/gol eksikse satır yine okunur
+    // (yıl + kulüp yeter); yıl veya kulüp eksikse `toNativeRow` zaten atar.
+    const rows: InfoboxSpell[] = [];
+    for (let i = 0; i + 1 < positional.length; i += 3) {
+      const row = toNativeRow(positional.slice(i, i + 3));
+      if (row !== null) rows.push(row);
+    }
+    return rows;
+  }
+
+  return [];
+}
+
+/**
+ * `[yıl, kulüp, "maç (gol)"]` üçlüsünü bir döneme çevirir.
+ *
+ * MAÇ VE GOL TEK ALANDA. `37 (4)` biçimi üç dilde de aynı; parantez içi gol,
+ * dışı maçtır. `? (-?)` gibi bilinmeyen yazımları `parseTally` zaten `null`
+ * sayıyor.
+ */
+function toNativeRow(parts: readonly string[]): InfoboxSpell | null {
+  const [rawYears, rawClub, rawTally] = parts;
+  if (rawYears === undefined || rawClub === undefined) return null;
+
+  const clubTitle = parseClubTarget(rawClub);
+  if (clubTitle === null) return null;
+
+  const { startYear, endYear } = parseYearRange(rawYears);
+  if (startYear === null) return null;
+
+  const tally = rawTally ?? "";
+  const goalsPart = /\(([^)]*)\)/u.exec(tally)?.[1];
+
+  return {
+    clubTitle,
+    startYear,
+    endYear,
+    appearances: parseTally(tally),
+    goals: parseTally(goalsPart),
+    // İşaretler ölçüldü: it `→` (24) ve `prestito` (9); fr `{{prêt}}`;
+    // de `Leihe`/`ausgeliehen`. `looksLikeLoan` ok işaretini zaten tanıyor.
+    isLoan:
+      looksLikeLoan(rawClub) ||
+      /prestito|pr[êe]t|leihe|ausgeliehen/iu.test(rawClub),
+  };
+}
+
+/**
+ * Kulüp adını çıkarır; bağlantı YOKSA düz metni kabul eder.
+ *
+ * `tr`/`en` ayrıştırıcısından ayrılan tek nokta bu. İtalyanca kutularda kulüp
+ * bağlantı değil düz ad olarak yazılıyor (`|1910-1913|Milan|37 (4)`) ve
+ * bağlantı şartı koşmak İtalyanca'yı tamamen okunamaz kılardı. Düz ad da
+ * çözülebilir: kulüp indeksi yönlendirme takma adlarını taşıyor ve `Milan`,
+ * `Inter` birer yönlendirmedir.
+ *
+ * Toplam satırı (`Total`, `Totale`) kulüp değildir ve atılır.
+ */
+function parseClubTarget(raw: string): string | null {
+  const unwrapped = unwrapTransparent(raw);
+
+  const linked = parseClubLink(unwrapped);
+  if (linked !== null) return linked;
+
+  const plain = stripTemplates(unwrapped)
+    .replace(/<[^>]*>/gu, " ")
+    .replace(/'''?/gu, "")
+    // Kiralık oku adın parçası değil.
+    .replace(/^\s*(→|&rarr;|->)\s*/u, "")
+    .replace(/\s+/gu, " ")
+    .trim();
+
+  if (plain.length < 2 || /^total(e|i)?$/iu.test(plain)) return null;
+  return plain;
+}
+
+/**
+ * Yalnızca biçim veren şablonların sargısını açar: `{{nobr|X}}` → `X`.
+ *
+ * NEDEN GEREKLİ. Kulüp hücresi okunurken şablonlar atılıyor (`stripTemplates`)
+ * — bayrak simgeleri (`{{FRA-d}}`) ve hizalama (`{{0}}`) kulüp adı değil. Ama
+ * bu şablon bağlantıyı SARIYOR:
+ *
+ *   {{nobr|{{FRA-d}} [[Football Club Sochaux-Montbéliard|FC Sochaux]]}}
+ *
+ * Sargı açılmazsa bağlantı da şablonla birlikte atılır ve satır kulüpsüz
+ * kalır. Ölçüldü: Fransızca korpusta 22 kez geçiyor.
+ *
+ * LİSTE DAR TUTULUR. Her şablonu şeffaf saymak, kulüp adı ÜRETEN şablonları
+ * (`{{Calcio Torino|G}}`) da açar ve "G" gibi parametreleri kulüp adı sanardı.
+ */
+function unwrapTransparent(raw: string): string {
+  // AYRAÇ SAYILARAK açılır, düzenli ifadeyle değil: içerideki `{{FRA-d}}`
+  // yüzünden ilk `}}` sargının sonu DEĞİL. Cimri bir kalıp `{{nobr|{{FRA-d}}`
+  // parçasını eşleştirip metni ortasından keserdi.
+  let out = raw;
+
+  for (let i = out.indexOf("{{"); i !== -1; i = out.indexOf("{{", i + 2)) {
+    const head = (out.slice(i + 2, i + 20).split(/[|}\n]/u)[0] ?? "")
+      .trim()
+      .toLowerCase();
+    if (head !== "nobr") continue;
+
+    const body = readTemplate(out, i);
+    if (body === null) continue;
+
+    const pipe = body.indexOf("|");
+    if (pipe === -1) continue;
+
+    out =
+      out.slice(0, i) + body.slice(pipe + 1) + out.slice(i + body.length + 4);
+    // Aynı konumdan devam: iç içe sargı olabilir.
+    i -= 2;
+  }
+
+  return out;
+}
+
+/** Verilen adı taşıyan ilk şablonun gövdesini döner. */
+function findTemplateBody(text: string, name: string): string | null {
+  for (let i = text.indexOf("{{"); i !== -1; i = text.indexOf("{{", i + 2)) {
+    const head = (text.slice(i + 2, i + 60).split(/[|}\n]/u)[0] ?? "").trim();
+    if (head.toLowerCase() !== name.toLowerCase()) continue;
+    return readTemplate(text, i);
+  }
+  return null;
 }
 
 /** Dengeli `{{…}}` gruplarını atar; bağlantılara dokunmaz. */

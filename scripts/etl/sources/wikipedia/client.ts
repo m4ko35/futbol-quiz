@@ -18,10 +18,30 @@ import { JsonHttpClient } from "../http";
  * ÖNEMLİ: Yalnızca ETL'de kullanılır (§7.4).
  */
 
-export type WikiSite = "tr" | "en";
+export type WikiSite = "tr" | "en" | "it" | "de" | "fr";
 
-/** Okunan diller. Sıra anlamlıdır — bkz. `wikipedia-pass.ts`. */
-export const WIKI_SITES: readonly WikiSite[] = ["tr", "en"];
+/**
+ * ANA DİLLER — yalnızca tr/en makalesi olmayan oyuncular için okunur.
+ *
+ * Ayrım maliyet kararıdır (§4.3, Aşama 2). Ölçüldü: tr/en makalesi olan bir
+ * oyuncunun İtalyanca kutusundaki satırların %88-96'sı zaten Wikidata'da var,
+ * yani beş dili herkese sormak isteğin çoğunu kopya veri için harcar. Gerçek
+ * kazanç, hiçbir birincil dilde makalesi OLMAYAN oyuncularda.
+ */
+export const NATIVE_SITES: readonly WikiSite[] = ["it", "de", "fr"];
+
+/** Önce sorulan diller; bunlarda makalesi olan oyuncuya ana dil sorulmaz. */
+export const PRIMARY_SITES: readonly WikiSite[] = ["tr", "en"];
+
+/**
+ * Okunan diller. SIRA ANLAMLIDIR: aynı dönem iki dilde de varsa ÖNCE geleni
+ * kalır (bkz. `wikipedia-pass.ts`). Türkçe başta çünkü kulüp adları ve
+ * yönlendirme takma adları bu projenin evrenine en yakın olan dil.
+ */
+export const WIKI_SITES: readonly WikiSite[] = [
+  ...PRIMARY_SITES,
+  ...NATIVE_SITES,
+];
 
 /**
  * Bir istekte sorulacak başlık sayısı.
