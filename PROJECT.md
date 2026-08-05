@@ -319,9 +319,45 @@ Bir bilgi kutusu kaydı, bir Wikidata dönemiyle **kulüp QID'si** üzerinden e�
 
 Yönlendirmeler okunmak zorunda: bilgi kutuları kulübe her adıyla bağlanıyor. Ölçüldü — tek başına Konyaspor'un 5 (`Torku Konyaspor`, `Atiker Konyaspor`, `Konya SK`…), Galatasaray'ın 11 takma adı var. İndekste bulunmayan bağlantı **atlanır**, tahmin edilmez.
 
-Aynı kulüpte birden çok dönem varsa (gidip dönen oyuncu) eşleştirme **başlangıç yılına** bakar: önce tam yıl eşleşmesi, sonra tek aday kaldıysa **±1 yıl** hoşgörüsü (ölçüm: 624 eşleşmede %96,2 birebir, ±1'de %2,8 daha).
+Aynı kulüpte birden çok dönem varsa (gidip dönen oyuncu) eşleştirme **başlangıç yılına** bakar ve **üç kademelidir**:
+
+1. **Tam yıl** eşleşmesi.
+2. Tek aday kaldıysa **±1 yıl** hoşgörüsü (ölçüm: 624 eşleşmede %96,2 birebir, ±1'de %2,8 daha).
+3. **Kanıtsız kayıt, kanıtlı okumaya bırakır** (aşağıda).
 
 Hiçbiri tutmuyorsa kayıt yalnızca **aralıklar örtüşmüyorsa** yeni dönem sayılır. Örtüşme belirsizliğin ta kendisidir: aynı dönemin iki kaynaktaki farklı yazımı olabilir ve ikinci bir kopya üretmek §8.2'nin "örtüşen kalıcı dönem" uyarısını tetikler, arayüzde kulüp iki kez görünürdü. Ayrık aralıklar ise tanım gereği farklı dönemlerdir — belirsizlik yok, kayıt eklenir.
+
+##### Üçüncü kademe — kanıtsız kayıt kanıtlı okumaya bırakır
+
+İlk iki kademe bir açık bırakıyordu ve açığı **oyunun kendisi gösterdi**: istatistik modunda Yunus Akgün aranınca bulunamıyordu, ızgarada bulunuyordu.
+
+Sebep zincirle ölçüldü. Wikidata'da Galatasaray dönemi **2008'de** başlıyor ve açık uçlu — oyuncu o tarihte 8 yaşında, yani kayıt akademi girişi. `P3831` altyapı niteleyicisi **yok**, dolayısıyla BR-2 eleyemiyor. Bilgi kutusu doğrusunu yazıyor (2018–, 99 maç 16 gol) ama iki kayıt buluşamıyordu: yıl farkı 10, `±1`'in dışında; 1. kural da ekleyemiyor çünkü 2008–(açık) ile 2018–(açık) örtüşüyor. **Tek bozuk Wikidata kaydı, o kulüpteki bütün düzeltmeyi bloke ediyordu.**
+
+Sonucu oyunda görünüyordu: dönem maçsız kaldığı için oyuncu BR-16 süzgecinden düşüyor ve altı istatistiğin beşinde seçilemiyordu.
+
+Kademe 4. kuralın (**Vikipedi silmez**) sınırında durduğu için koşulları dar:
+
+| Koşul                                   | Gerekçe                                                                |
+| --------------------------------------- | ---------------------------------------------------------------------- |
+| Mevcut dönem maç **ve** gol olarak boş  | Doğrulanabilir hiçbir şey taşımayan kaydın yılları için kayıp yoktur   |
+| Vikipedi kaydında maç **veya** gol dolu | Kanıtsızı kanıtsızla değiştirmek kaynağı değiştirir, güveni artırmazdı |
+| Aralıklar örtüşüyor                     | Ayrık aralıklar farklı dönemlerdir; 1. kural onları zaten ekliyor      |
+
+Eşleşme kurulduktan sonra `enrich`in dört ölçülmüş güvencesi (yıl çifti, kardeş çakışması, maç/gol çifti, akla yatkın yıl) olduğu gibi işler — kademe yeni bir birleştirme yolu açmıyor, var olanın kapısını genişletiyor.
+
+> **Ölçüm: kural veri kalitesini bozmadı, düzeltti.** Tam koşuda **456 kayıt** kurtarıldı ve iki §8.2 uyarısı da KÜÇÜLDÜ.
+>
+> | Ölçüt                     | Kademe yokken | Kademeyle |
+> | ------------------------- | ------------- | --------- |
+> | Kanıtlı okumaya bırakılan | —             | **456**   |
+> | Belirsiz eşleşme          | 5.588         | **5.217** |
+> | Zenginleşen dönem         | 28.338        | 28.710    |
+> | Düzeltilen değer          | 22.862        | 23.279    |
+> | Ayıklanan dönem           | 3             | **2**     |
+> | Örtüşen kalıcı dönem      | 2.053         | **2.045** |
+> | Çakışan yıl reddi         | 454           | 462       |
+>
+> Son satır güvencenin çalıştığının kanıtı: kademenin 8 kez doğuracağı kardeş çakışmasını `enrich` geri aldı. Dönem sayısı yalnızca +1 arttı — kazanç sayıda değil, **doğrulukta**.
 
 #### Birleştirme kuralları
 
@@ -365,18 +401,20 @@ Vikipedi'den gelen dönemin sentetik bir ifade kimliği olur: `wikipedia-<oyuncu
 
 Katman yazılmadan önce 400 oyunculuk örneklemlerle **+%9,5** tahmin edilmişti. Tam koşu tahmini aştı. Aşağıdaki sütunlar aynı önbellekten üretildi; ilk ikisi yalnızca `--skip-wikipedia` farkıyla:
 
-| Ölçüt                 | Yalnız Wikidata | + `tr`/`en` (Aşama 1)   | + ana diller (Aşama 2)   |
-| --------------------- | --------------- | ----------------------- | ------------------------ |
-| Dönem                 | 193.051         | 215.892 (**+%11,8**)    | **217.680** (**+%12,8**) |
-| Eklenen dönem         | —               | 22.841                  | 24.629                   |
-| Zenginleşen dönem     | —               | 22.799                  | 28.338                   |
-| Düzeltilen değer      | —               | 21.703                  | 22.862                   |
-| **Seçilebilir kulüp** | 345 / 423       | 353 / 423               | **354 / 423**            |
-| Makalesi olan oyuncu  | —               | 59.882 / 76.372 (%78,4) | 72.780 / 76.372 (%95,3)  |
+| Ölçüt                 | Yalnız Wikidata | + `tr`/`en` (Aşama 1)   | + ana diller (Aşama 2)  | + 3. kademe (bugünkü)   |
+| --------------------- | --------------- | ----------------------- | ----------------------- | ----------------------- |
+| Dönem                 | 193.051         | 215.892 (**+%11,8**)    | 217.680 (**+%12,8**)    | **217.681**             |
+| Eklenen dönem         | —               | 22.841                  | 24.629                  | 24.630                  |
+| Zenginleşen dönem     | —               | 22.799                  | 28.338                  | **28.710**              |
+| Düzeltilen değer      | —               | 21.703                  | 22.862                  | **23.279**              |
+| **Seçilebilir kulüp** | 345 / 423       | 353 / 423               | **354 / 423**           | 354 / 423               |
+| Makalesi olan oyuncu  | —               | 59.882 / 76.372 (%78,4) | 72.780 / 76.372 (%95,3) | 72.780 / 76.372 (%95,3) |
 
 **+9 kulüp oynanabilir hâle geldi** — kazancın kullanıcıya doğrudan yansıyan kısmı bu. 586.992 kariyer satırı okundu; 44.287'si ikinci dilin kopyası, 359.812'si evrendeki bir kulübe ait değil (5. kuralın işlemesi).
 
 Kazancın **ezici çoğunluğu Aşama 1'den** geliyor; ana dillerin net katkısı +1.788 dönem, +5.539 zenginleşen dönem ve +1 kulüp. Neden bu kadar az olduğu aşağıda ölçülüyor.
+
+Son sütun dönem SAYISINI neredeyse hiç değiştirmiyor (+1) ama zenginleşen dönemi +372, düzeltilen değeri +417 artırıyor — üçüncü eşleşme kademesinin kazancı **sayıda değil, doğrulukta** (yukarıda).
 
 #### Katman veri kümesini bozmamalı — dört ihlal ölçüldü ve kapatıldı
 
@@ -1760,10 +1798,10 @@ Doğrulanabilir taban (Faz 4.7 kapanışı, 2026-08-04):
 | `npm run typecheck`    | temiz                                                                    |
 | `npm run lint`         | temiz (0 uyarı)                                                          |
 | `npm run format:check` | temiz                                                                    |
-| `npm run test`         | 770/770 geçiyor (birim, bileşen, erişilebilirlik, entegrasyon, doğruluk) |
+| `npm run test`         | 776/776 geçiyor (birim, bileşen, erişilebilirlik, entegrasyon, doğruluk) |
 | `npm run build`        | başarılı, tüm rotalar dinamik (nonce için gerekli)                       |
 | `npm run audit:ci`     | 0 açık (üretim ağacı)                                                    |
-| `npm run etl`          | 395 kulüp · 76.371 oyuncu · **217.677 dönem** (§4.3 katmanıyla, 5 dil)   |
+| `npm run etl`          | 395 kulüp · 76.372 oyuncu · **217.679 dönem** (§4.3 katmanıyla, 5 dil)   |
 | `npm run db:verify`    | KABUL BAŞARILI — 24 denetim + 10 kulüp örneklemi, tamamı geçiyor         |
 | `npm run bench`        | p50 5,3 ms · **p95 11,6 ms** · p99 16,4 ms (bütçe 150 ms)                |
 | CSP nonce ölçümü       | **15/15** script eşleşti, 3/3 benzersiz nonce (§7.3)                     |

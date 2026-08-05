@@ -447,7 +447,8 @@ export async function extractDataset(
     const s = merged.stats;
     console.log(
       `      +${s.added} yeni dönem · ${s.enriched} dönem zenginleşti · ` +
-        `${s.overridden} değer düzeltildi`,
+        `${s.overridden} değer düzeltildi · ` +
+        `${s.matchedByEvidence} kanıtsız dönem kanıtlı okumaya bırakıldı`,
     );
     console.log(
       `      atlandı: ${s.skippedOutOfUniverse} kapsam dışı kulüp · ` +

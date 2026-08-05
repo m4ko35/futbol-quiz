@@ -31,6 +31,14 @@ export interface MergeStats {
   skippedOutOfUniverse: number;
   /** Hangi döneme ait olduğu belirlenemedi; üzerine yazmaktansa atlandı. */
   skippedAmbiguous: number;
+  /**
+   * Üçüncü eşleşme kademesiyle kurtarılan kayıt: mevcut dönem kanıtsızdı,
+   * Vikipedi'ninki kanıt taşıyordu (bkz. `yieldsToEvidence`).
+   *
+   * AYRI SAYILIR çünkü bu kademe 4. kuralın sınırında duruyor; etkisinin
+   * koşudan koşuya izlenebilir olması gerekiyor (§8.2).
+   */
+  matchedByEvidence: number;
   /** Başlangıç yılı yok: ne eşleştirilebilir ne kalıcı kimlik verilebilir. */
   skippedNoYear: number;
   /**
@@ -104,6 +112,7 @@ export function mergeWikipediaSpells(input: {
     overridden: 0,
     skippedOutOfUniverse: 0,
     skippedAmbiguous: 0,
+    matchedByEvidence: 0,
     skippedNoYear: 0,
     rejectedYearConflict: 0,
     rejectedYearCollision: 0,
@@ -152,12 +161,16 @@ export function mergeWikipediaSpells(input: {
       const match = findMatch(record, existing, used);
 
       if (match !== null) {
-        used.add(match);
+        if (match.viaEvidence) stats.matchedByEvidence++;
+        used.add(match.spell);
         // Kardeş dönemler: aynı oyuncunun AYNI kulüpteki diğer kayıtları.
         // Genişleyen bir aralığın onlara değmemesi gerekiyor (bkz. `enrich`).
-        const siblings = [...existing, ...addedHere].filter((s) => s !== match);
-        const merged = enrich(match, record, siblings, stats);
-        if (merged !== match) patched.set(match.wikidataStatementId, merged);
+        const siblings = [...existing, ...addedHere].filter(
+          (s) => s !== match.spell,
+        );
+        const merged = enrich(match.spell, record, siblings, stats);
+        if (merged !== match.spell)
+          patched.set(match.spell.wikidataStatementId, merged);
         continue;
       }
 
@@ -241,11 +254,23 @@ function overlaps(spell: NormalizedSpell, record: WikipediaSpell): boolean {
  * Hiçbiri tutmuyorsa null döner ve çağıran kaydı EKLEMEYİ dener; örtüşme
  * varsa orada da atılır.
  */
+/**
+ * Eşleşme ve HANGİ KADEMENİN tuttuğu.
+ *
+ * Kademe çağırana geri dönmek zorunda: üçüncü kademe ayrı sayılıyor ve
+ * koşulunu eşleşmeden sonra yeniden değerlendirmek YANLIŞ sayardı — yıl
+ * tutarken de kanıtsız/kanıtlı koşulu sağlanmış olabilir.
+ */
+interface SpellMatch {
+  readonly spell: NormalizedSpell;
+  readonly viaEvidence: boolean;
+}
+
 function findMatch(
   record: WikipediaSpell,
   existing: readonly NormalizedSpell[],
   used: ReadonlySet<NormalizedSpell>,
-): NormalizedSpell | null {
+): SpellMatch | null {
   const free = existing.filter((spell) => !used.has(spell));
   if (free.length === 0) return null;
 
@@ -255,15 +280,61 @@ function findMatch(
       record.startYear !== null &&
       spell.startYear === record.startYear,
   );
-  if (exact !== undefined) return exact;
+  if (exact !== undefined) return { spell: exact, viaEvidence: false };
 
   if (free.length !== 1) return null;
 
   const only = free[0];
   if (only === undefined) return null;
 
-  if (only.startYear === null || record.startYear === null) return only;
-  return Math.abs(only.startYear - record.startYear) <= 1 ? only : null;
+  if (only.startYear === null || record.startYear === null)
+    return { spell: only, viaEvidence: false };
+  if (Math.abs(only.startYear - record.startYear) <= 1)
+    return { spell: only, viaEvidence: false };
+
+  return yieldsToEvidence(only, record)
+    ? { spell: only, viaEvidence: true }
+    : null;
+}
+
+/**
+ * ÜÇÜNCÜ EŞLEŞME KADEMESİ — kanıtsız kayıt, kanıtlı okumaya bırakır.
+ *
+ * NEDEN GEREKLİ (ölçüldü, Yunus Akgün). Wikidata'da Galatasaray dönemi
+ * **2008'de** başlıyor ve açık uçlu; oyuncu o tarihte 8 yaşında, yani kayıt
+ * akademi girişi — ama `P3831` altyapı niteleyicisi YOK, dolayısıyla BR-2
+ * bunu eleyemiyor. Bilgi kutusu doğrusunu yazıyor: 2018–, 99 maç 16 gol.
+ *
+ * İki kayıt eşleşemiyordu: yıl farkı 10, yani `±1` hoşgörüsünün dışında. 1.
+ * kural da ekleyemiyordu çünkü 2008–(açık) ile 2018–(açık) örtüşüyor ve
+ * "örtüşme belirsizliğin ta kendisidir". Sonuç: tek bozuk Wikidata kaydı, o
+ * kulüpteki BÜTÜN düzeltmeyi bloke ediyor ve kayıt `skippedAmbiguous`
+ * kovasına düşüyordu.
+ *
+ * KOŞULLAR DAR TUTULDU, çünkü bu kademe 4. kuralın ("Vikipedi silmez")
+ * sınırında duruyor — var olan bir aralığı daraltabilir:
+ *
+ *   1. Mevcut dönem KANITSIZ olmalı: maç da gol de boş. Doğrulanabilir hiçbir
+ *      şey taşımayan bir kaydın yılları için kaybedilecek bilgi yoktur.
+ *   2. Vikipedi kaydı KANIT taşımalı: maç ya da gol dolu. Kanıtsızı kanıtsızla
+ *      değiştirmek yalnızca kaynağı değiştirirdi, güveni artırmazdı.
+ *   3. Aralıklar ÖRTÜŞMELİ. Ayrık aralıklar tanım gereği farklı dönemlerdir ve
+ *      1. kural onları zaten ekliyor; örtüşme şartı o yolu bozmadan bırakır.
+ *
+ * Eşleşme kurulduktan sonra `enrich`in bütün güvenceleri (yıl çifti, kardeş
+ * çakışması, maç/gol çifti) olduğu gibi işler — bu kademe yeni bir birleştirme
+ * yolu açmıyor, var olanın kapısını genişletiyor.
+ */
+function yieldsToEvidence(
+  spell: NormalizedSpell,
+  record: WikipediaSpell,
+): boolean {
+  return (
+    spell.appearances === null &&
+    spell.goals === null &&
+    (record.appearances !== null || record.goals !== null) &&
+    overlaps(spell, record)
+  );
 }
 
 /**

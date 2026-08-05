@@ -378,6 +378,183 @@ describe("eşleştirme — gidip dönen oyuncu", () => {
   });
 });
 
+/**
+ * ÜÇÜNCÜ EŞLEŞME KADEMESİ — kanıtsız kayıt, kanıtlı okumaya bırakır.
+ *
+ * Gerçek vaka Yunus Akgün: Wikidata'da Galatasaray dönemi **2008**'de
+ * başlıyor (oyuncu 8 yaşında, akademi girişi) ve `P3831` altyapı niteleyicisi
+ * taşımadığı için BR-2 eleyemiyor. Bilgi kutusu 2018–, 99 maç 16 gol diyor.
+ * Yıl farkı 10 olduğu için `±1` eşleşmesi tutmuyor, aralıklar örtüştüğü için
+ * de yeni dönem eklenemiyordu — kayıt `skippedAmbiguous`'a düşüyordu.
+ *
+ * Kademe 4. kuralın sınırında durduğu için ÜÇ KOŞULUN HER BİRİ ayrı test
+ * ediliyor: biri gevşerse kural sessizce veri silmeye başlar.
+ */
+describe("üçüncü kademe — kanıtsız dönem kanıtlı okumaya bırakır", () => {
+  /** Yunus Akgün vakasının kendisi. */
+  it("akademi yılıyla başlayan kanıtsız dönemi düzeltir", () => {
+    const result = merge(
+      [
+        spell({
+          startYear: 2008,
+          endYear: null,
+          isCurrent: true,
+          appearances: null,
+          goals: null,
+        }),
+      ],
+      [
+        fromWikipedia({
+          startYear: 2018,
+          endYear: null,
+          appearances: 99,
+          goals: 16,
+        }),
+      ],
+    );
+
+    expect(result.spells).toHaveLength(1);
+    expect(result.spells[0]).toMatchObject({
+      startYear: 2018,
+      endYear: null,
+      appearances: 99,
+      goals: 16,
+    });
+    expect(result.stats.matchedByEvidence).toBe(1);
+    expect(result.stats.skippedAmbiguous).toBe(0);
+  });
+
+  /** 1. koşul — mevcut dönemde kanıt varsa yıla DOKUNULMAZ. */
+  it("maçı dolu bir dönemin yılını değiştirmez", () => {
+    const result = merge(
+      [spell({ startYear: 2008, endYear: null, appearances: 12, goals: 0 })],
+      [
+        fromWikipedia({
+          startYear: 2018,
+          endYear: null,
+          appearances: 99,
+          goals: 16,
+        }),
+      ],
+    );
+
+    expect(result.spells[0]).toMatchObject({ startYear: 2008 });
+    expect(result.stats.matchedByEvidence).toBe(0);
+    expect(result.stats.skippedAmbiguous).toBe(1);
+  });
+
+  /** 2. koşul — Vikipedi de kanıtsızsa kaynak değişir, güven artmaz. */
+  it("kanıtsızı kanıtsızla değiştirmez", () => {
+    const result = merge(
+      [
+        spell({
+          startYear: 2008,
+          endYear: null,
+          appearances: null,
+          goals: null,
+        }),
+      ],
+      [
+        fromWikipedia({
+          startYear: 2018,
+          endYear: null,
+          appearances: null,
+          goals: null,
+        }),
+      ],
+    );
+
+    expect(result.spells[0]).toMatchObject({ startYear: 2008 });
+    expect(result.stats.matchedByEvidence).toBe(0);
+  });
+
+  /** 3. koşul — ayrık aralıklar farklı dönemlerdir; 1. kural onları EKLER. */
+  it("örtüşmeyen aralığı birleştirmez, yeni dönem olarak ekler", () => {
+    const result = merge(
+      [
+        spell({
+          startYear: 1990,
+          endYear: 1992,
+          appearances: null,
+          goals: null,
+        }),
+      ],
+      [
+        fromWikipedia({
+          startYear: 2018,
+          endYear: 2020,
+          appearances: 99,
+          goals: 16,
+        }),
+      ],
+    );
+
+    expect(result.spells).toHaveLength(2);
+    expect(result.stats.added).toBe(1);
+    expect(result.stats.matchedByEvidence).toBe(0);
+    // Eski dönem OLDUĞU GİBİ durur — 4. kural (Vikipedi silmez).
+    expect(result.spells[0]).toMatchObject({ startYear: 1990, endYear: 1992 });
+  });
+
+  /** Aynı kulüpte iki dönem varsa hangisi olduğu belirsizdir; dokunulmaz. */
+  it("kulüpte iki dönem varken kademeyi uygulamaz", () => {
+    const result = merge(
+      [
+        spell({
+          wikidataStatementId: "Q1-A",
+          startYear: 2008,
+          endYear: 2010,
+          appearances: null,
+          goals: null,
+        }),
+        spell({
+          wikidataStatementId: "Q1-B",
+          startYear: 2012,
+          endYear: 2014,
+          appearances: null,
+          goals: null,
+        }),
+      ],
+      [
+        fromWikipedia({
+          startYear: 2009,
+          endYear: 2013,
+          appearances: 99,
+          goals: 16,
+        }),
+      ],
+    );
+
+    expect(result.stats.matchedByEvidence).toBe(0);
+    expect(result.spells).toHaveLength(2);
+  });
+
+  /** `enrich`in güvenceleri kademeden SONRA da işler (BR-22). */
+  it("golü maçından fazla bir okumayı yine de reddeder", () => {
+    const result = merge(
+      [
+        spell({
+          startYear: 2008,
+          endYear: null,
+          appearances: null,
+          goals: null,
+        }),
+      ],
+      [
+        fromWikipedia({
+          startYear: 2018,
+          endYear: null,
+          appearances: 5,
+          goals: 40,
+        }),
+      ],
+    );
+
+    const merged = result.spells[0];
+    expect(merged?.goals ?? 0).toBeLessThanOrEqual(merged?.appearances ?? 0);
+  });
+});
+
 describe("syntheticSpellId", () => {
   it("Wikidata ifade kimliğiyle çakışmaz", () => {
     const id = syntheticSpellId({
