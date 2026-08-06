@@ -36,6 +36,15 @@ const CLUB_CLASS_VALUES = CLUB_CLASSES.map((id) => `wd:${assertQid(id)}`).join(
   " ",
 );
 
+/**
+ * "Futbol kulübü" sınıfı — ikiz ayrımının dayanağı (`clubDuplicates`).
+ *
+ * Beyaz listedeki diğer beş sınıf (spor kulübü, çok takımlı kulüp, erkek
+ * futbol takımı…) bir kulübün ŞEMSİYESİNİ ya da ŞUBESİNİ anlatıyor; yalnızca
+ * bu sınıf "kendi başına bir futbol kulübü" demek.
+ */
+const CLUB_ONLY_CLASS = assertQid("Q476028");
+
 /** Kulüp meta verisi — iki kulüp sorgusunda da aynı. */
 const CLUB_FIELDS = `
   OPTIONAL { ?club wdt:P571 ?inception }
@@ -292,6 +301,49 @@ SELECT ?league ?leagueLabel (COUNT(DISTINCT ?club) AS ?clubCount) WHERE {
   SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
 }
 GROUP BY ?league ?leagueLabel`.trim();
+}
+
+/**
+ * Aynı futbol geçmişini paylaşan kulüp İKİZLERİ — PROJECT.md §5.3.
+ *
+ * Wikidata bazen bir kulübü iki varlığa bölüyor: şemsiye spor kulübü
+ * (`Fenerbahçe SK`, çok takımlı) ve onun futbol takımı (`Fenerbahçe`).
+ * Oyuncuların `P54` ifadeleri ikisine de dağılıyor ve veri kümesinde kulüp
+ * ikiye bölünüyor.
+ *
+ * AYRIM BURADA YAPILIR ÇÜNKÜ AYNI BAĞ İKİ FARKLI ŞEYİ GÖSTERİYOR. `P361`
+ * (parçası) ve `P831` (ana kulüp) hem ikizleri hem SELEF/HALEF kulüpleri
+ * bağlıyor — `RC Roubaix`, 1945'te `CO Roubaix-Tourcoing`'i oluşturan
+ * birleşmeye girmiş ve o bağ da `P361`. İkisi AYRI kulüptür; birleştirmek
+ * iki gerçek kulübün geçmişini karıştırırdı.
+ *
+ * Ayrımı SINIF verir, eşik değil: iki taraf da `Q476028` (futbol kulübü) ise
+ * bağ bir birleşme kaydıdır. Aksi hâlde bir taraf şemsiye spor kulübü
+ * (`Q847017`, `Q13580678`) ya da "erkek futbol takımı" (`Q103229495`)
+ * varlığıdır ve iki kayıt aynı futbol geçmişini paylaşır.
+ *
+ * ÖLÇÜLDÜ, 23 ÇİFTİN HEPSİNDE: kural 22'sini birleştiriyor, 1'ini (Roubaix)
+ * ayrı bırakıyor. Ortak oyuncu oranı bağımsız olarak aynı şeyi söylüyor —
+ * ikizlerde aynı oyuncu iki tarafta birden görünüyor (Fenerbahçe %84),
+ * selef/halefte görünmüyor (%8).
+ *
+ * `P527` (parçaları) BİLEREK YOK: ölçüldü, evren içindeki 9 bağının hepsi
+ * zaten `P361`/`P831` ile de geliyor — eklemek yalnızca yinelenen kenar
+ * üretirdi.
+ */
+export function clubDuplicates(qids: readonly string[]): string {
+  const values = qids.map((id) => `wd:${assertQid(id)}`).join(" ");
+
+  return `
+SELECT DISTINCT ?club ?parent WHERE {
+  VALUES ?club { ${values} }
+  ?club (wdt:${WD.PROP_PART_OF}|wdt:${WD.PROP_PARENT_CLUB}) ?parent .
+  FILTER(?club != ?parent)
+  FILTER NOT EXISTS {
+    ?club wdt:P31 wd:${CLUB_ONLY_CLASS} .
+    ?parent wdt:P31 wd:${CLUB_ONLY_CLASS} .
+  }
+}`.trim();
 }
 
 /** Bir sorguda sorulacak azami oyuncu sayısı — zaman aşımını önler. */

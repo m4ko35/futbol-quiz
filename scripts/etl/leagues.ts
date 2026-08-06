@@ -152,6 +152,13 @@ export const WD = {
    * **sıfır dönem kaydıyla** giriyordu.
    */
   PROP_PARENT_CLUB: "P831",
+  /**
+   * P361 — parçası. `P831` ile birlikte kulüp İKİZLERİNİ bulmakta kullanılır
+   * (`clubDuplicates`): şemsiye spor kulübü ile futbol takımı arasındaki bağ
+   * çoğu zaman `P831` değil `P361`. Tek başına yeterli DEĞİL — aynı bağ
+   * selef/halef kulüpleri de bağlıyor; ayrımı sınıf kısıtı yapar.
+   */
+  PROP_PART_OF: "P361",
   PROP_START_TIME: "P580",
   PROP_END_TIME: "P582",
   PROP_MATCHES_PLAYED: "P1350",

@@ -14,6 +14,7 @@ import {
   clubsByLeagueLink,
   clubsFromSeasonParents,
   clubsFromSeasons,
+  clubDuplicates,
   mensNationalTeams,
   playerDetails,
   playerPhysical,
@@ -23,6 +24,7 @@ import {
   wikipediaArticles,
 } from "../sources/wikidata/queries";
 import { int, qid, str } from "../sources/wikidata/schemas";
+import { mergeDuplicateClubs } from "./merge-clubs";
 import { mergeWikipediaSpells } from "./merge-wikipedia";
 import {
   applyPlayerStats,
@@ -241,7 +243,41 @@ export async function extractDataset(
   // döneminde birinin oturup eksikleri bulması gerekirdi. Kapsam boşlukları
   // ikinci bir KAYNAKLA kapatılır, elle değil — böylece veri kümesi kendini
   // güncel tutabilir.
-  const uniqueSpells = dedupeBy(spells, (s) => s.wikidataStatementId);
+  const deduped = dedupeBy(spells, (s) => s.wikidataStatementId);
+
+  // ─── 2b. Kulüp ikizlerini birleştir (§5.3) ────────────────────────────
+  //
+  // BURADA, oyuncu geçişinden ÖNCE: gölge kulübün dönemleri asıl kulübe
+  // taşınmadan oyuncu listesi çıkarılırsa, yalnızca gölgede dönemi olan
+  // oyuncular sonraki adımların dışında kalırdı.
+  const duplicateBindings = await client.query(
+    clubDuplicates(uniqueClubs.map((c) => c.wikidataId)),
+    { label: "club-duplicates", noCache },
+  );
+
+  const clubMerge = mergeDuplicateClubs({
+    clubs: uniqueClubs,
+    spells: deduped,
+    links: duplicateBindings.flatMap((b) => {
+      const club = qid(b, "club");
+      const parent = qid(b, "parent");
+      return club === undefined || parent === undefined
+        ? []
+        : [{ clubWikidataId: club, parentWikidataId: parent }];
+    }),
+  });
+
+  const mergedClubs = clubMerge.clubs;
+  const uniqueSpells = clubMerge.spells;
+
+  if (clubMerge.stats.mergedClubs > 0) {
+    const s = clubMerge.stats;
+    console.log(
+      `      ${s.mergedClubs} kulüp ikizi birleştirildi · ` +
+        `+${s.movedSpells} dönem taşındı · ` +
+        `${s.droppedIdentical} birebir kopya + ${s.droppedOverlapping} örtüşen atıldı`,
+    );
+  }
 
   // ─── 3. Oyuncu meta verisi ────────────────────────────────────────────
   const playerIds = [...new Set(uniqueSpells.map((s) => s.playerWikidataId))];
@@ -350,9 +386,9 @@ export async function extractDataset(
   // Kulüp evreni ve oyuncu kimlikleri Wikidata'dan gelir; Vikipedi yalnızca
   // eksikleri doldurur (kural 5). Bu yüzden geçiş EN SONDA durur — omurga
   // tamamlanmadan tamamlayıcı katman çalıştırılamaz.
-  const clubIds = new Set(uniqueClubs.map((c) => c.wikidataId));
+  const clubIds = new Set(mergedClubs.map((c) => c.wikidataId));
   const youthClubIds = new Set(
-    uniqueClubs
+    mergedClubs
       .filter((c) => looksLikeYouthOrReserve(c.name))
       .map((c) => c.wikidataId),
   );
@@ -399,10 +435,10 @@ export async function extractDataset(
     }
 
     // Kulüpler her dilde sorulur: ana dil kutusundaki bağlantıyı evrenle
-    // eşleştirmenin tek yolu o dildeki kulüp makale adı. 423 kulüp = 2 sorgu.
+    // eşleştirmenin tek yolu o dildeki kulüp makale adı. ~400 kulüp = 2 sorgu.
     const clubArticles = await fetchArticleTitles(
       client,
-      uniqueClubs.map((c) => c.wikidataId),
+      mergedClubs.map((c) => c.wikidataId),
       "clubs",
       noCache,
       WIKI_SITES,
@@ -473,8 +509,14 @@ export async function extractDataset(
     );
   }
 
+  // Gölge kulüpler listeden çıktı; aday havuzu birleştirilmiş evrenin
+  // dönemleri çekilmiş kısmıdır.
+  const candidateClubs = mergedClubs.filter((c) =>
+    fetchedClubIds.has(c.wikidataId),
+  );
+
   const selectableClubIds = new Set(
-    targetClubs
+    candidateClubs
       .filter(
         (c) =>
           (spellCountByClub.get(c.wikidataId) ?? 0) >=
@@ -483,12 +525,12 @@ export async function extractDataset(
       .map((c) => c.wikidataId),
   );
   console.log(
-    `\n      ${selectableClubIds.size}/${targetClubs.length} kulüp seçilebilir ` +
+    `\n      ${selectableClubIds.size}/${candidateClubs.length} kulüp seçilebilir ` +
       `(en az ${MIN_SPELLS_FOR_SELECTABLE} dönem kaydı olanlar)`,
   );
 
   return {
-    clubs: uniqueClubs,
+    clubs: mergedClubs,
     players: inScopePlayers,
     spells: finalSpells,
     selectableClubIds,

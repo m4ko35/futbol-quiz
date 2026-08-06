@@ -236,6 +236,7 @@ futbol-quiz/
 │   ├── pipeline/
 │   │   ├── extract.ts             ← beş geçişli çekim orkestrasyonu
 │   │   ├── normalize.ts           ← ad/tarih normalizasyonu, dedupe
+│   │   ├── merge-clubs.ts         ← §5.3 kulüp ikizlerini birleştirir (SAF)
 │   │   ├── wikipedia-pass.ts      ← bilgi kutularını çek, ayrıştır, eşleştir
 │   │   ├── merge-wikipedia.ts     ← §4.3'ün altı birleştirme kuralı (SAF)
 │   │   ├── validate.ts            ← tutarlılık denetimleri
@@ -694,7 +695,7 @@ Sorgu artık `p:P118/ps:P118` ile tüm ifadeleri okuyor. _Deprecated_ rütbe dı
 >
 > Sağ sütunun sol sütundan büyük olması Vikipedi katmanının işidir: yeni kulüplerin dönemleri §4.3 katmanıyla zenginleşiyor. **Onunun da hepsi 50 dönem eşiğini geçti**, yani onu da oynanabilir — Wikidata'da 3 dönemle görünen Bodrum FK dâhil.
 
-**Toplam etki:** kulüp 395 → **405**, oyuncu 76.372 → **76.757**, dönem 217.679 → **220.204**, seçilebilir kulüp 354 → **364**. Süper Lig'in veri kümesindeki kulüp sayısı 34 → **44**. `db:verify` temiz kaldı.
+**Toplam etki:** kulüp 395 → **405**, oyuncu 76.372 → **76.757**, dönem 217.679 → **220.204**, seçilebilir kulüp 354 → **364**. Süper Lig'in veri kümesindeki kulüp sayısı 34 → **44**. `db:verify` temiz kaldı. (Kulüp sayısı sonradan ikiz birleştirmesiyle 383'e indi — aşağıda.)
 
 **`P831`'in yönü Wikidata'da tutarsızdır** ve hangi ucun gerçek kulüp olduğu türden okunamaz. Ölçüm:
 
@@ -709,6 +710,53 @@ Sorgu artık `p:P118/ps:P118` ile tüm ifadeleri okuyor. _Deprecated_ rütbe dı
 Kararı tahmin değil ölçüm verir: her aday için dönemler çekilir, `MIN_SPELLS_FOR_SELECTABLE` (50) eşiğinin altındakiler seçilemez işaretlenir, hiç dönemi olmayanlar yükleme sonunda silinir. Böylece "gerçek kulüp hangisi" sorusunu, cevabı zaten ölçtüğümüz büyüklük — kulübe bağlı `P54` ifadesi sayısı — yanıtlar.
 
 Bu tasarım üç kez sırayla kırılan üç ayrı kuralın yerine geçti: önce çözümleme hiç yoktu (Augsburg 0 dönemle girdi), sonra her kulübe uygulandı (Barcelona ve Antalyaspor kabuk varlığa taşındı), sonra yalnızca sezon dalına uygulandı (Antalyaspor yine bozuldu, çünkü `P1923` katılımcısı her zaman sezon varlığı değil). Ortak hata, veriden okunabilecek bir şeyi kuralla tahmin etmekti.
+
+#### Kulüp ikizleri: aynı kulüp iki varlığa bölünmüş
+
+Aday üretme tasarımı bir kusuru **görünür bırakıyordu**: adaylardan ikisi de eşiği geçerse kullanıcı seçim listesinde aynı kulübü iki kez görüyor. Süper Lig listesinde `Fenerbahçe` (749 dönem) ile `Fenerbahçe SK` (97) yan yana duruyordu — hangisi seçilirse seçilsin kariyerin bir kısmı eksik kalıyordu.
+
+Sebep Wikidata'nın modellemesi: şemsiye **spor kulübü** (çok şubeli) ile onun **futbol takımı** ayrı varlıklar ve oyuncuların `P54` ifadelerini editörler rastgele birine bağlıyor.
+
+**AYNI BAĞ İKİ FARKLI ŞEYİ GÖSTERİYOR ve karışması pahalı.** `P361` (parçası) ve `P831` (ana kulüp) hem ikizleri hem SELEF/HALEF kulüpleri bağlar: `RC Roubaix`, 1945'te `CO Roubaix-Tourcoing`'i oluşturan birleşmeye girmiştir ve o bağ da `P361`'dir. İkisi ayrı kulüptür; birleştirmek iki gerçek kulübün geçmişini karıştırırdı.
+
+**Ayrımı eşik değil SINIF verir.** İki taraf da `Q476028` (futbol kulübü) ise bağ bir birleşme kaydıdır. Aksi hâlde bir taraf şemsiye spor kulübü (`Q847017`, `Q13580678`) ya da "erkek futbol takımı" (`Q103229495`) varlığıdır ve iki kayıt aynı futbol geçmişini paylaşır.
+
+> **Kural 23 çiftin hepsinde sınandı: 22 birleşiyor, 1'i (Roubaix) ayrı kalıyor.** Bağımsız bir sinyal aynı şeyi söylüyor — gerçek ikizlerde aynı oyuncu iki tarafta birden görünüyor, selef/halefte görünmüyor:
+>
+> | Çift                              | İki taraf da futbol kulübü? | Ortak oyuncu | Karar          |
+> | --------------------------------- | --------------------------- | ------------ | -------------- |
+> | Fenerbahçe / Fenerbahçe SK        | hayır (şemsiye)             | 81/97 (%84)  | **birleştir**  |
+> | Hannover 96 / Hannover 96         | hayır (erkek takımı)        | 6/7 (%86)    | **birleştir**  |
+> | Bursaspor / Bursaspor Kulübü      | hayır (şemsiye)             | 23/38 (%61)  | **birleştir**  |
+> | CO Roubaix-Tourcoing / RC Roubaix | **evet**                    | 4/53 (%8)    | **ayrı bırak** |
+>
+> Ortak oyuncu oranı kuralın KENDİSİ DEĞİL, doğrulamasıdır. Eşik uydurmak dört veri noktasına eğri uydurmak olurdu; sınıf kısıtı ise Wikidata'nın kendi anlamını okuyor.
+
+Hangi tarafın asıl olduğunu yine **dönem sayısı** söyler — bu bölümün zaten kurduğu karar mercii. Eşitlikte QID sırası belirler; sıranın koşudan koşuya sabit kalması şart, aksi hâlde aynı veri farklı kulüp kimlikleri üretir.
+
+**Taşıma dönem kaybettirmez ama kopya da üretmez.** Gölgenin dönemleri asıl kulübe geçerken §4.3'ün kurduğu ilke uygulanır: örtüşme belirsizliğin ta kendisidir. Ölçüldü — ham Wikidata verisinde taşınacak 129 dönemin 101'i ayrık (taşındı), 7'si birebir kopya, 21'i örtüşen (ikisi de atıldı). İkinci kopya üretilseydi §8.2'nin "örtüşen kalıcı dönem" uyarısı büyürdü.
+
+Birleştirme oyuncu geçişinden **önce** yapılır: gölgede dönemi olan oyuncular sonraki adımların dışında kalmasın diye.
+
+##### Kapatılmayan boşluk: bağsız ikizler
+
+Kural **ilişki taşıyan** çiftleri kapatıyor. Wikidata'da bazı ikizler hiçbir ilişki taşımıyor: `Gençlerbirliği SK` (487 dönem) ile `Gençlerbirliği (futbol takımı)` (436) arasında ne `P361` ne `P831` ne de `P527` var. İki taraf da `Q476028`, yani sınıf kısıtı da onları ayrı sayar. Sorgu bu çifti **hiç göremiyor**.
+
+Ortak oyuncu oranı (%92) onları yakalardı. **Yakalamak için kullanılmadı** ve gerekçesi ölçüldü: evrendeki 73.153 kulüp çiftinin %50 ve üstü ortak oyuncu paylaşan 7'si incelendiğinde oranın ikizle akrabayı ayırmadığı görüldü.
+
+| Oran | Çift                               | Gerçekte ne                             |
+| ---- | ---------------------------------- | --------------------------------------- |
+| %94  | SSC Ancona / A.C. Ancona           | yeniden kurulmuş kulüp                  |
+| %92  | Gençlerbirliği SK / Gençlerbirliği | **gerçek ikiz**                         |
+| %80  | FC Barcelona / **CD Condal**       | Barcelona'nın 1950'lerdeki yedek takımı |
+| %69  | Toulouse FC / Toulouse FC          | eski/yeni kulüp                         |
+| %65  | Vicenza Calcio / LR Vicenza        | ad değişikliği                          |
+| %59  | Troyes AC / AS Troyes              | selef/halef                             |
+| %50  | SSC Napoli / **Ilva Bagnolese**    | Napoli'nin selefi                       |
+
+Gerçek ikiz (%92) ile yeniden kurulmuş kulüp (%94) **aynı bantta**; %80'lik bir eşik Barcelona'yı yedek takımıyla birleştirirdi. Yedek takım ve selef kulüp doğaları gereği oyuncu paylaşır — oran bu üçünü ayırt edemez.
+
+Bu yüzden ikinci bir kural **yazılmadı**. Kalan tek kullanıcıya görünen ikiz Gençlerbirliği'dir ve doğru düzeltme yeri **kaynağın kendisi**: Wikidata'da iki öğenin birleştirilmesi. Uydurulmuş bir eşikle burada kapatmak, iki gerçek kulübü karıştırma riskini veri kümesine yaymak olurdu.
 
 ### 5.4 İş Kuralları
 
@@ -1843,12 +1891,12 @@ Doğrulanabilir taban (Faz 4.7 kapanışı, 2026-08-04):
 | `npm run typecheck`    | temiz                                                                    |
 | `npm run lint`         | temiz (0 uyarı)                                                          |
 | `npm run format:check` | temiz                                                                    |
-| `npm run test`         | 784/784 geçiyor (birim, bileşen, erişilebilirlik, entegrasyon, doğruluk) |
+| `npm run test`         | 796/796 geçiyor (birim, bileşen, erişilebilirlik, entegrasyon, doğruluk) |
 | `npm run build`        | başarılı, tüm rotalar dinamik (nonce için gerekli)                       |
 | `npm run audit:ci`     | 0 açık (üretim ağacı)                                                    |
-| `npm run etl`          | 405 kulüp · 76.757 oyuncu · **220.204 dönem** (§4.3 katmanıyla, 5 dil)   |
+| `npm run etl`          | 383 kulüp · 76.757 oyuncu · **220.058 dönem** (§4.3 katmanıyla, 5 dil)   |
 | `npm run db:verify`    | KABUL BAŞARILI — 24 denetim + 10 kulüp örneklemi, tamamı geçiyor         |
-| `npm run bench`        | p50 5,2 ms · **p95 12,3 ms** · p99 14,6 ms (bütçe 150 ms)                |
+| `npm run bench`        | p50 5,1 ms · **p95 17,7 ms** · p99 23,9 ms (bütçe 150 ms)                |
 | CSP nonce ölçümü       | **15/15** script eşleşti, 3/3 benzersiz nonce (§7.3)                     |
 | Üretimde arma ölçümü   | 12 arma, **12'si** `upload.wikimedia.org`, izinsiz köken **0**           |
 | Üretimde önbellek      | `200` → `public, s-maxage=300…` · `400` → `no-store` (§7.9)              |

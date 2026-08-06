@@ -154,6 +154,28 @@ export async function loadDataset(
   // Önce ilgili kulüplerin dönemleri silinir, sonra toplu yazılır. Tek tek
   // upsert etmek yüz binlerce satırda kabul edilemez derecede yavaş olurdu;
   // sil-ve-yaz hem hızlı hem idempotent.
+  const incomingClubIds = input.clubs
+    .map((club) => clubIdByQid.get(club.wikidataId))
+    .filter((id): id is string => id !== undefined);
+
+  /**
+   * EVRENDEN ÇIKMIŞ KULÜPLERİN DÖNEMLERİ ÖNCE SİLİNİR.
+   *
+   * BİR DÖNEM KULÜP DEĞİŞTİREBİLİR ve yükleyici bunu varsaymıyordu. §5.3'ün
+   * kulüp ikizi birleştirmesi gölge kulübün dönemlerini asıl kulübe taşıyor;
+   * ifade kimliği (doğal anahtar) aynı kalıyor, kulübü değişiyor. Eski satır
+   * veritabanında hâlâ GÖLGE kulüpte duruyordu ve gölge artık "dokunulan
+   * kulüpler" listesinde olmadığı için silinmiyordu — yazma
+   * `wikidataStatementId` benzersizlik kısıtına takılıyordu.
+   *
+   * Bayat kulüp temizliği bunu çözerdi ama yazmadan SONRA çalışıyor. Kulüp
+   * evreni her koşuda eksiksiz geldiği için (`--max-clubs` yalnızca DÖNEM
+   * çekimini sınırlar) bu silme kısmi koşuda da güvenlidir.
+   */
+  await prisma.spell.deleteMany({
+    where: { clubId: { notIn: incomingClubIds } },
+  });
+
   const touchedClubIds = [...new Set(input.spells.map((s) => s.clubWikidataId))]
     .map((qid) => clubIdByQid.get(qid))
     .filter((id): id is string => id !== undefined);
