@@ -4,8 +4,8 @@
 > Kod ile belge çeliştiğinde önce bu belge güncellenir, sonra kod yazılır.
 
 **Sürüm:** 0.1.0
-**Tarih:** 2026-07-31
-**Durum:** Faz 4.4 tamamlandı — iki oyun modu (ortak oyuncu, 3×3 ızgara) çalışıyor. Sırada Faz 4.6 (istatistik eşleştirme), sonra Faz 4.5: yayın.
+**Tarih:** 2026-08-06
+**Durum:** Faz 4.8 tamamlandı — üç oyun modu (ortak oyuncu, 3×3 ızgara, istatistik eşleştirme) çalışıyor, ikinci kaynak (Vikipedi, 5 dil) devrede. Kalan tek faz 4.5: yayın.
 
 ---
 
@@ -1805,7 +1805,7 @@ Yayından **önce** eklendi. Gerekçe Faz 4'ün gerekçesiyle aynı: mimarinin i
 
 **Bir erişilebilirlik kusuru da ortaya çıktı ve `ClubPicker`'da da vardı:** `role="listbox"` yalnızca `option` çocuğu barındırabilir, "Sonuç yok" metni listenin içindeydi. Mevcut testler listeyi hep dolu kurduğu için görünmemişti; boş liste durumu artık iki seçici için de denetleniyor.
 
-### Faz 4.6 — Üçüncü oyun modu: istatistik eşleştirme
+### Faz 4.6 — Üçüncü oyun modu: istatistik eşleştirme ✅
 
 > **Numarası 4.5'ten büyük ama SIRASI önce.** Bu mod, önceki ikisinden farklı
 > olarak **veri kümesini genişletiyor** — üç yeni alan çekiliyor. Yayın (4.5)
@@ -1813,16 +1813,21 @@ Yayından **önce** eklendi. Gerekçe Faz 4'ün gerekçesiyle aynı: mimarinin i
 > ödemek olurdu. Numaralar sabit kaldı çünkü "§10 Faz 4.5" belgede ve kodda
 > birden çok yerde geçiyor.
 
-- [ ] Prisma şeması + migration: `nationalCaps`, `heightCm`, `weightKg`
-- [ ] ETL: millî takım listesi (bir kez) + oyuncu istatistik sorgusu (yığın 250)
-- [ ] BR-14'ün ETL'de uygulanması: **en büyük**, toplam değil
-- [ ] `db:verify`: yeni alanların kapsam alt sınırı
-- [ ] Domain: BR-15…BR-20, puanlama formülü
-- [ ] `GET /api/stat-match`, `POST /api/stat-match/answer` (§6.5)
-- [ ] Arayüz: istatistik başına seçici + sonuç kartı
-- [ ] Kapsam bildirimi: "bu sayılar yalnızca altı ligi kapsar"
+- [x] Prisma şeması + migration: `nationalCaps`, `heightCm`, `weightKg`
+- [x] ETL: millî takım listesi (bir kez) + oyuncu istatistik sorgusu (yığın 250)
+- [x] BR-14'ün ETL'de uygulanması: **en büyük**, toplam değil
+- [x] `db:verify`: yeni alanların kapsam alt sınırı
+- [x] Domain: BR-15…BR-20, puanlama formülü
+- [x] `GET /api/stat-match`, `POST /api/stat-match/answer` (§6.5)
+- [x] Arayüz: istatistik başına seçici + sonuç kartı
+- [x] Kapsam bildirimi: "bu sayılar yalnızca altı ligi kapsar"
 
-### Faz 4.7 — İkinci kaynak: Vikipedi
+**Yığın boyutu ölçülerek seçildi.** 250 oyuncu tek sorguda dönüyor; 500'de
+`HTTP 414` (URL çok uzun). Kapsam alt sınırları `db:verify`'a kondu çünkü üç
+alanın da eksik olması NORMAL (§9.2) — bir eşik olmadan alanın tamamen boş
+gelmesiyle seyrek gelmesi ayırt edilemezdi.
+
+### Faz 4.7 — İkinci kaynak: Vikipedi ✅
 
 > **Bu da 4.5'ten önce gelir ve gerekçesi aynı.** Katman veri kümesini
 > değiştiriyor; yayın zaten tek bir ETL koşusu içeriyor ve ikisini ayırmak
@@ -1881,6 +1886,35 @@ Sonuncusu en pahalı dersti ve **birim testleriyle görünmüyordu**: iki kulüp
 
 **Uçtan uca doğrulama.** Katmanın var oluş sebebi olan somut şikâyet kapandı: Galatasaray ∩ Konyaspor **38** ortak oyuncu döndürüyor ve Abdülkerim Bardakçı canlı API'de, bilgi kutusuyla birebir aynı verilerle görünüyor (Galatasaray 2022–, 119 maç, 10 gol).
 
+### Faz 4.8 — Oyunun bulduğu dört veri kusuru ✅
+
+**Dördü de kod incelemesiyle değil, OYNANARAK bulundu.** Somut şikâyet şuydu:
+"ızgara modunda Yunus Akgün çıkıyor, istatistik modunda bulunamıyor." İki mod
+aynı veriyi okuyor; farkı BR-16'nın puanlanabilirlik süzgeci yaratıyordu ve
+süzgecin elediği kayıt bozuktu. İzi sürmek üç kusur daha açığa çıkardı.
+
+- [x] **Örtüşme kuralı kanıta yer verir** — kanıtsız bir Wikidata dönemi,
+      örtüşen ve maç/gol taşıyan bir Vikipedi kaydına bırakılır (§4.3'ün
+      üçüncü eşleşme kademesi). 460 dönem bu yolla kanıtlandı.
+- [x] **Küme düşen kulüp evrenden sessizce düşüyordu** — `wdt:P118` kısayolu
+      yalnızca _Preferred_ ifadeyi döndürüyor; Adana Demirspor'un lig ifadesi
+      artık öncelikli değildi ve kulüp veri kümesinde HİÇ yoktu. Sorgu tüm
+      `p:P118` ifadelerini okuyor, yalnızca `DeprecatedRank` eleniyor (§5.3).
+- [x] **Kulüp ikizleri birleştirilir** — ayrımı ortak oyuncu eşiği değil
+      `P31` SINIFI veriyor; eşik Barcelona'yı yedek takımıyla birleştirirdi
+      (§5.3). 49 ikiz birleşti, Roubaix selef/halef çifti ayrı kaldı.
+- [x] **Ayrı kalan kulüpler seçicide ayırt edilebilir** — birleştirilmesi
+      DOĞRU OLMAYAN çiftler kullanıcıya birebir aynı satırla görünüyordu
+      (§5.3). Üç kademe: kısa ad → tam ad → kuruluş yılı.
+
+**Yükleyicide gizli bir varsayım da bu sırada patladı.** İkiz birleştirmesi
+bir dönemin KULÜP DEĞİŞTİRMESİNE yol açıyor; ifade kimliği (doğal anahtar)
+aynı kalıyor. `load.ts` bunu varsaymıyordu: eski satır gölge kulüpte duruyor,
+gölge "dokunulan kulüpler" listesinde olmadığı için silinmiyor ve yazma
+`wikidataStatementId` benzersizlik kısıtına takılıyordu. Bayat kulüp temizliği
+bunu çözerdi ama yazmadan SONRA çalışıyordu; artık evrenden çıkmış kulüplerin
+dönemleri yazmadan ÖNCE siliniyor.
+
 ### Faz 4.5 — Yayın
 
 Kod tarafı hazır. Kalanlar hesap açmayı ve dağıtımda ölçüm yapmayı gerektirir.
@@ -1911,9 +1945,15 @@ Kod tarafı hazır. Kalanlar hesap açmayı ve dağıtımda ölçüm yapmayı ge
 
 ### 10.1 Şu Anki Odak
 
-**Faz 4.4 tamamlandı — sıradaki Faz 4.5 (yayın).** İki oyun modu çalışıyor, sertleştirme bitti. Kalan iş kod değil: hesap açma ve ilk dağıtımda üç varsayımın ölçülmesi — CDN önbellek geçersizleştirme (§7.9), `process.cwd()` yerleşimi (§3.1) ve gerçek tarayıcıda yerleşime bağlı erişilebilirlik ölçütleri (§7.10).
+**Faz 4.8 tamamlandı — sıradaki ve TEK kalan Faz 4.5 (yayın).** Üç oyun modu
+çalışıyor (ortak oyuncu, 3×3 ızgara, istatistik eşleştirme), sertleştirme
+bitti, ikinci kaynak devrede. Kalan iş kod değil: hesap açma ve ilk dağıtımda
+beş varsayımın ölçülmesi — bunların yalnızca biri güvenlik etkili
+(`TRUSTED_PROXY_HOPS`), kalanı CDN önbellek geçersizleştirme (§7.9),
+`process.cwd()` yerleşimi (§3.1), üretimde CSP nonce ölçümü ve gerçek
+tarayıcıda yerleşime bağlı erişilebilirlik ölçütleri (§7.10).
 
-Doğrulanabilir taban (Faz 4.7 kapanışı, 2026-08-04):
+Doğrulanabilir taban (Faz 4.8 kapanışı, 2026-08-06):
 
 | Komut                  | Sonuç                                                                    |
 | ---------------------- | ------------------------------------------------------------------------ |
@@ -1921,11 +1961,11 @@ Doğrulanabilir taban (Faz 4.7 kapanışı, 2026-08-04):
 | `npm run lint`         | temiz (0 uyarı)                                                          |
 | `npm run format:check` | temiz                                                                    |
 | `npm run test`         | 807/807 geçiyor (birim, bileşen, erişilebilirlik, entegrasyon, doğruluk) |
-| `npm run build`        | başarılı, tüm rotalar dinamik (nonce için gerekli)                       |
+| `npm run build`        | başarılı; sayfa ve API rotalarının tamamı dinamik (nonce için gerekli)   |
 | `npm run audit:ci`     | 0 açık (üretim ağacı)                                                    |
 | `npm run etl`          | 383 kulüp · 76.757 oyuncu · **220.058 dönem** (§4.3 katmanıyla, 5 dil)   |
 | `npm run db:verify`    | KABUL BAŞARILI — 25 denetim + 10 kulüp örneklemi, tamamı geçiyor         |
-| `npm run bench`        | p50 5,1 ms · **p95 17,7 ms** · p99 23,9 ms (bütçe 150 ms)                |
+| `npm run bench`        | p50 5,9 ms · **p95 17,5 ms** · p99 24,7 ms (bütçe 150 ms)                |
 | CSP nonce ölçümü       | **15/15** script eşleşti, 3/3 benzersiz nonce (§7.3)                     |
 | Üretimde arma ölçümü   | 12 arma, **12'si** `upload.wikimedia.org`, izinsiz köken **0**           |
 | Üretimde önbellek      | `200` → `public, s-maxage=300…` · `400` → `no-store` (§7.9)              |
@@ -1951,30 +1991,49 @@ Bunun süreçteki karşılığı `npm run db:verify`. Faz 1 boyunca doğrulama "
 
 ### 10.2 Bilinen Teknik Borç / İleri Kararlar
 
-| Konu                                      | Şimdiki karar                                                                                             | Ne zaman değişir                                                                 |
-| ----------------------------------------- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| SQLite                                    | Salt-okunur derleme çıktısı (§3.1); ölçüldü, yazma yolu yok                                               | Skor tablosu yazma getirdiğinde — ayrı veri kümesi olarak                        |
-| Fonksiyon paketi 125,4 MB                 | Ölçüldü; sınır 250 MB, marj ~2 kat. Veri %62, Prisma motoru %34 (§3.1)                                    | Sınıra yaklaşılırsa ETL'e özgü sütun + indeks düşürülür (~20 MB)                 |
-| Derlemede NFT uyarısı                     | Kabul — `resolveDatabaseUrl` içindeki `path.resolve` tetikliyor; iz ÖLÇÜLDÜ, şişme yok (280 dosya)        | Turbopack daha dar analiz sunarsa                                                |
-| Bellek içi hız sınırlama                  | Sunucusuzda örnek başına çalışır; katmanlardan biri, tek savunma değil (§7.5)                             | Skor tablosu geldiğinde paylaşımlı sayaç **zorunlu** olur                        |
-| Wikidata tek kaynak                       | Kapsam boşluğu ölçüldü ve %5'i aştı; ikinci kaynak (Vikipedi) ekleniyor — elle düzeltme kaldırıldı (§4.3) | Ana dil Vikipedileri, kazanç ayrıca ölçülürse                                    |
-| i18n                                      | Yalnızca TR metinler                                                                                      | İngilizce talep edilirse (yapı hazır)                                            |
-| Tümüyle dinamik render                    | Nonce'lu CSP için kabul edildi (§7.3)                                                                     | Next kararlı SRI sunarsa statik + hash tabanlı CSP'ye geçilir                    |
-| `brace-expansion` açığı                   | Dev-only, izleniyor (§7.7)                                                                                | `eslint-config-next` eslint 10 uyumlu eklentilerle çıkarsa                       |
-| Yalnızca erkek ligleri                    | Kapsam kararı (BR-7)                                                                                      | Kadın futbolu kendi lig kümesiyle ayrı kapsam olarak eklenebilir                 |
-| Kulüp sınıfı beyaz listesi                | 6 sınıf, ölçülerek belirlendi                                                                             | Yeni bir kulüp farklı `P31` ile listeden düşerse genişletilir                    |
-| Tam kariyer verisi yok                    | Faz 1 kapsam sınırı (§1.3)                                                                                | Kariyer bilmecesi / bağlantı zinciri modları için gerekli olacak                 |
-| `isYouth` hiç tetiklenmiyor               | Kabul — veri kümesinde altyapı takımı yok (388 kulübün 0'ı)                                               | Alt lig kapsamı eklenirse altyapı/rezerv takımlar girer, BR-2 devreye girer      |
-| Kulüp kuruluş yılı gürültülü              | Uyarı, bloklamıyor (§8.2)                                                                                 | 10.162 dönem kulüp kuruluşundan önce; `P571` sık sık selef kulübü gösteriyor     |
-| `db:verify` elle çalışır                  | Faz 1'de yeterli                                                                                          | Dağıtım ardışık düzenine girince veri yükleme adımının parçası olur              |
-| Tarihsiz dönemler yanlış pozitif üretiyor | **Çözüldü (Faz 4):** elenmiyor, BR-8 ile etiketleniyor; oran `db:verify`'da tavanlı                       | İkinci bir veri kaynağı eklenirse kayıtlar teker teker doğrulanabilir hâle gelir |
-| Ortak oyuncu sayısı sınırsız              | Kabul — ölçülen en büyük sonuç 128 oyuncu                                                                 | Sayfalama, arayüz gerektirdiğinde (Faz 3) veya sonuç 500'ü aştığında             |
-| Altın veri seti elle bakımlı              | 31 olgu, elle doğrulandı                                                                                  | Kapsam genişledikçe büyütülür; otomatik türetme yapılMAZ (kendini doğrular)      |
-| Kulüp armaları gösterilmiyor              | **Çözüldü (Faz 4):** ETL normalize ediyor, `ClubCrest` gösteriyor; 114/114 izinli kökende                 | —                                                                                |
-| `P154` bazı kulüplerde arma DEĞİL         | Kabul — ölçüldü: Barcelona'nın değeri tesis fotoğrafı, Middlesbrough'nunki sokak fotoğrafı                | İkinci kaynak (Vikipedi) armaları da taşırsa                                     |
-| CDN önbellek geçersizleştirme             | Varsayım; bu yüzden `s-maxage` temkinli (300 sn) tutuluyor (§7.9)                                         | Faz 4.5'te ölçülür; doğrulanırsa süre uzatılır                                   |
-| p95 gecikme                               | **Ölçüldü (Faz 4):** 16,8 ms, bütçe 150 ms; `npm run bench` kalıcı kapı                                   | Kapsam genişleyince yeniden ölçülür (betik zaten var)                            |
-| Erişilebilirlik: yerleşime bağlı ölçütler | Yapısal denetim (axe-core) ve kontrast ölçüldü; görünürlük, odak sırası ve hedef boyutu ölçülMEDİ (§7.10) | Faz 4.5: gerçek tarayıcıda elle denetim                                          |
+| Konu                                      | Şimdiki karar                                                                                                  | Ne zaman değişir                                                                 |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| SQLite                                    | Salt-okunur derleme çıktısı (§3.1); ölçüldü, yazma yolu yok                                                    | Skor tablosu yazma getirdiğinde — ayrı veri kümesi olarak                        |
+| Fonksiyon paketi 125,4 MB                 | Ölçüldü; sınır 250 MB, marj ~2 kat. Veri %62, Prisma motoru %34 (§3.1)                                         | Sınıra yaklaşılırsa ETL'e özgü sütun + indeks düşürülür (~20 MB)                 |
+| Derlemede NFT uyarısı                     | Kabul — `resolveDatabaseUrl` içindeki `path.resolve` tetikliyor; iz ÖLÇÜLDÜ, şişme yok (280 dosya)             | Turbopack daha dar analiz sunarsa                                                |
+| Bellek içi hız sınırlama                  | Sunucusuzda örnek başına çalışır; katmanlardan biri, tek savunma değil (§7.5)                                  | Skor tablosu geldiğinde paylaşımlı sayaç **zorunlu** olur                        |
+| Wikidata tek kaynak                       | **Çözüldü (Faz 4.7):** Vikipedi ikinci kaynak olarak devrede, 5 dil; elle düzeltme kaldırıldı (§4.3)           | Kadro keşfi ayrı bir borç olarak aşağıda                                         |
+| i18n                                      | Yalnızca TR metinler                                                                                           | İngilizce talep edilirse (yapı hazır)                                            |
+| Tümüyle dinamik render                    | Nonce'lu CSP için kabul edildi (§7.3)                                                                          | Next kararlı SRI sunarsa statik + hash tabanlı CSP'ye geçilir                    |
+| `brace-expansion` açığı                   | Dev-only, izleniyor (§7.7)                                                                                     | `eslint-config-next` eslint 10 uyumlu eklentilerle çıkarsa                       |
+| Yalnızca erkek ligleri                    | Kapsam kararı (BR-7)                                                                                           | Kadın futbolu kendi lig kümesiyle ayrı kapsam olarak eklenebilir                 |
+| Kulüp sınıfı beyaz listesi                | 6 sınıf, ölçülerek belirlendi                                                                                  | Yeni bir kulüp farklı `P31` ile listeden düşerse genişletilir                    |
+| Tam kariyer verisi yok                    | Faz 1 kapsam sınırı (§1.3)                                                                                     | Kariyer bilmecesi / bağlantı zinciri modları için gerekli olacak                 |
+| `isYouth` hiç tetiklenmiyor               | Kabul — veri kümesinde altyapı takımı yok (383 kulübün 0'ı)                                                    | Alt lig kapsamı eklenirse altyapı/rezerv takımlar girer, BR-2 devreye girer      |
+| Kulüp kuruluş yılı gürültülü              | Uyarı, bloklamıyor (§8.2)                                                                                      | 10.166 dönem kulüp kuruluşundan önce; `P571` sık sık selef kulübü gösteriyor     |
+| `db:verify` elle çalışır                  | Faz 1'de yeterli                                                                                               | Dağıtım ardışık düzenine girince veri yükleme adımının parçası olur              |
+| Tarihsiz dönemler yanlış pozitif üretiyor | **Çözüldü (Faz 4):** elenmiyor, BR-8 ile etiketleniyor; oran `db:verify`'da tavanlı                            | İkinci bir veri kaynağı eklenirse kayıtlar teker teker doğrulanabilir hâle gelir |
+| Ortak oyuncu sayısı sınırsız              | Kabul — yeniden ölçüldü: en büyük **377**, 500'ü aşan çift **0** (§10.2 notu)                                  | Sayfalama, arayüz gerektirdiğinde veya sonuç 500'ü aştığında                     |
+| Altın veri seti elle bakımlı              | 31 olgu, elle doğrulandı                                                                                       | Kapsam genişledikçe büyütülür; otomatik türetme yapılMAZ (kendini doğrular)      |
+| Kulüp armaları gösterilmiyor              | **Çözüldü (Faz 4):** ETL normalize ediyor, `ClubCrest` gösteriyor; 114/114 izinli kökende                      | —                                                                                |
+| `P154` bazı kulüplerde arma DEĞİL         | Kabul — ölçüldü: Barcelona'nın değeri tesis fotoğrafı, Middlesbrough'nunki sokak fotoğrafı                     | İkinci kaynak (Vikipedi) armaları da taşırsa                                     |
+| CDN önbellek geçersizleştirme             | Varsayım; bu yüzden `s-maxage` temkinli (300 sn) tutuluyor (§7.9)                                              | Faz 4.5'te ölçülür; doğrulanırsa süre uzatılır                                   |
+| p95 gecikme                               | **Ölçüldü (Faz 4):** 16,8 ms, bütçe 150 ms; `npm run bench` kalıcı kapı                                        | Kapsam genişleyince yeniden ölçülür (betik zaten var)                            |
+| Erişilebilirlik: yerleşime bağlı ölçütler | Yapısal denetim (axe-core) ve kontrast ölçüldü; görünürlük, odak sırası ve hedef boyutu ölçülMEDİ (§7.10)      | Faz 4.5: gerçek tarayıcıda elle denetim                                          |
+| Bağsız kulüp ikizi (Gençlerbirliği)       | Kabul — ölçüldü, eşik tabanlı kural GÜVENLİ DEĞİL: %80 eşiği Barcelona'yı yedek takımıyla birleştirirdi (§5.3) | Doğru düzeltme yeri kaynağın kendisi: Wikidata'da iki öğenin birleştirilmesi     |
+| Kadro keşfi: güncel kadro %26 eksik       | Kabul — yapısal; oyuncu evrenini `P54` tanımlıyor, bağı olmayan oyuncuya Vikipedi katmanı da ULAŞAMIYOR (§4.7) | Kadro şablonlarından oyuncu keşfi ayrı bir çekim katmanı olarak yazılırsa        |
+
+**En büyük ortak oyuncu sonucu yeniden ölçüldü ve ölçüm bir şey daha söyledi.**
+Faz 3'te kaydedilen 128 değeri eskimişti; 363 seçilebilir kulübün tüm çiftleri
+tarandığında sıralamanın başı şöyle:
+
+| Ortak | Çift                                            | Gerçekte ne            |
+| ----- | ----------------------------------------------- | ---------------------- |
+| 377   | Gençlerbirliği / Gençlerbirliği (futbol takımı) | **bağsız ikiz** (§5.3) |
+| 220   | Ancona / A.C. Ancona                            | yeniden kurulmuş kulüp |
+| 186   | LR Vicenza / Vicenza                            | ad değişikliği         |
+| 174   | RCD Espanyol / Barcelona                        | gerçek futbol olgusu   |
+| 142   | Genoa CFC / Torino                              | gerçek futbol olgusu   |
+
+İlk üç sıra futbolla ilgili değil: aynı kulübün iki kaydı. Bu, kapatılmayan
+ikiz boşluğunun kullanıcıya ne kadara mal olduğunun sayısal karşılığıdır —
+oyuncu, Gençlerbirliği'nin iki kaydını seçtiğinde 377 "ortak oyuncu" görüyor.
+Sayfalama kararı değişmedi: 500'ü aşan çift **0**.
 
 ---
 
