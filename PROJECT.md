@@ -5,7 +5,7 @@
 
 **Sürüm:** 0.1.0
 **Tarih:** 2026-08-06
-**Durum:** Faz 4.9 tamamlandı — üç oyun modu çalışıyor, ikinci kaynak (Vikipedi, 5 dil) devrede, kapsam 12 lige çıktı. Kalan tek faz 4.5: yayın.
+**Durum:** Faz 4.9 tamamlandı — üç oyun modu çalışıyor, ikinci kaynak (Vikipedi, 5 dil) devrede, kapsam 19 lige çıktı. Kalan tek faz 4.5: yayın.
 
 ---
 
@@ -27,7 +27,7 @@ Kullanıcının seçtiği **iki futbol kulübünün ikisinde de forma giymiş** 
 
 ### 1.3 Veri Kapsamı
 
-Avrupa'nın 12 üst ligi:
+Avrupa'nın 19 üst ligi:
 
 | Lig            | Ülke      | Wikidata QID | Güncel kadro | Veri kümesi | Seçilebilir |
 | -------------- | --------- | ------------ | ------------ | ----------- | ----------- |
@@ -154,6 +154,43 @@ kulübü BAĞIMSIZ değerlendiriyor, `?parent` ucu `VALUES` ile sınırlı deği
 > **Kusur 6 ligde görünmezdi ve 8 ligde de görünmedi.** Ölçek kusurları
 > yalnızca ölçek büyüyünce ortaya çıkar; bu, kapsamı yayından ÖNCE
 > genişletmenin somut kazancıdır.
+
+#### Üçüncü genişleme: "Avrupa-2" paketi
+
+Yedi lig daha: Rusya, Polonya, Çekya, Hırvatistan, Danimarka, İsveç, Norveç.
+QID'ler ve 14 amiral kulüp ölçülerek doğrulandı (Zenit, Spartak, CSKA / Legia,
+Lech / Sparta, Slavia / Dinamo Zagreb, Hajduk / Brøndby, Midtjylland / Malmö,
+AIK / Rosenborg, Molde).
+
+**Tahmin bu kez tuttu ve tutması bir şey kanıtlıyor.** İlk iki genişlemeden
+kalibre edilen katsayı (~0,15 MB/kulüp) +29 MB dedi, gerçek **+30 MB** oldu.
+İki ölçümden çıkarılan bir katsayı üçüncüsünü öngördü; artık kalan paketler
+için tahmin değil **hesap** var.
+
+|          | 6 lig   | 8 lig   | 12 lig  | **19 lig**  |
+| -------- | ------- | ------- | ------- | ----------- |
+| Kulüp    | 383     | 449     | 551     | **806**     |
+| Oyuncu   | 76.757  | 84.800  | 95.454  | **120.990** |
+| Dönem    | 220.058 | 245.997 | 286.533 | **362.500** |
+| `dev.db` | 90 MB   | 100 MB  | 115 MB  | **145 MB**  |
+
+**Paket marjı artık dar ve bu §10.2'ye yazıldı.** Fonksiyon paketi ≈ 145 MB
+veri + ~43 MB Prisma motoru + ~5 MB kod = **~193 MB / 250 MB**, yani marj
+**1,30 kat**. 125,4 MB'deki "~2 kat" ifadesi artık geçersiz. Kalan aday
+paketler (Amerika ~42 MB, Asya ~22 MB) bu marjı **yer**; bir sonraki genişleme
+kararı önce §10.2'nin "ETL'e özgü sütun + indeks düşürülür (~20 MB)" satırını
+uygulamayı gerektirebilir.
+
+**Vikipedi katmanı yeni liglerde de çalışıyor** ve katkısı ölçüldü: Polonya
+%23,0 · Hırvatistan %21,6 · Danimarka %20,5 · Norveç %17,2 · Çekya %15,5 ·
+Rusya %14,1 · İsveç %6,3. İsveç'in düşüklüğü kaynak kaynaklı: Allsvenskan'ın
+71 kulübünün yalnızca 50'si seçilebilir eşiğini geçiyor.
+
+**İki ikiz koşudan SONRA çözüldü.** Malmö ve Rosenborg'un Wikidata'da ikiz
+varlıkları vardı ve hangisinin asıl kalacağına §5.3 dönem sayısına bakarak
+karar veriyor. Bu yüzden ikisi `db:verify` kapısına önce KONMADI — tahmin
+edilen bir QID kapının kendisini kırılgan yapardı. Koşudan sonra ölçüldü
+(`Q204881` Malmö FF 652 dönem, `Q186785` Rosenborg 418) ve öyle eklendi.
 
 Üç sütun üç ayrı şeyi sayar ve karıştırılmamalıdır:
 
@@ -2060,7 +2097,7 @@ gölge "dokunulan kulüpler" listesinde olmadığı için silinmiyor ve yazma
 bunu çözerdi ama yazmadan SONRA çalışıyordu; artık evrenden çıkmış kulüplerin
 dönemleri yazmadan ÖNCE siliniyor.
 
-### Faz 4.9 — Kapsam genişletme: 6 → 12 lig ✅
+### Faz 4.9 — Kapsam genişletme: 6 → 19 lig ✅
 
 Yayından **önce**, ürün sahibinin kararıyla. Ayrıntı ve ölçümler §1.3'te.
 
@@ -2165,9 +2202,9 @@ Doğrulanabilir taban (Faz 4.9 kapanışı, 2026-08-06):
 | `npm run test`         | 811/811 geçiyor (birim, bileşen, erişilebilirlik, entegrasyon, doğruluk) |
 | `npm run build`        | başarılı; `icon.svg` dışında her rota dinamik (nonce ve §7.11 için)      |
 | `npm run audit:ci`     | 0 açık (üretim ağacı)                                                    |
-| `npm run etl`          | 551 kulüp · 95.454 oyuncu · **286.533 dönem** (12 lig, §4.3 katmanı)     |
-| `npm run db:verify`    | KABUL BAŞARILI — 25 denetim + 21 kulüp örneklemi, tamamı geçiyor         |
-| `npm run bench`        | p50 3,8 ms · **p95 9,3 ms** · p99 21,3 ms (bütçe 150 ms)                 |
+| `npm run etl`          | 806 kulüp · 120.990 oyuncu · **362.500 dönem** (19 lig, §4.3 katmanı)    |
+| `npm run db:verify`    | KABUL BAŞARILI — 25 denetim + 37 kulüp örneklemi, tamamı geçiyor         |
+| `npm run bench`        | p50 4,5 ms · **p95 10,9 ms** · p99 14,4 ms (bütçe 150 ms)                |
 | CSP nonce ölçümü       | **15/15** script eşleşti, 3/3 benzersiz nonce (§7.3)                     |
 | Üretimde arma ölçümü   | 12 arma, **12'si** `upload.wikimedia.org`, izinsiz köken **0**           |
 | Üretimde önbellek      | `200` → `public, s-maxage=300…` · `400` → `no-store` (§7.9)              |
@@ -2196,7 +2233,7 @@ Bunun süreçteki karşılığı `npm run db:verify`. Faz 1 boyunca doğrulama "
 | Konu                                      | Şimdiki karar                                                                                                                                                              | Ne zaman değişir                                                                 |
 | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
 | SQLite                                    | Salt-okunur derleme çıktısı (§3.1); ölçüldü, yazma yolu yok                                                                                                                | Skor tablosu yazma getirdiğinde — ayrı veri kümesi olarak                        |
-| Fonksiyon paketi 125,4 MB                 | Ölçüldü; sınır 250 MB, marj ~2 kat. Veri %62, Prisma motoru %34 (§3.1)                                                                                                     | Sınıra yaklaşılırsa ETL'e özgü sütun + indeks düşürülür (~20 MB)                 |
+| Fonksiyon paketi ~193 MB                  | **Yeniden ölçüldü (19 lig):** sınır 250 MB, marj **1,30 kat** (125,4 MB'de 2,0 kattı). Veri 145 MB, Prisma motoru ~43 MB (§3.1)                                            | Sınıra yaklaşılırsa ETL'e özgü sütun + indeks düşürülür (~20 MB)                 |
 | Derlemede NFT uyarısı                     | Kabul — `resolveDatabaseUrl` içindeki `path.resolve` tetikliyor; iz ÖLÇÜLDÜ, şişme yok (280 dosya)                                                                         | Turbopack daha dar analiz sunarsa                                                |
 | Bellek içi hız sınırlama                  | Sunucusuzda örnek başına çalışır; katmanlardan biri, tek savunma değil (§7.5)                                                                                              | Skor tablosu geldiğinde paylaşımlı sayaç **zorunlu** olur                        |
 | Wikidata tek kaynak                       | **Çözüldü (Faz 4.7):** Vikipedi ikinci kaynak olarak devrede, 5 dil; elle düzeltme kaldırıldı (§4.3)                                                                       | Kadro keşfi ayrı bir borç olarak aşağıda                                         |

@@ -57,6 +57,29 @@ const MUST_BE_SELECTABLE: readonly { qid: string; why: string }[] = [
   { qid: "Q4122219", why: "Panathinaikos — Yunanistan kapsamı" },
   { qid: "Q189671", why: "Basel — İsviçre kapsamı" },
   { qid: "Q190526", why: "Young Boys — İsviçre kapsamı" },
+  // Avrupa-2 paketi. Malmö ve Rosenborg BİLEREK YOK: ikisinin de Wikidata'da
+  // ikiz varlığı var ve hangisinin asıl kalacağına §5.3'ün birleştirmesi
+  // DÖNEM SAYISINA bakarak karar veriyor. Tahmin edilen bir QID'i kapıya
+  // koymak, kapının kendisini kırılgan yapardı.
+  { qid: "Q29108", why: "Zenit — Rusya kapsamı" },
+  { qid: "Q29112", why: "Spartak Moskova — Rusya kapsamı" },
+  { qid: "Q193749", why: "Legia — Polonya kapsamı" },
+  { qid: "Q52942", why: "Lech Poznań — Polonya kapsamı" },
+  { qid: "Q193481", why: "Sparta Prag — Çekya kapsamı" },
+  { qid: "Q194393", why: "Slavia Prag — Çekya kapsamı" },
+  { qid: "Q172803", why: "Dinamo Zagreb — Hırvatistan kapsamı" },
+  { qid: "Q181216", why: "Hajduk Split — Hırvatistan kapsamı" },
+  { qid: "Q211906", why: "Brøndby — Danimarka kapsamı" },
+  { qid: "Q618520", why: "Midtjylland — Danimarka kapsamı" },
+  { qid: "Q221602", why: "AIK — İsveç kapsamı" },
+  { qid: "Q201567", why: "IFK Göteborg — İsveç kapsamı" },
+  { qid: "Q208552", why: "Molde — Norveç kapsamı" },
+  { qid: "Q205685", why: "Brann — Norveç kapsamı" },
+  // İkiz galipleri: koşudan SONRA ölçülüp eklendi (652 ve 418 dönem). Önce
+  // tahmin edilmedi; §5.3 kararı dönem sayısına bakıyor ve tahmin edilen bir
+  // QID kapının kendisini kırılgan yapardı.
+  { qid: "Q204881", why: "Malmö FF — İsveç kapsamı, ikiz galibi" },
+  { qid: "Q186785", why: "Rosenborg — Norveç kapsamı, ikiz galibi" },
 ];
 
 /** MVP'nin çekirdek sorusu boş dönmemesi gereken çiftler. */

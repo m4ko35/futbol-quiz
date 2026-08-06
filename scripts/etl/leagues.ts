@@ -156,6 +156,66 @@ export const TARGET_LEAGUES: readonly LeagueSeed[] = [
     minClubs: 12,
     verifyLabel: "Swiss Super League",
   },
+  /**
+   * ÜÇÜNCÜ GENİŞLEME — "Avrupa-2" paketi (§1.3).
+   *
+   * Yedisinin de QID'i ve amiral kulüpleri ölçülerek doğrulandı: Zenit,
+   * Spartak, CSKA / Legia, Lech / Sparta, Slavia / Dinamo Zagreb, Hajduk /
+   * Brøndby, Midtjylland / Malmö, AIK / Rosenborg, Molde.
+   */
+  {
+    wikidataId: "Q182165",
+    name: "Rusya Premier Ligi",
+    country: "RU",
+    tier: 1,
+    minClubs: 12,
+    verifyLabel: "Russian Premier League",
+  },
+  {
+    wikidataId: "Q44763",
+    name: "Ekstraklasa",
+    country: "PL",
+    tier: 1,
+    minClubs: 12,
+  },
+  {
+    wikidataId: "Q217016",
+    name: "Çekya Birinci Ligi",
+    country: "CZ",
+    tier: 1,
+    minClubs: 12,
+    verifyLabel: "Czech First League",
+  },
+  {
+    wikidataId: "Q162604",
+    name: "Hırvatistan Ligi",
+    country: "HR",
+    tier: 1,
+    minClubs: 10,
+    verifyLabel: "Croatian Football League",
+  },
+  {
+    wikidataId: "Q204752",
+    name: "Danimarka Süper Ligi",
+    country: "DK",
+    tier: 1,
+    minClubs: 10,
+    verifyLabel: "Danish Superliga",
+  },
+  {
+    wikidataId: "Q202243",
+    name: "Allsvenskan",
+    country: "SE",
+    tier: 1,
+    minClubs: 12,
+  },
+  {
+    wikidataId: "Q201671",
+    name: "Eliteserien",
+    country: "NO",
+    tier: 1,
+    minClubs: 12,
+  },
 ] as const;
 
 /**
