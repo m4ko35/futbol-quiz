@@ -8,6 +8,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  * değer diğerlerine sızar ve test, ölçtüğünü sandığı şeyi ölçmez.
  */
 
+/**
+ * `connection()` gerçek bir istek kapsamı ister; birim testinde yoktur.
+ * Taklidi aynı zamanda bir ÖLÇÜM aracı: çağrılıp çağrılmadığını sayıyoruz.
+ */
+const connectionMock = vi.fn(() => Promise.resolve());
+
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  connection: () => connectionMock(),
+}));
+
 const BASE_ENV = {
   DATABASE_URL: "file:./dev.db",
   RATE_LIMIT_REQUESTS_PER_MINUTE: "60",
@@ -67,6 +78,25 @@ describe("robots.txt", () => {
     const acik = await loadRobots({ SITE_INDEXABLE: "true" });
 
     expect(kapali.rules).not.toEqual(acik.rules);
+  });
+
+  /**
+   * BU TESTİN VAR OLMA SEBEBİ ÖLÇÜLDÜ. Next `robots.js`'i öntanımlı olarak
+   * önbelleğe alıyor ve gövdeyi derlemeye gömüyor; sayfa meta etiketi ise her
+   * istekte okunuyor. Derleme `SITE_INDEXABLE` olmadan yapılıp çalışma anında
+   * `true` verildiğinde `robots.txt` "Disallow: /" derken sayfa "index, follow"
+   * diyordu — site kapalı kalır ama açıldığı sanılırdı (§7.11).
+   *
+   * `connection()` kaldırılırsa arıza sessizdir: birim testlerinin hepsi yeşil
+   * kalır, çünkü işlev doğru değeri döndürmeye devam eder. Yalnızca DERLEME
+   * davranışı değişir. Bu yüzden çağrının kendisi sınanıyor.
+   */
+  it("her istekte yeniden değerlendirilir — derlemeye gömülmez", async () => {
+    connectionMock.mockClear();
+
+    await loadRobots({ SITE_INDEXABLE: "true", SITE_URL: "https://ornek.com" });
+
+    expect(connectionMock).toHaveBeenCalledOnce();
   });
 
   it("tanınmayan bir değer uygulamayı BAŞLATMAZ", async () => {

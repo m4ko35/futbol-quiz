@@ -1294,12 +1294,41 @@ Saydamlık düzenindeki ilk ölçüm beş ihlal buldu ve beşi de düzeltildi:
 
 **Neden hem `robots.txt` hem `noindex`.** `robots.txt` yalnızca **taramayı** engeller, indekslemeyi değil: dışarıdan bağlantı verilmiş bir adres, içeriği hiç okunmadan arama sonuçlarında görünebilir. İndekslemeyi asıl engelleyen `noindex` meta etiketidir. Bu aşamada siteye dışarıdan bağlantı olmadığı için ikisi birlikte kullanılıyor; tarama trafiğini baştan kesmenin de maliyeti yok.
 
-**Doğrulanmış çıktı (üretim derlemesi, `SITE_INDEXABLE` tanımsız):**
+**AYNI DEĞERİ OKUMAK YETMEDİ; AYNI ANDA okumaları gerekiyordu.** İlk sürümde
+`robots.ts` derleme zamanında çözülüyordu: Next, `robots.js`'i öntanımlı
+olarak **önbelleğe alıyor** (istek-anı API'si kullanmadıkça) ve gövde derleme
+çıktısına gömülüyordu. Sayfa meta etiketi ise her istekte okunuyor. Sonuç,
+belgenin önlemek için yazdığı durumun ta kendisi:
+
+| Derleme `SITE_INDEXABLE` yok · çalışma anı `true` | Sonuç                             |
+| ------------------------------------------------- | --------------------------------- |
+| `robots.txt`                                      | `Disallow: /` — derlemeye gömülü  |
+| sayfa meta                                        | `index, follow` — çalışma anından |
+
+**Yön güvenli ama yayın bozuk.** Tarayıcılar `robots.txt`'ye uyup sayfayı hiç
+çekmiyor, dolayısıyla "indekslenebilir" diyen meta etiketini de hiç görmüyor:
+site kapalı kalıyor, ama açıldığı sanılıyor. Ters yön (açıktan kapalıya) de
+güvenli tarafa düşüyor. Yani bu bir güvenlik açığı değil, **sessiz bir yayın
+arızası** — ve sessiz olduğu için pahalı.
+
+**Düzeltme:** `robots.ts` `connection()` çağırıyor (Next 16'da dinamik render
+işareti; `export const dynamic` kaldırıldı). Route artık her istekte
+değerlendiriliyor ve iki çıktı gerçekten tek anahtardan geliyor. Maliyeti
+kabul edilebilir: proje zaten CSP nonce'u için tümüyle dinamik render
+kullanıyor (§10.2) ve `robots.txt` yanıtı birkaç yüz bayt.
+
+**Doğrulanmış çıktı — tek derleme, iki çalışma anı (ölçüldü):**
 
 ```
-robots.txt        User-Agent: *  /  Disallow: /
-<meta name="robots" content="noindex, nofollow, nocache">
+SITE_INDEXABLE tanımsız →  robots.txt: Disallow: /
+                           <meta name="robots" content="noindex, nofollow, nocache">
+
+SITE_INDEXABLE=true    →  robots.txt: Allow: / + Disallow: /api/
+                           <meta name="robots" content="index, follow">
 ```
+
+Aynı derleme çıktısı iki değeri de doğru yansıtıyor; yeniden derleme
+gerekmiyor.
 
 **Paylaşım meta verisi.** `metadataBase` olmadan Open Graph alanları göreli kalır ve hiçbir sohbet uygulaması onları çözemez; bağlantı başlıksız gri bir kutu olarak görünür. `SITE_URL` bu tabanı verir.
 
@@ -1935,7 +1964,12 @@ Kod tarafı hazır. Kalanlar hesap açmayı ve dağıtımda ölçüm yapmayı ge
 - [ ] Üretimde CSP nonce ölçümünün tekrarı
 - [ ] Gerçek tarayıcıda erişilebilirlik: odak sırası, hedef boyutu, yeniden akış (§7.10)
 
-**Yayına açma anı:** `SITE_INDEXABLE=true` (§7.11). Tek değişken; `robots.txt` ve `noindex` birlikte döner.
+**Yayına açma anı:** `SITE_INDEXABLE=true` (§7.11). Tek değişken; `robots.txt` ve `noindex` birlikte döner ve bu ÖLÇÜLDÜ — tek derleme çıktısı üç ortam değerinin üçünü de doğru yansıtıyor, yeniden derleme gerekmiyor. Çevirdikten sonra ikisi de doğrulanır:
+
+```
+curl -s https://ALAN/robots.txt
+curl -s https://ALAN/ | grep -o '<meta name="robots"[^>]*>'
+```
 
 ### Faz 5 — Genişleme
 
@@ -1961,7 +1995,7 @@ Doğrulanabilir taban (Faz 4.8 kapanışı, 2026-08-06):
 | `npm run lint`         | temiz (0 uyarı)                                                          |
 | `npm run format:check` | temiz                                                                    |
 | `npm run test`         | 807/807 geçiyor (birim, bileşen, erişilebilirlik, entegrasyon, doğruluk) |
-| `npm run build`        | başarılı; sayfa ve API rotalarının tamamı dinamik (nonce için gerekli)   |
+| `npm run build`        | başarılı; `icon.svg` dışında her rota dinamik (nonce ve §7.11 için)      |
 | `npm run audit:ci`     | 0 açık (üretim ağacı)                                                    |
 | `npm run etl`          | 383 kulüp · 76.757 oyuncu · **220.058 dönem** (§4.3 katmanıyla, 5 dil)   |
 | `npm run db:verify`    | KABUL BAŞARILI — 25 denetim + 10 kulüp örneklemi, tamamı geçiyor         |
