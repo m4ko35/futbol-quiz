@@ -237,6 +237,7 @@ futbol-quiz/
 │   │   ├── extract.ts             ← beş geçişli çekim orkestrasyonu
 │   │   ├── normalize.ts           ← ad/tarih normalizasyonu, dedupe
 │   │   ├── merge-clubs.ts         ← §5.3 kulüp ikizlerini birleştirir (SAF)
+│   │   ├── club-labels.ts         ← §5.3 seçicide ayırt edilebilir kısa ad (SAF)
 │   │   ├── wikipedia-pass.ts      ← bilgi kutularını çek, ayrıştır, eşleştir
 │   │   ├── merge-wikipedia.ts     ← §4.3'ün altı birleştirme kuralı (SAF)
 │   │   ├── validate.ts            ← tutarlılık denetimleri
@@ -757,6 +758,34 @@ Ortak oyuncu oranı (%92) onları yakalardı. **Yakalamak için kullanılmadı**
 Gerçek ikiz (%92) ile yeniden kurulmuş kulüp (%94) **aynı bantta**; %80'lik bir eşik Barcelona'yı yedek takımıyla birleştirirdi. Yedek takım ve selef kulüp doğaları gereği oyuncu paylaşır — oran bu üçünü ayırt edemez.
 
 Bu yüzden ikinci bir kural **yazılmadı**. Kalan tek kullanıcıya görünen ikiz Gençlerbirliği'dir ve doğru düzeltme yeri **kaynağın kendisi**: Wikidata'da iki öğenin birleştirilmesi. Uydurulmuş bir eşikle burada kapatmak, iki gerçek kulübü karıştırma riskini veri kümesine yaymak olurdu.
+
+##### Ayrı kalan kulüpler seçicide AYIRT EDİLEBİLMELİ
+
+Yukarıdaki tablonun ikinci bir sonucu var ve ilkinden bağımsız: birleştirilmesi **doğru olmayan** çiftler kullanıcının önüne yan yana çıkıyor. `Toulouse FC` ile `Toulouse FC` iki ayrı kulüp — 1937'de kurulan 1967'de dağıldı, bugünkü kulüp 1970'te kuruldu — ama kulüp seçici ikisini de aynı satırla basıyor.
+
+Seçicinin bastığı alanlar `shortName`, ülke ve armadır (`club-picker.tsx`). Arma ayırt edici **sayılamaz**: Wikidata'da sık sık boştur ve Toulouse çiftinde ikisi de boş. Geriye kalan iki alan çakıştığında kullanıcının seçecek hiçbir dayanağı kalmıyor.
+
+**Ölçüm — 383 kulübün tamamı tarandı:**
+
+| Kademe | Ayırt edici                      | Çözülen küme  | Kalan |
+| ------ | -------------------------------- | ------------- | ----- |
+| 0      | `shortName` + ülke (seçicide bu) | —             | **3** |
+| 1      | tam ad (`name`)                  | Troyes, Nancy | **1** |
+| 2      | kuruluş yılı (`P571`)            | Toulouse      | **0** |
+
+| Küme          | Kulüpler                                          | Ne oldu              |
+| ------------- | ------------------------------------------------- | -------------------- |
+| `Troyes` / FR | `Troyes AC` (Q501693) · `AS Troyes` (Q2868069)    | tam ad ayırdı        |
+| `Nancy` / FR  | `AS Nancy` (Q19523) · `FC Nancy` (Q1387406)       | tam ad ayırdı        |
+| `Toulouse`/FR | `Toulouse FC` (Q2422417) · `Toulouse FC` (Q19518) | kuruluş yılı gerekti |
+
+**Dönem yıl aralığı denendi ve ELENDİ.** İlk sezgi "kulübün dönemleri hangi yıllara yayılıyor" idi; ölçüm çürüttü: Q19518 (kuruluş 1970) veri kümesinde **1937**'den başlayan dönemler taşıyor — kaynaklar eski kulübün kayıtlarını bugünküne yazmış. Ayırt edici olarak kuruluş yılı kaldı.
+
+**`P571` gürültülüdür (§10.2) ve bu yüzden yalnızca SON kademede kullanılıyor.** Gürültünün etkisi çakışan kümelerle sınırlı: 383 kulübün 380'i kısa adını olduğu gibi koruyor, yıl yalnızca başka hiçbir alanın ayırmadığı yerde ekleniyor.
+
+**Karşılaştırma birebirdir.** Sorulan soru "bu iki satır aynı anlama mı geliyor" değil, "kullanıcı ekranda ikisini ayırt edebiliyor mu". İlk sürüm harf duyarsız karşılaştırıyordu ve birim testi bir kusur buldu: `toLocaleLowerCase("tr")` Türkçede `I` → `ı` çevirdiği için "REAL MADRID" ile "Real Madrid" zaten eşleşmiyordu. Yerel ayara bağlı harf çevirimi çok dilli veri kümesinde sessizce yanlış cevap veriyor.
+
+Kural `club-labels.ts` içinde saf bir geçiş olarak duruyor ve ikiz birleştirmesinden **sonra** çalışır — birleşen kulüpler zaten tek satıra indiği için önce çalıştırılsaydı gereksiz yere ad uzatırdı. Üç kademe de tükenirse ad **değiştirilmez**; çakışma `db:verify`'da rapor edilir, çünkü o noktada elde kalan şey bir gösterim sorunu değil, kaynakta birleştirilmesi gereken gerçek bir ikizdir.
 
 ### 5.4 İş Kuralları
 
@@ -1891,11 +1920,11 @@ Doğrulanabilir taban (Faz 4.7 kapanışı, 2026-08-04):
 | `npm run typecheck`    | temiz                                                                    |
 | `npm run lint`         | temiz (0 uyarı)                                                          |
 | `npm run format:check` | temiz                                                                    |
-| `npm run test`         | 796/796 geçiyor (birim, bileşen, erişilebilirlik, entegrasyon, doğruluk) |
+| `npm run test`         | 807/807 geçiyor (birim, bileşen, erişilebilirlik, entegrasyon, doğruluk) |
 | `npm run build`        | başarılı, tüm rotalar dinamik (nonce için gerekli)                       |
 | `npm run audit:ci`     | 0 açık (üretim ağacı)                                                    |
 | `npm run etl`          | 383 kulüp · 76.757 oyuncu · **220.058 dönem** (§4.3 katmanıyla, 5 dil)   |
-| `npm run db:verify`    | KABUL BAŞARILI — 24 denetim + 10 kulüp örneklemi, tamamı geçiyor         |
+| `npm run db:verify`    | KABUL BAŞARILI — 25 denetim + 10 kulüp örneklemi, tamamı geçiyor         |
 | `npm run bench`        | p50 5,1 ms · **p95 17,7 ms** · p99 23,9 ms (bütçe 150 ms)                |
 | CSP nonce ölçümü       | **15/15** script eşleşti, 3/3 benzersiz nonce (§7.3)                     |
 | Üretimde arma ölçümü   | 12 arma, **12'si** `upload.wikimedia.org`, izinsiz köken **0**           |

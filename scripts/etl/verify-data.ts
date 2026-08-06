@@ -158,6 +158,51 @@ async function verifyIntegrity(): Promise<void> {
 }
 
 /**
+ * Seçicide ayırt edilebilir kısa ad — §5.3.
+ *
+ * KULLANICININ GÖRDÜĞÜ ŞEYİ ÖLÇER: kulüp seçici yalnızca `isSelectable`
+ * kulüpleri sunuyor ve satırı kısa ad + ülke ile basıyor. İkisi de aynı olan
+ * iki kulüp, kullanıcı için ayırt edilemez — hangisini seçtiğini bilemez.
+ *
+ * SERT HATA, uyarı değil. `club-labels.ts` üç kademeyle ölçülen üç çakışmanın
+ * hepsini açıyor; buraya bir şey düşerse geriye kalan tek açıklama kaynakta
+ * birleştirilmesi gereken gerçek bir ikizdir ve o hâlde oyun oynanamaz.
+ */
+async function verifyClubLabels(): Promise<void> {
+  console.log("\n=== Seçicide ayırt edilebilir ad (§5.3) ===");
+
+  const clubs = await prisma.club.findMany({
+    where: { isSelectable: true },
+    select: { shortName: true, country: true, wikidataId: true },
+  });
+
+  const groups = new Map<string, string[]>();
+  for (const club of clubs) {
+    const key = `${club.shortName}|${club.country ?? ""}`;
+    groups.set(key, [...(groups.get(key) ?? []), club.wikidataId]);
+  }
+
+  const collisions = [...groups.entries()].filter(([, ids]) => ids.length > 1);
+
+  check(
+    collisions.length === 0,
+    `aynı görünen seçilebilir kulüp: ${collisions.length}` +
+      (collisions.length > 0
+        ? ` (${collisions
+            .slice(0, 5)
+            .map(([key, ids]) => `${key} → ${ids.join("/")}`)
+            .join(", ")})`
+        : ""),
+  );
+
+  // Ayırt edici ad ALDIKLARI da görünsün: geçişin çalıştığının kanıtı.
+  const withYear = clubs.filter((c) => /\(\d{4}\)$/u.test(c.shortName));
+  console.log(
+    `  · ${clubs.length} seçilebilir kulüp, ${withYear.length} tanesi kuruluş yılıyla ayrıldı`,
+  );
+}
+
+/**
  * BR-8 kanıt oranı — §8.2.
  *
  * Ölçüt `hasEvidence`'ın olumsuzudur ve DOMAIN'DEKİ kuralla aynı dört alana
@@ -442,6 +487,7 @@ async function main(): Promise<void> {
     await reportCounts();
     await verifyTargetClubs();
     await verifyIntegrity();
+    await verifyClubLabels();
     await verifyEvidenceRatio();
     await verifyPositions();
     await verifyGridPool();

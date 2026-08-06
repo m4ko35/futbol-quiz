@@ -24,6 +24,7 @@ import {
   wikipediaArticles,
 } from "../sources/wikidata/queries";
 import { int, qid, str } from "../sources/wikidata/schemas";
+import { disambiguateShortNames } from "./club-labels";
 import { mergeDuplicateClubs } from "./merge-clubs";
 import { mergeWikipediaSpells } from "./merge-wikipedia";
 import {
@@ -267,8 +268,28 @@ export async function extractDataset(
     }),
   });
 
-  const mergedClubs = clubMerge.clubs;
   const uniqueSpells = clubMerge.spells;
+
+  // ─── 2c. Seçicide ayırt edilebilir kısa ad (§5.3) ─────────────────────
+  //
+  // BİRLEŞTİRMEDEN SONRA: 2b'nin kapattığı ikizler zaten tek satıra indi,
+  // önce çalıştırılsaydı sonradan yok olacak kulüpler için ad uzatırdı.
+  // Geriye kalan çakışmalar GERÇEKTEN ayrı kulüplerdir (Toulouse 1937 / 1970)
+  // ve birleştirilemezler — çözüm gösterimde, veride değil.
+  const labelled = disambiguateShortNames(clubMerge.clubs);
+  const mergedClubs = labelled.clubs;
+
+  if (labelled.stats.collidingGroups > 0) {
+    const s2 = labelled.stats;
+    console.log(
+      `      ${s2.collidingGroups} kısa ad çakışması · ` +
+        `${s2.renamed} kulüp ayırt edici ad aldı`,
+    );
+  }
+  for (const label of labelled.stats.unresolved) {
+    // Ayırt edilemeyen çakışma = kaynakta birleştirilmesi gereken ikiz (§5.3).
+    console.log(`      UYARI: "${label}" iki kulüpte de aynı görünüyor`);
+  }
 
   if (clubMerge.stats.mergedClubs > 0) {
     const s = clubMerge.stats;
