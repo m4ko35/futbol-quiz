@@ -145,7 +145,7 @@ export function CommonPlayersResult({ result }: CommonPlayersResultProps) {
           Bu iki kulüpte de forma giymiş bir oyuncu bulunamadı.
         </p>
         <p className="mx-auto mt-1 max-w-prose text-sm text-muted">
-          Veri kümesi on dokuz Avrupa liginin tarihsel kadrolarını kapsar; bu
+          Veri kümesi yirmi iki Avrupa liginin tarihsel kadrolarını kapsar; bu
           kulüpler dışındaki kariyerler yer almaz.
         </p>
       </section>

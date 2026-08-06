@@ -40,10 +40,10 @@ export default async function Home() {
         */}
         <p className="mt-5 rounded-xl border border-line bg-surface p-4 text-sm text-muted shadow-card">
           <span className="font-semibold text-foreground">Kapsam:</span>{" "}
-          Avrupa&apos;nın on dokuz üst liginde — İngiltere, İspanya, İtalya,
+          Avrupa&apos;nın yirmi iki üst liginde — İngiltere, İspanya, İtalya,
           Almanya, Fransa, Türkiye, Hollanda, Portekiz, İskoçya, Belçika,
           Yunanistan, İsviçre, Rusya, Polonya, Çekya, Hırvatistan, Danimarka,
-          İsveç ve Norveç — oynamış{" "}
+          İsveç, Norveç, Avusturya, Ukrayna ve Romanya — oynamış{" "}
           <strong className="font-semibold text-accent">
             {selectableClubs} kulüp
           </strong>{" "}

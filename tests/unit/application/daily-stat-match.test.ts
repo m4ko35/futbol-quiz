@@ -73,7 +73,7 @@ describe("getDailyStatMatch", () => {
     expect(dto.stats.find((s) => s.key === "goals")?.value).toBe(83);
   });
 
-  /** Kapsam bildirimi (§1.3): kulüp kaynaklı sayılar on dokuz ligle sınırlı. */
+  /** Kapsam bildirimi (§1.3): kulüp kaynaklı sayılar yirmi iki ligle sınırlı. */
   it("kapsamlı istatistikleri işaretler", async () => {
     const { getDailyStatMatch } = await load();
 

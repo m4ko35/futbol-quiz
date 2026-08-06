@@ -80,6 +80,16 @@ const MUST_BE_SELECTABLE: readonly { qid: string; why: string }[] = [
   // QID kapının kendisini kırılgan yapardı.
   { qid: "Q204881", why: "Malmö FF — İsveç kapsamı, ikiz galibi" },
   { qid: "Q186785", why: "Rosenborg — Norveç kapsamı, ikiz galibi" },
+  // Avrupa-3. Sturm Graz BİLEREK YOK: QID'i çok yeni (Q124007617), yani
+  // muhtemelen ikiz bir varlık ve §5.3 hangisini asıl sayacağını dönem
+  // sayısına bakarak belirliyor (Malmö/Rosenborg ile aynı gerekçe).
+  { qid: "Q131215", why: "Rapid Wien — Avusturya kapsamı" },
+  { qid: "Q131209", why: "Austria Wien — Avusturya kapsamı" },
+  { qid: "Q994811", why: "Red Bull Salzburg — Avusturya kapsamı" },
+  { qid: "Q172969", why: "Şahtar Donetsk — Ukrayna kapsamı" },
+  { qid: "Q179075", why: "Dinamo Kiev — Ukrayna kapsamı" },
+  { qid: "Q179658", why: "Steaua Bükreş — Romanya kapsamı" },
+  { qid: "Q204237", why: "Dinamo Bükreş — Romanya kapsamı" },
 ];
 
 /** MVP'nin çekirdek sorusu boş dönmemesi gereken çiftler. */

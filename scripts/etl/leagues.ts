@@ -216,6 +216,46 @@ export const TARGET_LEAGUES: readonly LeagueSeed[] = [
     tier: 1,
     minClubs: 12,
   },
+  /**
+   * DÖRDÜNCÜ GENİŞLEME — "Avrupa-3" (§1.3). Ürün sahibi paket boyutu
+   * ölçüsüyle üç lige karar verdi; beş adaydan Sırbistan ve İsrail, marjı
+   * 1,15 kata düşürdüğü için DIŞARIDA bırakıldı.
+   *
+   * Avusturya ve Ukrayna geçen turda ada göre aranıp BULUNAMAMIŞTI; bu kez
+   * ülke üzerinden arandılar ve ölçüm aynı tuzağı üçüncü kez gösterdi:
+   * Ukrayna'nın en çok kulüplü ligi İkinci Lig (110 kulüp), üst lig değil.
+   */
+  {
+    /**
+     * ETİKET JENERİK, EŞİK BU YÜZDEN YÜKSEK. Doğrulama sorgusu bu QID için
+     * yalnızca "Bundesliga" döndürüyor — Almanya ligiyle aynı dizgi. Etiket
+     * denetimi burada zayıf kaldığı için kimliği asıl taşıyan sinyal kulüp
+     * sayısı: ölçülen 29, eşik 20. Yanlış bir varlık ikisini birden geçemez.
+     */
+    wikidataId: "Q219592",
+    name: "Avusturya Bundesliga",
+    country: "AT",
+    tier: 1,
+    minClubs: 20,
+    verifyLabel: "Bundesliga",
+  },
+  {
+    /** Aynı gerekçe: etiket yalnızca "Premier League". Ölçülen 27, eşik 20. */
+    wikidataId: "Q206073",
+    name: "Ukrayna Premier Ligi",
+    country: "UA",
+    tier: 1,
+    minClubs: 20,
+    verifyLabel: "Premier League",
+  },
+  {
+    wikidataId: "Q237753",
+    name: "Romanya Liga I",
+    country: "RO",
+    tier: 1,
+    minClubs: 12,
+    verifyLabel: "Liga I",
+  },
 ] as const;
 
 /**
