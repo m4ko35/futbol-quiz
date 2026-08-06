@@ -273,14 +273,13 @@ export function StatMatchGame({
       )}
 
       {/*
-        KAPSAM BİLDİRİMİ (§1.3, §9.2). Maç/gol/kulüp sayıları yalnızca sekiz
+        KAPSAM BİLDİRİMİ (§1.3, §9.2). Maç/gol/kulüp sayıları yalnızca on iki
         ligi kapsar; söylenmezse kullanıcı bildiği gerçek toplamla
         karşılaştırıp siteyi yanlış sanar.
       */}
       <p className="text-xs text-muted">
-        <span aria-hidden="true">*</span> işaretli sayılar yalnızca İngiltere,
-        İspanya, İtalya, Almanya, Fransa, Türkiye, Hollanda ve Portekiz&apos;in
-        en üst liglerindeki kariyeri kapsar.
+        <span aria-hidden="true">*</span> işaretli sayılar yalnızca kapsanan on
+        iki Avrupa ligindeki kariyeri kapsar.
       </p>
     </div>
   );
@@ -303,7 +302,7 @@ function StatRow({ stat, answer, disabled, isOpen, onOpen }: StatRowProps) {
           {stat.scoped && (
             <>
               <span aria-hidden="true">*</span>
-              <span className="sr-only"> (yalnızca sekiz lig)</span>
+              <span className="sr-only"> (yalnızca on iki lig)</span>
             </>
           )}
         </span>

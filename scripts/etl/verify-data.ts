@@ -48,6 +48,15 @@ const MUST_BE_SELECTABLE: readonly { qid: string; why: string }[] = [
   { qid: "Q81888", why: "Ajax — Eredivisie kapsamı" },
   { qid: "Q128446", why: "Porto — Primeira Liga kapsamı" },
   { qid: "Q131499", why: "Benfica — Primeira Liga kapsamı" },
+  // Avrupa-1 paketi; QID'ler ligin kulüp listesinden OKUNDU, yazılmadı.
+  { qid: "Q19593", why: "Celtic — İskoçya kapsamı" },
+  { qid: "Q19597", why: "Rangers — İskoçya kapsamı" },
+  { qid: "Q187528", why: "Anderlecht — Belçika kapsamı" },
+  { qid: "Q190916", why: "Club Brugge — Belçika kapsamı" },
+  { qid: "Q19628", why: "Olympiakos — Yunanistan kapsamı" },
+  { qid: "Q4122219", why: "Panathinaikos — Yunanistan kapsamı" },
+  { qid: "Q189671", why: "Basel — İsviçre kapsamı" },
+  { qid: "Q190526", why: "Young Boys — İsviçre kapsamı" },
 ];
 
 /** MVP'nin çekirdek sorusu boş dönmemesi gereken çiftler. */

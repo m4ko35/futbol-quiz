@@ -19,8 +19,7 @@ const geistMono = Geist_Mono({
 const TITLE = "Futbol Quiz — Ortak Oyuncular";
 const DESCRIPTION =
   "İki futbol kulübü seçin, ikisinde de forma giymiş oyuncuları görün. " +
-  "Avrupa'nın beş büyük ligi, Süper Lig, Eredivisie ve Primeira Liga'nın " +
-  "tarihsel kadroları.";
+  "Avrupa'nın on iki üst liginin tarihsel kadroları.";
 
 /**
  * Sayfa meta verisi — PROJECT.md §7.11.

@@ -23,7 +23,7 @@ import {
   verifyLeagues,
   wikipediaArticles,
 } from "../sources/wikidata/queries";
-import { int, qid, str } from "../sources/wikidata/schemas";
+import { int, qid, str, type SparqlBinding } from "../sources/wikidata/schemas";
 import { disambiguateShortNames } from "./club-labels";
 import { mergeDuplicateClubs } from "./merge-clubs";
 import { mergeWikipediaSpells } from "./merge-wikipedia";
@@ -255,10 +255,30 @@ export async function extractDataset(
   // BURADA, oyuncu geçişinden ÖNCE: gölge kulübün dönemleri asıl kulübe
   // taşınmadan oyuncu listesi çıkarılırsa, yalnızca gölgede dönemi olan
   // oyuncular sonraki adımların dışında kalırdı.
-  const duplicateBindings = await client.query(
-    clubDuplicates(uniqueClubs.map((c) => c.wikidataId)),
-    { label: "club-duplicates", noCache },
-  );
+  /**
+   * YIĞINLANIR — ölçülmüş bir sınır yüzünden.
+   *
+   * Sorgu tüm kulüp QID'lerini tek `VALUES` bloğuna koyuyordu ve kulüp evreni
+   * 617'ye çıkınca `HTTP 414: Request-URI Too Large` ile düştü. Sınır yeni
+   * değil, zaten kayıtlı: oyuncu sorguları da aynı sebeple 250'lik yığınlarda
+   * soruluyor (500'de 414 — `queries.ts`).
+   *
+   * YIĞINLAMA BURADA GÜVENLİ ve bu tesadüf değil: sorgu her kulübü BAĞIMSIZ
+   * değerlendiriyor, `?parent` ucu `VALUES` ile sınırlı değil. Evren dışına
+   * işaret eden bağları `mergeDuplicateClubs` zaten eliyor. Yığınlar arası bir
+   * çifti kaçırma riski YOK.
+   */
+  const duplicateBindings: SparqlBinding[] = [];
+  const clubQids = uniqueClubs.map((c) => c.wikidataId);
+  for (let i = 0; i < clubQids.length; i += PLAYER_BATCH_SIZE) {
+    const batch = clubQids.slice(i, i + PLAYER_BATCH_SIZE);
+    duplicateBindings.push(
+      ...(await client.query(clubDuplicates(batch), {
+        label: `club-duplicates-${String(i / PLAYER_BATCH_SIZE)}`,
+        noCache,
+      })),
+    );
+  }
 
   const clubMerge = mergeDuplicateClubs({
     clubs: uniqueClubs,

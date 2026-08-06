@@ -5,7 +5,7 @@
 
 **Sürüm:** 0.1.0
 **Tarih:** 2026-08-06
-**Durum:** Faz 4.9 tamamlandı — üç oyun modu çalışıyor, ikinci kaynak (Vikipedi, 5 dil) devrede, kapsam 8 lige çıktı. Kalan tek faz 4.5: yayın.
+**Durum:** Faz 4.9 tamamlandı — üç oyun modu çalışıyor, ikinci kaynak (Vikipedi, 5 dil) devrede, kapsam 12 lige çıktı. Kalan tek faz 4.5: yayın.
 
 ---
 
@@ -27,7 +27,7 @@ Kullanıcının seçtiği **iki futbol kulübünün ikisinde de forma giymiş** 
 
 ### 1.3 Veri Kapsamı
 
-Avrupa'nın 5 büyük ligi + Süper Lig + Eredivisie + Primeira Liga:
+Avrupa'nın 12 üst ligi:
 
 | Lig            | Ülke      | Wikidata QID | Güncel kadro | Veri kümesi | Seçilebilir |
 | -------------- | --------- | ------------ | ------------ | ----------- | ----------- |
@@ -117,6 +117,43 @@ kulüp: **0**".
 > KARARIDIR (§9.1); Ajax, Porto ve Benfica ortak oyuncu modunda çıkar ama
 > ızgara kriteri ve günün oyuncusu havuzu değişmedi. Havuza eklenmeleri ürün
 > sahibinin kararıdır, ETL'in değil.
+
+#### İkinci genişleme: "Avrupa-1" paketi
+
+Dört lig daha eklendi. Seçim ürün sahibinindi; adaylar ölçülerek sunuldu.
+
+**`P2094` üst lig demek DEĞİL — bu ölçüm otomasyonu kapattı.** Aday ligleri bir
+Wikidata özelliğinden türetmek denendi: hem `P3983` (lig seviyesi) hem `P2094`
+(yarışma sınıfı). Birincisi hiç sonuç vermedi, ikincisi **Serie D, Serie C ve
+Segunda División'ı** üst lig olarak döndürdü. Wikidata'da "birinci lig"i tek bir
+özellikten okumak mümkün değil; bu yüzden lig listesi ızgara havuzu gibi
+**küratörlü** kalır ve her QID tek tek doğrulanır.
+
+| QID         | Lig                   | Doğrulama sorgusu | Çekim sorgusu |
+| ----------- | --------------------- | ----------------- | ------------- |
+| `Q14377162` | İskoçya Premier Ligi  | 13                | 15            |
+| `Q216022`   | Belçika Birinci Ligi  | 31                | 36            |
+| `Q235114`   | Yunanistan Süper Ligi | 14                | 21            |
+| `Q202699`   | İsviçre Süper Ligi    | 15                | 29            |
+
+Amiral kulüpler tek tek doğrulandı (Celtic, Rangers, Aberdeen / Anderlecht,
+Club Brugge, Standard, Genk / Olympiakos, Panathinaikos, AEK, PAOK / Basel,
+Young Boys, Zürich, Servette) ve QID'leri **ligin kulüp listesinden okundu**.
+
+**Sonuç:** 449 → **551 kulüp**, 84.800 → **95.454 oyuncu**, 245.997 →
+**286.533 dönem**. `dev.db` 100 → **115 MB**; tahmin +15 MB idi (101 kulüp ×
+ölçülen 0,15 MB), gerçek +15 MB. Rangers **1.021**, Celtic **984** dönem.
+
+**Bir ölçek kusuru ilk kez burada patladı.** `club-duplicates` sorgusu tüm
+kulüp QID'lerini tek `VALUES` bloğuna koyuyordu; kulüp evreni 617'ye çıkınca
+`HTTP 414: Request-URI Too Large` ile düştü. Sınır yeni değildi — oyuncu
+sorguları zaten aynı sebeple 250'lik yığınlarda soruluyor (500'de 414, §5.3).
+Sorgu yığınlandı. Yığınlama burada güvenli ve bu tesadüf değil: sorgu her
+kulübü BAĞIMSIZ değerlendiriyor, `?parent` ucu `VALUES` ile sınırlı değil.
+
+> **Kusur 6 ligde görünmezdi ve 8 ligde de görünmedi.** Ölçek kusurları
+> yalnızca ölçek büyüyünce ortaya çıkar; bu, kapsamı yayından ÖNCE
+> genişletmenin somut kazancıdır.
 
 Üç sütun üç ayrı şeyi sayar ve karıştırılmamalıdır:
 
@@ -2023,7 +2060,7 @@ gölge "dokunulan kulüpler" listesinde olmadığı için silinmiyor ve yazma
 bunu çözerdi ama yazmadan SONRA çalışıyordu; artık evrenden çıkmış kulüplerin
 dönemleri yazmadan ÖNCE siliniyor.
 
-### Faz 4.9 — Kapsam genişletme: Eredivisie ve Primeira Liga ✅
+### Faz 4.9 — Kapsam genişletme: 6 → 12 lig ✅
 
 Yayından **önce**, ürün sahibinin kararıyla. Ayrıntı ve ölçümler §1.3'te.
 
@@ -2056,6 +2093,24 @@ diyordu ve kapsam genişletilmeden çok önce eskimişti (gerçek 363). Sayı ar
 `DatasetRepository.countSelectableClubs()` ile veriden okunuyor; kullanıcıya
 gösterilen kapsam bildirimi yanlış olduğunda güven veren değil güven aşındıran
 bir metindir.
+
+**İkinci tur (Avrupa-1): İskoçya, Belçika, Yunanistan, İsviçre.** Ürün sahibi
+en temkinli paketi seçti — "gerçek maliyet ölçülsün, sonra devam edilsin".
+Karar doğru çıktı: tahmin 67 kulüp / +10 MB idi, gerçek **101 kulüp / +15 MB**
+(katı sınıf sayımı gerçeğin ~0,7'si). Aynı oranla dört paketin hepsi alınsaydı
+paket ~218 MB'a çıkar ve §10.2'nin "~2 kat marj" ilkesi biterdi.
+
+- [x] Aday ligler ölçüldü; `P3983` ve `P2094` ile OTOMATİK seçim denendi ve
+      ikisi de çürüdü (§1.3) — liste küratörlü kaldı
+- [x] Dört ligin QID'i + 15 amiral kulüp doğrulandı
+- [x] `club-duplicates` sorgusu yığınlandı: 617 kulüpte `HTTP 414`
+- [x] `db:verify` zorunlu kulüp listesi 13 → **21**
+- [x] Kapsam bildirimleri on iki lige güncellendi
+
+**Ölçek kusuru yayından ÖNCE yakalandı.** `club-duplicates`, tüm kulüp
+QID'lerini tek `VALUES` bloğunda gönderiyordu ve 617 kulüpte URL sınırını
+aştı. 6 ligde görünmezdi, 8 ligde de görünmedi. Kapsamı yayından önce
+genişletmenin somut kazancı budur: sınır, üretimde değil burada patladı.
 
 ### Faz 4.5 — Yayın
 
@@ -2110,9 +2165,9 @@ Doğrulanabilir taban (Faz 4.9 kapanışı, 2026-08-06):
 | `npm run test`         | 811/811 geçiyor (birim, bileşen, erişilebilirlik, entegrasyon, doğruluk) |
 | `npm run build`        | başarılı; `icon.svg` dışında her rota dinamik (nonce ve §7.11 için)      |
 | `npm run audit:ci`     | 0 açık (üretim ağacı)                                                    |
-| `npm run etl`          | 449 kulüp · 84.800 oyuncu · **245.997 dönem** (8 lig, §4.3 katmanı)      |
-| `npm run db:verify`    | KABUL BAŞARILI — 25 denetim + 13 kulüp örneklemi, tamamı geçiyor         |
-| `npm run bench`        | p50 5,9 ms · **p95 17,8 ms** · p99 20,7 ms (bütçe 150 ms)                |
+| `npm run etl`          | 551 kulüp · 95.454 oyuncu · **286.533 dönem** (12 lig, §4.3 katmanı)     |
+| `npm run db:verify`    | KABUL BAŞARILI — 25 denetim + 21 kulüp örneklemi, tamamı geçiyor         |
+| `npm run bench`        | p50 3,8 ms · **p95 9,3 ms** · p99 21,3 ms (bütçe 150 ms)                 |
 | CSP nonce ölçümü       | **15/15** script eşleşti, 3/3 benzersiz nonce (§7.3)                     |
 | Üretimde arma ölçümü   | 12 arma, **12'si** `upload.wikimedia.org`, izinsiz köken **0**           |
 | Üretimde önbellek      | `200` → `public, s-maxage=300…` · `400` → `no-store` (§7.9)              |

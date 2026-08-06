@@ -109,6 +109,53 @@ export const TARGET_LEAGUES: readonly LeagueSeed[] = [
     // Wikidata sponsorlu adı taşıyor; kullanıcıya gösterilen ad değişmez.
     verifyLabel: "Liga Portugal",
   },
+  /**
+   * İKİNCİ GENİŞLEME — "Avrupa-1" paketi (§1.3).
+   *
+   * Dördünün de QID'i ve amiral kulüpleri ölçülerek doğrulandı; ölçüm bir
+   * varsayımı daha çürüttü: `P2094` (yarışma sınıfı) ÜST LİG DEMEK DEĞİL —
+   * Serie D, Serie C ve Segunda División de aynı değeri taşıyor. Wikidata'da
+   * "birinci lig"i tek bir özellikten okumak mümkün olmadığı için bu liste
+   * küratörlü kalmak ZORUNDA.
+   */
+  {
+    wikidataId: "Q14377162",
+    name: "İskoçya Premier Ligi",
+    country: "GB",
+    tier: 1,
+    minClubs: 12,
+    verifyLabel: "Scottish Premiership",
+  },
+  {
+    wikidataId: "Q216022",
+    name: "Belçika Birinci Ligi",
+    country: "BE",
+    tier: 1,
+    minClubs: 15,
+    verifyLabel: "Belgian Pro League",
+  },
+  {
+    /**
+     * EŞİK ÖLÇÜLDÜ, TAHMİN EDİLMEDİ: doğrulama sorgusu 14 kulüp, gerçek çekim
+     * sorgusu 21 kulüp buluyor. Eşik doğrulama sorgusunun ölçtüğü şeye göre
+     * konur — diğer liglerin 15'i burada doğru bir QID'i yanlış sebeple
+     * reddederdi.
+     */
+    wikidataId: "Q235114",
+    name: "Yunanistan Süper Ligi",
+    country: "GR",
+    tier: 1,
+    minClubs: 10,
+    verifyLabel: "Super League Greece",
+  },
+  {
+    wikidataId: "Q202699",
+    name: "İsviçre Süper Ligi",
+    country: "CH",
+    tier: 1,
+    minClubs: 12,
+    verifyLabel: "Swiss Super League",
+  },
 ] as const;
 
 /**
