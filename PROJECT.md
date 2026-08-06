@@ -647,9 +647,54 @@ Kulüp listesi **üç ayrı sorgudan** toplanır (`scripts/etl/sources/wikidata/
 
 | Dal       | Sorgu                    | Neden gerekli                                                                       |
 | --------- | ------------------------ | ----------------------------------------------------------------------------------- |
-| `link`    | `clubsByLeagueLink`      | `P118` ile lige bağlı kulüpler                                                      |
+| `link`    | `clubsByLeagueLink`      | `P118` ile lige bağlı kulüpler — **tüm ifadeler**, kestirme değil (aşağıda)         |
 | `seasons` | `clubsFromSeasons`       | `P118` eksik; Wolfsburg, St. Pauli, Heidenheim yalnızca `P3450`/`P1923` ile geliyor |
 | `parents` | `clubsFromSeasonParents` | `P1923` bazen sezona özgü takım varlığı döndürür; gerçek kulüp `P831` ucunda        |
+
+##### `wdt:` kestirmesi küme düşen kulübü kaybettiriyordu
+
+Bu da **oyunda** görüldü: Yunus Akgün'ün kaydını incelerken kiralık gittiği **Adana Demirspor'un veri kümesinde hiç olmadığı** fark edildi. İki kusur aynı oyuncuda buluşuyordu — biri dönemi bloke ediyordu (üçüncü eşleşme kademesi, §4.3), diğeri kulübü tamamen yok sayıyordu.
+
+Sebep `wdt:` kestirmesinde. Kestirme yalnızca _tercih edilen_ rütbedeki değeri döner; bir kulüp küme düşünce editörler yeni ligi tercih edilen yapıyor ve eski lig ifadesi _normal_ rütbeye iniyor:
+
+```
+Adana Demirspor (Q352251)
+  P118 = Süper Lig   rütbe: normal     2021 → 2025
+  P118 = 1. Lig      rütbe: TERCİH     2025 → …
+```
+
+`wdt:P118` yalnızca 1. Lig'i görüyor, kulüp evrenden sessizce çıkıyordu — 262 dönemiyle birlikte.
+
+**İkinci dal bu boşluğu kapatamıyor ve sebebi ölçüldü.** Süper Lig'in 69 sezon kaydının yalnızca **3'ünde** `P1923` katılımcı listesi var:
+
+| Lig            | Sezon kaydı | `P1923` taşıyan | Katılımcı |
+| -------------- | ----------- | --------------- | --------- |
+| Premier League | 36          | 33              | 51        |
+| La Liga        | 98          | 95              | 61        |
+| Serie A        | 125         | 97              | 99        |
+| Bundesliga     | 63          | 63              | 93        |
+| Ligue 1        | 95          | 88              | 75        |
+| **Süper Lig**  | 69          | **3**           | 26        |
+
+Yani sezon dalı Türkiye için fiilen çalışmıyor; `P118` tek gerçek kaynak. Bu, ölçülmemiş bir varsayımın daha çürümesi: "üç dal birbirini tamamlar" doğru, ama **her ligde aynı oranda değil**.
+
+Sorgu artık `p:P118/ps:P118` ile tüm ifadeleri okuyor. _Deprecated_ rütbe dışarıda: o rütbe "yanlış olduğu bilinen" demektir ve okumak veri kümesine bilerek hata almak olurdu (altı ligde 5 böyle ifade var).
+
+> **Ölçülen kazanç: 12 aday, 10'u gerçek kulüp ve hepsi Süper Lig.** Premier League, La Liga, Serie A ve Ligue 1'de **hiç yeni kulüp yok** — o liglerde sezon dalı zaten yakalıyordu.
+>
+> Kalan 2 aday Hamburger SV ve FC Augsburg'un "birinci erkek takımı" varlıkları. İkisinin de **0 dönemi** var, yani yüklemedeki boş kulüp temizliği onları zaten atıyor — kulüp ikizleşmesi oluşmuyor. Bu, "aday üret, kararı dönem sayısı versin" tasarımının dördüncü kez işe yaraması.
+>
+> | Kulüp           | Wikidata `P54` | Yüklenen | Kulüp        | Wikidata `P54` | Yüklenen |
+> | --------------- | -------------- | -------- | ------------ | -------------- | -------- |
+> | Adana Demirspor | 262            | **436**  | Hatayspor    | 106            | **182**  |
+> | Altay           | 244            | **335**  | Pendikspor   | 53             | **133**  |
+> | Eskişehirspor   | 235            | **316**  | Ümraniyespor | 42             | **125**  |
+> | Giresunspor     | 195            | **352**  | Erzurumspor  | 40             | **131**  |
+> | İstanbulspor    | 194            | **314**  | Bodrum FK    | 3              | **65**   |
+>
+> Sağ sütunun sol sütundan büyük olması Vikipedi katmanının işidir: yeni kulüplerin dönemleri §4.3 katmanıyla zenginleşiyor. **Onunun da hepsi 50 dönem eşiğini geçti**, yani onu da oynanabilir — Wikidata'da 3 dönemle görünen Bodrum FK dâhil.
+
+**Toplam etki:** kulüp 395 → **405**, oyuncu 76.372 → **76.757**, dönem 217.679 → **220.204**, seçilebilir kulüp 354 → **364**. Süper Lig'in veri kümesindeki kulüp sayısı 34 → **44**. `db:verify` temiz kaldı.
 
 **`P831`'in yönü Wikidata'da tutarsızdır** ve hangi ucun gerçek kulüp olduğu türden okunamaz. Ölçüm:
 
@@ -1798,12 +1843,12 @@ Doğrulanabilir taban (Faz 4.7 kapanışı, 2026-08-04):
 | `npm run typecheck`    | temiz                                                                    |
 | `npm run lint`         | temiz (0 uyarı)                                                          |
 | `npm run format:check` | temiz                                                                    |
-| `npm run test`         | 776/776 geçiyor (birim, bileşen, erişilebilirlik, entegrasyon, doğruluk) |
+| `npm run test`         | 784/784 geçiyor (birim, bileşen, erişilebilirlik, entegrasyon, doğruluk) |
 | `npm run build`        | başarılı, tüm rotalar dinamik (nonce için gerekli)                       |
 | `npm run audit:ci`     | 0 açık (üretim ağacı)                                                    |
-| `npm run etl`          | 395 kulüp · 76.372 oyuncu · **217.679 dönem** (§4.3 katmanıyla, 5 dil)   |
+| `npm run etl`          | 405 kulüp · 76.757 oyuncu · **220.204 dönem** (§4.3 katmanıyla, 5 dil)   |
 | `npm run db:verify`    | KABUL BAŞARILI — 24 denetim + 10 kulüp örneklemi, tamamı geçiyor         |
-| `npm run bench`        | p50 5,3 ms · **p95 11,6 ms** · p99 16,4 ms (bütçe 150 ms)                |
+| `npm run bench`        | p50 5,2 ms · **p95 12,3 ms** · p99 14,6 ms (bütçe 150 ms)                |
 | CSP nonce ölçümü       | **15/15** script eşleşti, 3/3 benzersiz nonce (§7.3)                     |
 | Üretimde arma ölçümü   | 12 arma, **12'si** `upload.wikimedia.org`, izinsiz köken **0**           |
 | Üretimde önbellek      | `200` → `public, s-maxage=300…` · `400` → `no-store` (§7.9)              |

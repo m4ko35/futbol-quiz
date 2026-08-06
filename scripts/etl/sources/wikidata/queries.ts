@@ -53,13 +53,46 @@ const CLUB_FIELDS = `
  *   - yalnızca `Q476028` istendiğinde Barcelona listeden düşer.
  */
 
-/** 1. kaynak: `P118` (lig) bağı. */
+/**
+ * 1. kaynak: `P118` (lig) bağı — **tüm ifadeler**, yalnızca kestirme değil.
+ *
+ * `wdt:` KESTİRMESİ KÜME DÜŞEN KULÜBÜ KAYBETTİRİYORDU. Kestirme yalnızca
+ * *tercih edilen* rütbedeki değeri döner; bir kulüp küme düşünce editörler
+ * yeni ligi tercih edilen yapıyor, eski lig ifadesi *normal* rütbeye iniyor
+ * ve kulüp evrenden sessizce çıkıyor. Adana Demirspor'da tam olarak bu
+ * olmuştu:
+ *
+ *   P118 = Süper Lig   rütbe: normal      2021 → 2025
+ *   P118 = 1. Lig      rütbe: TERCİH      2025 → …
+ *
+ * Kulüp veri kümesinde hiç yoktu; 262 dönemi, kadrosundaki oyuncular ve
+ * onların diğer kulüplerdeki kayıtları da beraberinde eksikti.
+ *
+ * İKİNCİ YOL BU BOŞLUĞU KAPATAMIYOR ve sebebi ölçüldü: Süper Lig'in 69 sezon
+ * kaydının yalnızca **3'ünde** `P1923` katılımcı listesi var. Karşılaştırma —
+ * Bundesliga 63/63, La Liga 95/98, Ligue 1 88/95. Yani sezon yolu Türkiye
+ * için fiilen çalışmıyor; `P118` tek gerçek kaynak.
+ *
+ * DEPRECATED RÜTBE DIŞARIDA. Wikidata üç rütbe kullanıyor ve *deprecated*
+ * "yanlış olduğu bilinen" demektir — okumak veri kümesine bilerek yanlış
+ * kayıt almak olurdu. Ölçüldü: altı ligde 5 böyle ifade var.
+ *
+ * ÖLÇÜLEN KAZANÇ: evrene 12 kulüp giriyor, **10'u Süper Lig** (Adana
+ * Demirspor, Altay, Eskişehirspor, Giresunspor, İstanbulspor, Hatayspor,
+ * Pendikspor, Ümraniyespor, Erzurumspor, Bodrum FK) ve toplam ~1.374 dönem
+ * taşıyorlar. Kalan 2'si Hamburger SV ile FC Augsburg'un "birinci erkek
+ * takımı" varlıkları; ikisinin de **0 dönemi** var, o yüzden yüklemedeki boş
+ * kulüp temizliği onları zaten atıyor — kulüp ikizleşmesi oluşmuyor.
+ */
 export function clubsByLeagueLink(leagueQid: string): string {
   return `
 SELECT DISTINCT ?club ?clubLabel ?inception ?logo ?countryCode WHERE {
   VALUES ?clubClass { ${CLUB_CLASS_VALUES} }
-  ?club wdt:${WD.PROP_LEAGUE} wd:${assertQid(leagueQid)} ;
+  ?club p:${WD.PROP_LEAGUE} ?leagueStatement ;
         wdt:P31/wdt:P279* ?clubClass .
+  ?leagueStatement ps:${WD.PROP_LEAGUE} wd:${assertQid(leagueQid)} ;
+                   wikibase:rank ?rank .
+  FILTER(?rank != wikibase:DeprecatedRank)
 ${CLUB_FIELDS}
 }`.trim();
 }
