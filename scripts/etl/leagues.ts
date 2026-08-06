@@ -24,6 +24,20 @@ export interface LeagueSeed {
    * `Q170323 = Nintendo DS` türü bir hatayı yakalamak içindir.
    */
   readonly minClubs: number;
+  /**
+   * Wikidata etiketi `name` ile UYUŞMUYORSA kimlik denetiminde kullanılacak
+   * karşılık.
+   *
+   * `name` kullanıcıya gösterilen addır ve Wikidata'nın anlık etiketini takip
+   * etmek ZORUNDA DEĞİLDİR: Portekiz ligi Wikidata'da sponsorlu adıyla "Liga
+   * Portugal" geçiyor, Türkçe futbol dilinde ise "Primeira Liga". İkisini
+   * eşitlemek ya kullanıcıya yabancı bir ad gösterirdi ya da denetimi
+   * gevşetirdi.
+   *
+   * ALAN, DENETİMİ ZAYIFLATMAZ; yalnızca hangi dizginin aranacağını değiştirir.
+   * Yanlış bir QID (Nintendo DS) her iki dizgiyle de eşleşmez.
+   */
+  readonly verifyLabel?: string;
 }
 
 export const TARGET_LEAGUES: readonly LeagueSeed[] = [
@@ -68,6 +82,32 @@ export const TARGET_LEAGUES: readonly LeagueSeed[] = [
     country: "TR",
     tier: 1,
     minClubs: 15,
+  },
+  /**
+   * YAYIN ÖNCESİ GENİŞLEME (§1.3). Gerekçe belgenin kendi cümlesiydi:
+   * "kullanıcı Ajax, Porto, Benfica veya Celtic arayınca hiçbir şey
+   * bulamayacak". İlk üçü artık bulunuyor.
+   *
+   * QID'LER TAHMİN EDİLMEDİ. Hollanda ve Portekiz'in tüm futbol ligleri ülke
+   * + sınıf üzerinden listelendi; ölçüm üst ligin en çok kulüp barındıran lig
+   * OLMADIĞINI gösterdi (Campeonato de Portugal 61, Eredivisie 23). Ada göre
+   * seçmek bu projede bir kez Nintendo DS'e gitmişti (§1.3).
+   */
+  {
+    wikidataId: "Q167541",
+    name: "Eredivisie",
+    country: "NL",
+    tier: 1,
+    minClubs: 15,
+  },
+  {
+    wikidataId: "Q182994",
+    name: "Primeira Liga",
+    country: "PT",
+    tier: 1,
+    minClubs: 15,
+    // Wikidata sponsorlu adı taşıyor; kullanıcıya gösterilen ad değişmez.
+    verifyLabel: "Liga Portugal",
   },
 ] as const;
 

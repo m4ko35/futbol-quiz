@@ -13,9 +13,10 @@ import { datasets, repositories } from "@/infrastructure/db/repositories";
  */
 export default async function Home() {
   // İkisi birbirinden bağımsız; sırayla beklemek boşuna gecikme olurdu.
-  const [initialClubs, dataGeneratedAt] = await Promise.all([
+  const [initialClubs, dataGeneratedAt, selectableClubs] = await Promise.all([
     searchClubs({}, { clubs: repositories.clubs }),
     datasets.getGeneratedAt(),
+    datasets.countSelectableClubs(),
   ]);
 
   return (
@@ -39,10 +40,12 @@ export default async function Home() {
         */}
         <p className="mt-5 rounded-xl border border-line bg-surface p-4 text-sm text-muted shadow-card">
           <span className="font-semibold text-foreground">Kapsam:</span>{" "}
-          İngiltere, İspanya, İtalya, Almanya, Fransa ve Türkiye&apos;nin en üst
-          liglerinde oynamış{" "}
-          <strong className="font-semibold text-accent">345 kulüp</strong> — bu
-          liglerin bugünkü takımları ve geçmişteki takımları dâhil.
+          İngiltere, İspanya, İtalya, Almanya, Fransa, Türkiye, Hollanda ve
+          Portekiz&apos;in en üst liglerinde oynamış{" "}
+          <strong className="font-semibold text-accent">
+            {selectableClubs} kulüp
+          </strong>{" "}
+          — bu liglerin bugünkü takımları ve geçmişteki takımları dâhil.
         </p>
       </header>
 

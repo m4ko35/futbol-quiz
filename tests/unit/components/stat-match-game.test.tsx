@@ -103,7 +103,7 @@ describe("StatMatchGame — sunum", () => {
   it("kapsamlı istatistikleri işaretler ve açıklar", () => {
     setup();
 
-    expect(screen.getAllByText("(yalnızca altı lig)")).toHaveLength(3);
+    expect(screen.getAllByText("(yalnızca sekiz lig)")).toHaveLength(3);
     expect(screen.getByText(/yalnızca İngiltere/u)).toBeInTheDocument();
   });
 

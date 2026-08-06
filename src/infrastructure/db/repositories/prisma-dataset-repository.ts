@@ -17,4 +17,9 @@ export class PrismaDatasetRepository implements DatasetRepository {
     });
     return meta?.generatedAt ?? null;
   }
+
+  async countSelectableClubs(): Promise<number> {
+    // `isSelectable` indekslidir (§5.2); sayım kulüp tablosunu taramıyor.
+    return this.#prisma.club.count({ where: { isSelectable: true } });
+  }
 }

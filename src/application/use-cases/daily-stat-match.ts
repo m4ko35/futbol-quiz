@@ -26,7 +26,7 @@ export interface StatDto {
   readonly key: StatKey;
   readonly label: string;
   readonly value: number;
-  /** `true` → sayı yalnızca §1.3 kapsamındaki altı ligi kapsar. */
+  /** `true` → sayı yalnızca §1.3 kapsamındaki sekiz ligi kapsar. */
   readonly scoped: boolean;
 }
 

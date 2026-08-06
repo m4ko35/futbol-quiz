@@ -5,7 +5,7 @@
 
 **Sürüm:** 0.1.0
 **Tarih:** 2026-08-06
-**Durum:** Faz 4.8 tamamlandı — üç oyun modu (ortak oyuncu, 3×3 ızgara, istatistik eşleştirme) çalışıyor, ikinci kaynak (Vikipedi, 5 dil) devrede. Kalan tek faz 4.5: yayın.
+**Durum:** Faz 4.9 tamamlandı — üç oyun modu çalışıyor, ikinci kaynak (Vikipedi, 5 dil) devrede, kapsam 8 lige çıktı. Kalan tek faz 4.5: yayın.
 
 ---
 
@@ -27,7 +27,7 @@ Kullanıcının seçtiği **iki futbol kulübünün ikisinde de forma giymiş** 
 
 ### 1.3 Veri Kapsamı
 
-Avrupa'nın 5 büyük ligi + Süper Lig:
+Avrupa'nın 5 büyük ligi + Süper Lig + Eredivisie + Primeira Liga:
 
 | Lig            | Ülke      | Wikidata QID | Güncel kadro | Veri kümesi | Seçilebilir |
 | -------------- | --------- | ------------ | ------------ | ----------- | ----------- |
@@ -38,6 +38,85 @@ Avrupa'nın 5 büyük ligi + Süper Lig:
 | Ligue 1        | Fransa    | `Q13394`     | 22           | 75          | 68          |
 | Süper Lig      | Türkiye   | `Q485568`    | 20           | 33          | 29          |
 |                |           | **Toplam**   | **129**      | **388**     | **345**     |
+
+> Tablo **Faz 1 ölçümüdür** ve o günkü değerleri kaydeder. Güncel sayılar
+> §10.1'in doğrulanabilir tabanındadır; ikisi bilerek ayrı tutuluyor.
+
+#### Yayın öncesi genişleme: Eredivisie ve Primeira Liga
+
+Kapsam yayından **önce** genişletildi. Gerekçe §1.3'ün kendi cümlesiydi:
+"Kullanıcı Ajax, Porto, Benfica veya Celtic arayınca hiçbir şey bulamayacak."
+Bunlardan üçü artık bulunuyor.
+
+**QID'ler tahmin edilmedi, ölçüldü** — bu bölümün kendi kayıtlı hatası
+(Süper Lig için ilk tahmin `Q170323` **Nintendo DS**'e aitti) yöntemi
+belirledi. Hollanda ve Portekiz'in tüm futbol ligleri ülke + sınıf üzerinden
+listelendi ve ölçüm bir varsayımı daha çürüttü: **üst lig, en çok kulüp
+barındıran lig DEĞİL.**
+
+| QID           | Lig                    | Ülke     | `Q476028` kulüp |
+| ------------- | ---------------------- | -------- | --------------- |
+| `Q13668768`   | Campeonato de Portugal | Portekiz | 61              |
+| `Q1877646`    | Vierde Divisie         | Hollanda | 47              |
+| `Q754488`     | LigaPro                | Portekiz | 32              |
+| **`Q167541`** | **Eredivisie**         | Hollanda | **23**          |
+| **`Q182994`** | **Primeira Liga**      | Portekiz | **23**          |
+
+Ada göre seçilseydi bu tuzağa düşülmezdi; sayıya göre seçilseydi alt liglere
+düşülürdü. Karar, projenin kendi `verifyLeagues` sorgusuyla doğrulandı.
+
+**Çekim sorgusuyla ölçülen kulüp sayısı** (6 sınıflık beyaz liste, tüm `P118`
+ifadeleri — §5.3): Eredivisie **29**, Primeira Liga **36**.
+
+**Ligin amacı olan kulüplerin geldiği tek tek doğrulandı.** Bu denetim
+zorunludur çünkü tür kısıtı bu projede bir kez FC Barcelona'yı listeden
+düşürmüştü:
+
+| Eredivisie                           | Primeira Liga                       |
+| ------------------------------------ | ----------------------------------- |
+| AFC Ajax · PSV Eindhoven · Feyenoord | FC Porto · SL Benfica · Sporting CP |
+| AZ Alkmaar · FC Twente · FC Utrecht  | SC Braga · Vitória SC · Boavista FC |
+
+> **Ölçüm bir kusuru önceden gösterdi:** `Sporting CP` sorgudan **dört kez**
+> dönüyor. Yeni ligler kendi kulüp ikizlerini de getiriyor; §5.3'ün
+> birleştirmesi ve ayırt edici ad geçişi bunu karşılamak zorunda. Sonuç
+> koşudan sonra ölçülür.
+
+**Koşu sonucu (2026-08-06).** Kapsam 6 → **8 lig**:
+
+| Lig               | Kulüp | Seçilebilir | Dönem  | Pay   |
+| ----------------- | ----- | ----------- | ------ | ----- |
+| Serie A           | 96    | 83          | 62.168 | %25,3 |
+| Premier League    | 51    | 51          | 55.798 | %22,7 |
+| Ligue 1           | 76    | 71          | 30.774 | %12,5 |
+| La Liga           | 60    | 58          | 29.653 | %12,1 |
+| Bundesliga        | 59    | 59          | 27.854 | %11,3 |
+| Süper Lig         | 41    | 41          | 14.480 | %5,9  |
+| **Eredivisie**    | 32    | 28          | 13.110 | %5,3  |
+| **Primeira Liga** | 34    | 33          | 12.160 | %4,9  |
+
+Toplam **449 kulüp · 84.800 oyuncu · 245.997 dönem** (383 / 76.757 / 220.058
+idi). Ajax **1.000**, Benfica **855**, Porto **727** dönem kaydıyla geldi ve
+üçü de `db:verify`'ın zorunlu kulüp listesine eklendi — genişlemenin var olma
+sebebi bu üç kulüptü, gelmezlerse genişleme işe yaramamış demektir.
+
+**Paket boyutu ölçüldü, sınır sorun değil.** Veritabanı 90 MB → **100 MB**
+(+%11); fonksiyon paketi sınırı 250 MB ve mevcut kullanım 125,4 MB (§10.2).
+Beklenenden küçük çıkmasının sebebi ölçülebilir: iki lig birlikte dönemlerin
+yalnızca **%10,2**'sini getiriyor, çünkü oyuncuların çoğu zaten evrende vardı
+— Ajax'tan Barcelona'ya giden bir oyuncu yeni bir oyuncu değil, yeni bir
+DÖNEM.
+
+**İki düzeltme yeni ligde hemen işe yaradı.** Ölçüm sırasında `Sporting CP`
+sorgudan dört kez dönüyordu; §5.3'ün ikiz birleştirmesi dördünü **tek kulübe**
+indirdi (`Q75729`, 700 dönem). Kısa ad çakışması 3'ten 4'e çıktı ve ayırt
+edici ad geçişi dördünü de açtı — `db:verify`'da "aynı görünen seçilebilir
+kulüp: **0**".
+
+> **Izgara havuzu genişlemedi ve bu bilinçli.** Küratörlü 82 kulüp bir ÜRÜN
+> KARARIDIR (§9.1); Ajax, Porto ve Benfica ortak oyuncu modunda çıkar ama
+> ızgara kriteri ve günün oyuncusu havuzu değişmedi. Havuza eklenmeleri ürün
+> sahibinin kararıdır, ETL'in değil.
 
 Üç sütun üç ayrı şeyi sayar ve karıştırılmamalıdır:
 
@@ -1944,6 +2023,40 @@ gölge "dokunulan kulüpler" listesinde olmadığı için silinmiyor ve yazma
 bunu çözerdi ama yazmadan SONRA çalışıyordu; artık evrenden çıkmış kulüplerin
 dönemleri yazmadan ÖNCE siliniyor.
 
+### Faz 4.9 — Kapsam genişletme: Eredivisie ve Primeira Liga ✅
+
+Yayından **önce**, ürün sahibinin kararıyla. Ayrıntı ve ölçümler §1.3'te.
+
+- [x] Aday liglerin QID'i ülke + sınıf üzerinden **ölçülerek** bulundu; üst
+      ligin en çok kulüplü lig OLMADIĞI görüldü
+- [x] `verifyLabel` alanı: Wikidata sponsorlu adı ("Liga Portugal") taşıyor,
+      kullanıcıya gösterilen ad değişmiyor — kimlik denetimi zayıflamadı
+- [x] `db:verify` zorunlu kulüp listesine Ajax, Porto, Benfica
+- [x] Arayüzdeki kapsam bildirimleri (5 yer) sekiz lige güncellendi
+- [x] Kulüp sayısı artık **veriden** okunuyor (`countSelectableClubs`)
+- [x] Tam ETL koşusu + `db:verify` KABUL BAŞARILI
+
+**Altıncı kez aynı ders: QID tahmin edilmez.** `db:verify` kapısına eklenecek
+üç kulübün QID'i bellekten yazıldı ve **üçü de yanlış çıktı** — canlı sorgu
+gösterdi:
+
+| Yazılan   | Beklenen | Gerçekte ne             |
+| --------- | -------- | ----------------------- |
+| `Q83459`  | Ajax     | Brezilya millî takımı   |
+| `Q18656`  | Porto    | Manchester United       |
+| `Q127437` | Benfica  | Carl Schurz (bir insan) |
+
+Doğruları (`Q81888`, `Q128446`, `Q131499`) ligin kendi kulüp listesinden
+okundu. Bu, §10.1'in "ada/belleğe güvenme" dersinin altıncı tekrarıdır ve bu
+kez maliyeti sıfır oldu: kural zaten yerleşik olduğu için QID'ler yazıldıkları
+anda doğrulandı.
+
+**Arayüzde elle yazılmış bir sayı da düzeldi.** Kapsam bildirimi "345 kulüp"
+diyordu ve kapsam genişletilmeden çok önce eskimişti (gerçek 363). Sayı artık
+`DatasetRepository.countSelectableClubs()` ile veriden okunuyor; kullanıcıya
+gösterilen kapsam bildirimi yanlış olduğunda güven veren değil güven aşındıran
+bir metindir.
+
 ### Faz 4.5 — Yayın
 
 Kod tarafı hazır. Kalanlar hesap açmayı ve dağıtımda ölçüm yapmayı gerektirir.
@@ -1979,7 +2092,7 @@ curl -s https://ALAN/ | grep -o '<meta name="robots"[^>]*>'
 
 ### 10.1 Şu Anki Odak
 
-**Faz 4.8 tamamlandı — sıradaki ve TEK kalan Faz 4.5 (yayın).** Üç oyun modu
+**Faz 4.9 tamamlandı — sıradaki ve TEK kalan Faz 4.5 (yayın).** Üç oyun modu
 çalışıyor (ortak oyuncu, 3×3 ızgara, istatistik eşleştirme), sertleştirme
 bitti, ikinci kaynak devrede. Kalan iş kod değil: hesap açma ve ilk dağıtımda
 beş varsayımın ölçülmesi — bunların yalnızca biri güvenlik etkili
@@ -1987,19 +2100,19 @@ beş varsayımın ölçülmesi — bunların yalnızca biri güvenlik etkili
 `process.cwd()` yerleşimi (§3.1), üretimde CSP nonce ölçümü ve gerçek
 tarayıcıda yerleşime bağlı erişilebilirlik ölçütleri (§7.10).
 
-Doğrulanabilir taban (Faz 4.8 kapanışı, 2026-08-06):
+Doğrulanabilir taban (Faz 4.9 kapanışı, 2026-08-06):
 
 | Komut                  | Sonuç                                                                    |
 | ---------------------- | ------------------------------------------------------------------------ |
 | `npm run typecheck`    | temiz                                                                    |
 | `npm run lint`         | temiz (0 uyarı)                                                          |
 | `npm run format:check` | temiz                                                                    |
-| `npm run test`         | 807/807 geçiyor (birim, bileşen, erişilebilirlik, entegrasyon, doğruluk) |
+| `npm run test`         | 811/811 geçiyor (birim, bileşen, erişilebilirlik, entegrasyon, doğruluk) |
 | `npm run build`        | başarılı; `icon.svg` dışında her rota dinamik (nonce ve §7.11 için)      |
 | `npm run audit:ci`     | 0 açık (üretim ağacı)                                                    |
-| `npm run etl`          | 383 kulüp · 76.757 oyuncu · **220.058 dönem** (§4.3 katmanıyla, 5 dil)   |
-| `npm run db:verify`    | KABUL BAŞARILI — 25 denetim + 10 kulüp örneklemi, tamamı geçiyor         |
-| `npm run bench`        | p50 5,9 ms · **p95 17,5 ms** · p99 24,7 ms (bütçe 150 ms)                |
+| `npm run etl`          | 449 kulüp · 84.800 oyuncu · **245.997 dönem** (8 lig, §4.3 katmanı)      |
+| `npm run db:verify`    | KABUL BAŞARILI — 25 denetim + 13 kulüp örneklemi, tamamı geçiyor         |
+| `npm run bench`        | p50 5,9 ms · **p95 17,8 ms** · p99 20,7 ms (bütçe 150 ms)                |
 | CSP nonce ölçümü       | **15/15** script eşleşti, 3/3 benzersiz nonce (§7.3)                     |
 | Üretimde arma ölçümü   | 12 arma, **12'si** `upload.wikimedia.org`, izinsiz köken **0**           |
 | Üretimde önbellek      | `200` → `public, s-maxage=300…` · `400` → `no-store` (§7.9)              |

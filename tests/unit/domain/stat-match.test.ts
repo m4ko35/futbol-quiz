@@ -121,7 +121,7 @@ describe("totalScore", () => {
 
 describe("isScoped — kapsam bildirimi", () => {
   /**
-   * Maç, gol ve kulüp sayısı yalnızca §1.3'teki altı ligi kapsar; millî maç,
+   * Maç, gol ve kulüp sayısı yalnızca §1.3'teki sekiz ligi kapsar; millî maç,
    * boy ve kilo oyuncunun kendi kaydından gelir ve kapsamdan bağımsızdır.
    */
   it("kulüp kaynaklı istatistikleri işaretler", () => {

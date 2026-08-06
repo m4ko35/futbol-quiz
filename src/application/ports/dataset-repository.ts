@@ -15,4 +15,17 @@ export interface DatasetRepository {
    * görünürdü — yani tam olarak bu alanın engellemek için var olduğu hata.
    */
   getGeneratedAt(): Promise<Date | null>;
+
+  /**
+   * Seçim listesinde görünen kulüp sayısı — arayüzdeki kapsam bildirimi için.
+   *
+   * NEDEN VERİDEN OKUNUYOR: sayı sayfaya ELLE yazılmıştı ("345 kulüp") ve
+   * kapsam genişletilmeden çok önce eskimişti; kullanıcıya gösterilen kapsam
+   * bildirimi, tam olarak doğru olmadığında güven veren değil güven aşındıran
+   * bir metindir. Aynı sınıfın ikinci kez oluşmaması için tek kaynak veridir.
+   *
+   * Künye port'una ait çünkü sorulan şey kulüplerin kendisi değil, VERİ KÜMESİ
+   * hakkında bir olgu — `getGeneratedAt` ile aynı cinsten.
+   */
+  countSelectableClubs(): Promise<number>;
 }

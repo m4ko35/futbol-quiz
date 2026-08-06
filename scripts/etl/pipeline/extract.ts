@@ -108,7 +108,11 @@ export async function verifyLeagueIds(
     const labelResolved = label !== league.wikidataId;
     const nameMatches =
       !labelResolved ||
-      label.toLowerCase().includes(league.name.toLowerCase().slice(0, 6));
+      label
+        .toLowerCase()
+        .includes(
+          (league.verifyLabel ?? league.name).toLowerCase().slice(0, 6),
+        );
 
     if (!nameMatches || count < league.minClubs) {
       lines.push(

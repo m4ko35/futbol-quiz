@@ -43,6 +43,11 @@ const MUST_BE_SELECTABLE: readonly { qid: string; why: string }[] = [
   { qid: "Q495299", why: "Galatasaray — Süper Lig kapsamı" },
   { qid: "Q6601875", why: "Fenerbahçe — Süper Lig kapsamı" },
   { qid: "Q192641", why: "Trabzonspor — Süper Lig kapsamı" },
+  // Yayın öncesi genişlemenin VAR OLMA SEBEBİ bu kulüpler (§1.3). Lig
+  // eklenip bu üçü gelmezse genişleme hiçbir işe yaramamış demektir.
+  { qid: "Q81888", why: "Ajax — Eredivisie kapsamı" },
+  { qid: "Q128446", why: "Porto — Primeira Liga kapsamı" },
+  { qid: "Q131499", why: "Benfica — Primeira Liga kapsamı" },
 ];
 
 /** MVP'nin çekirdek sorusu boş dönmemesi gereken çiftler. */
