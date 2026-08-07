@@ -37,6 +37,15 @@ const querySchema = z.object({
    * oyuncularla baş başa bırakırdı.
    */
   stat: z.string().refine(isStatKey).optional(),
+  /**
+   * §9.2 BR-24 — sonucu "Sen seç" turuna HEDEF olabilecek oyuncularla
+   * sınırlar.
+   *
+   * `stat` gibi katı: yalnızca "true" kabul edilir. "1" ya da boş dize
+   * sessizce açık sayılsaydı, süzgeci açtığını sanan kullanıcı seçemeyeceği
+   * isimlerle karşılaşırdı.
+   */
+  target: z.literal("true").optional(),
 });
 
 export async function GET(request: NextRequest): Promise<Response> {
@@ -68,6 +77,7 @@ export async function GET(request: NextRequest): Promise<Response> {
           ...(parsed.data.stat === undefined
             ? {}
             : { scoreableFor: parsed.data.stat }),
+          ...(parsed.data.target === undefined ? {} : { targetable: true }),
         },
         { players: repositories.players },
       );

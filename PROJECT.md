@@ -1298,7 +1298,7 @@ Parametresi yoktur (BR-19).
 
 **Hedef değerler AÇIKÇA verilir** — ızgaranın tersine. Orada değerleri saklamak oyunun kendisiydi; burada oyun "bu değere yakın başka kimi biliyorsun" sorusudur ve hedef gizlenirse soru sorulamaz (§2.4 sızıntı kuralı, sunulan bilgi için geçerli değildir).
 
-`scoped: true`, o sayının **yalnızca §1.3'teki altı ligi** kapsadığını söyler. Arayüz bunu göstermek zorundadır.
+`scoped: true`, o sayının **yalnızca §1.3'teki yirmi dört ligi** kapsadığını söyler. Arayüz bunu göstermek zorundadır.
 
 #### `POST /api/stat-match/answer`
 
@@ -1784,7 +1784,7 @@ export interface GameMode<TInput, TOutput> {
 | Bağlantı zinciri          | İki oyuncu arasında ortak kulüp üzerinden en kısa yol | Tam kariyer verisi gerektirir |
 | Az mı çok mu              | Maç/gol sayısı karşılaştırması                        | Veri %73 dolu; havuz daralır  |
 
-> **Kariyer bilmecesi ve bağlantı zinciri neden ertelendi.** İkisi de oyuncunun kulüp geçmişini TAM olarak bilmeyi gerektirir; §1.3'teki kapsam sınırı gereği bu altı lig dışındaki kariyerler çekilmiyor. Ajax'ta oynamış bir oyuncunun o dönemi görünmez — bilmece eksik bir kariyer üzerinden kurulur ve bağlantı zincirinin bulduğu "en kısa yol" gerçekte en kısa olmayabilir. 3×3 ızgara bu sınırdan etkilenMEZ: sorusu "bu kulüpte oynadı mı", "başka nerede oynadı" değil.
+> **Kariyer bilmecesi ve bağlantı zinciri neden ertelendi.** İkisi de oyuncunun kulüp geçmişini TAM olarak bilmeyi gerektirir; §1.3'teki kapsam sınırı gereği bu yirmi dört lig dışındaki kariyerler çekilmiyor. Güney Amerika'da oynamış bir oyuncunun o dönemi görünmez — bilmece eksik bir kariyer üzerinden kurulur ve bağlantı zincirinin bulduğu "en kısa yol" gerçekte en kısa olmayabilir. 3×3 ızgara bu sınırdan etkilenMEZ: sorusu "bu kulüpte oynadı mı", "başka nerede oynadı" değil.
 
 Bu modlar mevcut `Spell` modelini kullanır; yeni tablo değil, yeni **alan** gerektirirler. Şema bu genişlemeye göre tasarlandı (§5.2'deki `appearances`, `goals`, `nationality` alanları şimdiden mevcut).
 
@@ -1965,6 +1965,119 @@ Günün oyuncusunun **altı istatistiği de** dolu olmalı; yoksa o gün bir sor
 
 Küçük hedeflerde oransal formül oyunu bozuyor. Kural bu yüzden istatistiğin **kendi yayılımına** göre normalize eder.
 
+#### Ölçüm: kapsam bildirimi kodla çelişiyordu (2026-08-07)
+
+Arayüz yıldızlı sayılar için _"yalnızca kapsanan yirmi dört ligdeki kariyeri
+kapsar"_ diyordu. Kod ise değerleri **82 küratörlü kulüpte** hesaplıyordu.
+Ölçülen fark:
+
+| Oyuncu             | Gösterilen | 24 ligdeki gerçek | Kulüp (küratörlü/tümü) |
+| ------------------ | ---------- | ----------------- | ---------------------- |
+| Éric Cantona       | 235        | **408**           | 4/9                    |
+| Zlatan Ibrahimović | 435        | **605**           | 6/9                    |
+| Didier Drogba      | 326        | **468**           | 3/6                    |
+| Cristiano Ronaldo  | 626        | **758**           | 3/5                    |
+
+**Kusur her lig turunda büyüdü.** Dipnot "altı lig" → "on iki" → "yirmi dört"
+diye genişletildi; hesap 82 kulüpte kaldı. Genişletme turlarında metin
+güncellenirken neyi kapsadığı hiç denetlenmedi — yanlış ifade her turda bir
+kez daha onaylandı.
+
+**Kök sebep: küratörlü liste iki ayrı işi birden yapıyordu.** Hem "bu oyuncu
+tanınır mı" süzgeci hem "sayılar neyi kapsar" tanımıydı. İkisi ayrıldı:
+
+- **Tanınırlık süzgeci küratörlü kalır.** Günün oyuncusu, küratörlü
+  kulüplerde 100+ maç yapmış ve 2+ küratörlü kulüpte oynamış olmalıdır.
+  Amaç değişmedi: kullanıcının hiç duymadığı bir isme altı soru sorulmasın.
+- **Değerler 24 ligi sayar.** Maç, gol ve kulüp sayısı kapsamdaki TÜM
+  kulüpleri toplar. Dipnot artık yazdığı şeyi kapsıyor.
+
+**Ölçülen bedel.** Tam kapsamda "hiçbir dönemde eksik değer olmasın" koşulu
+sertleşiyor, çünkü oyuncunun daha çok dönemi denetleniyor:
+
+| Havuz                                       | Oyuncu    |
+| ------------------------------------------- | --------- |
+| Eski (uygunluk ve değerler küratörlü)       | 2.035     |
+| Eksik denetimi olmasaydı                    | 2.158     |
+| **Yeni (uygunluk küratörlü, değer 24 lig)** | **1.927** |
+
+231 oyuncu tam kapsam denetimine kurban gidiyor. Kabul edildi: havuz yine de
+`db:verify`'ın bir yıllık malzeme alt sınırının (365) **beş katından fazla**.
+
+İlk satır (2.035) eski kodla ölçüldü ve o kod artık yok; diğer iki satır
+BR-22 mutabakatından SONRA yeniden ölçüldü. Kural değişikliği havuzu yedi
+oyuncu büyüttü — eksik gol yüzünden elenen kayıtlar geri geldi.
+
+#### "Sen seç" — hedefi kullanıcı belirler
+
+Günlük tur olduğu gibi kalır; yanına ikinci bir giriş eklenir. Kullanıcı hedef
+oyuncuyu kendisi arar ve seçer, sonra aynı altı istatistiği aynı kurallarla
+oynar.
+
+**Neden ayrı bir havuz.** Günlük turda tanınırlık süzgeci gerekliydi çünkü
+oyuncuyu sistem seçiyordu. Burada seçen kullanıcı: kimi seçtiğini zaten
+biliyor, dolayısıyla süzgeç yalnızca engel olurdu. Havuz ölçütü ikili: **altı
+istatistiği de dolu** ve **100+ maç** (puanın anlamlı olması için).
+
+| Havuz                                | Oyuncu    |
+| ------------------------------------ | --------- |
+| Günün oyuncusu (tanınırlık süzgeçli) | 1.927     |
+| "Sen seç", 2+ kulüp şartı eklenseydi | 5.242     |
+| **"Sen seç" (uygulanan)**            | **5.524** |
+
+**"2+ kulüp" şartı BİLEREK YOK.** Günün oyuncusunda o şart tanınırlık içindi;
+burada seçen kullanıcının kendisi. Asıl gerekçe teknik: şart kalsaydı ölçüt
+bir toplamaya dönüşür ve seçicinin süzgeci onu Prisma'nın sorgu diliyle ifade
+edemezdi — süzgeç ile doğrulayıcı ayrışırdı (aşağıda). Ölçülen bedel 282
+oyuncu.
+
+#### Ölçüm: seçicinin süzgeci olmadan mod kullanılamazdı
+
+Hedef havuzu 5.524 / 132.263, yani oyuncuların **%4'ü**. Süzgeçsiz seçicide
+arama sonuçlarının ne kadarının seçilebilir olduğu ölçüldü (BR-21 sıralaması,
+ilk 20 sonuç):
+
+| Arama    | Geçerli hedef | Oran |
+| -------- | ------------- | ---- |
+| `buffon` | 1/5           | %20  |
+| `kaka`   | 2/11          | %18  |
+| `sane`   | 5/20          | %25  |
+| `ronald` | 7/20          | %35  |
+| `zidane` | 2/4           | %50  |
+
+Kullanıcı seçimlerinin çoğunda reddedilirdi — `scoreableFor` süzgecinin
+kaldırmak için eklendiği duvarın aynısı (BR-16). Bu yüzden arama ucu
+`target=true` süzgecini aldı; süzgeçle aynı aramalar Buffon, Zidane ve Leroy
+Sané'yi doğrudan veriyor.
+
+**SÜZGEÇ İLE DOĞRULAYICI BİREBİR AYNI OLMAK ZORUNDA** ve bu kural bu turda
+neredeyse ikinci kez çiğneniyordu: `findStatValue` 24 lige geçirildiğinde
+`scoreableWhere` hâlâ küratörlü kulüpleri süzüyordu — seçici gösterecek,
+sunucu reddedecekti. İkisi birlikte güncellendi.
+
+**BU MODUN İLK ÖLÇÜMÜ BAŞKA BİR KUSURU AÇTI.** Cristiano Ronaldo hedef
+olamıyordu: Real Madrid dönemindeki gol verisi eksikti (`maç 292 · gol —`) ve
+BR-15 eksik veriyle hedef kabul etmiyor. İlk tanı yanlıştı — "kaynak boşluğu,
+kural kusuru değil" diye yazılmıştı. Kaynakta boşluk YOKTU: hem Wikidata hem
+Vikipedi 311 golü veriyordu, veriyi atan BR-22'nin "gol maçı aşamaz" alt
+kuralıydı. Kural bir önceki commit'te ikinci kaynak mutabakatıyla
+değiştirildi; Ronaldo artık `maç 292 · gol 311` ile hedef seçilebiliyor ve
+havuz 5.510'dan 5.524'e çıktı.
+
+Kaydın burada durmasının sebebi var: kusuru bulan şey bu modun kendisiydi.
+"Kim hedef olabilir" sorusu sorulmasaydı eksik gol kimsenin gözüne
+çarpmayacaktı.
+
+**Tur SAKLANMAZ ve bu bilinçli.** Günlük ilerleme gün anahtarına yazılır
+(§9.1) çünkü "bugünün turu" tekildir. Kullanıcı burada istediği kadar tur
+açabilir; hepsini saklamak depoyu sınırsız büyütürdü ve "hangi tur devam
+ediyor" sorusunu doğururdu. Sayfa yenilenirse tur biter.
+
+**BR-20 aynen korunur.** İstemci hedefin yalnızca **kimliğini** gönderir,
+değerlerini değil; sunucu değerleri kendisi okur. Kullanıcının kolay bir hedef
+seçebilmesi bir açık değil, modun kendisidir — sıralama tablosu yok, puan
+kullanıcının kendisine ait.
+
 #### Kurallar
 
 - **BR-14 — Millî maç tek takımdan.** Bir oyuncunun millî maç sayısı, **tek bir millî takım için** yaptığı en çok maçtır. Toplama, U-21 kayıtlarını ve FIFA dışı takımları da katıp yanlış sonuç verir (yukarıda ölçüldü).
@@ -1993,6 +2106,8 @@ Küçük hedeflerde oransal formül oyunu bozuyor. Kural bu yüzden istatistiği
 
   Değer **denormalize** tutulur: maç sayısı `Spell`'de durur ve Prisma ilişki toplamına göre sıralayamaz. Ham SQL'e geçmek BR-16 süzgecini ikinci bir yerde yeniden yazmak olurdu — ölçülmüş bir hata sınıfı. İkincil sıralama anahtarı alfabetiktir; oyuncuların **%33,9'unun** toplam maçı 0 ve eşitlikte sıranın sabit kalması gerekir.
 
+- **BR-23 — Tanınırlık süzgeci ile değer kapsamı ayrıdır.** Günün oyuncusu küratörlü kulüplerde (§9.1) 100+ maç ve 2+ kulüp koşulunu sağlayanlar arasından seçilir; ancak gösterilen maç, gol ve kulüp sayıları §1.3 kapsamındaki **tüm** kulüpleri toplar. İkisini tek sorguda birleştirmek, kapsam bildirimini üç lig turu boyunca yanlış tutmuştu (yukarıda ölçüldü).
+- **BR-24 — Seçilen hedef geçerli olmalıdır.** "Sen seç" turunda hedef oyuncunun altı istatistiği de dolu olmalıdır; değilse tur **reddedilir**, sessizce başka bir oyuncuya kaydırılmaz. Kullanıcı neden reddedildiğini görmezse aynı ismi tekrar dener.
 - **BR-22 — Akla yatkın olmayan maç/gol sayısı `null` sayılır.** Tek dönemde 1000'i aşan değer kabul edilmez. Gol sayısı maç sayısını aştığında değer atılMAZ; ikinci kaynak (Vikipedi) aynı çifti doğrularsa korunur, doğrulayamazsa düşer.
 
   Sınır tahmin değil, veriden okundu — sıralamada açık bir uçurum var:
@@ -2074,7 +2189,7 @@ Küçük hedeflerde oransal formül oyunu bozuyor. Kural bu yüzden istatistiği
 
 #### Kapsam bildirimi
 
-Maç, gol ve kulüp sayısı **yalnızca §1.3 kapsamındaki altı ligi** sayar. Ajax veya Boca Juniors'ta geçen yıllar bu sayılara **girmez**. Arayüz bunu istatistiğin yanında söyler; söylemezse kullanıcı bildiği gerçek toplamla karşılaştırıp siteyi yanlış sanır — §1.3'ün kapsam bildirimi kuralının aynısı.
+Maç, gol ve kulüp sayısı **yalnızca §1.3 kapsamındaki yirmi dört ligi** sayar. Boca Juniors veya Flamengo'da geçen yıllar bu sayılara **girmez**. (Ajax bir zamanlar bu cümlenin örneğiydi; 12 lig turundan beri kapsamda — kapsam büyüdükçe örnek de tazelenmek zorunda.) Arayüz bunu istatistiğin yanında söyler; söylemezse kullanıcı bildiği gerçek toplamla karşılaştırıp siteyi yanlış sanır — §1.3'ün kapsam bildirimi kuralının aynısı.
 
 ---
 

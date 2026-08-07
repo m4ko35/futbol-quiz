@@ -47,7 +47,8 @@ function setup(
 
   render(
     <StatMatchGame
-      daily={DAILY}
+      round={DAILY}
+      date={DAILY.date}
       submitAnswer={submitAnswer}
       searchPlayers={searchPlayers}
       {...overrides}
@@ -266,7 +267,8 @@ describe("StatMatchGame — ilerlemenin saklanması", () => {
     resetStatMatchCache();
     render(
       <StatMatchGame
-        daily={{ ...DAILY, date: "2026-08-01" }}
+        round={DAILY}
+        date="2026-08-01"
         submitAnswer={vi.fn()}
         searchPlayers={vi.fn().mockResolvedValue([])}
       />,
@@ -324,5 +326,116 @@ describe("StatMatchGame — tur sonu", () => {
 
     expect(screen.getByRole("status")).toHaveTextContent(/Tur bitti/u);
     expect(screen.getByRole("status")).toHaveTextContent(/%50/u);
+  });
+});
+
+/**
+ * §9.2 — "Sen seç" turu (BR-24).
+ *
+ * Ayırt edici davranış SAKLANMAMAKTIR: `date` verilmeyince ilerleme depoya
+ * yazılmaz. Bu, kullanıcının açtığı sınırsız sayıda turun depoyu şişirmesini
+ * ve "hangi tur devam ediyor" belirsizliğini önler.
+ */
+describe("StatMatchGame — saklanmayan tur", () => {
+  function setupChosen(onRestart?: () => void) {
+    const submitAnswer = vi.fn().mockResolvedValue({ value: 180, score: 93 });
+    const searchPlayers = vi.fn().mockResolvedValue([PLAYER]);
+
+    render(
+      <StatMatchGame
+        round={DAILY}
+        submitAnswer={submitAnswer}
+        searchPlayers={searchPlayers}
+        {...(onRestart === undefined ? {} : { onRestart })}
+      />,
+    );
+
+    return { submitAnswer, user: userEvent.setup() };
+  }
+
+  it("cevabı gösterir ama depoya YAZMAZ", async () => {
+    const { user } = setupChosen();
+
+    await answerStat(user, /Kulüp maçı/u);
+
+    await waitFor(() => {
+      expect(screen.getByText("180 · %93")).toBeInTheDocument();
+    });
+    expect(window.localStorage.getItem("futbol-quiz:stat-match")).toBeNull();
+  });
+
+  /** Günlük turun kaydı, yanında oynanan seçmeli turdan ETKİLENMEZ. */
+  it("günlük ilerlemeyi bozmaz", async () => {
+    window.localStorage.setItem(
+      "futbol-quiz:stat-match",
+      JSON.stringify({
+        date: DAILY.date,
+        answers: {
+          goals: { playerId: "x", playerName: "Y", value: 10, score: 50 },
+        },
+      }),
+    );
+    resetStatMatchCache();
+
+    const { user } = setupChosen();
+    await answerStat(user, /Kulüp maçı/u);
+
+    await waitFor(() => {
+      expect(screen.getByText("180 · %93")).toBeInTheDocument();
+    });
+    const stored: unknown = JSON.parse(
+      window.localStorage.getItem("futbol-quiz:stat-match") ?? "null",
+    );
+    expect(stored).toEqual({
+      date: DAILY.date,
+      answers: {
+        goals: { playerId: "x", playerName: "Y", value: 10, score: 50 },
+      },
+    });
+  });
+
+  /**
+   * Tur GERÇEKTEN bitirilir. Depo kullanılmadığı için altı cevap önceden
+   * kurulamaz; altısı da arayüzden verilir ve düğmenin varlığı öyle sınanır.
+   */
+  it("tur bitince yeni hedef seçme düğmesi verir", async () => {
+    const onRestart = vi.fn();
+    const submitAnswer = vi.fn().mockResolvedValue({ value: 180, score: 93 });
+    // BR-17 kullanılmış oyuncuyu listeden düşürdüğü için her istatistiğe
+    // ayrı bir isim gerekiyor.
+    const players = Array.from({ length: 6 }, (_, i) => ({
+      id: `berg${String(i)}`,
+      name: `Bergkamp ${String(i)}`,
+      nationality: "NL",
+      position: "Forvet",
+    }));
+
+    render(
+      <StatMatchGame
+        round={DAILY}
+        submitAnswer={submitAnswer}
+        searchPlayers={vi.fn().mockResolvedValue(players)}
+        onRestart={onRestart}
+      />,
+    );
+
+    const user = userEvent.setup();
+    for (const stat of DAILY.stats) {
+      // Etiketler regex'e GÖMÜLMEZ, kaçırılır: "Boy (cm)" içindeki parantez
+      // aksi hâlde bir grup olarak okunur ve düğme bulunamaz.
+      await answerStat(
+        user,
+        new RegExp(stat.label.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"),
+      );
+      await waitFor(() => {
+        expect(submitAnswer).toHaveBeenCalledWith(stat.key, expect.any(String));
+      });
+    }
+
+    const restart = await screen.findByRole("button", {
+      name: /Başka oyuncu seç/u,
+    });
+    await user.click(restart);
+    expect(onRestart).toHaveBeenCalled();
   });
 });

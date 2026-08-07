@@ -3,7 +3,6 @@ import type {
   PlayerRepository,
   PlayerSearchQuery,
 } from "@/application/ports/player-repository";
-import { CURATED_CLUB_QIDS } from "@/application/curated-clubs";
 import type { Player } from "@/domain/entities/player";
 import type { Spell } from "@/domain/entities/spell";
 import type { PlayerSpells } from "@/domain/services/common-players";
@@ -182,6 +181,7 @@ export class PrismaPlayerRepository implements PlayerRepository {
       where: {
         searchKey: { contains: key },
         ...scoreableWhere(query.scoreableFor),
+        ...targetableWhere(query.targetable),
       },
       /**
        * BR-21 — en çok oynayan önce.
@@ -222,10 +222,14 @@ export class PrismaPlayerRepository implements PlayerRepository {
 /**
  * BR-16 — o istatistikte puanlanabilir oyuncuların `where` koşulu (§9.2).
  *
- * Kulüp kaynaklı istatistikler (maç, gol, kulüp sayısı) için koşul, KÜRATÖRLÜ
- * kulüplerde eksiksiz bir döneminin bulunmasıdır. Kapsam tutarlılığı zorunlu:
- * hedef bu kulüplerle sınırlı sayıldığı için cevap da öyle sayılır
- * (`PrismaStatMatchRepository.findStatValue` ile aynı ölçüt).
+ * Kulüp kaynaklı istatistikler (maç, gol, kulüp sayısı) için koşul, §1.3
+ * kapsamında eksiksiz bir döneminin bulunmasıdır. Kapsam tutarlılığı zorunlu:
+ * hedef 24 ligi saydığı için cevap da öyle sayılır (BR-23,
+ * `PrismaStatMatchRepository.findStatValue` ile aynı ölçüt).
+ *
+ * KÜRATÖRLÜ KISIT BURADAN KALDIRILDI ve sebebi tam olarak aşağıdaki uyarıdır:
+ * `findStatValue` 24 lige geçince bu süzgeç küratörlü kalsaydı ikisi yeniden
+ * ayrışırdı — seçici gösterir, sunucu reddederdi.
  *
  * `undefined` verilirse süzgeç YOK — ızgara modu her oyuncuyu cevap olarak
  * kabul eder ve o mod bu alanı hiç göndermez.
@@ -237,15 +241,12 @@ function scoreableWhere(key: StatKey | undefined): Prisma.PlayerWhereInput {
   if (key === "heightCm") return { heightCm: { not: null } };
   if (key === "weightKg") return { weightKg: { not: null } };
 
-  // Küratörlü kulüpteki profesyonel dönemler — hem varlık hem eksiklik
-  // koşulunun tabanı.
-  const curated: Prisma.SpellWhereInput = {
-    isYouth: false,
-    club: { wikidataId: { in: [...CURATED_CLUB_QIDS] } },
-  };
+  // Kapsamdaki profesyonel dönemler — hem varlık hem eksiklik koşulunun
+  // tabanı. Kulüp kısıtı YOK: değerler artık tüm kapsamı sayıyor.
+  const professional: Prisma.SpellWhereInput = { isYouth: false };
 
   // Kulüp sayısı için bir dönem yeter.
-  if (key === "clubs") return { spells: { some: curated } };
+  if (key === "clubs") return { spells: { some: professional } };
 
   /*
    * Maç ve golde koşul "EN AZ BİR dolu dönem" DEĞİL, "HİÇBİR dönem eksik
@@ -255,12 +256,52 @@ function scoreableWhere(key: StatKey | undefined): Prisma.PlayerWhereInput {
    * eklendiği duvarın aynısı. Kural artık `findStatValue` ile birebir aynı.
    */
   const missing: Prisma.SpellWhereInput = {
-    ...curated,
+    ...professional,
     ...(key === "appearances" ? { appearances: null } : { goals: null }),
   };
 
-  return { spells: { some: curated, none: missing } };
+  return { spells: { some: professional, none: missing } };
 }
+
+/**
+ * BR-24 — "Sen seç" turunda HEDEF olabilecek oyuncular.
+ *
+ * `PrismaStatMatchRepository.findChosenTarget` ile BİREBİR aynı ölçüt olmak
+ * ZORUNDA; ayrışırsa seçici gösterir, sunucu reddeder (yukarıdaki kusurun
+ * aynısı). Bu yüzden ölçüt, Prisma'nın `where` diliyle tam ifade edilebilecek
+ * biçimde seçildi:
+ *
+ *   · altı istatistiğin üçü oyuncu kaydında  → `not: null`
+ *   · 100+ maç                               → `careerAppearances` (§5.2'de
+ *     zaten denormalize; eksik dönem yasağıyla birlikte `SUM` ile çakışır)
+ *   · hiçbir dönemde eksik maç/gol           → `none`
+ *
+ * "2+ kulüp" şartı BİLEREK YOK. Günün oyuncusunda o şart TANINIRLIK içindi;
+ * burada seçen kullanıcının kendisi. Şartı taşımak, ölçütü Prisma'nın
+ * ifade edemeyeceği bir toplamaya çevirir ve süzgeci doğrulayıcıdan yeniden
+ * ayrıştırırdı. Ölçülen bedel: havuz 5.242 yerine 5.524 (§9.2).
+ */
+function targetableWhere(
+  targetable: boolean | undefined,
+): Prisma.PlayerWhereInput {
+  if (targetable !== true) return {};
+
+  return {
+    nationalCaps: { not: null },
+    heightCm: { not: null },
+    weightKg: { not: null },
+    careerAppearances: { gte: MIN_TARGET_APPEARANCES },
+    spells: {
+      none: {
+        isYouth: false,
+        OR: [{ appearances: null }, { goals: null }],
+      },
+    },
+  };
+}
+
+/** §9.2 — `findChosenTarget` ile aynı eşik; ikisi birlikte değişir. */
+const MIN_TARGET_APPEARANCES = 100;
 
 /**
  * `spellQualifies` kuralının SQL karşılığı (BR-2, BR-3).

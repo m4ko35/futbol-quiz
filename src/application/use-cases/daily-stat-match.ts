@@ -9,12 +9,16 @@ import {
 import { dailySeed } from "@/domain/value-objects/daily-seed";
 import type { PlayerId } from "@/domain/value-objects/identifiers";
 import type {
-  DailyStatPlayer,
   StatMatchRepository,
+  StatMatchTarget,
 } from "../ports/stat-match-repository";
 
 /**
- * Günlük istatistik eşleştirme — PROJECT.md §9.2.
+ * İstatistik eşleştirme — PROJECT.md §9.2.
+ *
+ * İKİ GİRİŞ, TEK OYUN. Hedefi ya gün tohumu seçer (BR-19) ya da kullanıcı
+ * (BR-24); ondan sonrası aynıdır — aynı altı istatistik, aynı puanlama,
+ * aynı sunucu doğrulaması.
  *
  * SIZINTI KURALI IZGARADAN FARKLIDIR. Orada değerleri gizlemek oyunun
  * kendisiydi; burada hedef değerler AÇIKÇA verilir, çünkü oyun "bu değere
@@ -30,14 +34,19 @@ export interface StatDto {
   readonly scoped: boolean;
 }
 
-export interface DailyStatMatchDto {
-  readonly date: string;
+/** Bir turun sunulan hâli — hedef ve altı istatistiği. */
+export interface StatMatchRoundDto {
   readonly player: {
     readonly id: string;
     readonly name: string;
     readonly nationality: string | null;
   };
   readonly stats: readonly StatDto[];
+}
+
+/** Günlük tur; `date` yalnızca burada vardır (ilerleme gün anahtarına yazılır). */
+export interface DailyStatMatchDto extends StatMatchRoundDto {
+  readonly date: string;
 }
 
 export interface StatMatchDeps {
@@ -65,8 +74,11 @@ function isoDate(date: Date): string {
  * öder, sonrakiler ödemez. `checkStatAnswer` günün oyuncusunu her cevapta
  * yeniden ister (istemciye güvenilmediği için) — bellek olmadan her seçim
  * o taramayı tekrarlardı.
+ *
+ * "Sen seç" turu bu belleği KULLANMAZ ve buna ihtiyacı da yoktur: hedef,
+ * birincil anahtarla tek satır okumasıdır.
  */
-const cache = new Map<number, DailyStatPlayer>();
+const cache = new Map<number, StatMatchTarget>();
 
 /** Gün değiştikçe eski anahtarlar birikmesin (§7.1). */
 const MAX_CACHED_DAYS = 4;
@@ -81,7 +93,7 @@ const MAX_CACHED_DAYS = 4;
 async function playerFor(
   seed: number,
   deps: StatMatchDeps,
-): Promise<DailyStatPlayer> {
+): Promise<StatMatchTarget> {
   const cached = cache.get(seed);
   if (cached !== undefined) return cached;
 
@@ -99,32 +111,64 @@ async function playerFor(
   return chosen;
 }
 
+function toRound(target: StatMatchTarget): StatMatchRoundDto {
+  return {
+    player: {
+      id: target.id,
+      name: target.name,
+      nationality: target.nationality,
+    },
+    stats: STAT_KEYS.map((key) => ({
+      key,
+      label: STAT_LABELS[key],
+      value: target.stats[key],
+      scoped: isScoped(key),
+    })),
+  };
+}
+
 export async function getDailyStatMatch(
   now: Date,
   deps: StatMatchDeps,
 ): Promise<DailyStatMatchDto> {
   const player = await playerFor(dailySeed(now), deps);
 
-  return {
-    date: isoDate(now),
-    player: {
-      id: player.id,
-      name: player.name,
-      nationality: player.nationality,
-    },
-    stats: STAT_KEYS.map((key) => ({
-      key,
-      label: STAT_LABELS[key],
-      value: player.stats[key],
-      scoped: isScoped(key),
-    })),
-  };
+  return { date: isoDate(now), ...toRound(player) };
+}
+
+/**
+ * BR-24 — "Sen seç": hedefi kullanıcı belirler.
+ *
+ * Reddi SESSİZ DEĞİLDİR. Uygun olmayan bir oyuncu için başka birine
+ * kaydırmak, kullanıcının aradığı ismi bulduğunu sanmasına yol açardı.
+ */
+export async function getChosenStatMatch(
+  target: PlayerId,
+  deps: StatMatchDeps,
+): Promise<StatMatchRoundDto> {
+  const chosen = await deps.statMatch.findChosenTarget(target);
+
+  if (chosen === null) {
+    throw new ValidationError(
+      "Bu oyuncu hedef olarak seçilemez: altı istatistiğinin hepsi dolu değil.",
+    );
+  }
+
+  return toRound(chosen);
 }
 
 export interface CheckStatAnswerInput {
   readonly now: Date;
   readonly statKey: StatKey;
   readonly playerId: PlayerId;
+  /**
+   * "Sen seç" turunda hedefin KİMLİĞİ. Yoksa günün oyuncusu hedeftir.
+   *
+   * BR-20 bozulmaz: istemci hedefin kimliğini söyleyebilir ama DEĞERLERİNİ
+   * söyleyemez — onları sunucu okur ve puanı sunucu hesaplar. Kolay bir hedef
+   * seçebilmek bir açık değil, modun kendisidir (§9.2).
+   */
+  readonly targetId?: PlayerId;
 }
 
 export interface CheckStatAnswerDto {
@@ -137,19 +181,21 @@ export interface CheckStatAnswerDto {
 /**
  * BR-20 — puanı SUNUCU hesaplar.
  *
- * İstemci hedef değeri gönderemez; gönderebilseydi kendi hedefini uydurup
- * her seçimde %100 alırdı. Günün oyuncusu burada yeniden çözülür.
+ * İstemci hedef DEĞERİ gönderemez; gönderebilseydi kendi hedefini uydurup
+ * her seçimde %100 alırdı. Hedef burada yeniden çözülür: günlük turda gün
+ * tohumundan, "Sen seç" turunda kimlikten (ve o kimlik BR-24'ten yeniden
+ * geçirilir — istemcinin gönderdiği diye geçerli sayılmaz).
  */
 export async function checkStatAnswer(
   input: CheckStatAnswerInput,
   deps: StatMatchDeps,
 ): Promise<CheckStatAnswerDto> {
-  const daily = await playerFor(dailySeed(input.now), deps);
+  const target = await resolveTarget(input, deps);
 
-  // Kullanıcı günün oyuncusunun kendisini seçemez: hedefin kendisi cevap
-  // olsaydı her istatistikte bedava %100 olurdu.
-  if (input.playerId === daily.id) {
-    throw new ValidationError("Günün oyuncusu cevap olarak seçilemez.");
+  // Kullanıcı hedefin kendisini seçemez: hedefin kendisi cevap olsaydı her
+  // istatistikte bedava %100 olurdu.
+  if (input.playerId === target.id) {
+    throw new ValidationError("Hedef oyuncu cevap olarak seçilemez.");
   }
 
   const value = await deps.statMatch.findStatValue(
@@ -167,6 +213,20 @@ export async function checkStatAnswer(
 
   return {
     value,
-    score: scoreFor(input.statKey, daily.stats[input.statKey], value),
+    score: scoreFor(input.statKey, target.stats[input.statKey], value),
   };
+}
+
+async function resolveTarget(
+  input: CheckStatAnswerInput,
+  deps: StatMatchDeps,
+): Promise<StatMatchTarget> {
+  if (input.targetId === undefined)
+    return playerFor(dailySeed(input.now), deps);
+
+  const chosen = await deps.statMatch.findChosenTarget(input.targetId);
+  if (chosen === null) {
+    throw new ValidationError("Bu oyuncu hedef olarak seçilemez.");
+  }
+  return chosen;
 }

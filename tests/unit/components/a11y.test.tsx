@@ -272,7 +272,8 @@ describe("erişilebilirlik — WCAG 2.1 AA (§7.10)", () => {
   it("istatistik eşleştirmede ihlal yok", async () => {
     const { container } = render(
       <StatMatchGame
-        daily={DAILY_STATS}
+        round={DAILY_STATS}
+        date={DAILY_STATS.date}
         submitAnswer={() => Promise.resolve({ value: 1, score: 1 })}
         searchPlayers={() => Promise.resolve([])}
       />,
@@ -284,7 +285,8 @@ describe("erişilebilirlik — WCAG 2.1 AA (§7.10)", () => {
   it("istatistik seçicisi AÇIKKEN ihlal yok", async () => {
     const { container } = render(
       <StatMatchGame
-        daily={DAILY_STATS}
+        round={DAILY_STATS}
+        date={DAILY_STATS.date}
         submitAnswer={() => Promise.resolve({ value: 1, score: 1 })}
         searchPlayers={() => Promise.resolve([])}
       />,

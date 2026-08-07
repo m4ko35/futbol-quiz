@@ -32,6 +32,11 @@ export interface SearchPlayersInput {
    * (§9.2, BR-16). Izgara modu bunu göndermez.
    */
   readonly scoreableFor?: StatKey;
+  /**
+   * Verilirse sonuç, "Sen seç" turuna hedef olabilecek oyuncularla sınırlanır
+   * (§9.2, BR-24). Diğer modlar bunu göndermez.
+   */
+  readonly targetable?: boolean;
 }
 
 export interface SearchPlayersDeps {
@@ -55,6 +60,7 @@ export async function searchPlayers(
     ...(input.scoreableFor === undefined
       ? {}
       : { scoreableFor: input.scoreableFor }),
+    ...(input.targetable === undefined ? {} : { targetable: input.targetable }),
   });
 
   return players.map(toPlayerDto);

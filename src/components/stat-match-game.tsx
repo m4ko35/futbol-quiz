@@ -3,8 +3,8 @@
 import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import type { PlayerDto } from "@/application/dto/player-dto";
 import type {
-  DailyStatMatchDto,
   StatDto,
+  StatMatchRoundDto,
 } from "@/application/use-cases/daily-stat-match";
 import {
   isRoundComplete,
@@ -35,7 +35,19 @@ import { PlayerPicker } from "./player-picker";
  */
 
 export interface StatMatchGameProps {
-  readonly daily: DailyStatMatchDto;
+  /** Turun hedefi ve altı istatistiği — günlük ya da kullanıcı seçimi. */
+  readonly round: StatMatchRoundDto;
+  /**
+   * Varsa ilerleme o güne yazılır (BR-19); yoksa tur SAKLANMAZ.
+   *
+   * "Sen seç" turları saklanmaz ve bu bilinçli (§9.2): günlük ilerleme gün
+   * anahtarına yazılır çünkü "bugünün turu" tekildir, oysa kullanıcı istediği
+   * kadar tur açabilir. Hepsini saklamak depoyu sınırsız büyütür ve "hangi
+   * tur devam ediyor" sorusunu doğururdu.
+   */
+  readonly date?: string;
+  /** Tur bitince yeni hedef seçmek için — yalnızca "Sen seç" turunda. */
+  onRestart?: () => void;
   /** Cevap gönderimi; testlerde sahte bir uygulama verilir. */
   submitAnswer(
     statKey: StatKey,
@@ -85,7 +97,9 @@ function scoreTone(score: number): string {
 }
 
 export function StatMatchGame({
-  daily,
+  round,
+  date,
+  onRestart,
   submitAnswer,
   searchPlayers,
 }: StatMatchGameProps) {
@@ -95,9 +109,20 @@ export function StatMatchGame({
     readStatMatchOnServer,
   );
 
+  /**
+   * Saklanmayan turun cevapları. İki kaynak da HER RENDER'DA okunur (kancalar
+   * koşullu çağrılamaz); hangisinin geçerli olduğuna `date` karar verir.
+   */
+  const [localAnswers, setLocalAnswers] = useState<StatMatchState["answers"]>(
+    {},
+  );
+
   const state = useMemo(
-    () => parseStatMatch(raw, daily.date) ?? emptyRound(daily.date),
-    [raw, daily.date],
+    () =>
+      date === undefined
+        ? { date: "", answers: localAnswers }
+        : (parseStatMatch(raw, date) ?? emptyRound(date)),
+    [raw, date, localAnswers],
   );
 
   const [openStat, setOpenStat] = useState<StatKey | null>(null);
@@ -111,9 +136,9 @@ export function StatMatchGame({
   const finished = isRoundComplete(answers.length);
   const total = totalScore(answers.map(([, answer]) => answer.score));
 
-  // BR-17 — kullanılmış oyuncular ve günün oyuncusunun kendisi seçilemez.
+  // BR-17 — kullanılmış oyuncular ve hedefin kendisi seçilemez.
   const usedPlayerIds = new Set([
-    daily.player.id,
+    round.player.id,
     ...answers.map(([, answer]) => answer.playerId),
   ]);
 
@@ -125,23 +150,28 @@ export function StatMatchGame({
 
       try {
         const result = await submitAnswer(statKey, player.id);
+        const entry = {
+          playerId: player.id,
+          playerName: player.name,
+          value: result.value,
+          score: result.score,
+        };
+
+        if (date === undefined) {
+          // Saklanmayan tur: aynı yarış koşulu burada da var, bu yüzden
+          // güncelleyici biçim kullanılıyor.
+          setLocalAnswers((current) => ({ ...current, [statKey]: entry }));
+          return;
+        }
 
         // Güncel durum YAZMA ANINDA okunur; bekleyen isteğin başladığı andaki
         // kopyanın üzerine yazmak, arada tamamlanan bir cevabı silerdi.
         const current =
-          parseStatMatch(readStatMatch(), daily.date) ?? emptyRound(daily.date);
+          parseStatMatch(readStatMatch(), date) ?? emptyRound(date);
 
         writeStatMatch({
           date: current.date,
-          answers: {
-            ...current.answers,
-            [statKey]: {
-              playerId: player.id,
-              playerName: player.name,
-              value: result.value,
-              score: result.score,
-            },
-          },
+          answers: { ...current.answers, [statKey]: entry },
         });
       } catch (error: unknown) {
         // Sunucu "bu oyuncunun verisi yok" diyorsa (BR-16) bunu OLDUĞU GİBİ
@@ -156,13 +186,13 @@ export function StatMatchGame({
         setIsChecking(false);
       }
     },
-    [submitAnswer, daily.date],
+    [submitAnswer, date],
   );
 
   const openStatDto =
     openStat === null
       ? undefined
-      : daily.stats.find((stat) => stat.key === openStat);
+      : round.stats.find((stat) => stat.key === openStat);
 
   // `PlayerPicker` iki argümanlı bir arama bekler; açık istatistiği buraya
   // kapatarak taşıyoruz. `useMemo` olmadan her render yeni bir fonksiyon
@@ -186,14 +216,14 @@ export function StatMatchGame({
           aria-hidden="true"
           className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xl font-bold text-accent"
         >
-          {initialsOf(daily.player.name)}
+          {initialsOf(round.player.name)}
         </span>
         <div className="min-w-0">
           <h2 className="text-xl font-bold tracking-tight">
-            {daily.player.name}
-            {daily.player.nationality !== null && (
+            {round.player.name}
+            {round.player.nationality !== null && (
               <span className="ml-2 text-sm font-normal text-muted">
-                {countryName(daily.player.nationality)}
+                {countryName(round.player.nationality)}
               </span>
             )}
           </h2>
@@ -216,7 +246,7 @@ export function StatMatchGame({
       </p>
 
       <ul className="flex flex-col gap-3">
-        {daily.stats.map((stat) => (
+        {round.stats.map((stat) => (
           <StatRow
             key={stat.key}
             stat={stat}
@@ -263,13 +293,26 @@ export function StatMatchGame({
         )}
 
       {finished && (
-        <p
+        <div
           role="status"
-          className="rounded-xl border border-accent bg-accent-soft px-4 py-3 text-sm"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent bg-accent-soft px-4 py-3 text-sm"
         >
-          Tur bitti — ortalama <strong>%{String(total)}</strong>. Yeni oyuncu
-          her gün 03.00&apos;te (TSİ) yayınlanır.
-        </p>
+          <p>
+            Tur bitti — ortalama <strong>%{String(total)}</strong>.{" "}
+            {date === undefined
+              ? "Bu tur kaydedilmez."
+              : "Yeni oyuncu her gün 03.00'te (TSİ) yayınlanır."}
+          </p>
+          {onRestart !== undefined && (
+            <button
+              type="button"
+              className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              onClick={onRestart}
+            >
+              Başka oyuncu seç
+            </button>
+          )}
+        </div>
       )}
 
       {/*

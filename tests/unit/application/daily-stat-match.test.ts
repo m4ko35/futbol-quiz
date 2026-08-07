@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { DailyStatPlayer } from "@/application/ports/stat-match-repository";
+import type { StatMatchTarget } from "@/application/ports/stat-match-repository";
 import { STAT_KEYS, scoreFor } from "@/domain/services/stat-match";
 import { playerId } from "@/domain/value-objects/identifiers";
 import { FakeStatMatchRepository } from "../../helpers/fake-repositories";
@@ -11,8 +11,8 @@ const OTHER_DAY = new Date("2026-08-05T09:00:00Z");
 
 function aStatPlayer(
   id: string,
-  overrides: Partial<DailyStatPlayer["stats"]> = {},
-): DailyStatPlayer {
+  overrides: Partial<StatMatchTarget["stats"]> = {},
+): StatMatchTarget {
   return {
     id: playerId(id),
     name: `Oyuncu ${id}`,
@@ -218,5 +218,148 @@ describe("checkStatAnswer — BR-18, BR-20", () => {
 
     // `setup` zaten bir kez çekti; ikinci çağrı bellekten gelmeli.
     expect(spy).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * §9.2 — "Sen seç": hedefi kullanıcı belirler (BR-24).
+ *
+ * Buradaki testlerin çoğu tek bir şeyi koruyor: hedefin İSTEMCİDEN gelmesi,
+ * hedefin DOĞRULANMADAN kabul edildiği anlamına gelmez. BR-20 bozulursa
+ * kullanıcı kendi hedefini uydurup her seçimde %100 alırdı.
+ */
+describe("getChosenStatMatch", () => {
+  it("seçilen oyuncunun altı istatistiğini döner", async () => {
+    const { getChosenStatMatch } = await load();
+    const target = aStatPlayer("secilen", { appearances: 408 });
+
+    const dto = await getChosenStatMatch(playerId("secilen"), {
+      statMatch: new FakeStatMatchRepository([], [target]),
+    });
+
+    expect(dto.player.name).toBe("Oyuncu secilen");
+    expect(dto.stats.map((s) => s.key)).toEqual([...STAT_KEYS]);
+    expect(dto.stats.find((s) => s.key === "appearances")?.value).toBe(408);
+  });
+
+  /** Günlük turun tersine tarih YOK: tur bir güne ait değil, saklanmıyor. */
+  it("tarih taşımaz", async () => {
+    const { getChosenStatMatch } = await load();
+
+    const dto = await getChosenStatMatch(playerId("secilen"), {
+      statMatch: new FakeStatMatchRepository([], [aStatPlayer("secilen")]),
+    });
+
+    expect(dto).not.toHaveProperty("date");
+  });
+
+  /**
+   * BR-24 — uygun olmayan hedef REDDEDİLİR. Sessizce başka bir oyuncuya
+   * kaydırmak, kullanıcının aradığı ismi bulduğunu sanmasına yol açardı.
+   */
+  it("havuzda olmayan oyuncuyu reddeder", async () => {
+    const { getChosenStatMatch, ValidationError } = await load();
+
+    await expect(
+      getChosenStatMatch(playerId("yok"), {
+        statMatch: new FakeStatMatchRepository([], [aStatPlayer("baska")]),
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  /** Günün oyuncusu havuzu ile hedef havuzu AYRIDIR (1.927'ye karşı 5.524). */
+  it("günün havuzunda olmayan ama seçilebilir oyuncuyu kabul eder", async () => {
+    const { getChosenStatMatch } = await load();
+
+    const dto = await getChosenStatMatch(playerId("yalnizca-hedef"), {
+      statMatch: new FakeStatMatchRepository(
+        [aStatPlayer("gunun")],
+        [aStatPlayer("yalnizca-hedef")],
+      ),
+    });
+
+    expect(dto.player.id).toBe("yalnizca-hedef");
+  });
+});
+
+describe("checkStatAnswer — seçilen hedefle", () => {
+  it("puanı GÜNÜN oyuncusuna değil, seçilen hedefe göre verir", async () => {
+    const { checkStatAnswer } = await load();
+    const statMatch = new FakeStatMatchRepository(
+      [aStatPlayer("gunun", { appearances: 200 })],
+      [
+        aStatPlayer("hedef", { appearances: 500 }),
+        aStatPlayer("cevap", { appearances: 490 }),
+      ],
+    );
+
+    const result = await checkStatAnswer(
+      {
+        now: DAY,
+        statKey: "appearances",
+        playerId: playerId("cevap"),
+        targetId: playerId("hedef"),
+      },
+      { statMatch },
+    );
+
+    expect(result.value).toBe(490);
+    expect(result.score).toBe(scoreFor("appearances", 500, 490));
+  });
+
+  /** BR-20 — istemcinin gönderdiği hedef DOĞRULANIR, olduğu gibi kabul edilmez. */
+  it("geçersiz hedef kimliğini reddeder", async () => {
+    const { checkStatAnswer, ValidationError } = await load();
+
+    await expect(
+      checkStatAnswer(
+        {
+          now: DAY,
+          statKey: "appearances",
+          playerId: playerId("cevap"),
+          targetId: playerId("uydurma"),
+        },
+        {
+          statMatch: new FakeStatMatchRepository([], [aStatPlayer("cevap")]),
+        },
+      ),
+    ).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  /** Hedefin kendisi cevap olsaydı bedava %100 olurdu. */
+  it("hedefin kendisini cevap olarak reddeder", async () => {
+    const { checkStatAnswer, ValidationError } = await load();
+
+    await expect(
+      checkStatAnswer(
+        {
+          now: DAY,
+          statKey: "appearances",
+          playerId: playerId("hedef"),
+          targetId: playerId("hedef"),
+        },
+        {
+          statMatch: new FakeStatMatchRepository([], [aStatPlayer("hedef")]),
+        },
+      ),
+    ).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  /** `targetId` yoksa davranış DEĞİŞMEZ: hedef günün oyuncusudur. */
+  it("targetId verilmezse günün oyuncusunu hedef alır", async () => {
+    const { checkStatAnswer } = await load();
+    // Aday havuzu TEK kişilik: iki aday olsaydı gün tohumu hangisini
+    // seçeceğini belirlerdi ve test kendi kurgusunu sınardı.
+    const statMatch = new FakeStatMatchRepository(
+      [aStatPlayer("gunun", { appearances: 200 })],
+      [aStatPlayer("cevap", { appearances: 190 })],
+    );
+
+    const result = await checkStatAnswer(
+      { now: DAY, statKey: "appearances", playerId: playerId("cevap") },
+      { statMatch },
+    );
+
+    expect(result.score).toBe(scoreFor("appearances", 200, 190));
   });
 });

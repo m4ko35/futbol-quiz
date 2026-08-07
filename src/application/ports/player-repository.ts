@@ -84,4 +84,14 @@ export interface PlayerSearchQuery {
    * Süzgeç, BR-16'nın tanımladığı havuzu seçicide GÖRÜNÜR kılar.
    */
   readonly scoreableFor?: StatKey;
+  /**
+   * `true` → sonuç yalnızca "Sen seç" turuna HEDEF olabilecek oyuncularla
+   * sınırlanır (§9.2, BR-24).
+   *
+   * NEDEN GEREKLİ, ölçüldü: süzgeçsiz seçicide ilk 20 sonucun yalnızca
+   * %18–50'si geçerli hedefti — "buffon" aramasında 5 sonuçtan 1'i, "kaka"da
+   * 11'de 2'si. Kullanıcı çoğu seçiminde reddedilirdi; bu, `scoreableFor`'un
+   * kaldırmak için eklendiği duvarın aynısı.
+   */
+  readonly targetable?: boolean;
 }

@@ -8,8 +8,8 @@ import type {
   PlayerSearchQuery,
 } from "@/application/ports/player-repository";
 import type {
-  DailyStatPlayer,
   StatMatchRepository,
+  StatMatchTarget,
 } from "@/application/ports/stat-match-repository";
 import type { Club } from "@/domain/entities/club";
 import type { Player } from "@/domain/entities/player";
@@ -160,22 +160,41 @@ export class FakePlayerRepository implements PlayerRepository {
  * (BR-19) ve testin hangi oyuncunun seçileceğini bilebilmesi buna bağlı.
  */
 export class FakeStatMatchRepository implements StatMatchRepository {
-  readonly #candidates: DailyStatPlayer[];
+  readonly #candidates: StatMatchTarget[];
+  readonly #choosable: StatMatchTarget[];
 
-  constructor(candidates: readonly DailyStatPlayer[] = []) {
+  /**
+   * @param candidates günün oyuncusu adayları — tanınırlık süzgecini geçmiş
+   *   olanlar (BR-19).
+   * @param choosable "Sen seç" hedefi olabilecekler (BR-24). Verilmezse
+   *   adayların kendisi kullanılır; iki havuzun ÜRETİMDE farklı olduğunu
+   *   (1.927'ye karşı 5.524) sınayan testler bunu açıkça geçirir.
+   */
+  constructor(
+    candidates: readonly StatMatchTarget[] = [],
+    choosable?: readonly StatMatchTarget[],
+  ) {
     this.#candidates = [...candidates];
+    this.#choosable = [...(choosable ?? candidates)];
   }
 
-  findDailyCandidates(): Promise<readonly DailyStatPlayer[]> {
+  findDailyCandidates(): Promise<readonly StatMatchTarget[]> {
     return Promise.resolve(this.#candidates);
   }
 
+  /** BR-24 — havuzda yoksa null; sessizce başka oyuncuya kaydırılmaz. */
+  findChosenTarget(id: string): Promise<StatMatchTarget | null> {
+    return Promise.resolve(this.#choosable.find((c) => c.id === id) ?? null);
+  }
+
   /**
-   * Aday listesindeki oyuncular kendi değerlerini verir; listede olmayan
+   * Her iki havuzdaki oyuncular kendi değerlerini verir; hiçbirinde olmayan
    * oyuncu `null` döner — BR-16'nın "verisi yok" durumu.
    */
   findStatValue(id: string, key: StatKey): Promise<number | null> {
-    const player = this.#candidates.find((c) => c.id === id);
+    const player =
+      this.#candidates.find((c) => c.id === id) ??
+      this.#choosable.find((c) => c.id === id);
     return Promise.resolve(player?.stats[key] ?? null);
   }
 }
