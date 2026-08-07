@@ -23,6 +23,8 @@ let db: TestDatabase;
 let gridRoute: typeof import("@/app/api/grid/route");
 let answerRoute: typeof import("@/app/api/grid/answer/route");
 let playersRoute: typeof import("@/app/api/players/route");
+let criteriaRoute: typeof import("@/app/api/grid/criteria/route");
+let customAnswerRoute: typeof import("@/app/api/grid/custom-answer/route");
 
 /** Üretim en az `GRID_SIZE + 1` kulüp ister; altı, seçim yapılabilecek kadar. */
 const CLUB_COUNT = 6;
@@ -128,6 +130,8 @@ beforeAll(async () => {
   gridRoute = await import("@/app/api/grid/route");
   answerRoute = await import("@/app/api/grid/answer/route");
   playersRoute = await import("@/app/api/players/route");
+  criteriaRoute = await import("@/app/api/grid/criteria/route");
+  customAnswerRoute = await import("@/app/api/grid/custom-answer/route");
 }, 120_000);
 
 afterAll(async () => {
@@ -383,5 +387,217 @@ describe("GET /api/players — §6.4", () => {
 
     expect(response.status).toBe(400);
     expect(body.error.code).toBe("VALIDATION_ERROR");
+  });
+});
+
+describe("GET /api/grid/criteria — §6.4, BR-25", () => {
+  const columnRef = `club:${clubIdOf(clubQids[0] ?? "")}`;
+
+  it("seçilen sütunla oynanabilir ölçütleri döner", async () => {
+    const response = await criteriaRoute.GET(
+      get(`/api/grid/criteria?with=${columnRef}`),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data.length).toBeGreaterThan(0);
+
+    // Fixture her çifte bandın içinde ortak oyuncu koyuyor; kalan beş kulübün
+    // hepsi satır olabilmeli.
+    const ids = body.data.map((one: { id: string }) => one.id);
+    for (const qid of clubQids.slice(1)) expect(ids).toContain(clubIdOf(qid));
+  });
+
+  /** Bir ölçüt hem satırda hem sütunda bulunamaz (`isGridShapeValid`). */
+  it("kısıtın kendisi aday olarak dönmez", async () => {
+    const response = await criteriaRoute.GET(
+      get(`/api/grid/criteria?with=${columnRef}`),
+    );
+    const body = await response.json();
+
+    const ids = body.data.map((one: { id: string }) => one.id);
+    expect(ids).not.toContain(clubIdOf(clubQids[0] ?? ""));
+  });
+
+  it("uyruk ölçütleri de listelenir", async () => {
+    const response = await criteriaRoute.GET(
+      get(`/api/grid/criteria?with=${columnRef}`),
+    );
+    const body = await response.json();
+
+    // Fixture'daki herkes "ZW"; sütunla kesişimi bandın içinde.
+    const codes = body.data
+      .filter((one: { kind: string }) => one.kind === "nationality")
+      .map((one: { id: string }) => one.id);
+    expect(codes).toContain("ZW");
+  });
+
+  /**
+   * SIZINTI KURALI (§9.1). Kimlik BURADA verilir — cevap ucu hangi ölçütün
+   * sorulduğunu bilmek zorunda — ama hücrede kaç cevap olduğu VERİLMEZ.
+   */
+  it("hücre başına cevap SAYISINI taşımaz", async () => {
+    const response = await criteriaRoute.GET(
+      get(`/api/grid/criteria?with=${columnRef}`),
+    );
+    const body = await response.json();
+
+    for (const criterion of body.data) {
+      expect(Object.keys(criterion).sort()).toEqual(["id", "kind", "label"]);
+    }
+  });
+
+  it("ölçüt verilmezse 400 döner", async () => {
+    const response = await criteriaRoute.GET(get("/api/grid/criteria"));
+
+    expect(response.status).toBe(400);
+  });
+
+  it("tanınmayan ölçüt türü 400 döner", async () => {
+    const response = await criteriaRoute.GET(
+      get("/api/grid/criteria?with=takim:abc"),
+    );
+
+    expect(response.status).toBe(400);
+  });
+
+  it("bilinmeyen kulüp 400 döner — sessizce atlanmaz", async () => {
+    const response = await criteriaRoute.GET(
+      get("/api/grid/criteria?with=club:yokboylebirkulup"),
+    );
+
+    expect(response.status).toBe(400);
+  });
+
+  it("başarılı yanıt CDN'de önbelleklenebilir (§7.9)", async () => {
+    const response = await criteriaRoute.GET(
+      get(`/api/grid/criteria?with=${columnRef}`),
+    );
+    const cacheControl = response.headers.get("cache-control") ?? "";
+
+    expect(cacheControl).toContain("public");
+    expect(cacheControl).toMatch(/s-maxage=\d+/u);
+  });
+});
+
+describe("POST /api/grid/custom-answer — BR-26", () => {
+  const [first, second, third] = clubQids;
+
+  function bothOf(a: string, b: string): string {
+    const ids = playersByPair.get(pairKey(a, b));
+    if (ids?.[0] === undefined) throw new Error("çift için oyuncu yok");
+    return ids[0];
+  }
+
+  function refOf(qid: string) {
+    return { kind: "club", id: clubIdOf(qid) };
+  }
+
+  it("iki ölçütü de sağlayan cevap için correct:true döner", async () => {
+    const response = await customAnswerRoute.POST(
+      post("/api/grid/custom-answer", {
+        row: refOf(first ?? ""),
+        column: refOf(second ?? ""),
+        playerId: bothOf(first ?? "", second ?? ""),
+      }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data).toEqual({ correct: true });
+  });
+
+  it("ölçütlerden birini sağlamayan cevap için correct:false döner", async () => {
+    const response = await customAnswerRoute.POST(
+      post("/api/grid/custom-answer", {
+        row: refOf(first ?? ""),
+        column: refOf(second ?? ""),
+        // Üçüncü ile birinci kulüpte oynayan biri, ikinci kulüpte oynamadı.
+        playerId: bothOf(first ?? "", third ?? ""),
+      }),
+    );
+    const body = await response.json();
+
+    expect(body.data).toEqual({ correct: false });
+  });
+
+  it("satır ve sütun aynı ölçütse 400 döner", async () => {
+    const response = await customAnswerRoute.POST(
+      post("/api/grid/custom-answer", {
+        row: refOf(first ?? ""),
+        column: refOf(first ?? ""),
+        playerId: bothOf(first ?? "", second ?? ""),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+  });
+
+  it("bilinmeyen kulüp 400 döner", async () => {
+    const response = await customAnswerRoute.POST(
+      post("/api/grid/custom-answer", {
+        row: { kind: "club", id: "yokboylebirkulup" },
+        column: refOf(second ?? ""),
+        playerId: bothOf(first ?? "", second ?? ""),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+  });
+
+  it("biçimsiz ülke kodu 400 döner", async () => {
+    const response = await customAnswerRoute.POST(
+      post("/api/grid/custom-answer", {
+        row: { kind: "nationality", id: "zw" },
+        column: refOf(second ?? ""),
+        playerId: bothOf(first ?? "", second ?? ""),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+  });
+
+  /** İstemci bu uçtan günün ızgarasını çekemez: eylem sunucuda sabitlenir. */
+  it("gövdedeki action alanı yok sayılır", async () => {
+    const response = await customAnswerRoute.POST(
+      post("/api/grid/custom-answer", {
+        action: "daily",
+        row: refOf(first ?? ""),
+        column: refOf(second ?? ""),
+        playerId: bothOf(first ?? "", second ?? ""),
+      }),
+    );
+    const body = await response.json();
+
+    expect(body.data).toEqual({ correct: true });
+  });
+
+  it("yanıt paylaşılan önbelleğe girmez", async () => {
+    const response = await customAnswerRoute.POST(
+      post("/api/grid/custom-answer", {
+        row: refOf(first ?? ""),
+        column: refOf(second ?? ""),
+        playerId: bothOf(first ?? "", second ?? ""),
+      }),
+    );
+
+    expect(response.headers.get("cache-control") ?? "").not.toContain("public");
+  });
+
+  it("bozuk gövde 400 döner", async () => {
+    const request = new NextRequest(
+      new URL("http://localhost/api/grid/custom-answer"),
+      {
+        method: "POST",
+        headers: {
+          "x-forwarded-for": "198.51.100.251",
+          "content-type": "application/json",
+        },
+        body: "bozuk",
+      },
+    );
+
+    const response = await customAnswerRoute.POST(request);
+    expect(response.status).toBe(400);
   });
 });

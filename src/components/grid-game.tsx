@@ -3,8 +3,8 @@
 import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import type { PlayerDto } from "@/application/dto/player-dto";
 import type {
-  DailyGridDto,
   GridCriterionDto,
+  GridRoundDto,
 } from "@/application/use-cases/daily-grid";
 import {
   cellKey,
@@ -37,13 +37,30 @@ import { PlayerPicker } from "./player-picker";
  * bir şey de yok: skor kaydedilmiyor, sıralama yok. §9'daki skor tablosu
  * eklendiğinde oyun durumu sunucuya taşınmak ZORUNDA (§10.2).
  *
- * OYUN DURUMU REACT STATE'İNDE DEĞİL, DEPODA. Tek bir kaynak var ve o da
- * `@/lib/grid-storage`; bileşen onu `useSyncExternalStore` ile okur. İki kopya
- * tutulsaydı (hem `useState` hem depo) ikisinin ayrışması an meselesiydi.
+ * GÜNLÜK IZGARANIN DURUMU REACT STATE'İNDE DEĞİL, DEPODA. Tek bir kaynak var
+ * ve o da `@/lib/grid-storage`; bileşen onu `useSyncExternalStore` ile okur.
+ * İki kopya tutulsaydı (hem `useState` hem depo) ikisinin ayrışması an
+ * meselesiydi.
+ *
+ * "SEN KUR" IZGARASI SAKLANMAZ (§9.1) ve durumu React state'inde durur. Bu bir
+ * istisna değil, aynı kuralın diğer yüzü: saklanan tek şey "bugünün ızgarası"
+ * olduğu için, saklanmayan ızgaranın depoda anahtarı da yok. Hangi kaynağın
+ * geçerli olduğuna `date` karar verir — iki kaynak aynı anda yazılmaz.
  */
 
 export interface GridGameProps {
-  readonly grid: DailyGridDto;
+  /** Oynanacak ızgara — günün ızgarası ya da kullanıcının kurduğu (BR-25). */
+  readonly grid: GridRoundDto;
+  /**
+   * Varsa ilerleme o güne yazılır; yoksa ızgara SAKLANMAZ.
+   *
+   * "Sen kur" ızgaraları saklanmaz ve bu bilinçli (§9.1): günlük ilerleme gün
+   * anahtarına yazılır çünkü "bugünün ızgarası" tekildir, oysa kullanıcı
+   * istediği kadar ızgara kurabilir.
+   */
+  readonly date?: string;
+  /** Oyun bitince yeni ızgara kurmak için — yalnızca "Sen kur" turunda. */
+  onRestart?: () => void;
   /** Cevap doğrulama; testlerde sahte bir uygulama verilir. */
   checkAnswer(cell: CellRef, playerId: string): Promise<boolean>;
   /** Oyuncu arama; testlerde sahte bir uygulama verilir. */
@@ -54,16 +71,31 @@ function emptyGame(date: string): GameState {
   return { date, cells: {}, guessesUsed: 0 };
 }
 
-export function GridGame({ grid, checkAnswer, searchPlayers }: GridGameProps) {
+export function GridGame({
+  grid,
+  date,
+  onRestart,
+  checkAnswer,
+  searchPlayers,
+}: GridGameProps) {
   const raw = useSyncExternalStore(
     subscribeToSavedGame,
     readSavedGame,
     readSavedGameOnServer,
   );
 
+  /**
+   * Saklanmayan ızgaranın durumu. İki kaynak da HER RENDER'DA okunur (kancalar
+   * koşullu çağrılamaz); hangisinin geçerli olduğuna `date` karar verir.
+   */
+  const [local, setLocal] = useState<GameState>(() => emptyGame(""));
+
   const state = useMemo(
-    () => parseSavedGame(raw, grid.date) ?? emptyGame(grid.date),
-    [raw, grid.date],
+    () =>
+      date === undefined
+        ? local
+        : (parseSavedGame(raw, date) ?? emptyGame(date)),
+    [raw, date, local],
   );
 
   const [openCell, setOpenCell] = useState<CellRef | null>(null);
@@ -86,22 +118,30 @@ export function GridGame({ grid, checkAnswer, searchPlayers }: GridGameProps) {
 
       try {
         const correct = await checkAnswer(cell, player.id);
+        const answer: CellState = {
+          status: correct ? "correct" : "wrong",
+          playerId: player.id,
+          playerName: player.name,
+        };
+
+        if (date === undefined) {
+          // Saklanmayan ızgara: güncel durumu React'in kendisi veriyor.
+          setLocal((current) => ({
+            date: "",
+            cells: { ...current.cells, [cellKey(cell)]: answer },
+            guessesUsed: current.guessesUsed + 1,
+          }));
+          return;
+        }
 
         // Güncel durum YAZMA ANINDA depodan okunur; bekleyen isteğin başladığı
         // andaki kopyanın üzerine yazmak, arada tamamlanan bir cevabı silerdi.
         const current =
-          parseSavedGame(readSavedGame(), grid.date) ?? emptyGame(grid.date);
+          parseSavedGame(readSavedGame(), date) ?? emptyGame(date);
 
         writeSavedGame({
           date: current.date,
-          cells: {
-            ...current.cells,
-            [cellKey(cell)]: {
-              status: correct ? "correct" : "wrong",
-              playerId: player.id,
-              playerName: player.name,
-            },
-          },
+          cells: { ...current.cells, [cellKey(cell)]: answer },
           guessesUsed: current.guessesUsed + 1,
         });
       } catch {
@@ -112,7 +152,7 @@ export function GridGame({ grid, checkAnswer, searchPlayers }: GridGameProps) {
         setIsChecking(false);
       }
     },
-    [checkAnswer, grid.date],
+    [checkAnswer, date],
   );
 
   return (
@@ -146,9 +186,11 @@ export function GridGame({ grid, checkAnswer, searchPlayers }: GridGameProps) {
       <div className="overflow-x-auto rounded-2xl border border-line bg-surface p-2 shadow-card sm:p-3">
         <table className="w-full border-separate border-spacing-1.5">
           <caption className="sr-only">
-            {grid.date} tarihli 3×3 ızgara. Sütunlar:{" "}
-            {grid.columns.map((column) => column.label).join(", ")}. Satırlar:{" "}
-            {grid.rows.map((row) => row.label).join(", ")}.
+            {date === undefined
+              ? "Kendi kurduğunuz 3×3 ızgara."
+              : `${date} tarihli 3×3 ızgara.`}{" "}
+            Sütunlar: {grid.columns.map((column) => column.label).join(", ")}.
+            Satırlar: {grid.rows.map((row) => row.label).join(", ")}.
           </caption>
           <thead>
             <tr>
@@ -232,16 +274,30 @@ export function GridGame({ grid, checkAnswer, searchPlayers }: GridGameProps) {
       )}
 
       {finished && (
-        <p
-          className="rounded-xl border border-accent bg-accent-soft px-4 py-3 text-sm"
+        <div
+          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent bg-accent-soft px-4 py-3 text-sm"
           role="status"
         >
-          Oyun bitti —{" "}
-          <strong>
-            {String(solvedCells)}/{String(MAX_GUESSES)}
-          </strong>
-          . Yeni ızgara her gün 03.00&apos;te (TSİ) yayınlanır.
-        </p>
+          <p>
+            Oyun bitti —{" "}
+            <strong>
+              {String(solvedCells)}/{String(MAX_GUESSES)}
+            </strong>
+            .{" "}
+            {date === undefined
+              ? "Bu ızgara kaydedilmez."
+              : "Yeni ızgara her gün 03.00'te (TSİ) yayınlanır."}
+          </p>
+          {onRestart !== undefined && (
+            <button
+              type="button"
+              className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              onClick={onRestart}
+            >
+              Yeni ızgara kur
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

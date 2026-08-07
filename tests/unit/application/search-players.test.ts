@@ -26,6 +26,7 @@ function deps(names: readonly string[]): {
   const players: PlayerRepository = {
     findCommonPlayers: base.findCommonPlayers.bind(base),
     findIdsMatching: base.findIdsMatching.bind(base),
+    findPlayableCriteria: base.findPlayableCriteria.bind(base),
     matchesAll: base.matchesAll.bind(base),
     search(query) {
       lastQuery = { term: query.term, limit: query.limit };

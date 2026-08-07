@@ -56,6 +56,7 @@ function setup(
   render(
     <GridGame
       grid={GRID}
+      date={GRID.date}
       checkAnswer={checkAnswer}
       searchPlayers={searchPlayers}
       {...overrides}
@@ -296,7 +297,8 @@ describe("GridGame — ilerlemenin saklanması", () => {
     resetSavedGameCache();
     render(
       <GridGame
-        grid={{ ...GRID, date: "2026-08-01" }}
+        grid={GRID}
+        date="2026-08-01"
         checkAnswer={vi.fn().mockResolvedValue(true)}
         searchPlayers={vi.fn().mockResolvedValue([PLAYER])}
       />,
@@ -383,5 +385,101 @@ describe("GridGame — oyun sonu", () => {
     })) {
       expect(button).toBeDisabled();
     }
+  });
+});
+
+/**
+ * §9.1 — "Sen kur" ızgarası (BR-25): tarih YOK, dolayısıyla ilerleme de
+ * saklanmaz.
+ */
+describe("saklanmayan ızgara — §9.1", () => {
+  /** Dokuz hücre, dokuz FARKLI oyuncu: BR-10 aynısını ikinci kez göstermez. */
+  const NINE = Array.from({ length: 9 }, (_, index) => ({
+    ...PLAYER,
+    id: `p${String(index)}`,
+    name: `Ronaldinho ${String(index)}`,
+  }));
+
+  function setupCustom() {
+    const checkAnswer = vi.fn().mockResolvedValue(true);
+    const onRestart = vi.fn();
+
+    render(
+      <GridGame
+        grid={GRID}
+        onRestart={onRestart}
+        checkAnswer={checkAnswer}
+        searchPlayers={vi.fn().mockResolvedValue(NINE)}
+      />,
+    );
+
+    return { checkAnswer, onRestart, user: userEvent.setup() };
+  }
+
+  it("cevap sayılır ama DEPOYA yazılmaz", async () => {
+    const { user } = setupCustom();
+
+    await answerCell(user, /Barcelona ve Arsenal/u);
+
+    // Oyun ilerledi…
+    await waitFor(() => {
+      expect(
+        screen.getByText(new RegExp("1/9 doğru", "u")),
+      ).toBeInTheDocument();
+    });
+    // …ama depoya hiçbir şey yazılmadı: saklanan tek şey "bugünün ızgarası".
+    expect(window.localStorage.getItem("futbol-quiz:grid")).toBeNull();
+  });
+
+  it("günlük ilerlemeyi EZMEZ", async () => {
+    window.localStorage.setItem(
+      "futbol-quiz:grid",
+      JSON.stringify({
+        date: GRID.date,
+        guessesUsed: 3,
+        cells: {
+          "0:0": { status: "correct", playerId: "px", playerName: "Başkası" },
+        },
+      }),
+    );
+    resetSavedGameCache();
+
+    const { user } = setupCustom();
+    await answerCell(user, /Barcelona ve Arsenal/u);
+    await waitFor(() => {
+      expect(
+        screen.getByText(new RegExp("1/9 doğru", "u")),
+      ).toBeInTheDocument();
+    });
+
+    const saved = JSON.parse(
+      window.localStorage.getItem("futbol-quiz:grid") ?? "null",
+    ) as { guessesUsed: number };
+    expect(saved.guessesUsed).toBe(3);
+  });
+
+  it("bitince yeni ızgara kurma yolu sunar", async () => {
+    const { user, onRestart } = setupCustom();
+
+    // Dokuz hak dokuz hücre (BR-13); hepsini harcamak yerine dokuz doğru.
+    for (const cell of [
+      /Barcelona ve Arsenal/u,
+      /Barcelona ve Inter/u,
+      /Barcelona ve Galatasaray/u,
+      /Milan ve Arsenal/u,
+      /Milan ve Inter/u,
+      /Milan ve Galatasaray/u,
+      /Brezilya ve Arsenal/u,
+      /Brezilya ve Inter/u,
+      /Brezilya ve Galatasaray/u,
+    ]) {
+      await answerCell(user, cell);
+    }
+
+    const restart = await screen.findByRole("button", {
+      name: /Yeni ızgara kur/u,
+    });
+    await user.click(restart);
+    expect(onRestart).toHaveBeenCalledTimes(1);
   });
 });

@@ -50,6 +50,20 @@ export interface PlayerRepository {
   findIdsMatching(criterion: GridCriterion): Promise<PlayerId[]>;
 
   /**
+   * "Sen kur" ızgarasında bir eksene KONABİLECEK ölçütler (§9.1, BR-25).
+   *
+   * SÖZLEŞME: dönen her ölçüt, `against` içindeki ölçütlerin HER BİRİYLE
+   * BR-9 bandında (`isCellPlayable`) kesişir. Yani seçiciden dönen bir
+   * ölçütle kurulan hücrenin oynanabilir olduğu garantidir — süzgeç ile
+   * doğrulayıcının ayrışmaması bu sözleşmeye bağlı (BR-16'nın ölçülmüş
+   * hata sınıfı).
+   *
+   * `against` içindeki ölçütlerin kendileri sonuçta YER ALMAZ: bir kriter
+   * hem satırda hem sütunda olamaz (`isGridShapeValid`).
+   */
+  findPlayableCriteria(query: PlayableCriteriaQuery): Promise<GridCriterion[]>;
+
+  /**
    * Verilen oyuncu, verilen kriterlerin HEPSİNİ sağlıyor mu? (BR-12)
    *
    * Cevap doğrulaması bu tek çağrıyla yapılır. `findIdsMatching` ile küme
@@ -68,6 +82,21 @@ export interface PlayerRepository {
    * Ada göre eşleştirme bu projede dört kez yanılttı (§10.1).
    */
   search(query: PlayerSearchQuery): Promise<Player[]>;
+}
+
+export interface PlayableCriteriaQuery {
+  /**
+   * Adayın kesişmesi gereken ölçütler — "Sen kur"da seçilmiş sütunlar.
+   *
+   * BOŞ VERİLMEZ: kısıtsız bir sorgu "her ölçüt geçerli" demek olurdu ve o
+   * liste kulüp aramasının (`ClubRepository.search`) kendisidir. Çağıran
+   * taraf boş listeyi reddeder.
+   */
+  readonly against: readonly GridCriterion[];
+  /** Arama metni; `null` ise ada göre sıralı ilk liste. */
+  readonly term: string | null;
+  /** Çağıran tarafın kelepçelemesi beklenir (§7.1). */
+  readonly limit: number;
 }
 
 export interface PlayerSearchQuery {

@@ -4,6 +4,7 @@ import type {
 } from "@/application/ports/club-repository";
 import type {
   CommonPlayersQuery,
+  PlayableCriteriaQuery,
   PlayerRepository,
   PlayerSearchQuery,
 } from "@/application/ports/player-repository";
@@ -15,10 +16,19 @@ import type { Club } from "@/domain/entities/club";
 import type { Player } from "@/domain/entities/player";
 import type { StatKey } from "@/domain/services/stat-match";
 import type { PlayerSpells } from "@/domain/services/common-players";
-import type { GridCriterion } from "@/domain/services/grid";
+import {
+  isCellPlayable,
+  isSameCriterion,
+  type GridCriterion,
+} from "@/domain/services/grid";
 import { spellQualifies } from "@/domain/services/spell-filter";
 import { toSearchKey } from "@/domain/value-objects/search-key";
-import type { ClubId, PlayerId } from "@/domain/value-objects/identifiers";
+import { countryName } from "@/lib/country-name";
+import {
+  clubId,
+  type ClubId,
+  type PlayerId,
+} from "@/domain/value-objects/identifiers";
 
 /**
  * Port'ların bellek içi uygulamaları.
@@ -138,6 +148,66 @@ export class FakePlayerRepository implements PlayerRepository {
           : candidate.player.nationality === criterion.code,
       ),
     );
+  }
+
+  /**
+   * BR-25 — bir eksene konabilecek ölçütler.
+   *
+   * Gerçek depo bandı SQL'de uyguluyor; burada aynı kural domain
+   * fonksiyonuyla (`isCellPlayable`) uygulanıyor. İKİSİNİN AYNI SORUYU
+   * SORMASI şart: bu fake, use-case testlerinin gördüğü tek "veritabanı".
+   *
+   * Kulüp etiketi olarak kimliğin kendisi kullanılır — fake'te kulüp adı
+   * yoktur (`PlayerSpells` yalnızca dönem taşır) ve testler kimlikle
+   * doğrulama yapar.
+   */
+  findPlayableCriteria(query: PlayableCriteriaQuery): Promise<GridCriterion[]> {
+    if (query.against.length === 0) return Promise.resolve([]);
+
+    const universe: GridCriterion[] = [
+      ...new Set(
+        this.#candidates.flatMap((candidate) =>
+          candidate.spells
+            .filter((spell) => !spell.isYouth)
+            .map((spell) => String(spell.clubId)),
+        ),
+      ),
+    ].map((id) => ({ type: "club", clubId: clubId(id), label: id }));
+
+    for (const code of new Set(
+      this.#candidates.flatMap((candidate) =>
+        candidate.player.nationality === null
+          ? []
+          : [candidate.player.nationality],
+      ),
+    )) {
+      universe.push({ type: "nationality", code, label: countryName(code) });
+    }
+
+    const matches = (candidate: PlayerSpells, criterion: GridCriterion) =>
+      criterion.type === "club"
+        ? candidate.spells.some(
+            (spell) => spell.clubId === criterion.clubId && !spell.isYouth,
+          )
+        : candidate.player.nationality === criterion.code;
+
+    const term = query.term === null ? null : toSearchKey(query.term);
+
+    const playable = universe.filter((aday) => {
+      if (query.against.some((one) => isSameCriterion(one, aday))) return false;
+      if (term !== null && !toSearchKey(aday.label).includes(term))
+        return false;
+
+      return query.against.every((one) =>
+        isCellPlayable(
+          this.#candidates.filter(
+            (candidate) => matches(candidate, one) && matches(candidate, aday),
+          ).length,
+        ),
+      );
+    });
+
+    return Promise.resolve(playable.slice(0, query.limit));
   }
 
   search(query: PlayerSearchQuery): Promise<Player[]> {

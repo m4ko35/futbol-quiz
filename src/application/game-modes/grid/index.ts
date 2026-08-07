@@ -5,6 +5,11 @@ import {
   playerId,
 } from "@/domain/value-objects/identifiers";
 import {
+  checkCustomAnswer,
+  listPlayableCriteria,
+  type GridCriterionRefDto,
+} from "../../use-cases/custom-grid";
+import {
   checkAnswer,
   getDailyGrid,
   type CheckAnswerDto,
@@ -42,8 +47,39 @@ const cellSchema = z.object({
     .max(GRID_SIZE - 1),
 });
 
+/**
+ * Ölçüt referansı — "Sen kur" (BR-25, BR-26).
+ *
+ * TÜRE GÖRE AYRI ŞEKİL. Kulüp kimliği ile ülke kodu aynı alanda taşınır ama
+ * aynı şey DEĞİLDİR: biri `cuid`, diğeri iki harfli bir ülke kodu. Tek bir
+ * `string` kabul edilseydi biçim denetimi sınırdan içeri, use-case'e kayardı
+ * (§2.3).
+ */
+const criterionRefSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("club"),
+    id: z.string().refine(isValidIdentifier),
+  }),
+  z.object({
+    kind: z.literal("nationality"),
+    id: z.string().regex(/^[A-Z]{2}$/),
+  }),
+]);
+
 export const gridInputSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("daily") }),
+  z.object({
+    action: z.literal("criteria"),
+    against: z.array(criterionRefSchema).min(1).max(GRID_SIZE),
+    term: z.string().optional(),
+    limit: z.number().optional(),
+  }),
+  z.object({
+    action: z.literal("custom-answer"),
+    row: criterionRefSchema,
+    column: criterionRefSchema,
+    playerId: z.string().refine(isValidIdentifier).transform(playerId),
+  }),
   z.object({
     action: z.literal("answer"),
     cell: cellSchema,
@@ -53,7 +89,7 @@ export const gridInputSchema = z.discriminatedUnion("action", [
 ]);
 
 export type GridInput = z.output<typeof gridInputSchema>;
-export type GridOutput = DailyGridDto | CheckAnswerDto;
+export type GridOutput = DailyGridDto | CheckAnswerDto | GridCriterionRefDto[];
 
 export const GRID_MODE_ID = "grid";
 
@@ -68,8 +104,24 @@ export const gridMode: RegisteredGameMode = defineGameMode<
   execute(input, deps) {
     const now = new Date();
 
-    return input.action === "daily"
-      ? getDailyGrid(now, deps)
-      : checkAnswer({ now, cell: input.cell, playerId: input.playerId }, deps);
+    switch (input.action) {
+      case "daily":
+        return getDailyGrid(now, deps);
+      case "criteria":
+        return listPlayableCriteria(
+          { against: input.against, term: input.term, limit: input.limit },
+          deps,
+        );
+      case "custom-answer":
+        return checkCustomAnswer(
+          { row: input.row, column: input.column, playerId: input.playerId },
+          deps,
+        );
+      case "answer":
+        return checkAnswer(
+          { now, cell: input.cell, playerId: input.playerId },
+          deps,
+        );
+    }
   },
 });

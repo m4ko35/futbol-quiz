@@ -9,6 +9,7 @@ import type { DailyGridDto } from "@/application/use-cases/daily-grid";
 import type { DailyStatMatchDto } from "@/application/use-cases/daily-stat-match";
 import { ClubPicker } from "@/components/club-picker";
 import { CommonPlayersResult } from "@/components/common-players-result";
+import { GridBuilder } from "@/components/grid-builder";
 import { GridGame } from "@/components/grid-game";
 import { ModeNav } from "@/components/mode-nav";
 import { SiteFooter } from "@/components/site-footer";
@@ -259,6 +260,48 @@ describe("erişilebilirlik — WCAG 2.1 AA (§7.10)", () => {
       }),
     );
     expect(screen.getByRole("listbox")).toBeInTheDocument();
+
+    await expectNoViolations(container);
+  });
+
+  it("ızgara kurucusunda ihlal yok", async () => {
+    const { container } = render(
+      <GridBuilder
+        searchColumns={() => Promise.resolve([])}
+        searchRows={() => Promise.resolve([])}
+        onBuilt={() => undefined}
+      />,
+    );
+
+    await expectNoViolations(container);
+  });
+
+  /**
+   * Asıl risk: ölçüt seçicisi iki TÜR gösteriyor (kulüp/uyruk) ve rozet
+   * seçeneğin İÇİNDE duruyor. `role="option"` yalnızca metin içeriği
+   * taşıyabilir; rozetin ayrı bir etkileşimli öğeye dönüşmediği ancak dolu bir
+   * listede ölçülebilir.
+   */
+  it("ölçüt seçicisi AÇIKKEN ihlal yok", async () => {
+    const { container } = render(
+      <GridBuilder
+        searchColumns={() =>
+          Promise.resolve([
+            { kind: "club" as const, id: "c1", label: "Barcelona" },
+            { kind: "nationality" as const, id: "BR", label: "Brezilya" },
+          ])
+        }
+        searchRows={() => Promise.resolve([])}
+        onBuilt={() => undefined}
+      />,
+    );
+
+    await userEvent.click(
+      screen.getAllByRole("button", { name: /Kulüp seç/u })[0]!,
+    );
+    // Liste GERÇEKTEN DOLANA kadar beklenir: boş bir listede denetim, iddia
+    // ettiği şeyi ölçmeden geçerdi (arama 200 ms gecikmeli).
+    await screen.findByRole("option", { name: /Brezilya/u });
 
     await expectNoViolations(container);
   });

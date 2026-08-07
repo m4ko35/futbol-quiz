@@ -132,7 +132,47 @@ async function main(): Promise<void> {
       `max ${(searchTimes.at(-1) ?? 0).toFixed(1)} ms`,
   );
 
+  /*
+   * "Sen kur" ölçüt süzgeci (§9.1, BR-25).
+   *
+   * BÜTÇEYE DÂHİL çünkü etkileşimli bir yolda: kullanıcı satır seçerken
+   * yazdıkça çağrılıyor. Ölçüt başına bir sayım sorgusu atılıyor, yani üç
+   * sütunlu bir çağrı altı sorgu demek — maliyeti görünür tutmak gerekiyor.
+   */
+  console.log('\n=== "Sen kur" ölçüt süzgeci (3 sütun) ===');
+  const criteriaTimes: number[] = [];
+  for (let i = 0; i < 60; i++) {
+    const against = [0, 1, 2].map((offset) => {
+      const club = selectable[(i * 3 + offset) % selectable.length];
+      if (club === undefined) throw new Error("kulüp yok");
+      return {
+        type: "club" as const,
+        clubId: clubId(club.id),
+        label: club.shortName,
+      };
+    });
+
+    const started = performance.now();
+    await players.findPlayableCriteria({ against, term: null, limit: 20 });
+    criteriaTimes.push(performance.now() - started);
+  }
+  criteriaTimes.sort((a, b) => a - b);
+  const criteriaP95 = percentile(criteriaTimes, 0.95);
+  console.log(
+    `  medyan ${percentile(criteriaTimes, 0.5).toFixed(1)} ms   ` +
+      `p95 ${criteriaP95.toFixed(1)} ms   max ${(criteriaTimes.at(-1) ?? 0).toFixed(1)} ms`,
+  );
+
   await prisma.$disconnect();
+
+  if (criteriaP95 > P95_BUDGET_MS) {
+    console.log(
+      `\nBÜTÇE AŞILDI: ölçüt süzgeci p95 ${criteriaP95.toFixed(1)} ms > ` +
+        `${String(P95_BUDGET_MS)} ms (§1.4)`,
+    );
+    process.exitCode = 1;
+    return;
+  }
 
   if (p95 > P95_BUDGET_MS) {
     console.log(

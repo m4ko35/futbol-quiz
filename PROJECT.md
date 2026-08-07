@@ -1182,7 +1182,7 @@ Kulüp arama / otomatik tamamlama.
 
 ### 6.4 Izgara uçları
 
-Üçü de 3×3 ızgara modunundur (§9.1). İkisi okuma, biri cevap doğrulama.
+Beşi de 3×3 ızgara modunundur (§9.1). Üçü okuma, ikisi cevap doğrulama — ikinci cevap ucunun neden ayrı durduğu aşağıda.
 
 #### `GET /api/grid`
 
@@ -1227,6 +1227,54 @@ Kulüp arama / otomatik tamamlama.
 **İstemcinin kriterlerine güvenilmez (BR-12).** Gövde yalnızca hücre koordinatı ve oyuncu kimliği taşır; hangi kriterin hangi hücrede olduğunu sunucu ızgarayı **yeniden üreterek** bulur. İstemci kriter gönderebilseydi kendi ızgarasını uydurup her cevabı doğru yaptırabilirdi.
 
 **Var olmayan kimlik `404` değil `correct:false` döner.** 404 dönmek, hangi kimliklerin var olduğunu ayırt etmeyi — yani numaralandırmayı — mümkün kılardı.
+
+#### `GET /api/grid/criteria`
+
+"Sen kur" ızgarasında bir eksene konabilecek ölçütler (BR-25).
+
+| Parametre | Tip    | Zorunlu  | Kural                                     |
+| --------- | ------ | -------- | ----------------------------------------- |
+| `with`    | string | **evet** | `club:<kimlik>` ya da `nationality:<KOD>` |
+| `q`       | string | hayır    | 0–50 karakter; boşsa süzgeçsiz ilk liste  |
+
+`with` **tekrar edebilir** (en çok üç); seçilmiş sütunları taşır.
+
+```jsonc
+// 200 OK — önbelleklenebilir
+{
+  "data": [
+    { "kind": "nationality", "id": "BR", "label": "Brezilya" },
+    { "kind": "club", "id": "cms3tva…", "label": "Ajax" },
+  ],
+}
+```
+
+**Kimlik BURADA verilir**, günün ızgarasının aksine — ve bu bir sızıntı değil: kullanıcı ızgarayı kendisi kuruyor, kesişimi zaten kendisi seçiyor. Verilmeseydi cevap ucu hangi ölçütün sorulduğunu bilemezdi.
+
+**Cevap SAYISI yine verilmez.** Liste yalnızca "bu ölçüt konabilir" der; hücrede kaç cevap olduğu, kullanıcı ızgarayı kendisi kursa bile oyunun kendi elinden alınması olurdu (§9.1 sızıntı kuralı).
+
+**Ölçüldü (§9.1):** üç sütunlu bir çağrı ölçüt başına bir sayım sorgusu atar; gerçek veride üç koşuda medyan 44,6–53,6 ms, p95 90,1–100,2 ms (bütçe 150 ms, §1.4). `npm run bench` bu ucu kalıcı olarak ölçer ve bütçeyi aşarsa hata verir.
+
+#### `POST /api/grid/custom-answer`
+
+| Alan          | Tip    | Zorunlu | Kural                                 |
+| ------------- | ------ | ------- | ------------------------------------- |
+| `row.kind`    | string | evet    | `club` ya da `nationality`            |
+| `row.id`      | string | evet    | Kulüp kimliği ya da alpha-2 ülke kodu |
+| `column.kind` | string | evet    | `club` ya da `nationality`            |
+| `column.id`   | string | evet    | Kulüp kimliği ya da alpha-2 ülke kodu |
+| `playerId`    | string | evet    | Geçerli kimlik biçimi                 |
+
+```jsonc
+// 200 OK — ÖNBELLEKLENMEZ
+{ "data": { "correct": true } }
+```
+
+**NEDEN AYRI BİR UÇ** (`/api/grid/answer` ile birleştirilmedi): orada ölçütler tohumdan yeniden üretilir ve istemciden geleni kimse dinlemez (BR-11/BR-12), burada ölçütler gövdeden gelir (BR-26). "Ölçütlere güvenilir mi" sorusunun cevabı bir **uç noktanın sözleşmesi** olmalı, gövdedeki bir alanın varlığı değil.
+
+**Hücre koordinatı GÖNDERİLMEZ.** Sunucu ızgaranın yerleşimini bilmiyor; doğruladığı şey "bu oyuncu bu iki ölçütü birden sağlıyor mu" sorusudur.
+
+**Geçersiz ölçüt `400` döner** ve sebebi gövdededir: bulunamayan/seçilemez kulüp, biçimsiz ülke kodu, ya da satır ile sütunun aynı ölçüt olması. Sessizce `correct:false` dönmek, kullanıcının kendi kurduğu ızgarada neden hep yanıldığını anlamamasına yol açardı.
 
 #### `GET /api/players`
 
@@ -1859,6 +1907,116 @@ Hücre alt sınırı `MIN_CELL_ANSWERS = 5` ölçülen minimumla birebir örtü�
 
 Ülke × kulüp kesişimleri **iki kutuplu**: medyan 4, p95 557. Yani ya birkaç oyuncu (tahmin edilemez) ya da yüzlerce (bedava — "Bayern'de oynamış bir Alman"). Ölçülen dağılımda çiftlerin yalnızca **%40'ı** 5–150 bandına düşüyor. Ülke satırları bu yüzden bandın içinde kalacak şekilde seçilir; sağlanamazsa ızgara kulüp satırlarıyla kurulur.
 
+#### Ölçüm: kullanıcı ızgarası SERBEST seçimle kurulamaz (2026-08-07)
+
+"Sen kur" tasarlanırken ilk akla gelen biçim denendi: kullanıcı altı kulübü
+serbest seçer, sunucu geçerli mi diye bakar. Ölçüm bunu çürüttü — rastgele
+altı kulüp seçilip dokuz hücrenin hepsinde cevap aranırsa:
+
+| Havuz                     | Dokuz hücrede ≥1 cevap | Dokuz hücrede ≥5 cevap |
+| ------------------------- | ---------------------- | ---------------------- |
+| Tüm seçilebilir 906 kulüp | **%0,1**               | %0,0                   |
+| Küratörlü 82 kulüp        | %30,8                  | **%0,2**               |
+
+Sebep çift düzeyinde görünüyor. 906 kulübün 409.965 olası çiftinden:
+
+| Ortak oyuncu  | Çift    | Oran     |
+| ------------- | ------- | -------- |
+| ≥1            | 118.247 | %28,8    |
+| BR-9 bandında | 21.895  | **%5,3** |
+| 150'den fazla | 6       | %0,001   |
+
+Yani serbest seçimde kullanıcının denemelerinin neredeyse tamamı reddedilirdi
+— `scoreableFor` ve `targetable` süzgeçlerinin kaldırmak için eklendiği
+duvarın aynısı (BR-16, BR-24). **Üçüncü kez aynı ders:** seçici, doğrulayıcının
+kabul edeceğini göstermezse mod kullanılamaz.
+
+**Kılavuzlu seçimde tablo tersine dönüyor.** Sütunlar birbiriyle hiç
+kesişmediği için (bir hücre her zaman satır × sütundur) sütun seçimi
+serbesttir; süzgeç yalnızca satırlara uygulanır ve orada bol aday kalıyor:
+
+| Seçilen üç sütun                    | Küratörlü 82'de | 906 kulüpte |
+| ----------------------------------- | --------------- | ----------- |
+| Galatasaray · Fenerbahçe · Beşiktaş | 26              | 62          |
+| Real Madrid · Barcelona · Atlético  | 31              | 77          |
+| Man Utd · Liverpool · Arsenal       | 34              | 83          |
+
+(BR-9 bandını sağlayan satır adayı sayısı. Tek kulüp seçiliyken — örneğin
+Galatasaray — 906 kulübün 108'i bandda kesişiyor.)
+
+**ÜST SINIR BEKLENMEDİK BİR İŞ YAPIYOR.** Bandın 150 üst sınırını aşan altı
+çiftin **beşi ikiz kulüp** (§5.3): Gençlerbirliği × Gençlerbirliği (394), IFK
+Norrköping (237), Örgryte (222), Ancona (220), Vicenza (186). Yalnızca RCD
+Espanyol × Barcelona (174) gerçek bir futbol olgusu. Yani BR-9'un üst sınırı,
+kapatılamayan ikiz kusurunu seçiciden sessizce eliyor — "Ancona'da ve A.C.
+Ancona'da oynamış" hücresi kullanıcıya hiç sunulmuyor.
+
+Ülke ekseninde süzgeç daha da gerekli: 906 kulüp × tüm uyruklar için boş
+olmayan 31.472 kesişimin yalnızca **%17,2'si** bandda.
+
+#### "Sen kur" — ızgarayı kullanıcı kurar
+
+Günlük ızgara olduğu gibi kalır; yanına ikinci bir giriş eklenir. Sıra
+üretim algoritmasının sırasıdır (`generate.ts`): önce üç sütun, sonra üç
+satır.
+
+1. **Üç sütun** — kulüp, süzgeçsiz. İki sütun birbiriyle hiç kesişmez,
+   dolayısıyla kısıtlamanın anlamı olmazdı.
+2. **Üç satır** — kulüp veya ülke, seçilen ÜÇ SÜTUNLA da BR-9 bandında
+   kesişenlerle sınırlı. Süzgeç burada zorunlu (yukarıda ölçüldü).
+
+**Havuz küratörlü DEĞİL: 906 seçilebilir kulübün hepsi.** Gerekçe "Sen
+seç"tekiyle aynı (§9.2): seçen kullanıcının kendisi olduğunda tanınırlık
+süzgecinin işi kalmaz. Küratörlü 82 kulüp günlük ızgaranın havuzu olarak
+DURUYOR — orada oyuncuyu sistem seçtiği için tanınırlık hâlâ gerekli.
+
+**Izgara SAKLANMAZ**, "Sen seç" turuyla aynı gerekçe (§9.2): günlük ilerleme
+gün anahtarına yazılır çünkü "bugünün ızgarası" tekildir; kullanıcı burada
+istediği kadar ızgara kurabilir ve hepsini saklamak depoyu sınırsız
+büyütürdü.
+
+**ÖLÇÜTLER İSTEMCİDEN GELİR VE BU YALNIZCA BURADA GÜVENLİDİR.** Günlük
+ızgarada sunucu ölçütlere asla güvenmez, ızgarayı tohumdan yeniden üretir
+(BR-11/BR-12): istemci ölçüt gönderebilseydi kendi ızgarasını uydurup her
+cevabı doğru yaptırabilirdi. Kullanıcı ızgarasında uydurulacak bir şey yok —
+ızgarayı zaten kullanıcı kurdu, skor kaydedilmiyor, sıralama yok. Sunucu yine
+de ölçütlerin VAR OLDUĞUNU doğrular (kulüp seçilebilir mi, ülke kodu tanınıyor
+mu) ve cevabı kimlikle denetler; ayrıştırılmamış girdi iç katmanlara geçmez
+(§2.3).
+
+**BR-9 kullanıcı ızgarasında da AYNEN geçerlidir** ve gevşetilmedi. Tek
+cevabı olan bir hücre bilgi değil şans sorar; ızgarayı kullanıcının kurmuş
+olması bunu değiştirmez. Bandın uygulandığı yer seçicidir: geçersiz bir
+kombinasyon listeye hiç gelmez.
+
+**ÜLKELER LİSTENİN BAŞINDA, ama en çok YARISINI kaplar.** Ölçüldü
+(Galatasaray · Fenerbahçe · Beşiktaş sütunlarıyla): bandda kalan uyruk sayısı
+**8**, kulüp sayısı **62**. Ülkeler sona konsaydı sayfa kelepçesinin altında
+hiç görünmezlerdi; kelepçeyi tek başlarına doldurmaları da kulüpleri
+gizlerdi.
+
+**SÜTUN SEÇİCİSİNİN ARAMASIZ İLK LİSTESİ KÜRATÖRLÜ HAVUZDUR.** Kulüp
+araması alfabetiktir ve süzgeçsiz ilk sayfa "08 Homburg", "1. FC Heidenheim"
+ile açılıyordu — yani kutuyu açan kullanıcı hiç tanımadığı kulüpler görüyordu.
+Tanınırlık ölçülebilir bir veri DEĞİL (yukarıda ölçüldü: oyuncu sayısı kulübün
+yaşını ölçüyor), bu yüzden ilk liste ürün sahibinin seçtiği 82 kulüptür ve
+sunucuda hazırlanıp sayfayla birlikte gelir. **Havuz bir SINIR değil:**
+kullanıcı bir harf yazdığı anda 906 seçilebilir kulübün tamamı aranır. Günlük
+ızgarada havuz bir sınırdır (§9.1 havuz kararı); burada yalnızca bir
+başlangıç.
+
+**SATIR ADAYI KALMADIĞINDA NE YAPILACAĞI SÖYLENİR.** Üç sütun hiç oynanabilir
+satır bırakmayabilir; kullanıcının yapabileceği tek şey bir sütunu
+değiştirmektir. Seçici bu durumda "Sonuç yok" demez, doğrudan bunu söyler —
+aksi hâlde kullanıcı arama kutusunda boşuna dener.
+
+**MALİYET ÖLÇÜLDÜ ve bütçeye alındı.** Süzgeç, kısıt başına iki sayım sorgusu
+atıyor (kulüp adayları + uyruk adayları), yani üç sütunlu bir çağrı altı
+sorgu. Gerçek veride üç koşuda **medyan 44,6–53,6 ms · p95 90,1–100,2 ms** (bütçe 150 ms, §1.4) —
+uygulamanın en pahalı etkileşimli sorgusu. `npm run bench` bu ucu kalıcı
+olarak ölçer ve bütçe aşılırsa hata verir; ortak oyuncu sorgusunda olduğu gibi
+"bir hedef ancak ölçülüyorsa hedeftir".
+
 #### Kurallar
 
 - **BR-9 — Hücre geçerliliği.** Bir hücre, satır ve sütun kriterlerinin **ikisini birden** sağlayan en az `MIN_CELL_ANSWERS` oyuncu içermelidir. Dokuz hücrenin biri bile sağlamıyorsa ızgara üretilmemiş sayılır.
@@ -1866,6 +2024,8 @@ Hücre alt sınırı `MIN_CELL_ANSWERS = 5` ölçülen minimumla birebir örtü�
 - **BR-11 — Günlük ızgara.** Izgara tarihten türetilen bir tohumla **deterministik** üretilir: aynı gün herkes aynı ızgarayı görür. Gerekçe iki katlı — (1) yanıt önbelleklenebilir hâle gelir (§7.9), rastgele ızgara CDN önbelleğini işlevsiz kılardı; (2) ileride skor tablosu (§9) ancak herkes aynı soruyu çözerse anlamlı olur.
 - **BR-12 — Cevap kimlikle doğrulanır.** Kullanıcı bir oyuncu **seçer**, ad yazmaz; doğrulama `playerId` üzerinden yapılır. Ada göre eşleştirme bu projede dört kez yanılttı (§10.1); "Shevchenko" arayan kullanıcı "Andriy Şevçenko" kaydını bulamazdı.
 - **BR-13 — Dokuz tahmin hakkı.** Dokuz hücre, dokuz hak: yanlış bir tahmin bir hücreyi harcar. Sınırsız deneme, ızgarayı bir bilgi sorusundan bir **arama alıştırmasına** çevirirdi — kullanıcı listeyi tarayıp doğruyu bulana kadar denerdi. Hak sayısı hücre sayısından türetilir, ayrıca yazılmaz. Doğrulanamayan bir cevap (ağ hatası) hak **harcamaz**: kullanıcının yapmadığı bir hatanın cezası olurdu.
+- **BR-25 — Kullanıcı ızgarası KILAVUZLU kurulur.** "Sen kur" turunda satır adayları, seçilmiş üç sütunun **hepsiyle** BR-9 bandında kesişen ölçütlerle sınırlıdır; seçici yalnızca bunları gösterir. Serbest seçim ölçülerek elendi: rastgele altı kulübün %0,1'i geçerli ızgara veriyor (yukarıda).
+- **BR-26 — Kullanıcı ızgarasında ölçütler istemciden gelir.** Sunucu ölçütleri yeniden ÜRETMEZ, yalnızca **var olduklarını** doğrular (kulüp seçilebilir mi, ülke kodu tanınıyor mu) ve cevabı kimlikle denetler (BR-12). Bu kabul günlük ızgara için GEÇERSİZDİR: orada ızgara herkes için aynıdır ve tohumdan yeniden üretilir (BR-11).
 
 #### BR-10 şu an yalnızca istemcide zorlanıyor
 
@@ -2540,7 +2700,7 @@ Bunun süreçteki karşılığı `npm run db:verify`. Faz 1 boyunca doğrulama "
 | Bağsız kulüp ikizi (Gençlerbirliği)       | Kabul — ölçüldü, eşik tabanlı kural GÜVENLİ DEĞİL: %80 eşiği Barcelona'yı yedek takımıyla birleştirirdi (§5.3)                                                                                                                                                       | Doğru düzeltme yeri kaynağın kendisi: Wikidata'da iki öğenin birleştirilmesi                                           |
 | Kadro keşfi: güncel kadro %26 eksik       | Kabul — yapısal; oyuncu evrenini `P54` tanımlıyor, bağı olmayan oyuncuya Vikipedi katmanı da ULAŞAMIYOR (§4.7)                                                                                                                                                       | Kadro şablonlarından oyuncu keşfi ayrı bir çekim katmanı olarak yazılırsa                                              |
 | Kaleci golleri kaynakta kirli             | Kabul — Vikipedi YENEN golü negatif yazıyor (`-87`), bu değerler Wikidata'ya pozitif gol olarak girmiş olabiliyor (Ottavio Bugatti 256 maç / 329 "gol"). BR-22 mutabakatı bunları düşürüyor ama kaynağı temizlemiyor                                                 | Kaleci dönemleri ayrı bir alanla (yenen gol) modellenirse; şu an oyunun hiçbir ekseni kaleci golü sormuyor             |
-| Izgara havuzu 18 ligi kapsamıyor          | **Ertelendi (ürün sahibi kararı, 2026-08-06):** küratörlü 82 kulüp ilk 6 ligden seçildi; 906 seçilebilir kulübün yalnızca %9'u. Ajax/Porto/Benfica, LA Galaxy ve Al-Hilal ızgarada ve günün oyuncusu havuzunda YOK (§9.1)                                            | Ürün sahibi yeni lig kulüplerini görüp seçtiğinde; ölçüm değil KARAR                                                   |
+| Izgara havuzu 18 ligi kapsamıyor          | **Kısmen ödendi (2026-08-07):** "Sen kur" turunda kullanıcı 906 kulübün hepsini kullanabiliyor (BR-25); günlük ızgara ertelenmiş kararla 82 kulüpte kaldı — Ajax/Porto/Benfica, LA Galaxy ve Al-Hilal ızgarada ve günün oyuncusu havuzunda YOK (§9.1)                | Ürün sahibi yeni lig kulüplerini görüp seçtiğinde; ölçüm değil KARAR                                                   |
 
 **En büyük ortak oyuncu sonucu yeniden ölçüldü ve ölçüm bir şey daha söyledi.**
 Faz 3'te kaydedilen 128 değeri eskimişti; 363 seçilebilir kulübün tüm çiftleri

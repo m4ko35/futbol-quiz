@@ -1,12 +1,17 @@
 import type {
   CommonPlayersQuery,
+  PlayableCriteriaQuery,
   PlayerRepository,
   PlayerSearchQuery,
 } from "@/application/ports/player-repository";
 import type { Player } from "@/domain/entities/player";
 import type { Spell } from "@/domain/entities/spell";
 import type { PlayerSpells } from "@/domain/services/common-players";
-import type { GridCriterion } from "@/domain/services/grid";
+import {
+  MAX_CELL_ANSWERS,
+  MIN_CELL_ANSWERS,
+  type GridCriterion,
+} from "@/domain/services/grid";
 import type { SpellFilter } from "@/domain/services/spell-filter";
 import type { StatKey } from "@/domain/services/stat-match";
 import { toSearchKey } from "@/domain/value-objects/search-key";
@@ -15,7 +20,8 @@ import {
   playerId,
   type PlayerId,
 } from "@/domain/value-objects/identifiers";
-import type { Prisma, PrismaClient } from "@/generated/prisma";
+import { countryName } from "@/lib/country-name";
+import { Prisma, type PrismaClient } from "@/generated/prisma";
 
 /**
  * `PlayerRepository` port'unun Prisma uygulaması (PROJECT.md §4.1).
@@ -125,6 +131,149 @@ export class PrismaPlayerRepository implements PlayerRepository {
       select: { id: true },
     });
     return rows.map((row) => playerId(row.id));
+  }
+
+  /**
+   * BR-25 — "Sen kur" ızgarasında bir eksene konabilecek ölçütler.
+   *
+   * KESİŞİM UYGULAMADA ALINIYOR, tek sorguda değil. Kısıt başına bir sayım
+   * atılıyor (üç sütun → üç sorgu) ve sonuçlar bellekte kesiştiriliyor. Tek
+   * sorguya sıkıştırmak, kısıt sayısına göre değişen bir JOIN zinciri üretmek
+   * demekti; `generate.ts` aynı kararı aynı gerekçeyle veriyor (kümeleri
+   * çek, bellekte kesiştir).
+   *
+   * BANDI SQL UYGULUYOR (`HAVING`), uygulama değil: eşiği geçemeyen aday
+   * satırının ağdan taşınmasının anlamı yok. Kuralın kendisi domain'de
+   * (`isCellPlayable`) durmaya devam ediyor ve sınırlar oradan geliyor —
+   * iki yerde iki sayı yazılmıyor.
+   *
+   * ÜLKE × ÜLKE KESİŞİMİ YOKTUR ve bu yüzden bir uyruk kısıtı geldiğinde
+   * uyruk adayı üretilmez: bu veri kümesinde bir oyuncunun tek uyruğu var,
+   * "Brezilyalı ve Arjantinli" hücresi her zaman boş kalırdı.
+   */
+  async findPlayableCriteria(
+    query: PlayableCriteriaQuery,
+  ): Promise<GridCriterion[]> {
+    if (query.against.length === 0) return [];
+
+    const counted = await Promise.all(
+      query.against.map((criterion) => this.#playableAgainst(criterion)),
+    );
+
+    const clubIds = [...intersect(counted.map((one) => one.clubIds))];
+    const codes = [...intersect(counted.map((one) => one.codes))];
+
+    // Kısıtın kendisi aday olamaz: bir ölçüt hem satırda hem sütunda
+    // bulunamaz (`isGridShapeValid`).
+    const usedClubs = new Set(
+      query.against.flatMap((c) =>
+        c.type === "club" ? [String(c.clubId)] : [],
+      ),
+    );
+    const usedCodes = new Set(
+      query.against.flatMap((c) => (c.type === "nationality" ? [c.code] : [])),
+    );
+
+    const key = query.term === null ? null : toSearchKey(query.term);
+
+    /*
+     * ÜLKELER ÖNCE, ama listenin YARISINDAN fazlasını kaplamadan.
+     *
+     * Ölçüldü: üç sütun seçildikten sonra bandda kalan uyruk sayısı tek
+     * haneli, kulüp sayısı ise 60–80. Ülkeler sona konsaydı sayfa
+     * kelepçesinin (`limit`) altında hiç görünmezlerdi; kelepçeyi tek
+     * başlarına doldurmaları da kulüpleri gizlerdi.
+     */
+    const countries = codes
+      .filter((code) => !usedCodes.has(code))
+      .map<GridCriterion>((code) => ({
+        type: "nationality",
+        code,
+        label: countryName(code),
+      }))
+      .filter((c) => key === null || toSearchKey(c.label).includes(key))
+      .sort((a, b) => a.label.localeCompare(b.label, "tr"))
+      .slice(0, Math.ceil(query.limit / 2));
+
+    const clubs = await this.#clubCriteria(
+      clubIds.filter((id) => !usedClubs.has(id)),
+      key,
+      query.limit - countries.length,
+    );
+
+    return [...countries, ...clubs];
+  }
+
+  /** Tek bir kısıta göre bandda kalan kulüp kimlikleri ve uyruk kodları. */
+  async #playableAgainst(
+    criterion: GridCriterion,
+  ): Promise<{ clubIds: Set<string>; codes: Set<string> }> {
+    const [clubRows, codeRows] =
+      criterion.type === "club"
+        ? await Promise.all([
+            this.#prisma.$queryRaw<{ id: string }[]>(Prisma.sql`
+              SELECT s2.clubId AS id
+              FROM spells s1
+              JOIN spells s2 ON s2.playerId = s1.playerId AND s2.isYouth = 0
+              JOIN clubs c ON c.id = s2.clubId AND c.isSelectable = 1
+              WHERE s1.clubId = ${criterion.clubId} AND s1.isYouth = 0
+              GROUP BY s2.clubId
+              HAVING COUNT(DISTINCT s2.playerId)
+                     BETWEEN ${MIN_CELL_ANSWERS} AND ${MAX_CELL_ANSWERS}`),
+            this.#prisma.$queryRaw<{ code: string }[]>(Prisma.sql`
+              SELECT p.nationality AS code
+              FROM spells s
+              JOIN players p ON p.id = s.playerId
+              WHERE s.clubId = ${criterion.clubId}
+                AND s.isYouth = 0
+                AND p.nationality IS NOT NULL
+              GROUP BY p.nationality
+              HAVING COUNT(DISTINCT p.id)
+                     BETWEEN ${MIN_CELL_ANSWERS} AND ${MAX_CELL_ANSWERS}`),
+          ])
+        : [
+            await this.#prisma.$queryRaw<{ id: string }[]>(Prisma.sql`
+              SELECT s.clubId AS id
+              FROM spells s
+              JOIN players p ON p.id = s.playerId
+              JOIN clubs c ON c.id = s.clubId AND c.isSelectable = 1
+              WHERE p.nationality = ${criterion.code} AND s.isYouth = 0
+              GROUP BY s.clubId
+              HAVING COUNT(DISTINCT s.playerId)
+                     BETWEEN ${MIN_CELL_ANSWERS} AND ${MAX_CELL_ANSWERS}`),
+            [],
+          ];
+
+    return {
+      clubIds: new Set(clubRows.map((row) => row.id)),
+      codes: new Set(codeRows.map((row) => row.code)),
+    };
+  }
+
+  /** Kimlikleri ölçüte çevirir; arama ve sıralama kulüp aramasıyla aynı. */
+  async #clubCriteria(
+    ids: readonly string[],
+    key: string | null,
+    limit: number,
+  ): Promise<GridCriterion[]> {
+    if (ids.length === 0 || limit <= 0) return [];
+
+    const rows = await this.#prisma.club.findMany({
+      where: {
+        id: { in: [...ids] },
+        isSelectable: true,
+        ...(key === null ? {} : { searchKey: { contains: key } }),
+      },
+      orderBy: { shortName: "asc" },
+      take: limit,
+      select: { id: true, shortName: true },
+    });
+
+    return rows.map((row) => ({
+      type: "club",
+      clubId: clubId(row.id),
+      label: row.shortName,
+    }));
   }
 
   /** BR-12 — cevap doğrulaması; kimlik üzerinden, ad üzerinden DEĞİL. */
@@ -366,4 +515,22 @@ function toSpell(row: SpellRow): Spell {
     appearances: row.appearances,
     goals: row.goals,
   };
+}
+
+/**
+ * Kümelerin kesişimi — en küçüğünden başlar.
+ *
+ * `findPlayableCriteria` bunu kısıt başına bir kez çağırır; kısıt sayısı üç
+ * olduğu için basit tarama yeterli, kurgulu bir yapıya gerek yok.
+ */
+function intersect(sets: readonly Set<string>[]): Set<string> {
+  const first = sets[0];
+  if (first === undefined) return new Set<string>();
+
+  const rest = sets.slice(1);
+  const result = new Set<string>();
+  for (const value of first) {
+    if (rest.every((other) => other.has(value))) result.add(value);
+  }
+  return result;
 }

@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { CURATED_CLUB_QIDS } from "@/application/curated-clubs";
+import { toClubDto } from "@/application/dto/club-dto";
 import { getDailyGrid } from "@/application/use-cases/daily-grid";
 import { GridQuiz } from "@/components/grid-quiz";
 import { SiteFooter } from "@/components/site-footer";
@@ -24,11 +26,24 @@ export const metadata: Metadata = {
 };
 
 export default async function GridPage() {
-  // İkisi birbirinden bağımsız; sırayla beklemek boşuna gecikme olurdu.
-  const [grid, dataGeneratedAt] = await Promise.all([
+  // Üçü birbirinden bağımsız; sırayla beklemek boşuna gecikme olurdu.
+  const [grid, dataGeneratedAt, curated] = await Promise.all([
     getDailyGrid(new Date(), repositories),
     datasets.getGeneratedAt(),
+    /*
+     * "Sen kur" sütun seçicisinin ARAMASIZ ilk listesi (§9.1).
+     *
+     * Sunucuda hazırlanıyor çünkü istemci bunu ancak bir gidiş-dönüşle
+     * alabilirdi ve alfabetik ilk sayfa tanınmayan kulüplerle açılıyordu.
+     * Havuz bir SINIR DEĞİL: kullanıcı yazdığı anda 906 seçilebilir kulübün
+     * tamamı aranır.
+     */
+    repositories.clubs.findByWikidataIds(CURATED_CLUB_QIDS),
   ]);
+
+  const curatedClubs = curated
+    .map(toClubDto)
+    .sort((a, b) => a.shortName.localeCompare(b.shortName, "tr"));
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 px-5 py-10 sm:px-6 sm:py-14">
@@ -45,7 +60,7 @@ export default async function GridPage() {
         </p>
       </header>
 
-      <GridQuiz grid={grid} />
+      <GridQuiz grid={grid} curatedClubs={curatedClubs} />
 
       <SiteFooter dataGeneratedAt={dataGeneratedAt} />
     </main>

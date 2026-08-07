@@ -25,11 +25,21 @@ export interface GridCriterionDto {
   readonly label: string;
 }
 
-export interface DailyGridDto {
-  /** Izgaranın ait olduğu gün (UTC, `YYYY-MM-DD`) — istemci gün dönümünü bilir. */
-  readonly date: string;
+/**
+ * Bir ızgaranın oynanabilir hâli — TARİHSİZ.
+ *
+ * Kullanıcının kurduğu ızgaranın (§9.1, BR-25) bir tarihi yoktur; oyun
+ * bileşeni ikisini de bu şekille oynar. Tarih, saklanan ilerlemenin
+ * anahtarıdır ve yalnızca günlük ızgarada anlamlıdır.
+ */
+export interface GridRoundDto {
   readonly rows: readonly GridCriterionDto[];
   readonly columns: readonly GridCriterionDto[];
+}
+
+export interface DailyGridDto extends GridRoundDto {
+  /** Izgaranın ait olduğu gün (UTC, `YYYY-MM-DD`) — istemci gün dönümünü bilir. */
+  readonly date: string;
 }
 
 function toCriterionDto(criterion: GridCriterion): GridCriterionDto {
