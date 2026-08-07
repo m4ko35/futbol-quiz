@@ -103,12 +103,12 @@ describe("StatMatchGame — sunum", () => {
   it("kapsamlı istatistikleri işaretler ve açıklar", () => {
     setup();
 
-    expect(screen.getAllByText("(yalnızca yirmi iki lig)")).toHaveLength(3);
+    expect(screen.getAllByText("(yalnızca yirmi dört lig)")).toHaveLength(3);
     // Dipnot kapsamı SÖYLEMELİ. Ülke listesi 12 ligde okunamaz hâle geldiği
     // için lig SAYISINA çevrildi; sınanan şey metnin harfi değil, kullanıcının
     // "bu sayı neyi kapsıyor" sorusunun yanıtlanmış olması (§1.3).
     expect(
-      screen.getByText(/yalnızca kapsanan yirmi iki Avrupa ligindeki/u),
+      screen.getByText(/yalnızca kapsanan yirmi dört ligdeki/u),
     ).toBeInTheDocument();
   });
 

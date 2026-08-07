@@ -39,11 +39,12 @@ export default async function Home() {
           kalırsa siteyi bozuk sanar. Altbilgiye gömülü bir not bu işi görmez.
         */}
         <p className="mt-5 rounded-xl border border-line bg-surface p-4 text-sm text-muted shadow-card">
-          <span className="font-semibold text-foreground">Kapsam:</span>{" "}
-          Avrupa&apos;nın yirmi iki üst liginde — İngiltere, İspanya, İtalya,
-          Almanya, Fransa, Türkiye, Hollanda, Portekiz, İskoçya, Belçika,
-          Yunanistan, İsviçre, Rusya, Polonya, Çekya, Hırvatistan, Danimarka,
-          İsveç, Norveç, Avusturya, Ukrayna ve Romanya — oynamış{" "}
+          <span className="font-semibold text-foreground">Kapsam:</span> Yirmi
+          dört üst ligde — Avrupa&apos;nın yirmi iki ligi (İngiltere, İspanya,
+          İtalya, Almanya, Fransa, Türkiye, Hollanda, Portekiz, İskoçya,
+          Belçika, Yunanistan, İsviçre, Rusya, Polonya, Çekya, Hırvatistan,
+          Danimarka, İsveç, Norveç, Avusturya, Ukrayna, Romanya) ile MLS ve
+          Suudi Pro Lig — oynamış{" "}
           <strong className="font-semibold text-accent">
             {selectableClubs} kulüp
           </strong>{" "}

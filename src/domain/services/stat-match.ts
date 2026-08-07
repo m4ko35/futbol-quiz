@@ -98,7 +98,7 @@ export function totalScore(scores: readonly number[]): number {
 }
 
 /**
- * Maç, gol ve kulüp sayısı YALNIZCA §1.3 kapsamındaki yirmi iki ligi sayar.
+ * Maç, gol ve kulüp sayısı YALNIZCA §1.3 kapsamındaki yirmi dört ligi sayar.
  *
  * Arayüz bunu göstermek zorundadır: Ajax'ta geçen yıllar bu sayılara girmez
  * ve kullanıcı bildiği gerçek toplamla karşılaştırıp siteyi yanlış sanar.

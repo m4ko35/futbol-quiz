@@ -90,6 +90,13 @@ const MUST_BE_SELECTABLE: readonly { qid: string; why: string }[] = [
   { qid: "Q179075", why: "Dinamo Kiev — Ukrayna kapsamı" },
   { qid: "Q179658", why: "Steaua Bükreş — Romanya kapsamı" },
   { qid: "Q204237", why: "Dinamo Bükreş — Romanya kapsamı" },
+  // Avrupa dışındaki ilk iki lig (§1.3, beşinci genişleme). QID'ler yine
+  // KOŞUDAN SONRA, ligin kendi kulüp listesinden dönem sayısına bakılarak
+  // okundu — bu projede ezberden yazılan QID yedi kez yanlış çıktı.
+  { qid: "Q204357", why: "LA Galaxy — MLS kapsamı (382 dönem)" },
+  { qid: "Q204220", why: "New York Red Bulls — MLS kapsamı (488 dönem)" },
+  { qid: "Q73965", why: "Al-Hilal — Suudi kapsamı (329 dönem)" },
+  { qid: "Q482764", why: "Al-Nassr — Suudi kapsamı (378 dönem)" },
 ];
 
 /** MVP'nin çekirdek sorusu boş dönmemesi gereken çiftler. */

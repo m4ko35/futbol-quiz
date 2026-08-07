@@ -256,6 +256,35 @@ export const TARGET_LEAGUES: readonly LeagueSeed[] = [
     minClubs: 12,
     verifyLabel: "Liga I",
   },
+  /**
+   * Avrupa dışındaki ilk iki lig — PROJECT.md §1.3, beşinci genişleme.
+   *
+   * MLS'in ülkesi "US" yazıyor ama lig iki ülkeye yayılıyor (Toronto,
+   * Vancouver, Montréal Kanada'da). Bu alan yalnızca ligi etiketler; kulüp
+   * ülkeleri `P17`'den ayrıca okunduğu için kulüp düzeyinde doğru kalır.
+   *
+   * İkisinde de `verifyLabel` VAR çünkü gösterilen ad Türkçeleştirildi.
+   * Denetim, Wikidata etiketini `name` ile karşılaştırır; "MLS" ile "Major
+   * League Soccer" eşleşmez ve doğrulama HAKLI OLARAK düşer. Alan denetimi
+   * zayıflatmaz: etiketlerin ikisi de başka hiçbir hedef ligle çakışmıyor,
+   * kulüp eşiği de ayrıca tutuyor (35 ≥ 20, 22 ≥ 15).
+   */
+  {
+    wikidataId: "Q18543",
+    name: "MLS",
+    country: "US",
+    tier: 1,
+    minClubs: 20,
+    verifyLabel: "Major League Soccer",
+  },
+  {
+    wikidataId: "Q255633",
+    name: "Suudi Pro Lig",
+    country: "SA",
+    tier: 1,
+    minClubs: 15,
+    verifyLabel: "Saudi Pro League",
+  },
 ] as const;
 
 /**
