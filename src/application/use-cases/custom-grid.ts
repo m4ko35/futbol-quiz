@@ -1,7 +1,7 @@
 import { ValidationError } from "@/domain/errors/domain-error";
 import {
   isSameCriterion,
-  GRID_SIZE,
+  MAX_GRID_SIZE,
   type GridCriterion,
 } from "@/domain/services/grid";
 import { clubId, type PlayerId } from "@/domain/value-objects/identifiers";
@@ -67,8 +67,12 @@ export async function listPlayableCriteria(
   if (input.against.length === 0) {
     throw new ValidationError("En az bir ölçüt seçilmelidir.");
   }
-  if (input.against.length > GRID_SIZE) {
-    throw new ValidationError(`En çok ${String(GRID_SIZE)} ölçüt verilebilir.`);
+  // Üst sınır EN BÜYÜK ızgara boyutudur (BR-27): 5×5 kuran kullanıcı beş
+  // sütunun hepsine karşı süzgeç ister.
+  if (input.against.length > MAX_GRID_SIZE) {
+    throw new ValidationError(
+      `En çok ${String(MAX_GRID_SIZE)} ölçüt verilebilir.`,
+    );
   }
 
   const against = await resolveCriteria(input.against, deps);

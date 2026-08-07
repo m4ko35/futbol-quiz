@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   cellKey,
   GRID_SIZE,
+  GRID_SIZES,
   hasDistinctCriteria,
   isCellPlayable,
   isCellRefInRange,
@@ -10,7 +11,7 @@ import {
   isPlayerAlreadyUsed,
   isSameCriterion,
   MAX_CELL_ANSWERS,
-  MAX_GUESSES,
+  maxGuesses,
   MIN_CELL_ANSWERS,
   type Grid,
   type GridCriterion,
@@ -171,16 +172,16 @@ describe("isPlayerAlreadyUsed — BR-10", () => {
 
 describe("isGameOver — BR-13", () => {
   it("dokuz hak tükenince biter", () => {
-    expect(isGameOver(MAX_GUESSES, 0)).toBe(true);
-    expect(isGameOver(MAX_GUESSES - 1, 0)).toBe(false);
+    expect(isGameOver(maxGuesses(GRID_SIZE), 0, GRID_SIZE)).toBe(true);
+    expect(isGameOver(maxGuesses(GRID_SIZE) - 1, 0, GRID_SIZE)).toBe(false);
   });
 
   it("dokuz hücre de çözülünce biter", () => {
-    expect(isGameOver(0, GRID_SIZE * GRID_SIZE)).toBe(true);
+    expect(isGameOver(0, GRID_SIZE * GRID_SIZE, GRID_SIZE)).toBe(true);
   });
 
   it("hak sayısı hücre sayısından türetilir", () => {
-    expect(MAX_GUESSES).toBe(GRID_SIZE * GRID_SIZE);
+    expect(maxGuesses(GRID_SIZE)).toBe(GRID_SIZE * GRID_SIZE);
   });
 });
 
@@ -189,5 +190,54 @@ describe("cellKey", () => {
     expect(cellKey({ row: 0, column: 1 })).not.toBe(
       cellKey({ row: 1, column: 0 }),
     );
+  });
+});
+
+/**
+ * BR-27 — kullanıcı ızgarasının boyutu 2×2 ile 5×5 arasında seçilebilir.
+ * Günlük ızgara 3×3 kalır; bu testler KURALIN boyuttan bağımsızlığını ölçer.
+ */
+describe("BR-27 — boyut", () => {
+  function square(size: number): Grid {
+    return {
+      rows: Array.from({ length: size }, (_, i) => ({
+        type: "nationality" as const,
+        code: `R${String(i)}`,
+        label: `Satır ${String(i)}`,
+      })),
+      columns: Array.from({ length: size }, (_, i) => ({
+        type: "club" as const,
+        clubId: clubId(`col${String(i)}`),
+        label: `Sütun ${String(i)}`,
+      })),
+    };
+  }
+
+  it.each(GRID_SIZES)("%i×%i ızgara geçerlidir", (size) => {
+    expect(isGridShapeValid(square(size))).toBe(true);
+  });
+
+  it("izin verilmeyen boyut reddedilir", () => {
+    expect(isGridShapeValid(square(1))).toBe(false);
+    expect(isGridShapeValid(square(6))).toBe(false);
+  });
+
+  it("kare olmayan ızgara reddedilir", () => {
+    const grid = square(4);
+    expect(
+      isGridShapeValid({ ...grid, columns: grid.columns.slice(0, 3) }),
+    ).toBe(false);
+  });
+
+  /** Sabit bir "9" yazılsaydı 5×5 ızgara 25 hücreyi 9 hakla sorardı. */
+  it("hak sayısı hücre sayısından türer", () => {
+    expect(maxGuesses(2)).toBe(4);
+    expect(maxGuesses(5)).toBe(25);
+  });
+
+  it("oyun, boyuta göre biter", () => {
+    expect(isGameOver(9, 0, 5)).toBe(false);
+    expect(isGameOver(25, 0, 5)).toBe(true);
+    expect(isGameOver(0, 25, 5)).toBe(true);
   });
 });

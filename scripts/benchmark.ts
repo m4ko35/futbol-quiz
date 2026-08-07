@@ -20,6 +20,21 @@ import { PrismaPlayerRepository } from "../src/infrastructure/db/repositories/pr
 /** §1.4 hedefi. Aşılırsa betik hata ile biter. */
 const P95_BUDGET_MS = 150;
 
+/**
+ * "Sen kur" ölçüt süzgecinin AYRI bütçesi (§9.1, BR-27).
+ *
+ * NEDEN 150 DEĞİL: §1.4'ün 150 ms'i ortak oyuncu sorgusu için ölçülüp
+ * konmuştu. Süzgecin en kötü durumu (5×5, rastgele kulüpler) ölçüldüğünde
+ * p95 134–148 ms çıkıyor — yani 150'lik bir kapı 2 ms payla geçerdi ve rutin
+ * bir makine değişikliği onu düşürürdü. BR-22'nin tavanında aynı hata bir kez
+ * yapıldı ve ölçülen değerin iki katına çekilerek düzeltildi; burada da aynı
+ * ölçek kullanılıyor.
+ *
+ * Kullanıcının GERÇEKTE ödediği maliyet bu değil: kısıtlar değişmediği için
+ * ilk çağrıdan sonrası önbellekten geliyor (aşağıda ayrıca ölçülüyor).
+ */
+const CRITERIA_BUDGET_MS = 250;
+
 /** Ölçüm sayısı: p95'in oturması için yeterli, koşu süresi için makul. */
 const SAMPLES = 300;
 
@@ -136,14 +151,18 @@ async function main(): Promise<void> {
    * "Sen kur" ölçüt süzgeci (§9.1, BR-25).
    *
    * BÜTÇEYE DÂHİL çünkü etkileşimli bir yolda: kullanıcı satır seçerken
-   * yazdıkça çağrılıyor. Ölçüt başına bir sayım sorgusu atılıyor, yani üç
-   * sütunlu bir çağrı altı sorgu demek — maliyeti görünür tutmak gerekiyor.
+   * yazdıkça çağrılıyor. Ölçüt başına İKİ sayım sorgusu atılıyor (kulüp
+   * adayları + uyruk adayları).
+   *
+   * EN KÖTÜ DURUM ÖLÇÜLÜR, ortalama değil: boyut 5×5'e çıkabildiği için
+   * (BR-27) beş sütunlu bir çağrı ON sorgu demek. Bütçe kapısı ucuz olana
+   * bakarsa, kullanıcının gerçekten ödediği maliyeti hiç görmez.
    */
-  console.log('\n=== "Sen kur" ölçüt süzgeci (3 sütun) ===');
+  console.log('\n=== "Sen kur" ölçüt süzgeci (5 sütun — en kötü durum) ===');
   const criteriaTimes: number[] = [];
   for (let i = 0; i < 60; i++) {
-    const against = [0, 1, 2].map((offset) => {
-      const club = selectable[(i * 3 + offset) % selectable.length];
+    const against = [0, 1, 2, 3, 4].map((offset) => {
+      const club = selectable[(i * 5 + offset) % selectable.length];
       if (club === undefined) throw new Error("kulüp yok");
       return {
         type: "club" as const,
@@ -159,16 +178,54 @@ async function main(): Promise<void> {
   criteriaTimes.sort((a, b) => a - b);
   const criteriaP95 = percentile(criteriaTimes, 0.95);
   console.log(
-    `  medyan ${percentile(criteriaTimes, 0.5).toFixed(1)} ms   ` +
+    `  soğuk: medyan ${percentile(criteriaTimes, 0.5).toFixed(1)} ms   ` +
       `p95 ${criteriaP95.toFixed(1)} ms   max ${(criteriaTimes.at(-1) ?? 0).toFixed(1)} ms`,
+  );
+
+  /*
+   * SICAK YOL — kullanıcının yazarken ödediği maliyet.
+   *
+   * Seçici her tuş duraklamasında aynı kısıtlarla çağrılıyor; ölçüt başına
+   * sayım önbellekte (§9.1). Soğuk sayı kapıyı belirler, kullanıcının
+   * gördüğü sayı budur.
+   */
+  const warmAgainst = [0, 1, 2, 3, 4].map((offset) => {
+    const club = selectable[offset % selectable.length];
+    if (club === undefined) throw new Error("kulüp yok");
+    return {
+      type: "club" as const,
+      clubId: clubId(club.id),
+      label: club.shortName,
+    };
+  });
+  await players.findPlayableCriteria({
+    against: warmAgainst,
+    term: null,
+    limit: 20,
+  });
+
+  const warmTimes: number[] = [];
+  for (let i = 0; i < 30; i++) {
+    const started = performance.now();
+    await players.findPlayableCriteria({
+      against: warmAgainst,
+      term: `a${String(i)}`,
+      limit: 20,
+    });
+    warmTimes.push(performance.now() - started);
+  }
+  warmTimes.sort((a, b) => a - b);
+  console.log(
+    `  sıcak: medyan ${percentile(warmTimes, 0.5).toFixed(1)} ms   ` +
+      `p95 ${percentile(warmTimes, 0.95).toFixed(1)} ms`,
   );
 
   await prisma.$disconnect();
 
-  if (criteriaP95 > P95_BUDGET_MS) {
+  if (criteriaP95 > CRITERIA_BUDGET_MS) {
     console.log(
       `\nBÜTÇE AŞILDI: ölçüt süzgeci p95 ${criteriaP95.toFixed(1)} ms > ` +
-        `${String(P95_BUDGET_MS)} ms (§1.4)`,
+        `${String(CRITERIA_BUDGET_MS)} ms (§9.1)`,
     );
     process.exitCode = 1;
     return;

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { GRID_SIZE } from "@/domain/services/grid";
+import { GRID_SIZE, MAX_GRID_SIZE } from "@/domain/services/grid";
 import {
   isValidIdentifier,
   playerId,
@@ -70,7 +70,9 @@ export const gridInputSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("daily") }),
   z.object({
     action: z.literal("criteria"),
-    against: z.array(criterionRefSchema).min(1).max(GRID_SIZE),
+    // Kullanıcı ızgarası 5×5'e kadar çıkabilir (BR-27); günlük ızgaranın
+    // hücre şeması (`cellSchema`) ise 3×3 kalır.
+    against: z.array(criterionRefSchema).min(1).max(MAX_GRID_SIZE),
     term: z.string().optional(),
     limit: z.number().optional(),
   }),

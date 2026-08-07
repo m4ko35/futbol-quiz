@@ -12,8 +12,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PlayerDto } from "@/application/dto/player-dto";
 import type { DailyGridDto } from "@/application/use-cases/daily-grid";
 import { GridGame } from "@/components/grid-game";
-import { MAX_GUESSES } from "@/domain/services/grid";
+import { GRID_SIZE, maxGuesses } from "@/domain/services/grid";
 import { resetSavedGameCache } from "@/lib/grid-storage";
+
+/** Günlük ızgaranın hak sayısı; testlerin çoğu 3×3 üzerinden konuşuyor. */
+const MAX_GUESSES = maxGuesses(GRID_SIZE);
 
 /**
  * 3×3 ızgara oyunu — durum makinesi ve erişilebilirlik.
@@ -481,5 +484,51 @@ describe("saklanmayan ızgara — §9.1", () => {
     });
     await user.click(restart);
     expect(onRestart).toHaveBeenCalledTimes(1);
+  });
+});
+
+/** BR-27 — oyun bileşeni boyutu IZGARADAN okur, sabitten değil. */
+describe("boyut (BR-27)", () => {
+  function bigGrid(size: number) {
+    return {
+      rows: Array.from({ length: size }, (_, i) => ({
+        kind: "club" as const,
+        label: `Satır ${String(i)}`,
+      })),
+      columns: Array.from({ length: size }, (_, i) => ({
+        kind: "club" as const,
+        label: `Sütun ${String(i)}`,
+      })),
+    };
+  }
+
+  it("5×5 ızgarada yirmi beş hücre ve yirmi beş hak vardır", () => {
+    render(
+      <GridGame
+        grid={bigGrid(5)}
+        checkAnswer={vi.fn().mockResolvedValue(true)}
+        searchPlayers={vi.fn().mockResolvedValue([PLAYER])}
+      />,
+    );
+
+    expect(
+      screen.getAllByRole("button", { name: /için oyuncu seçin$/u }),
+    ).toHaveLength(25);
+    expect(screen.getByText("0/25 doğru · 25 hak kaldı")).toBeInTheDocument();
+  });
+
+  it("2×2 ızgarada dört hücre ve dört hak vardır", () => {
+    render(
+      <GridGame
+        grid={bigGrid(2)}
+        checkAnswer={vi.fn().mockResolvedValue(true)}
+        searchPlayers={vi.fn().mockResolvedValue([PLAYER])}
+      />,
+    );
+
+    expect(
+      screen.getAllByRole("button", { name: /için oyuncu seçin$/u }),
+    ).toHaveLength(4);
+    expect(screen.getByText("0/4 doğru · 4 hak kaldı")).toBeInTheDocument();
   });
 });

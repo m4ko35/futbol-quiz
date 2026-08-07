@@ -1253,7 +1253,7 @@ Beşi de 3×3 ızgara modunundur (§9.1). Üçü okuma, ikisi cevap doğrulama �
 
 **Cevap SAYISI yine verilmez.** Liste yalnızca "bu ölçüt konabilir" der; hücrede kaç cevap olduğu, kullanıcı ızgarayı kendisi kursa bile oyunun kendi elinden alınması olurdu (§9.1 sızıntı kuralı).
 
-**Ölçüldü (§9.1):** üç sütunlu bir çağrı ölçüt başına bir sayım sorgusu atar; gerçek veride üç koşuda medyan 44,6–53,6 ms, p95 90,1–100,2 ms (bütçe 150 ms, §1.4). `npm run bench` bu ucu kalıcı olarak ölçer ve bütçeyi aşarsa hata verir.
+**Ölçüldü (§9.1):** çağrı, ölçüt başına bir sayım sorgusu atar. En kötü durumda (5 sütun) soğuk p95 134–152 ms; kısıtlar önbelleklendiği için kullanıcının yazarken ödediği p95 **1,6 ms**. Kapı 250 ms'dir ve gerekçesi §9.1'de. `npm run bench` bu ucu kalıcı olarak ölçer.
 
 #### `POST /api/grid/custom-answer`
 
@@ -2010,12 +2010,75 @@ satır bırakmayabilir; kullanıcının yapabileceği tek şey bir sütunu
 değiştirmektir. Seçici bu durumda "Sonuç yok" demez, doğrudan bunu söyler —
 aksi hâlde kullanıcı arama kutusunda boşuna dener.
 
-**MALİYET ÖLÇÜLDÜ ve bütçeye alındı.** Süzgeç, kısıt başına iki sayım sorgusu
-atıyor (kulüp adayları + uyruk adayları), yani üç sütunlu bir çağrı altı
-sorgu. Gerçek veride üç koşuda **medyan 44,6–53,6 ms · p95 90,1–100,2 ms** (bütçe 150 ms, §1.4) —
-uygulamanın en pahalı etkileşimli sorgusu. `npm run bench` bu ucu kalıcı
-olarak ölçer ve bütçe aşılırsa hata verir; ortak oyuncu sorgusunda olduğu gibi
-"bir hedef ancak ölçülüyorsa hedeftir".
+**MALİYET ÖLÇÜLDÜ ve KENDİ BÜTÇESİNE alındı.** Süzgeç, kısıt başına bir sayım
+sorgusu atıyor (kulüp ve uyruk adayları tek `UNION ALL` içinde). En kötü durum
+5×5'tir ve `npm run bench` onu ölçer:
+
+| Yol                        | Ölçülen                               |
+| -------------------------- | ------------------------------------- |
+| Soğuk (kısıtlar ilk kez)   | medyan ~71–83 ms · **p95 134–152 ms** |
+| Sıcak (kullanıcı yazarken) | medyan **1,2 ms** · p95 **1,6 ms**    |
+
+Kısıt başına sonuç ÖNBELLEKLENİYOR (§7.1 gereği sınırlı: 128 ölçüt).
+Bayatlama riski yok — veritabanı salt-okunur bir derleme çıktısı (§3.1).
+Kullanıcının yazarken ödediği maliyet bu yüzden soğuk sayı değil, **1,6 ms**.
+
+**KAPI 150 DEĞİL 250 ms.** §1.4'ün 150 ms'i ortak oyuncu sorgusu için ölçülüp
+konmuştu; süzgecin soğuk p95'i 134–152 ms aralığında salınıyor, yani 150'lik
+bir kapı ölçümden ölçüme düşerdi. BR-22'nin tavanında aynı hata bir kez
+yapılmıştı (ölçülen 140'a 150 kapısı) ve ölçülen değerin iki katına çekilerek
+düzeltilmişti; burada aynı ölçek baştan uygulandı.
+
+**BİR İYİLEŞTİRME DENENDİ VE ÖLÇÜM ONU ÇÜRÜTTÜ.** "Önce bir kısıtı sor,
+sonrakileri AYAKTA KALAN adaylarla sınırla" biçimi sezgisel olarak daha ucuz
+görünüyordu; ölçüldüğünde p95 **143,3 → 332,2 ms** çıktı. İki sebep: yüzlerce
+kimliklik bir `IN (...)` listesi `spells(clubId, playerId)` indeksinin işini
+bozuyor, ve zincir sorguları sıraya sokarak paralellikten de vazgeçiyor.
+Değişiklik geri alındı; gerekçesi kodda duruyor ki aynı sezgi ikinci kez
+denenmesin.
+
+#### Ölçüm: kullanıcı ızgarasında BOYUT (2×2 … 5×5)
+
+"Sen kur" turunda ızgara boyutu seçilebilir. Boyut büyüdükçe satır adayı
+azalır — çünkü aday, seçilen **her** sütunla bandda kesişmek zorunda ve koşul
+sayısı boyutla artıyor. Ölçüldü (400 rastgele sütun kümesi, her boyut için):
+
+| Boyut | Küratörlü 82'den yeterli aday (≥N) | Hiç aday yok | Tüm 906'dan yeterli aday |
+| ----- | ---------------------------------- | ------------ | ------------------------ |
+| 2×2   | **%98,0**                          | %0,0         | %39,8                    |
+| 3×3   | %83,8                              | %3,3         | %5,8                     |
+| 4×4   | %45,0                              | %10,0        | %0,5                     |
+| 5×5   | **%21,5**                          | %19,8        | **%0,0**                 |
+
+**RASTGELE SEÇİM YANILTICI BİR ÖLÇÜTTÜR ve bu ölçüm onu gösteriyor.** Aynı
+sütunlar tanınmış kulüplerden seçildiğinde 5×5 rahatça kuruluyor:
+
+```
+Real Madrid · Barcelona · Atlético · Sevilla · Valencia    → 75 aday
+Man Utd · Liverpool · Arsenal · Chelsea · Everton          → 79 aday
+Galatasaray · Fenerbahçe · Beşiktaş · Trabzonspor · Bursa  → 40 aday
+```
+
+Fark tesadüf değil: rastgele bir kulüp çoğunlukla küçük bir kulüptür ve küçük
+kulübün kesişimi de küçüktür. Kullanıcı ise tanıdığı kulübü seçer — sütun
+seçicisinin arama**sız** ilk listesinin küratörlü havuz olması (yukarıda) bu
+davranışı ayrıca destekliyor.
+
+**DÖRT BOYUT DA SUNULUYOR, çıkmaz ise ANLATILIYOR.** 5×5'te sütunların hiç
+satır bırakmama olasılığı %19,8 ve bu kabul edildi: seçici o durumda "Sonuç
+yok" demiyor, bir sütunu değiştirmesi gerektiğini söylüyor. Boyutu ölçüme
+göre kısmak (ör. yalnızca 2×2 ve 3×3) ürün kararı olurdu; ölçüm bir arıza
+göstermiyor, yalnızca bir bedel gösteriyor.
+
+**SÜTUNLAR BİRBİRİNE GÖRE SÜZÜLMÜYOR ve bu bilinçli.** "Önceki sütunlarla
+kesişen kulüpleri göster" demek işe yarar bir vekil gibi görünüyor ama
+KURALIN KENDİSİ DEĞİL: iki sütun asla aynı hücrede karşılaşmaz. Vekili kural
+diye uygulamak, geçerli birleşimleri (kesişimi küçük ama ortak satır ortağı
+bol iki kulüp) sessizce eleyecekti.
+
+**Günlük ızgara 3×3 KALIR.** Boyut, herkesin aynı ızgarayı gördüğü bir yerde
+(BR-11) kullanıcıya bırakılamaz; ayrıca §9.1'in üretilebilirlik ölçümü 3×3
+için yapıldı.
 
 #### Kurallar
 
@@ -2023,9 +2086,10 @@ olarak ölçer ve bütçe aşılırsa hata verir; ortak oyuncu sorgusunda olduğ
 - **BR-10 — Tekrar yok.** Bir oyuncu tek bir ızgarada yalnızca bir hücrede kullanılabilir.
 - **BR-11 — Günlük ızgara.** Izgara tarihten türetilen bir tohumla **deterministik** üretilir: aynı gün herkes aynı ızgarayı görür. Gerekçe iki katlı — (1) yanıt önbelleklenebilir hâle gelir (§7.9), rastgele ızgara CDN önbelleğini işlevsiz kılardı; (2) ileride skor tablosu (§9) ancak herkes aynı soruyu çözerse anlamlı olur.
 - **BR-12 — Cevap kimlikle doğrulanır.** Kullanıcı bir oyuncu **seçer**, ad yazmaz; doğrulama `playerId` üzerinden yapılır. Ada göre eşleştirme bu projede dört kez yanılttı (§10.1); "Shevchenko" arayan kullanıcı "Andriy Şevçenko" kaydını bulamazdı.
-- **BR-13 — Dokuz tahmin hakkı.** Dokuz hücre, dokuz hak: yanlış bir tahmin bir hücreyi harcar. Sınırsız deneme, ızgarayı bir bilgi sorusundan bir **arama alıştırmasına** çevirirdi — kullanıcı listeyi tarayıp doğruyu bulana kadar denerdi. Hak sayısı hücre sayısından türetilir, ayrıca yazılmaz. Doğrulanamayan bir cevap (ağ hatası) hak **harcamaz**: kullanıcının yapmadığı bir hatanın cezası olurdu.
+- **BR-13 — Hücre sayısı kadar tahmin hakkı.** Günlük ızgarada dokuz hücre, dokuz hak; kullanıcı ızgarasında **N×N hücre, N² hak** (BR-27). Sayı hücre sayısından TÜRETİLİR, ayrıca yazılmaz: yanlış bir tahmin bir hücreyi harcar. Sınırsız deneme, ızgarayı bir bilgi sorusundan bir **arama alıştırmasına** çevirirdi — kullanıcı listeyi tarayıp doğruyu bulana kadar denerdi. Hak sayısı hücre sayısından türetilir, ayrıca yazılmaz. Doğrulanamayan bir cevap (ağ hatası) hak **harcamaz**: kullanıcının yapmadığı bir hatanın cezası olurdu.
 - **BR-25 — Kullanıcı ızgarası KILAVUZLU kurulur.** "Sen kur" turunda satır adayları, seçilmiş üç sütunun **hepsiyle** BR-9 bandında kesişen ölçütlerle sınırlıdır; seçici yalnızca bunları gösterir. Serbest seçim ölçülerek elendi: rastgele altı kulübün %0,1'i geçerli ızgara veriyor (yukarıda).
 - **BR-26 — Kullanıcı ızgarasında ölçütler istemciden gelir.** Sunucu ölçütleri yeniden ÜRETMEZ, yalnızca **var olduklarını** doğrular (kulüp seçilebilir mi, ülke kodu tanınıyor mu) ve cevabı kimlikle denetler (BR-12). Bu kabul günlük ızgara için GEÇERSİZDİR: orada ızgara herkes için aynıdır ve tohumdan yeniden üretilir (BR-11).
+- **BR-27 — Kullanıcı ızgarasının boyutu seçilebilir.** "Sen kur" turunda boyut **2×2, 3×3, 4×4, 5×5** arasından seçilir; günlük ızgara **3×3 kalır** (BR-11 gereği herkes aynı ızgarayı görmeli). Diğer bütün kurallar boyuttan bağımsızdır: BR-9 bandı aynen uygulanır, BR-13'ün hak sayısı hücre sayısından türer, BR-25'in süzgeci seçilen **her** sütuna karşı çalışır.
 
 #### BR-10 şu an yalnızca istemcide zorlanıyor
 

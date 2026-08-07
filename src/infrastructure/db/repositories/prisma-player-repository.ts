@@ -29,6 +29,9 @@ import { Prisma, type PrismaClient } from "@/generated/prisma";
 export class PrismaPlayerRepository implements PlayerRepository {
   readonly #prisma: PrismaClient;
 
+  /** Kısıt başına bandda kalan adaylar — `#playableAgainst` önbelleği. */
+  readonly #playable = new Map<string, Narrowed>();
+
   constructor(prisma: PrismaClient) {
     this.#prisma = prisma;
   }
@@ -156,6 +159,16 @@ export class PrismaPlayerRepository implements PlayerRepository {
   ): Promise<GridCriterion[]> {
     if (query.against.length === 0) return [];
 
+    /*
+     * KISITLAR BAĞIMSIZ SORULUR, kesişim uygulamada alınır.
+     *
+     * "Önce birini sor, sonrakileri AYAKTA KALAN adaylarla sınırla" biçimi
+     * denendi ve ÖLÇÜLEREK ELENDİ: p95 143,3 ms'den 332,2 ms'ye çıktı.
+     * Sebebi iki katlı — yüzlerce kimliklik bir `IN (...)` listesi
+     * `spells(clubId, playerId)` indeksinin işini bozuyor ve zincir,
+     * sorguları sıraya sokarak paralellikten de vazgeçiyor. Sezgi yanlıştı;
+     * ölçüm kararı verdi.
+     */
     const counted = await Promise.all(
       query.against.map((criterion) => this.#playableAgainst(criterion)),
     );
@@ -204,50 +217,68 @@ export class PrismaPlayerRepository implements PlayerRepository {
     return [...countries, ...clubs];
   }
 
-  /** Tek bir kısıta göre bandda kalan kulüp kimlikleri ve uyruk kodları. */
-  async #playableAgainst(
-    criterion: GridCriterion,
-  ): Promise<{ clubIds: Set<string>; codes: Set<string> }> {
-    const [clubRows, codeRows] =
-      criterion.type === "club"
-        ? await Promise.all([
-            this.#prisma.$queryRaw<{ id: string }[]>(Prisma.sql`
-              SELECT s2.clubId AS id
-              FROM spells s1
-              JOIN spells s2 ON s2.playerId = s1.playerId AND s2.isYouth = 0
-              JOIN clubs c ON c.id = s2.clubId AND c.isSelectable = 1
-              WHERE s1.clubId = ${criterion.clubId} AND s1.isYouth = 0
-              GROUP BY s2.clubId
-              HAVING COUNT(DISTINCT s2.playerId)
-                     BETWEEN ${MIN_CELL_ANSWERS} AND ${MAX_CELL_ANSWERS}`),
-            this.#prisma.$queryRaw<{ code: string }[]>(Prisma.sql`
-              SELECT p.nationality AS code
-              FROM spells s
-              JOIN players p ON p.id = s.playerId
-              WHERE s.clubId = ${criterion.clubId}
-                AND s.isYouth = 0
-                AND p.nationality IS NOT NULL
-              GROUP BY p.nationality
-              HAVING COUNT(DISTINCT p.id)
-                     BETWEEN ${MIN_CELL_ANSWERS} AND ${MAX_CELL_ANSWERS}`),
-          ])
-        : [
-            await this.#prisma.$queryRaw<{ id: string }[]>(Prisma.sql`
-              SELECT s.clubId AS id
-              FROM spells s
-              JOIN players p ON p.id = s.playerId
-              JOIN clubs c ON c.id = s.clubId AND c.isSelectable = 1
-              WHERE p.nationality = ${criterion.code} AND s.isYouth = 0
-              GROUP BY s.clubId
-              HAVING COUNT(DISTINCT s.playerId)
-                     BETWEEN ${MIN_CELL_ANSWERS} AND ${MAX_CELL_ANSWERS}`),
-            [],
-          ];
+  /**
+   * Tek bir kısıta göre bandda kalan kulüp kimlikleri ve uyruk kodları.
+   *
+   * İKİ SORU TEK GİDİŞ-DÖNÜŞTE sorulur (`UNION ALL`).
+   *
+   * SONUÇ ÖNBELLEKLENİR. Seçici kullanıcı yazdıkça çağrılıyor ve kısıtlar
+   * aynı kalıyor; önbellek olmadan her tuş vuruşu aynı sayımı yeniden
+   * yaptırırdı. Bayatlama riski YOK — veritabanı salt-okunur bir derleme
+   * çıktısı (§3.1), sayımlar süreç boyunca değişmez.
+   */
+  async #playableAgainst(criterion: GridCriterion): Promise<Narrowed> {
+    const key = criterionKey(criterion);
+    const cached = this.#playable.get(key);
+    if (cached !== undefined) return cached;
 
-    return {
-      clubIds: new Set(clubRows.map((row) => row.id)),
-      codes: new Set(codeRows.map((row) => row.code)),
+    const rows =
+      criterion.type === "club"
+        ? await this.#prisma.$queryRaw<
+            { kind: string; id: string }[]
+          >(Prisma.sql`
+            SELECT 'club' AS kind, s2.clubId AS id
+            FROM spells s1
+            JOIN spells s2 ON s2.playerId = s1.playerId AND s2.isYouth = 0
+            JOIN clubs c ON c.id = s2.clubId AND c.isSelectable = 1
+            WHERE s1.clubId = ${criterion.clubId} AND s1.isYouth = 0
+            GROUP BY s2.clubId
+            HAVING COUNT(DISTINCT s2.playerId)
+                   BETWEEN ${MIN_CELL_ANSWERS} AND ${MAX_CELL_ANSWERS}
+            UNION ALL
+            SELECT 'nat' AS kind, p.nationality AS id
+            FROM spells s
+            JOIN players p ON p.id = s.playerId
+            WHERE s.clubId = ${criterion.clubId}
+              AND s.isYouth = 0
+              AND p.nationality IS NOT NULL
+            GROUP BY p.nationality
+            HAVING COUNT(DISTINCT p.id)
+                   BETWEEN ${MIN_CELL_ANSWERS} AND ${MAX_CELL_ANSWERS}`)
+        : await this.#prisma.$queryRaw<
+            { kind: string; id: string }[]
+          >(Prisma.sql`
+            SELECT 'club' AS kind, s.clubId AS id
+            FROM spells s
+            JOIN players p ON p.id = s.playerId
+            JOIN clubs c ON c.id = s.clubId AND c.isSelectable = 1
+            WHERE p.nationality = ${criterion.code} AND s.isYouth = 0
+            GROUP BY s.clubId
+            HAVING COUNT(DISTINCT s.playerId)
+                   BETWEEN ${MIN_CELL_ANSWERS} AND ${MAX_CELL_ANSWERS}`);
+
+    const result: Narrowed = {
+      clubIds: new Set(rows.filter((r) => r.kind === "club").map((r) => r.id)),
+      codes: new Set(rows.filter((r) => r.kind === "nat").map((r) => r.id)),
     };
+
+    // §7.1 — sınırsız büyüyen yapı yok: en eski anahtar düşer.
+    if (this.#playable.size >= MAX_CACHED_CRITERIA) {
+      const oldest = this.#playable.keys().next();
+      if (!oldest.done) this.#playable.delete(oldest.value);
+    }
+    this.#playable.set(key, result);
+    return result;
   }
 
   /** Kimlikleri ölçüte çevirir; arama ve sıralama kulüp aramasıyla aynı. */
@@ -517,11 +548,33 @@ function toSpell(row: SpellRow): Spell {
   };
 }
 
+/** Bir kısıt zincirinde AYAKTA KALAN adaylar. */
+interface Narrowed {
+  readonly clubIds: Set<string>;
+  readonly codes: Set<string>;
+}
+
+/** Ölçüt için önbellek anahtarı; `generate.ts` ile aynı biçim. */
+function criterionKey(criterion: GridCriterion): string {
+  return criterion.type === "club"
+    ? `club:${String(criterion.clubId)}`
+    : `nat:${criterion.code}`;
+}
+
+/**
+ * Önbellekte tutulacak azami ölçüt sayısı.
+ *
+ * Bir ızgara en çok beş kısıt kullanıyor; sınır, aynı süreçte arka arkaya
+ * kurulan ızgaraların birbirinin sonucunu ısıtmasına yetecek kadar geniş,
+ * belleği bağlayacak kadar dar (§7.1).
+ */
+const MAX_CACHED_CRITERIA = 128;
+
 /**
  * Kümelerin kesişimi — en küçüğünden başlar.
  *
- * `findPlayableCriteria` bunu kısıt başına bir kez çağırır; kısıt sayısı üç
- * olduğu için basit tarama yeterli, kurgulu bir yapıya gerek yok.
+ * `findPlayableCriteria` bunu kısıt başına bir kez çağırır; kısıt sayısı en
+ * çok beş olduğu için basit tarama yeterli.
  */
 function intersect(sets: readonly Set<string>[]): Set<string> {
   const first = sets[0];

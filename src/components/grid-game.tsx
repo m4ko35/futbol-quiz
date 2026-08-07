@@ -9,7 +9,7 @@ import type {
 import {
   cellKey,
   isGameOver,
-  MAX_GUESSES,
+  maxGuesses,
   type CellRef,
 } from "@/domain/services/grid";
 import {
@@ -67,6 +67,19 @@ export interface GridGameProps {
   searchPlayers(term: string, signal: AbortSignal): Promise<PlayerDto[]>;
 }
 
+/**
+ * Başlık sütununun genişliği.
+ *
+ * Tailwind sınıf adlarını KAYNAKTA TARAR; `w-1/${n}` gibi kurulmuş bir ad
+ * üretilen CSS'e girmez. Bu yüzden tam adlar burada, sabit bir tabloda durur.
+ */
+const HEADER_WIDTH: Readonly<Record<number, string>> = {
+  2: "w-1/3",
+  3: "w-1/4",
+  4: "w-1/5",
+  5: "w-1/6",
+};
+
 function emptyGame(date: string): GameState {
   return { date, cells: {}, guessesUsed: 0 };
 }
@@ -102,12 +115,20 @@ export function GridGame({
   const [isChecking, setIsChecking] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
 
+  /*
+   * BOYUT IZGARADAN OKUNUR (BR-27). Ayrı bir prop olarak taşınsaydı iki
+   * kaynak olurdu: 5 diyen bir prop ile üç satırlı bir ızgara aynı anda
+   * gelebilirdi ve hangisinin doğru olduğu belirsiz kalırdı.
+   */
+  const size = grid.rows.length;
+  const guesses = maxGuesses(size);
+
   const answers = Object.values(state.cells);
   const solvedCells = answers.filter(
     (cell) => cell.status === "correct",
   ).length;
-  const finished = isGameOver(state.guessesUsed, answers.length);
-  const remaining = MAX_GUESSES - state.guessesUsed;
+  const finished = isGameOver(state.guessesUsed, answers.length, size);
+  const remaining = guesses - state.guessesUsed;
   const usedPlayerIds = new Set(answers.map((cell) => cell.playerId));
 
   const submit = useCallback(
@@ -171,8 +192,8 @@ export function GridGame({
           className="rounded-full border border-line bg-surface px-3 py-1.5 text-sm font-semibold tabular-nums shadow-card"
           aria-live="polite"
         >
-          {String(solvedCells)}/{String(MAX_GUESSES)} doğru ·{" "}
-          {String(remaining)} hak kaldı
+          {String(solvedCells)}/{String(guesses)} doğru · {String(remaining)}{" "}
+          hak kaldı
         </p>
       </div>
 
@@ -187,8 +208,8 @@ export function GridGame({
         <table className="w-full border-separate border-spacing-1.5">
           <caption className="sr-only">
             {date === undefined
-              ? "Kendi kurduğunuz 3×3 ızgara."
-              : `${date} tarihli 3×3 ızgara.`}{" "}
+              ? `Kendi kurduğunuz ${String(size)}×${String(size)} ızgara.`
+              : `${date} tarihli ${String(size)}×${String(size)} ızgara.`}{" "}
             Sütunlar: {grid.columns.map((column) => column.label).join(", ")}.
             Satırlar: {grid.rows.map((row) => row.label).join(", ")}.
           </caption>
@@ -200,7 +221,7 @@ export function GridGame({
                 <th
                   key={`col-${String(index)}`}
                   scope="col"
-                  className="w-1/4 p-0 text-sm font-semibold"
+                  className={`${HEADER_WIDTH[size] ?? "w-1/4"} p-0 text-sm font-semibold`}
                 >
                   <CriterionLabel criterion={column} />
                 </th>
@@ -210,7 +231,10 @@ export function GridGame({
           <tbody>
             {grid.rows.map((row, rowIndex) => (
               <tr key={`row-${String(rowIndex)}`}>
-                <th scope="row" className="w-1/4 p-0 text-sm font-semibold">
+                <th
+                  scope="row"
+                  className={`${HEADER_WIDTH[size] ?? "w-1/4"} p-0 text-sm font-semibold`}
+                >
                   <CriterionLabel criterion={row} />
                 </th>
                 {grid.columns.map((column, columnIndex) => {
@@ -281,7 +305,7 @@ export function GridGame({
           <p>
             Oyun bitti —{" "}
             <strong>
-              {String(solvedCells)}/{String(MAX_GUESSES)}
+              {String(solvedCells)}/{String(guesses)}
             </strong>
             .{" "}
             {date === undefined

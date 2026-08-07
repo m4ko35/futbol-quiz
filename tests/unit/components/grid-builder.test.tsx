@@ -187,3 +187,101 @@ it("satır adayı kalmadıysa ne yapılacağını söyler", async () => {
 
   expect(await screen.findByText(/bir sütunu kaldırıp/iu)).toBeInTheDocument();
 });
+
+/**
+ * BR-27 — boyut seçimi. Denetlenen şey yuva sayısının boyutu izlemesi ve
+ * boyut değişince eski seçimlerin DÜŞMESİ.
+ */
+describe("GridBuilder — boyut (BR-27)", () => {
+  it("varsayılan boyut günlük ızgarayla aynıdır", () => {
+    setup();
+
+    expect(screen.getAllByRole("button", { name: /Kulüp seç/u })).toHaveLength(
+      3,
+    );
+    expect(screen.getByRole("radio", { name: "3×3" })).toBeChecked();
+  });
+
+  it("boyut seçilince yuva sayısı değişir", async () => {
+    const { user } = setup();
+
+    await user.click(screen.getByRole("radio", { name: "5×5" }));
+
+    expect(screen.getAllByRole("button", { name: /Kulüp seç/u })).toHaveLength(
+      5,
+    );
+    expect(screen.getAllByRole("button", { name: /Ölçüt seç/u })).toHaveLength(
+      5,
+    );
+  });
+
+  /** Küçülen ızgarada fazla ölçütler sessizce düşerdi; açıkça sıfırlanır. */
+  it("boyut değişince seçimler sıfırlanır", async () => {
+    const { user } = setup();
+
+    await pick(user, /Kulüp seç/u, "Barcelona");
+    expect(screen.getByText("Barcelona")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("radio", { name: "2×2" }));
+
+    expect(screen.queryByText("Barcelona")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /Kulüp seç/u })).toHaveLength(
+      2,
+    );
+  });
+
+  it("2×2 ızgara dört ölçütle kurulur", async () => {
+    const { user, onBuilt } = setup();
+
+    await user.click(screen.getByRole("radio", { name: "2×2" }));
+    await pick(user, /Kulüp seç/u, "Barcelona");
+    await pick(user, /Kulüp seç/u, "Milan");
+    await pick(user, /Ölçüt seç/u, "Galatasaray");
+    await pick(user, /Ölçüt seç/u, "Brezilya");
+
+    await user.click(screen.getByRole("button", { name: /Izgarayı kur/u }));
+
+    const grid = onBuilt.mock.calls[0]?.[0];
+    expect(grid?.columns).toHaveLength(2);
+    expect(grid?.rows).toHaveLength(2);
+  });
+
+  /** Süzgeç SEÇİLEN HER SÜTUNA karşı çalışmalı; boyut arttıkça koşul artar. */
+  it("beş sütun seçildiğinde süzgece BEŞİ BİRDEN gider", async () => {
+    const bes: GridCriterionRefDto[] = [
+      ...CLUBS,
+      { kind: "club", id: "c5", label: "Porto" },
+      { kind: "club", id: "c6", label: "Ajax FC" },
+    ];
+    const searchColumns = vi.fn().mockResolvedValue(bes);
+    const searchRows = vi.fn().mockResolvedValue([...ROWS]);
+
+    render(
+      <GridBuilder
+        searchColumns={searchColumns}
+        searchRows={searchRows}
+        onBuilt={vi.fn()}
+      />,
+    );
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("radio", { name: "5×5" }));
+    for (const label of ["Barcelona", "Milan", "Arsenal", "Inter", "Porto"]) {
+      await pick(user, /Kulüp seç/u, label);
+    }
+
+    await user.click(screen.getAllByRole("button", { name: /Ölçüt seç/u })[0]!);
+    await waitFor(() => {
+      expect(searchRows).toHaveBeenCalled();
+    });
+
+    const against = searchRows.mock.calls[0]?.[1] as GridCriterionRefDto[];
+    expect(against.map((one) => one.label)).toEqual([
+      "Barcelona",
+      "Milan",
+      "Arsenal",
+      "Inter",
+      "Porto",
+    ]);
+  });
+});

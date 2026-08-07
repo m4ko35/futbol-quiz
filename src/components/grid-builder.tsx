@@ -2,20 +2,23 @@
 
 import { useCallback, useState } from "react";
 import type { GridCriterionRefDto } from "@/application/use-cases/custom-grid";
-import { GRID_SIZE } from "@/domain/services/grid";
+import { GRID_SIZE, GRID_SIZES, type GridSize } from "@/domain/services/grid";
 import { CriterionPicker } from "./criterion-picker";
 
 /**
  * "Sen kur" — ızgarayı kullanıcı kurar (PROJECT.md §9.1, BR-25).
  *
- * SIRA ÜRETİM ALGORİTMASININ SIRASIDIR (`generate.ts`): önce üç sütun, sonra
- * üç satır. Sütunlar birbiriyle hiç kesişmez (bir hücre her zaman satır ×
+ * SIRA ÜRETİM ALGORİTMASININ SIRASIDIR (`generate.ts`): önce sütunlar, sonra
+ * satırlar. Sütunlar birbiriyle hiç kesişmez (bir hücre her zaman satır ×
  * sütundur), dolayısıyla sütun seçimi süzgeçsizdir; satır adayları ise seçilen
- * ÜÇ SÜTUNLA da oynanabilir olanlarla sınırlıdır.
+ * BÜTÜN SÜTUNLARLA oynanabilir olanlarla sınırlıdır.
  *
  * NEDEN SÜZGEÇ ZORUNLU, ölçüldü (§9.1): serbest seçimde rastgele altı kulübün
  * yalnızca %0,1'i dokuz hücresi de dolu bir ızgara veriyor. Süzgeçsiz bir
  * kurucu, kullanıcının denemelerinin neredeyse tamamını reddederdi.
+ *
+ * BOYUT SEÇİLEBİLİR (BR-27): 2×2 … 5×5. Boyut büyüdükçe süzgecin koşul sayısı
+ * artıyor, yani aday havuzu daralıyor — ölçülen bedel §9.1'de.
  *
  * SÜTUN DEĞİŞİRSE SATIRLAR SİLİNİR. Satırların geçerliliği sütunlara BAĞLI:
  * bir sütun değiştiğinde eski satırlar oynanamaz hâle gelebilir. Sessizce
@@ -49,11 +52,14 @@ export function GridBuilder({
   searchRows,
   onBuilt,
 }: GridBuilderProps) {
+  // Varsayılan boyut günlük ızgarayla aynı: kullanıcı bildiği oyunla
+  // başlasın, farklı bir boyut istemek onun kararı olsun.
+  const [size, setSize] = useState<GridSize>(GRID_SIZE);
   const [columns, setColumns] = useState<GridCriterionRefDto[]>([]);
   const [rows, setRows] = useState<GridCriterionRefDto[]>([]);
   const [open, setOpen] = useState<Slot | null>(null);
 
-  const columnsReady = columns.length === GRID_SIZE;
+  const columnsReady = columns.length === size;
 
   const searchForRow = useCallback(
     (term: string, signal: AbortSignal) => searchRows(term, columns, signal),
@@ -83,10 +89,47 @@ export function GridBuilder({
 
   return (
     <div className="flex flex-col gap-4">
+      {/*
+        BOYUT DEĞİŞİNCE SEÇİMLER SIFIRLANIR. Küçülen bir ızgarada fazla
+        ölçütler sessizce düşerdi; büyüyen ızgarada ise satırların geçerliliği
+        yeni sütunlara bağlı olurdu. İkisi de "seçicinin gösterdiğinden başka
+        bir ızgara" demek.
+      */}
+      <fieldset className="flex flex-wrap items-center gap-2">
+        <legend className="sr-only">Izgara boyutu</legend>
+        <span className="text-sm font-semibold">Boyut:</span>
+        {GRID_SIZES.map((option) => (
+          <label
+            key={option}
+            className={`cursor-pointer rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent ${
+              option === size
+                ? "border-accent bg-accent-soft"
+                : "border-line-strong bg-background hover:border-accent"
+            }`}
+          >
+            <input
+              type="radio"
+              name="grid-size"
+              className="sr-only"
+              value={option}
+              checked={option === size}
+              onChange={() => {
+                setSize(option);
+                setColumns([]);
+                setRows([]);
+                setOpen(null);
+              }}
+            />
+            {option}×{option}
+          </label>
+        ))}
+      </fieldset>
+
       <Axis
         title="Sütunlar (kulüp)"
-        hint="Üç kulüp seçin. Sütunlar birbiriyle kesişmediği için burada sınır yok."
+        hint={`${String(size)} kulüp seçin. Sütunlar birbiriyle kesişmediği için burada sınır yok.`}
         chosen={columns}
+        size={size}
         axis="column"
         disabled={false}
         open={open}
@@ -101,10 +144,11 @@ export function GridBuilder({
         title="Satırlar (kulüp veya ülke)"
         hint={
           columnsReady
-            ? "Yalnızca üç sütunun hepsiyle oynanabilir ölçütler listelenir."
-            : "Önce üç sütun seçin."
+            ? "Yalnızca seçtiğiniz sütunların hepsiyle oynanabilir ölçütler listelenir."
+            : `Önce ${String(size)} sütun seçin.`
         }
         chosen={rows}
+        size={size}
         axis="row"
         disabled={!columnsReady}
         open={open}
@@ -129,7 +173,7 @@ export function GridBuilder({
            */
           emptyHint={
             open.axis === "row"
-              ? "Bu üç sütunla oynanabilir ölçüt kalmadı. Yukarıdan bir sütunu kaldırıp başka bir kulüp seçin."
+              ? "Bu sütunlarla oynanabilir ölçüt kalmadı. Yukarıdan bir sütunu kaldırıp başka bir kulüp seçin, ya da daha küçük bir boyut seçin."
               : undefined
           }
           search={
@@ -157,7 +201,7 @@ export function GridBuilder({
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"
-          disabled={!columnsReady || rows.length !== GRID_SIZE}
+          disabled={!columnsReady || rows.length !== size}
           className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40"
           onClick={() => {
             onBuilt({ rows, columns });
@@ -165,9 +209,9 @@ export function GridBuilder({
         >
           Izgarayı kur
         </button>
-        {columnsReady && rows.length !== GRID_SIZE && (
+        {columnsReady && rows.length !== size && (
           <p className="text-sm text-muted">
-            {String(GRID_SIZE - rows.length)} satır daha seçin.
+            {String(size - rows.length)} satır daha seçin.
           </p>
         )}
       </div>
@@ -179,6 +223,7 @@ interface AxisProps {
   readonly title: string;
   readonly hint: string;
   readonly chosen: readonly GridCriterionRefDto[];
+  readonly size: number;
   readonly axis: "column" | "row";
   readonly disabled: boolean;
   readonly open: Slot | null;
@@ -197,13 +242,14 @@ function Axis({
   title,
   hint,
   chosen,
+  size,
   axis,
   disabled,
   open,
   onOpen,
   onClear,
 }: AxisProps) {
-  const slots = Array.from({ length: GRID_SIZE }, (_, index) => index);
+  const slots = Array.from({ length: size }, (_, index) => index);
 
   return (
     <section className="flex flex-col gap-2">

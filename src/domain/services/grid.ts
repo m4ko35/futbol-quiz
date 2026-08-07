@@ -8,8 +8,38 @@ import type { ClubId, PlayerId } from "../value-objects/identifiers";
  * içinde yaşar (§2.1).
  */
 
-/** Izgaranın kenar uzunluğu. Ad "3×3" olsa da sayı tek yerde tutulur. */
+/**
+ * GÜNLÜK ızgaranın kenar uzunluğu. Ad "3×3" olsa da sayı tek yerde tutulur.
+ *
+ * Günlük ızgara sabit boyutludur ve öyle kalır (BR-27): herkesin aynı ızgarayı
+ * görmesi gerekiyor (BR-11) ve §9.1'in üretilebilirlik ölçümü 3×3 için
+ * yapıldı.
+ */
 export const GRID_SIZE = 3;
+
+/**
+ * Kullanıcının kurabileceği boyutlar (BR-27).
+ *
+ * ÖLÇÜLDÜ (§9.1): boyut büyüdükçe satır adayı azalıyor çünkü aday, seçilen
+ * HER sütunla bandda kesişmek zorunda. Rastgele sütunlarla 5×5'in kurulma
+ * oranı %21,5'e düşüyor; tanınmış kulüplerle ise 40–79 aday kalıyor. Dördü de
+ * sunuluyor, çıkmaza girildiğinde seçici bunu söylüyor.
+ */
+export const GRID_SIZES = [2, 3, 4, 5] as const;
+
+export type GridSize = (typeof GRID_SIZES)[number];
+
+export function isGridSize(value: number): value is GridSize {
+  return (GRID_SIZES as readonly number[]).includes(value);
+}
+
+/**
+ * Sınırdaki doğrulamalar için üst sınır (§2.3).
+ *
+ * Listeden TÜRETİLİR, ayrıca yazılmaz: iki yerde iki sayı olsaydı biri
+ * güncellenip diğeri unutulduğunda şema, izin verilen bir boyutu reddederdi.
+ */
+export const MAX_GRID_SIZE = Math.max(...GRID_SIZES);
 
 /**
  * Bir hücrede bulunması gereken asgari cevap sayısı (BR-9).
@@ -76,10 +106,15 @@ export function hasDistinctCriteria(axis: readonly GridCriterion[]): boolean {
  *
  * Satır ve sütunlar ayrı ayrı tekrarsız olmalı ve bir kriter hem satırda hem
  * sütunda bulunmamalıdır — "Barcelona × Barcelona" hücresi bir soru değildir.
+ *
+ * BOYUT IZGARANIN KENDİSİNDEN OKUNUR, sabitten değil (BR-27): kullanıcı
+ * ızgarası 2×2 ile 5×5 arasında olabilir. Kural değişmedi — kare olma ve
+ * tekrarsızlık koşulları her boyutta aynı.
  */
 export function isGridShapeValid(grid: Grid): boolean {
-  if (grid.rows.length !== GRID_SIZE) return false;
-  if (grid.columns.length !== GRID_SIZE) return false;
+  const size = grid.rows.length;
+  if (!isGridSize(size)) return false;
+  if (grid.columns.length !== size) return false;
   if (!hasDistinctCriteria(grid.rows)) return false;
   if (!hasDistinctCriteria(grid.columns)) return false;
 
@@ -91,25 +126,35 @@ export function isGridShapeValid(grid: Grid): boolean {
 /**
  * BR-13 — bir ızgarada toplam tahmin hakkı.
  *
- * Dokuz hücre, dokuz hak: yanlış bir tahmin bir hücreyi harcar. Sınırsız
+ * Hücre sayısı kadar hak: yanlış bir tahmin bir hücreyi harcar. Sınırsız
  * deneme, ızgarayı bir bilgi sorusundan bir arama alıştırmasına çevirirdi —
  * kullanıcı listeyi tarayıp doğruyu bulana kadar denerdi ve oyunun sorduğu
  * şey ("biliyor musun") ortadan kalkardı.
  *
- * Hücre sayısından TÜRETİLİR, ayrıca yazılmaz: ızgara boyutu değişirse hak
- * sayısı da kendiliğinden değişir.
+ * Hücre sayısından TÜRETİLİR, ayrıca yazılmaz: boyut değişince (BR-27) hak
+ * sayısı da kendiliğinden değişir. Sabit bir "9" yazılsaydı 5×5 ızgara 25
+ * hücreyi 9 hakla sorardı.
  */
-export const MAX_GUESSES = GRID_SIZE * GRID_SIZE;
+export function maxGuesses(size: number): number {
+  return size * size;
+}
 
 /**
- * Oyun bitti mi? — dokuz hak tükendi ya da dokuz hücre de çözüldü.
+ * Oyun bitti mi? — hak tükendi ya da bütün hücreler çözüldü.
  *
  * NEDEN DOMAIN'DE: arayüz bu koşulu kendi hesaplasaydı, "bitti" tanımı bir
  * bileşenin içinde saklı kalırdı; skor tablosu (§9) eklendiğinde sunucunun da
  * aynı tanıma ihtiyacı olacak.
+ *
+ * BOYUT AÇIKÇA VERİLİR, varsayılanı YOKTUR: unutulan bir argüman sessizce
+ * "3×3" anlamına gelseydi, 5×5 ızgara dokuzuncu hücrede biterdi.
  */
-export function isGameOver(guessesUsed: number, solvedCells: number): boolean {
-  return guessesUsed >= MAX_GUESSES || solvedCells >= GRID_SIZE * GRID_SIZE;
+export function isGameOver(
+  guessesUsed: number,
+  solvedCells: number,
+  size: number,
+): boolean {
+  return guessesUsed >= maxGuesses(size) || solvedCells >= maxGuesses(size);
 }
 
 /** Bir hücrenin kimliği — kullanıcı cevabı bununla eşlenir. */
@@ -118,6 +163,13 @@ export interface CellRef {
   readonly column: number;
 }
 
+/**
+ * GÜNLÜK ızgaranın hücre aralığı.
+ *
+ * Kullanıcı ızgarasında koordinat SUNUCUYA HİÇ GİTMEZ (BR-26): cevap, hücrenin
+ * iki ölçütüyle doğrulanır. Bu yüzden burada sabit boyut doğrudur — boyutu
+ * parametreye çevirmek, var olmayan bir çağrı için genellik üretirdi.
+ */
 export function isCellRefInRange(cell: CellRef): boolean {
   return (
     Number.isInteger(cell.row) &&
