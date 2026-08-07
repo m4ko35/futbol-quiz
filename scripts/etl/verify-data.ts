@@ -5,6 +5,20 @@ import { MIN_SPELLS_FOR_SELECTABLE } from "./leagues";
 import { MAX_SPELL_TALLY, POSITIONS } from "./pipeline/normalize";
 
 /**
+ * BR-22 — ikinci kaynağın doğruladığı "gol > maç" kaydı için tavan.
+ *
+ * KOŞUDAN SONRA ÖLÇÜLDÜ: 140. İlk tavan 150 idi ve çevrimdışı bir tahmine
+ * (76) dayanıyordu; gerçek sayı ona iki kat yakın çıkınca kapı payını
+ * kaybetti — rutin bir tazeleme onu çalıştırabilirdi. Tavan ölçülen değerin
+ * iki katına çekildi.
+ *
+ * Tahmin neden düşük kaldı: çevrimdışı ölçüm yalnızca önbellekteki
+ * sayfaları okuyup dönemleri MAÇ SAYISI vekiliyle eşleştiriyordu. Boru
+ * hattı ise kulüpleri QID ile çözüyor ve beş dili de tarıyor.
+ */
+const MAX_CORROBORATED_OVER_APPS = 300;
+
+/**
  * Yüklenen veri kümesinin kabul kontrolü — `npm run db:verify`.
  *
  * NEDEN BİRİM TESTİ DEĞİL: burada denetlenen şey kod değil, ETL'in ürettiği
@@ -397,7 +411,8 @@ const MIN_DAILY_CANDIDATES = 365;
  *
  *   · 5000 maçlık dönem (Renaldo Lopes da Cruz) — sıralamayı ele geçirirdi
  *   · 1987 maçlık dönem (Maldini) — aslında katılış yılı
- *   · gol > maç olan 922 dönem — yapısal olarak imkânsız
+ *   · gol > maç olan dönemler — imkânsız DEĞİL, yalnızca şüpheli; ikinci
+ *     kaynak doğrulamadıkça düşerler ve kalan sayı tavanla sınırlanır
  */
 async function verifySpellTallies(): Promise<void> {
   console.log("\n=== Maç/gol akla yatkınlığı (BR-22) ===");
@@ -412,9 +427,21 @@ async function verifySpellTallies(): Promise<void> {
 
   check(absurdApps === 0, `${MAX_SPELL_TALLY}+ maçlı dönem: ${absurdApps}`);
   check(absurdGoals === 0, `${MAX_SPELL_TALLY}+ gollü dönem: ${absurdGoals}`);
+  /*
+   * BR-22 — "gol maçı aşamaz" ARTIK MUTLAK DEĞİL.
+   *
+   * Öncülü yanlıştı: elit golcüler maç sayısından fazla gol atar (Ronaldo
+   * Real Madrid'de 292 maç / 311 gol). Kural artık ikinci kaynağın
+   * doğruladığı kayıtları koruyor (§9.2, `resolveDisputedTallies`), bu yüzden
+   * burada SIFIR beklenemez.
+   *
+   * Tavan yine de bir kapıdır: ölçülen kurtarma 76 dönemdi ve hepsi Vikipedi
+   * ile mutabıktı. Sayı bunun çok üstüne çıkarsa doğrulama gevşemiş demektir.
+   */
+  const overApps = Number(goalsOverApps[0]?.n ?? 0);
   check(
-    Number(goalsOverApps[0]?.n ?? 0) === 0,
-    `golü maçından fazla dönem: ${Number(goalsOverApps[0]?.n ?? 0)}`,
+    overApps <= MAX_CORROBORATED_OVER_APPS,
+    `golü maçından fazla dönem: ${overApps} (tavan ${MAX_CORROBORATED_OVER_APPS}, ikinci kaynakla doğrulanmış olmalı)`,
   );
 
   // BR-21 sıralaması bu sütuna dayanıyor; hiç dolmadıysa arama alfabetiğe

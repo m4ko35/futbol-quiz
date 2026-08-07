@@ -55,6 +55,22 @@ export interface NormalizedSpell {
   isYouth: boolean;
   appearances: number | null;
   goals: number | null;
+  /**
+   * BR-22 — gol sayısı maç sayısını aştığı için DÜŞÜRÜLEN değer.
+   *
+   * Normalizasyon anında karar verilemez çünkü ikinci kaynak (Vikipedi)
+   * henüz okunmamıştır. Değer burada saklanır, kararı birleştirme sonrası
+   * `resolveDisputedTallies` verir. Veritabanına YAZILMAZ.
+   */
+  disputedGoals?: number | null;
+  /**
+   * Golün tartışmalı sayıldığı ANDAKİ maç sayısı.
+   *
+   * Doğrulama bu ÇİFTE bakar. Yalnızca gole bakmak yetmez: birleştirme maç
+   * sayısını Vikipedi'ninkiyle ezebiliyor ve o durumda "iki kaynak mutabık"
+   * sessizce "tek kaynak kendini doğruluyor"a dönüşürdü.
+   */
+  disputedAppearances?: number | null;
 }
 
 // Arama anahtarı domain'de tanımlıdır: aynı normalizasyonu ETL yazarken,
@@ -527,12 +543,14 @@ export function toSpell(
  * 1. `MAX_SPELL_TALLY` üstü değer `null` olur. Bu değerlerin çoğu maç/gol
  *    değil, kutuya yanlış yazılmış bir YILDIR (Maldini @ Milan: 1987).
  *
- * 2. Gol sayısı maç sayısını AŞAMAZ. Veri kümesinde bunu ihlal eden 922 dönem
- *    var; oynamadığı maçta gol atmış bir futbolcu, tek bir alanın bozuk olduğu
- *    anlamına gelir. Hangisinin bozuk olduğu bilinemediği için yalnızca GOL
- *    düşürülür: maç sayısı hem arama sıralamasının (BR-21) hem BR-15 aday
- *    havuzunun girdisi, dolayısıyla ikisinden daha çok yerde kullanılıyor;
- *    şüpheli olanı atmak, sağlam olanı da atmaktan iyidir.
+ * 2. Gol sayısı maç sayısını aşıyorsa karar BURADA VERİLMEZ. Eskiden mutlak
+ *    bir eleme vardı ve öncülü yanlıştı: elit golcüler maç sayısından fazla
+ *    gol atar (Ronaldo @ Real Madrid, 292 maç / 311 gol). Değer geçici olarak
+ *    `null` olur ama `disputedGoals` alanında SAKLANIR; birleştirme aşaması
+ *    Vikipedi aynı çifti veriyorsa geri koyar (§9.2 · `resolveDisputedTallies`).
+ *    Düşürülen kayıtta yalnızca GOL gider: maç sayısı hem arama sıralamasının
+ *    (BR-21) hem BR-15 aday havuzunun girdisi, dolayısıyla daha çok yerde
+ *    kullanılıyor.
  *
  * Sıfırlamak DEĞİL `null` yapmak kasıtlı (§2.7): "0 maç oynadı" bir iddiadır,
  * "bilmiyoruz" ise gerçektir.
@@ -540,19 +558,27 @@ export function toSpell(
 export function tallies(
   rawAppearances: number | undefined,
   rawGoals: number | undefined,
-): { appearances: number | null; goals: number | null } {
+): {
+  appearances: number | null;
+  goals: number | null;
+  disputedGoals: number | null;
+  disputedAppearances: number | null;
+} {
   const plausible = (value: number | undefined): number | null =>
     value === undefined || value > MAX_SPELL_TALLY || value < 0 ? null : value;
 
   const appearances = plausible(rawAppearances);
   const goals = plausible(rawGoals);
 
+  const disputed =
+    goals !== null && appearances !== null && goals > appearances;
+
   return {
     appearances,
-    goals:
-      goals !== null && appearances !== null && goals > appearances
-        ? null
-        : goals,
+    goals: disputed ? null : goals,
+    // Karar ERTELENİR: ikinci kaynak doğrularsa geri alınacak (§9.2, BR-22).
+    disputedGoals: disputed ? goals : null,
+    disputedAppearances: disputed ? appearances : null,
   };
 }
 

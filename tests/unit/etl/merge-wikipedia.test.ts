@@ -577,3 +577,106 @@ describe("syntheticSpellId", () => {
     expect(twice.spells).toHaveLength(1);
   });
 });
+
+/**
+ * BR-22 — "gol maçı aşamaz" kuralının ikinci kaynakla çözülmesi (§9.2).
+ *
+ * Kuralın eski hâli mutlaktı ve öncülü YANLIŞTI: elit golcüler maç
+ * sayısından fazla gol atar. Koşuda 1.102 dönem kesiliyordu; ikinci kaynak
+ * bunların 140'ını doğrulayıp geri verdi — aralarında Ronaldo'nun Real Madrid
+ * kaydı da vardı (292 maç / 311 gol).
+ */
+describe("BR-22 — tartışmalı gol sayısı", () => {
+  it("iki kaynak mutabıksa gol sayısını GERİ VERİR", () => {
+    const result = merge(
+      [
+        spell({
+          appearances: 292,
+          goals: null,
+          disputedGoals: 311,
+          disputedAppearances: 292,
+        }),
+      ],
+      [fromWikipedia({ appearances: 292, goals: 311 })],
+    );
+
+    expect(result.spells[0]?.goals).toBe(311);
+    expect(result.stats.disputedTallyRestored).toBe(1);
+  });
+
+  /**
+   * Vikipedi BAŞKA bir sayı diyorsa tartışmalı değer geri verilmez — ama
+   * sonuç `null` de olmaz: birleştirmenin olağan zenginleştirmesi (kural 2)
+   * boş kalan golü Vikipedi'nin DOĞRU değeriyle doldurur.
+   *
+   * Bu davranış ölçümle uyumlu: 293 maç / 780 gol kaydında Vikipedi 40
+   * diyordu ve doğru olan 40'tı.
+   */
+  it("ikinci kaynak çeliştiğinde tartışmalı değeri geri vermez", () => {
+    const result = merge(
+      [
+        spell({
+          appearances: 293,
+          goals: null,
+          disputedGoals: 780,
+          disputedAppearances: 293,
+        }),
+      ],
+      [fromWikipedia({ appearances: 293, goals: 40 })],
+    );
+
+    expect(result.spells[0]?.goals).toBe(40);
+    expect(result.stats.disputedTallyRestored).toBe(0);
+    expect(result.stats.disputedTallyDropped).toBe(1);
+  });
+
+  /** Kaynak hiç yoksa koruma ZAYIFLAMAZ: değer düşürülmüş kalır. */
+  it("ikinci kaynak yoksa düşürülmüş bırakır", () => {
+    const result = merge(
+      [
+        spell({
+          appearances: 208,
+          goals: null,
+          disputedGoals: 343,
+          disputedAppearances: 208,
+        }),
+      ],
+      [],
+    );
+
+    expect(result.spells[0]?.goals).toBeNull();
+    expect(result.stats.disputedTallyRestored).toBe(0);
+  });
+
+  /**
+   * Maç sayısı tutmuyorsa doğrulama SAYILMAZ ve karşılaştırma ÖZGÜN çiftle
+   * yapılır. Birleştirme maç sayısını Vikipedi'ninkiyle ezebiliyor; ezilmiş
+   * değere bakmak, kaynağı kendi kendisiyle doğrulatmak olurdu.
+   */
+  it("maç sayısı uyuşmuyorsa doğrulama saymaz", () => {
+    const result = merge(
+      [
+        spell({
+          appearances: 292,
+          goals: null,
+          disputedGoals: 311,
+          disputedAppearances: 292,
+        }),
+      ],
+      [fromWikipedia({ appearances: 250, goals: 311 })],
+    );
+
+    // Maç sayısı Vikipedi'ninkiyle ezildi ama gol geri verilmedi.
+    expect(result.spells[0]?.appearances).toBe(250);
+    expect(result.spells[0]?.goals).toBeNull();
+  });
+
+  /** Tartışması olmayan dönemler bu geçişten ETKİLENMEZ. */
+  it("normal dönemlere dokunmaz", () => {
+    const result = merge([spell({ appearances: 50, goals: 3 })], []);
+
+    expect(result.spells[0]?.goals).toBe(3);
+    expect(result.stats.disputedTallyRestored).toBe(0);
+    expect(result.stats.disputedTallyDropped).toBe(0);
+  });
+});

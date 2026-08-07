@@ -1993,7 +1993,7 @@ Küçük hedeflerde oransal formül oyunu bozuyor. Kural bu yüzden istatistiği
 
   Değer **denormalize** tutulur: maç sayısı `Spell`'de durur ve Prisma ilişki toplamına göre sıralayamaz. Ham SQL'e geçmek BR-16 süzgecini ikinci bir yerde yeniden yazmak olurdu — ölçülmüş bir hata sınıfı. İkincil sıralama anahtarı alfabetiktir; oyuncuların **%33,9'unun** toplam maçı 0 ve eşitlikte sıranın sabit kalması gerekir.
 
-- **BR-22 — Akla yatkın olmayan maç/gol sayısı `null` sayılır.** Tek dönemde 1000'i aşan değer kabul edilmez ve gol sayısı maç sayısını aşamaz.
+- **BR-22 — Akla yatkın olmayan maç/gol sayısı `null` sayılır.** Tek dönemde 1000'i aşan değer kabul edilmez. Gol sayısı maç sayısını aştığında değer atılMAZ; ikinci kaynak (Vikipedi) aynı çifti doğrularsa korunur, doğrulayamazsa düşer.
 
   Sınır tahmin değil, veriden okundu — sıralamada açık bir uçurum var:
 
@@ -2004,7 +2004,71 @@ Küçük hedeflerde oransal formül oyunu bozuyor. Kural bu yüzden istatistiği
    770  John Trollope @ Swindon Town         ← gerçek İngiltere rekoru
   ```
 
-  Gollerde de aynı kalıp (5603, 5509, 2000, 1817 — hepsi yıl kılıklı); en yüksek gerçek değer Messi'nin Barcelona'daki 474'ü, yani sınır hiçbir gerçek kaydı kesmiyor. **922 dönemde** gol sayısı maç sayısından fazla; hangi alanın bozuk olduğu bilinemediği için yalnızca gol düşürülür — maç sayısı hem BR-21'in hem BR-15 aday havuzunun girdisi olduğu için daha çok yerde kullanılıyor.
+  **"GOL MAÇI AŞAMAZ" ALT KURALI KALDIRILDI — öncülü yanlıştı (2026-08-07).**
+
+  Elit golcüler maç sayısından fazla gol atar. Kural koşuda **1.102 dönemi**
+  kesiyordu ve kestiklerinin arasında Ronaldo'nun Real Madrid kaydı vardı:
+  **292 maç / 311 gol**. Wikidata bu değeri veriyordu, Vikipedi de aynısını
+  söylüyordu (`caps4 = 292`, `goals4 = 311`); veriyi atan tek şey bizim
+  kuralımızdı. Sonucu iki yerde görünüyordu — sayı sitede eksikti ve oyuncu,
+  altı istatistiğin de dolu olmasını şart koşan aday havuzuna (BR-15) hiç
+  giremiyordu.
+
+  **Yerine ikinci kaynak mutabakatı geldi.** Wikidata'nın çifti, Vikipedi'nin
+  AYNI dönem için verdiği çiftle karşılaştırılır; maç ve gol birebir aynıysa
+  değer korunur, değilse düşürülür. Karşılaştırma ÖZGÜN Wikidata çiftiyle
+  yapılır — birleştirme maç sayısını ezmiş olabilir ve ezilmiş değere bakmak
+  kaynağı kendi kendisiyle doğrulatmak olurdu.
+
+  **Ölçüldü:**
+
+  | Sonuç                         | Çevrimdışı tahmin | **Koşuda ölçülen** |
+  | ----------------------------- | ----------------- | ------------------ |
+  | Vikipedi doğruluyor → korunur | 76                | **140**            |
+  | Doğrulanamadı → düşer         | 850               | **962**            |
+  | toplam etkilenen dönem        | 926               | **1.102**          |
+
+  **İKİ PAYDA AYNI DEĞİL, bu yüzden 76 → 140 birebir karşılaştırma değildir.**
+  Çevrimdışı ölçüm veritabanındaki 926 dönemi görüyordu; kural ise yüklemeden
+  önce, normalleştirilmiş evrende çalışıyor ve orada 1.102 dönem var. Geçerli
+  sayı koşuda ölçülendir.
+
+  **Tahmin yine de DÜŞÜK kaldı ve sebebi ölçüldü.** Çevrimdışı ölçüm yalnızca
+  önbellekteki sayfaları okuyabiliyor ve dönemleri MAÇ SAYISI vekiliyle
+  eşleştiriyordu; boru hattı ise kulüpleri QID ile çözüyor, beş dili ve
+  yönlendirme takma adlarını da tarıyor. Yani gerçek mutabakat, elle kurulan
+  vekilden güçlü çıktı.
+
+  Oran düşük (%13) ama **kurtulanlar tanınmış oyunculardır**; hasar orada
+  yoğunlaşıyordu. 150+ maçlık kayıtlarda yöntem 12 vakanın 12'sinde de doğru
+  karar verdi:
+
+  ```
+  Ronaldo         292/311  · Vikipedi 311  → korundu
+  Zeki R. Sporel  352/470  · Vikipedi 470  → korundu
+  Ottmar Walter   275/295  · Vikipedi 295  → korundu
+  (kaleci)        208/343  · Vikipedi   0  → düştü
+  (bozuk kayıt)   156/5603 · Vikipedi  56  → düştü
+  ```
+
+  Düşenlerin hepsi çürütülmüş değil: çevrimdışı ölçümde 926 dönemin yalnızca
+  138'ine Vikipedi açıkça karşı çıkıyordu, 712'si karar verilemediği için
+  düşüyor ve bunların neredeyse tamamı çok küçük kayıtlar (1 maç/4 gol gibi).
+  Koruma zayıflamadı: `--skip-wikipedia` ile koşulduğunda hiçbir kayıt
+  doğrulanamaz ve hepsi düşürülmüş kalır.
+
+  **`db:verify` artık sıfır beklemiyor**, tavan bekliyor (300; ölçülen 140).
+  Sıfır beklemek kuralın kendisini geri getirirdi. Tavan ilk olarak çevrimdışı
+  tahmine göre 150 konmuştu; koşu 140 ölçünce pay kalmadığı görüldü ve rutin
+  bir veri tazelemesinin kapıyı düşürmemesi için 300'e çekildi.
+
+  **Kaleci kusuru ayrı bir borç.** Ölçüm sırasında görüldü: Vikipedi
+  kalecilerin YEDİĞİ golü `-87` gibi negatif yazıyor ve bu değerler
+  Wikidata'ya pozitif gol olarak girmiş olabiliyor (Ottavio Bugatti 256 maç
+  / 329 "gol"). Mutabakat kuralı bunları zaten düşürüyor ama kaynağı
+  temizlemiyor; §10.2'ye borç olarak yazıldı.
+
+  Gollerde de aynı kalıp (5603, 5509, 2000, 1817 — hepsi yıl kılıklı); en yüksek gerçek değer Messi'nin Barcelona'daki 474'ü, yani sınır hiçbir gerçek kaydı kesmiyor. Gol sayısının maç sayısını aştığı **1.102 dönemde** karar mutabakata bırakılır (yukarıda); düşürülen kayıtta yalnızca gol `null` olur — maç sayısı hem BR-21'in hem BR-15 aday havuzunun girdisi olduğu için daha çok yerde kullanılıyor ve tek taraflı silinmesi daha pahalı olurdu.
 
   Sıfırlamak değil `null` yapmak kasıtlıdır (§2.7): "0 maç oynadı" bir iddiadır, "bilmiyoruz" ise gerçektir.
 
@@ -2360,6 +2424,7 @@ Bunun süreçteki karşılığı `npm run db:verify`. Faz 1 boyunca doğrulama "
 | Erişilebilirlik: yerleşime bağlı ölçütler | Yapısal denetim (axe-core) ve kontrast ölçüldü; görünürlük, odak sırası ve hedef boyutu ölçülMEDİ (§7.10)                                                                                                                                                            | Faz 4.5: gerçek tarayıcıda elle denetim                                                                                |
 | Bağsız kulüp ikizi (Gençlerbirliği)       | Kabul — ölçüldü, eşik tabanlı kural GÜVENLİ DEĞİL: %80 eşiği Barcelona'yı yedek takımıyla birleştirirdi (§5.3)                                                                                                                                                       | Doğru düzeltme yeri kaynağın kendisi: Wikidata'da iki öğenin birleştirilmesi                                           |
 | Kadro keşfi: güncel kadro %26 eksik       | Kabul — yapısal; oyuncu evrenini `P54` tanımlıyor, bağı olmayan oyuncuya Vikipedi katmanı da ULAŞAMIYOR (§4.7)                                                                                                                                                       | Kadro şablonlarından oyuncu keşfi ayrı bir çekim katmanı olarak yazılırsa                                              |
+| Kaleci golleri kaynakta kirli             | Kabul — Vikipedi YENEN golü negatif yazıyor (`-87`), bu değerler Wikidata'ya pozitif gol olarak girmiş olabiliyor (Ottavio Bugatti 256 maç / 329 "gol"). BR-22 mutabakatı bunları düşürüyor ama kaynağı temizlemiyor                                                 | Kaleci dönemleri ayrı bir alanla (yenen gol) modellenirse; şu an oyunun hiçbir ekseni kaleci golü sormuyor             |
 | Izgara havuzu 18 ligi kapsamıyor          | **Ertelendi (ürün sahibi kararı, 2026-08-06):** küratörlü 82 kulüp ilk 6 ligden seçildi; 906 seçilebilir kulübün yalnızca %9'u. Ajax/Porto/Benfica, LA Galaxy ve Al-Hilal ızgarada ve günün oyuncusu havuzunda YOK (§9.1)                                            | Ürün sahibi yeni lig kulüplerini görüp seçtiğinde; ölçüm değil KARAR                                                   |
 
 **En büyük ortak oyuncu sonucu yeniden ölçüldü ve ölçüm bir şey daha söyledi.**

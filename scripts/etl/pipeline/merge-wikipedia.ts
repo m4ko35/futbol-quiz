@@ -56,6 +56,13 @@ export interface MergeStats {
    * Wikidata'nın çifti korundu (kural 4).
    */
   rejectedTallyConflict: number;
+  /**
+   * BR-22 — Vikipedi'nin doğruladığı, bu yüzden GERİ VERİLEN gol sayısı.
+   * Ölçüm ve gerekçe: `resolveDisputedTallies`.
+   */
+  disputedTallyRestored: number;
+  /** İkinci kaynak doğrulamadığı için düşürülmüş kalan gol sayısı. */
+  disputedTallyDropped: number;
 }
 
 export interface MergeResult {
@@ -117,6 +124,8 @@ export function mergeWikipediaSpells(input: {
     rejectedYearConflict: 0,
     rejectedYearCollision: 0,
     rejectedTallyConflict: 0,
+    disputedTallyRestored: 0,
+    disputedTallyDropped: 0,
   };
 
   // Mevcut dönemler oyuncu+kulüp kırılımında gruplanır; birleştirme kararı
@@ -204,7 +213,76 @@ export function mergeWikipediaSpells(input: {
     (spell) => patched.get(spell.wikidataStatementId) ?? spell,
   );
 
-  return { spells: [...spells, ...created], stats };
+  return {
+    spells: resolveDisputedTallies([...spells, ...created], incoming, stats),
+    stats,
+  };
+}
+
+/**
+ * BR-22 — düşürülmüş gol sayısını İKİNCİ KAYNAK doğruluyorsa geri verir.
+ *
+ * NEDEN GEREKLİ, ölçüldü: eski kural "gol maçı aşamaz" diyordu ve koşuda
+ * 1.102 dönemi kesiyordu. Öncülü yanlış — elit golcüler maç sayısından fazla
+ * gol atar. Ronaldo'nun Real Madrid'deki 292 maç / 311 golü bu yüzden
+ * siliniyordu ve oyuncu, altı istatistiğin de dolu olmasını şart koşan aday
+ * havuzuna (§9.1, BR-15) da giremiyordu.
+ *
+ * KARAR TEK BAŞINA VERİLMEZ. Wikidata'nın değeri, Vikipedi'nin AYNI dönem
+ * için verdiği çiftle karşılaştırılır:
+ *
+ *   · maç ve gol birebir aynı  → değer korunur (iki kaynak mutabık)
+ *   · başka bir şey            → düşürülür (bugünkü davranış)
+ *
+ * Ölçülen ayrım gücü — 150+ maçlık kayıtlarda 12/12 doğru:
+ *
+ *   Ronaldo         292/311  · Vikipedi 311  → korunur
+ *   Zeki R. Sporel  352/470  · Vikipedi 470  → korunur
+ *   (kaleci)        208/343  · Vikipedi   0  → düşürülür
+ *   (bozuk kayıt)   156/5603 · Vikipedi  56  → düşürülür
+ *
+ * KOŞUDA ÖLÇÜLDÜ: 1.102 dönemin 140'ı kurtuldu, 962'si düşürüldü. Çevrimdışı
+ * tahmin 76 demişti; düşük kaldı çünkü yalnızca önbellekteki sayfaları
+ * okuyabiliyor ve dönemleri maç sayısı vekiliyle eşleştiriyordu. Oran düşük
+ * (%13) ama kurtulanlar TANINMIŞ oyunculardır; hasar orada yoğunlaşıyordu.
+ *
+ * Vikipedi katmanı atlanırsa (`--skip-wikipedia`) hiçbir kayıt doğrulanamaz
+ * ve hepsi düşürülmüş kalır — koruma zayıflamaz, yalnızca kurtarma olmaz.
+ */
+function resolveDisputedTallies(
+  spells: readonly NormalizedSpell[],
+  incoming: ReadonlyMap<string, WikipediaSpell[]>,
+  stats: MergeStats,
+): NormalizedSpell[] {
+  return spells.map((spell) => {
+    const disputed = spell.disputedGoals;
+    if (disputed === undefined || disputed === null) return spell;
+
+    const records =
+      incoming.get(groupKey(spell.playerWikidataId, spell.clubWikidataId)) ??
+      [];
+    // ÖZGÜN çifte bakılır, birleştirme sonrası değere değil: maç sayısı
+    // Vikipedi'ninkiyle ezilmiş olabilir ve o durumda karşılaştırma kendi
+    // kaynağıyla yapılırdı — mutabakat değil, yankı olurdu.
+    const corroborated = records.some(
+      (record) =>
+        record.appearances === spell.disputedAppearances &&
+        record.goals === disputed,
+    );
+
+    if (!corroborated) {
+      stats.disputedTallyDropped++;
+      return { ...spell, disputedGoals: null, disputedAppearances: null };
+    }
+
+    stats.disputedTallyRestored++;
+    return {
+      ...spell,
+      goals: disputed,
+      disputedGoals: null,
+      disputedAppearances: null,
+    };
+  });
 }
 
 function groupKey(playerId: string, clubId: string): string {

@@ -537,6 +537,10 @@ export async function extractDataset(
         `${s.rejectedYearConflict} tutarsız + ${s.rejectedYearCollision} çakışan yıl · ` +
         `${s.rejectedTallyConflict} tutarsız maç/gol`,
     );
+    console.log(
+      `      BR-22: ${s.disputedTallyRestored} gol kaydı ikinci kaynakla ` +
+        `doğrulanıp korundu · ${s.disputedTallyDropped} doğrulanamayıp düşürüldü`,
+    );
   }
 
   // ─── Seçim listesi küratörlüğü ────────────────────────────────────────

@@ -240,7 +240,12 @@ describe("seasonYearAt — BR-6 hassasiyet", () => {
 /** BR-22 — maç/gol akla yatkınlık denetimi. */
 describe("tallies — BR-22", () => {
   it("normal değerleri olduğu gibi geçirir", () => {
-    expect(tallies(64, 3)).toEqual({ appearances: 64, goals: 3 });
+    expect(tallies(64, 3)).toEqual({
+      appearances: 64,
+      goals: 3,
+      disputedGoals: null,
+      disputedAppearances: null,
+    });
   });
 
   /** Ölçülen hata: Maldini @ Milan 1987 — maç değil, katılış yılı. */
@@ -255,16 +260,35 @@ describe("tallies — BR-22", () => {
     expect(tallies(778, 474).goals).toBe(474);
   });
 
-  /** Oynamadığı maçta gol atılamaz — 922 dönemde ihlal ediliyor. */
-  it("gol maçtan fazlaysa GOLÜ düşürür, maçı korur", () => {
-    expect(tallies(30, 780)).toEqual({ appearances: 30, goals: null });
+  /**
+   * Gol maçı aşıyorsa karar ERTELENİR — BR-22'nin yeni hâli.
+   *
+   * Eskiden değer burada silinirdi ve öncülü yanlıştı: elit golcüler maç
+   * sayısından fazla gol atar (Ronaldo 292/311). Artık gol boşaltılır ama
+   * özgün çift saklanır; kararı ikinci kaynak verir (§9.2,
+   * `resolveDisputedTallies`).
+   */
+  it("gol maçtan fazlaysa kararı ERTELER, özgün çifti saklar", () => {
+    expect(tallies(30, 780)).toEqual({
+      appearances: 30,
+      goals: null,
+      disputedGoals: 780,
+      disputedAppearances: 30,
+    });
   });
 
   it("maç bilinmiyorsa golü yalnızca sınıra göre değerlendirir", () => {
-    expect(tallies(undefined, 474)).toEqual({ appearances: null, goals: 474 });
+    expect(tallies(undefined, 474)).toEqual({
+      appearances: null,
+      goals: 474,
+      disputedGoals: null,
+      disputedAppearances: null,
+    });
     expect(tallies(undefined, 5603)).toEqual({
       appearances: null,
       goals: null,
+      disputedGoals: null,
+      disputedAppearances: null,
     });
   });
 
@@ -273,11 +297,18 @@ describe("tallies — BR-22", () => {
     expect(tallies(undefined, undefined)).toEqual({
       appearances: null,
       goals: null,
+      disputedGoals: null,
+      disputedAppearances: null,
     });
   });
 
   it("negatif değeri reddeder", () => {
-    expect(tallies(-5, -1)).toEqual({ appearances: null, goals: null });
+    expect(tallies(-5, -1)).toEqual({
+      appearances: null,
+      goals: null,
+      disputedGoals: null,
+      disputedAppearances: null,
+    });
   });
 });
 
