@@ -1,5 +1,7 @@
 ﻿import { CURATED_CLUB_QIDS } from "../../src/application/curated-clubs";
+import { STAT_KEYS } from "../../src/domain/services/stat-match";
 import { PrismaStatMatchRepository } from "../../src/infrastructure/db/repositories/prisma-stat-match-repository";
+import { PrismaWhichMoreRepository } from "../../src/infrastructure/db/repositories/prisma-which-more-repository";
 import { Prisma, PrismaClient } from "../../src/generated/prisma";
 import { MIN_SPELLS_FOR_SELECTABLE } from "./leagues";
 import { MAX_SPELL_TALLY, POSITIONS } from "./pipeline/normalize";
@@ -528,6 +530,52 @@ async function verifyDailyCandidates(): Promise<void> {
   );
 }
 
+/**
+ * "Hangisi daha" havuzu — §9.3, BR-31.
+ *
+ * NEDEN AYRI BİR KAPI. BR-15'in havuzu altı istatistiğin de dolu olmasını
+ * ister; buradaki havuz yalnızca SORULANI ister, yani istatistik başına ayrı
+ * ayrı dolabilir ya da boşalabilir. Millî maç, boy ve kilo kapsamı §9.2'de
+ * zaten ölçülüyor ama o ölçüm TÜM oyuncular üzerinden; bu havuz tanınırlık
+ * süzgecinden geçenleri sayar ve ikisi aynı şey değil.
+ *
+ * Bir istatistiğin havuzu boşalırsa `RoundUnavailableError` üretime çıkar ve
+ * bunu ilk öğrenen kullanıcı olur.
+ */
+async function verifyWhichMorePool(): Promise<void> {
+  console.log('\n=== "Hangisi daha" havuzu (BR-31) ===');
+
+  const repository = new PrismaWhichMoreRepository(prisma);
+
+  for (const key of STAT_KEYS) {
+    // Havuzun DOLU olduğunu, bir çift kurulabildiğiyle ölçüyoruz: tek oyuncusu
+    // olan bir havuz "boş değil" ama oyun kurulamaz.
+    const first = await repository.findCandidate({
+      statKey: key,
+      threshold: null,
+      side: "any",
+      exclude: [],
+    });
+
+    if (first === null) {
+      check(false, `${key}: havuz BOŞ`);
+      continue;
+    }
+
+    const opponent = await repository.findCandidate({
+      statKey: key,
+      threshold: first.value,
+      side: "any",
+      exclude: [first.id],
+    });
+
+    check(
+      opponent !== null,
+      `${key}: BR-29 bandını sağlayan çift kurulabiliyor`,
+    );
+  }
+}
+
 async function verifyKnownPairs(): Promise<void> {
   console.log("\n=== Ortak oyuncu çiftleri ===");
 
@@ -575,6 +623,7 @@ async function main(): Promise<void> {
     await verifySpellTallies();
     await verifyPlayerStats();
     await verifyDailyCandidates();
+    await verifyWhichMorePool();
     await verifyKnownPairs();
   } finally {
     await prisma.$disconnect();

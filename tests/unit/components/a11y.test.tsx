@@ -14,6 +14,7 @@ import { GridGame } from "@/components/grid-game";
 import { ModeNav } from "@/components/mode-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { StatMatchGame } from "@/components/stat-match-game";
+import { WhichMoreQuiz } from "@/components/which-more-quiz";
 import { describeViolations, findA11yViolations } from "../../helpers/a11y";
 
 afterEach(cleanup);
@@ -302,6 +303,59 @@ describe("erişilebilirlik — WCAG 2.1 AA (§7.10)", () => {
     // Liste GERÇEKTEN DOLANA kadar beklenir: boş bir listede denetim, iddia
     // ettiği şeyi ölçmeden geçerdi (arama 200 ms gecikmeli).
     await screen.findByRole("option", { name: /Brezilya/u });
+
+    await expectNoViolations(container);
+  });
+
+  it("'hangisi daha' kurulum ekranında ihlal yok", async () => {
+    const { container } = render(
+      <WhichMoreQuiz
+        fetchRound={() =>
+          Promise.resolve({ statKey: "appearances" as const, pair: null })
+        }
+        fetchAnswer={() => Promise.reject(new Error("çağrılmamalı"))}
+      />,
+    );
+
+    await expectNoViolations(container);
+  });
+
+  /**
+   * Asıl risk burada: cevap açıldığında doğru/yanlış RENKLE gösteriliyor ve
+   * sonuç canlı bölgeye yazılıyor. İkisi de ancak açılmış bir turda ölçülebilir
+   * — kurulum ekranını denetlemek bu kodun hiçbirine dokunmaz.
+   */
+  it("'hangisi daha' cevap AÇILDIKTAN sonra ihlal yok", async () => {
+    const { container } = render(
+      <WhichMoreQuiz
+        fetchRound={() =>
+          Promise.resolve({
+            statKey: "appearances" as const,
+            pair: {
+              left: { id: "sol", name: "Drogba", clubs: ["Chelsea"] },
+              right: { id: "sag", name: "Henry", clubs: ["Arsenal"] },
+            },
+          })
+        }
+        fetchAnswer={() =>
+          Promise.resolve({
+            correct: false,
+            left: { id: "sol", value: 164 },
+            right: { id: "sag", value: 175 },
+            winnerId: "sag",
+            scoped: true,
+          })
+        }
+      />,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Başla" }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: /Drogba/u }),
+    );
+    // Sonuç GERÇEKTEN açılana kadar beklenir; kapalı bir turda denetim,
+    // iddia ettiği şeyi ölçmeden geçerdi.
+    await screen.findByText("Yanlış");
 
     await expectNoViolations(container);
   });

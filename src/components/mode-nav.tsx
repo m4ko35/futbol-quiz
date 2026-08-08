@@ -3,21 +3,24 @@ import Link from "next/link";
 /**
  * Oyun modları arasında gezinme — PROJECT.md §9.
  *
- * NEDEN `nav` VE `aria-current`. Üç bağlantıdan hangisinde olduğumuz görsel
- * olarak vurgulanıyor; `aria-current="page"` aynı bilgiyi ekran okuyucuya
- * verir. Vurgunun yalnızca dolgu/renk ile yapılması, o kullanıcıya hiçbir şey
+ * NEDEN `nav` VE `aria-current`. Hangi moda olduğumuz görsel olarak
+ * vurgulanıyor; `aria-current="page"` aynı bilgiyi ekran okuyucuya verir.
+ * Vurgunun yalnızca dolgu/renk ile yapılması, o kullanıcıya hiçbir şey
  * söylemezdi (§7.10).
  *
  * `Link`, `a` değil: aynı uygulama içindeki gezinmede Next istemci tarafı
  * yönlendirmeyi kullanır ve sayfa baştan yüklenmez.
  *
- * GÖRÜNÜM: segment denetimi (§7.12). Üç mod tek bir kapsayıcının içinde durur
- * ve aralarından biri doludur. Ayrı ayrı duran üç kutu, modların birbirinin
- * ALTERNATİFİ olduğunu göstermiyordu — birbirinden bağımsız üç bağlantı gibi
+ * GÖRÜNÜM: segment denetimi (§7.12). Modlar tek bir kapsayıcının içinde durur
+ * ve aralarından biri doludur. Ayrı ayrı duran kutular, modların birbirinin
+ * ALTERNATİFİ olduğunu göstermiyordu — birbirinden bağımsız bağlantılar gibi
  * duruyorlardı.
+ *
+ * Liste dört mod taşıyor ve dar ekranda sarılıyor (`flex-wrap`); beşinci mod
+ * eklenirse görünüm yeniden ölçülmeli.
  */
 
-export type ModeId = "common-players" | "grid" | "stat-match";
+export type ModeId = "common-players" | "grid" | "stat-match" | "which-more";
 
 const MODES: readonly {
   readonly id: ModeId;
@@ -27,6 +30,7 @@ const MODES: readonly {
   { id: "common-players", href: "/", title: "Ortak Oyuncu" },
   { id: "grid", href: "/izgara", title: "3×3 Izgara" },
   { id: "stat-match", href: "/istatistik", title: "İstatistik" },
+  { id: "which-more", href: "/hangisi-daha", title: "Hangisi Daha" },
 ];
 
 export interface ModeNavProps {

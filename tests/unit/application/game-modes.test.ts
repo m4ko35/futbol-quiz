@@ -18,6 +18,7 @@ import {
   FakeClubRepository,
   FakePlayerRepository,
   FakeStatMatchRepository,
+  FakeWhichMoreRepository,
 } from "../../helpers/fake-repositories";
 
 /** §9 — oyun modu sözleşmesi. */
@@ -38,6 +39,7 @@ function deps(): GameModeDeps {
       },
     ]),
     statMatch: new FakeStatMatchRepository(),
+    whichMore: new FakeWhichMoreRepository(),
   };
 }
 

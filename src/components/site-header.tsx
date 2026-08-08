@@ -14,7 +14,7 @@ import { ModeNav, type ModeId } from "./mode-nav";
  * yol adresinden TÜRETİLİYOR, tek kaynak var.
  *
  * NEDEN İSTEMCİ BİLEŞENİ. `usePathname` istemci kancasıdır. Bedeli küçük:
- * başlık veri okumaz, yalnızca üç bağlantı çizer.
+ * başlık veri okumaz, yalnızca mod bağlantılarını çizer.
  *
  * ALTBİLGİ BURAYA TAŞINMADI ve bu bilinçli. Altbilgi veri kümesinin tarihini
  * gösteriyor, yani veritabanına gidiyor. Düzene konsaydı HATA SAYFASI da o
@@ -27,6 +27,7 @@ function modeFromPath(pathname: string): ModeId | null {
   if (pathname === "/") return "common-players";
   if (pathname.startsWith("/izgara")) return "grid";
   if (pathname.startsWith("/istatistik")) return "stat-match";
+  if (pathname.startsWith("/hangisi-daha")) return "which-more";
   return null;
 }
 

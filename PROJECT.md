@@ -1369,6 +1369,76 @@ Parametresi yoktur (BR-19).
 
 Seçilen oyuncunun o istatistiği **boşsa** `VALIDATION_ERROR` döner (BR-16): puanlanamayan bir seçim sessizce 0 sayılmaz, reddedilir.
 
+### 6.6 "Hangisi daha" uçları
+
+§9.3'ün iki ucu. Buradaki ayırt edici kural **BR-32**'dir: tur yanıtı sayı taşımaz.
+
+#### `POST /api/hangisi-daha/round`
+
+Yeni bir tur ister. `GET` değil çünkü dışlama listesi (`exclude`) uzundur ve URL'e sığmaz; ayrıca yanıt önbelleklenMEMELİDİR — aynı istek her seferinde farklı bir rakip vermelidir.
+
+| Alan        | Tip      | Zorunlu | Kural                                               |
+| ----------- | -------- | ------- | --------------------------------------------------- |
+| `statKey`   | string   | evet    | §9.2'nin altı anahtarından biri                     |
+| `stayingId` | string   | hayır   | Kalan oyuncu (BR-28). Yoksa turun İLK çifti kurulur |
+| `exclude`   | string[] | hayır   | Bu koşuda görülmüş oyuncular; en çok 200 kimlik     |
+
+`direction` **girdide yoktur**: yön yalnızca cevabın hangi tarafının doğru sayılacağını belirler ve o karar sunucuda, cevap ucunda verilir. Tur ucuna taşınsaydı iki uç arasında tutarlılığı kimse zorlamazdı.
+
+```jsonc
+// 200 OK — ÖNBELLEKLENMEZ
+{
+  "data": {
+    "statKey": "goals",
+    "pair": {
+      "left": {
+        "id": "clx…",
+        "name": "Didier Drogba",
+        "clubs": ["Chelsea", "Marsilya"],
+      },
+      "right": {
+        "id": "cly…",
+        "name": "Thierry Henry",
+        "clubs": ["Arsenal", "Barcelona"],
+      },
+    },
+  },
+}
+```
+
+**Sayı yok** (BR-32). Kulüp adları oyuncuyu tanıtmak için verilir; karşılaştırılan istatistiğin değeri değildir.
+
+**Havuz tükenirse `pair: null` döner — hata DEĞİL.** Koşu uzadıkça görülen oyuncular dışlanır (BR-28) ve sonunda BR-29 bandını sağlayan aday kalmaz; bu beklenen bir sondur, arayüz koşuyu skorla bitirir. Bir hata kodu döndürmek, oyunun normal akışını §6.3'ün hata sözleşmesine sokardı. Band sessizce gevşetilerek tur da kurtarılmaz: sunucunun kurmayacağı bir çifti cevap ucu zaten reddederdi.
+
+Ayrım şurada: `stayingId` ve `exclude` **boşken** hiç aday bulunamazsa bu havuzun tükenmesi değil, veri kümesinin bozulmasıdır (`heightCm` hiç çekilmemiş gibi). O hâlde `ROUND_UNAVAILABLE` fırlatılır ve §6.3 gereği `500` olur — `GRID_UNAVAILABLE` ile aynı sınıf.
+
+#### `POST /api/hangisi-daha/answer`
+
+| Alan        | Tip    | Zorunlu | Kural                           |
+| ----------- | ------ | ------- | ------------------------------- |
+| `statKey`   | string | evet    | Altı anahtardan biri            |
+| `direction` | string | evet    | `"more"` \| `"less"`            |
+| `leftId`    | string | evet    | Turda sunulan sol oyuncu        |
+| `rightId`   | string | evet    | Turda sunulan sağ oyuncu        |
+| `chosenId`  | string | evet    | `leftId` ya da `rightId` olmalı |
+
+```jsonc
+// 200 OK — ÖNBELLEKLENMEZ
+{
+  "data": {
+    "correct": true,
+    "left": { "id": "clx…", "value": 164 },
+    "right": { "id": "cly…", "value": 175 },
+    "winnerId": "cly…", // BR-28: doğruysa bir sonraki turda kalan
+    "scoped": true, // §9.2'deki kapsam bildirimi
+  },
+}
+```
+
+**Doğruyu sunucu belirler (BR-32).** İki değer de yanıta girer çünkü cevap verildikten sonra kullanıcı ne kadar yanıldığını görmeyi hak eder — §6.5'teki `value` ile aynı gerekçe.
+
+İki oyuncudan birinin o istatistiği **boşsa** ya da aralarındaki fark BR-29 bandının altındaysa `VALIDATION_ERROR` döner: sunucunun kurmayacağı bir çift, cevap ucunda da kabul edilmez (§9.1'in "süzgeç ile doğrulayıcı aynı olmalı" kuralı).
+
 ---
 
 ## 7. Güvenlik
@@ -1827,12 +1897,14 @@ export interface GameMode<TInput, TOutput> {
 | ------------------------- | ----------------------------------------------------- | ----------------------------- |
 | **Ortak oyuncu** (MVP)    | İki kulüpte de oynamış oyuncular                      | ✅ Faz 3                      |
 | **3×3 ızgara**            | Satır/sütun kriterlerini sağlayan oyuncu bulma        | ✅ Faz 4.4 — §9.1             |
-| **İstatistik eşleştirme** | Her istatistik için değeri en yakın oyuncuyu bulma    | Faz 4.6 — §9.2                |
+| **İstatistik eşleştirme** | Her istatistik için değeri en yakın oyuncuyu bulma    | ✅ Faz 4.6 — §9.2             |
+| **Hangisi daha**          | Seçilen istatistikte iki oyuncuyu karşılaştırma       | ✅ Faz 4.10 — §9.3            |
 | Kariyer bilmecesi         | Kulüp geçmişi verilir, oyuncu tahmin edilir           | Tam kariyer verisi gerektirir |
 | Bağlantı zinciri          | İki oyuncu arasında ortak kulüp üzerinden en kısa yol | Tam kariyer verisi gerektirir |
-| Az mı çok mu              | Maç/gol sayısı karşılaştırması                        | Veri %73 dolu; havuz daralır  |
 
 > **Kariyer bilmecesi ve bağlantı zinciri neden ertelendi.** İkisi de oyuncunun kulüp geçmişini TAM olarak bilmeyi gerektirir; §1.3'teki kapsam sınırı gereği bu yirmi dört lig dışındaki kariyerler çekilmiyor. Güney Amerika'da oynamış bir oyuncunun o dönemi görünmez — bilmece eksik bir kariyer üzerinden kurulur ve bağlantı zincirinin bulduğu "en kısa yol" gerçekte en kısa olmayabilir. 3×3 ızgara bu sınırdan etkilenMEZ: sorusu "bu kulüpte oynadı mı", "başka nerede oynadı" değil.
+
+**"Az mı çok mu" bu listeden çıktı çünkü gerçekleşti:** §9.3'teki "Hangisi daha" tam olarak o moddur. Listede "veri %73 dolu, havuz daralır" notuyla duruyordu; ölçüm bunu düzeltti — havuz istatistiğe göre 3.333–6.464 arasında ve karşılaştırma altı istatistiğin hepsini değil yalnızca sorulanı gerektiriyor (BR-31).
 
 Bu modlar mevcut `Spell` modelini kullanır; yeni tablo değil, yeni **alan** gerektirirler. Şema bu genişlemeye göre tasarlandı (§5.2'deki `appearances`, `goals`, `nationality` alanları şimdiden mevcut).
 
@@ -2417,6 +2489,97 @@ Maç, gol ve kulüp sayısı **yalnızca §1.3 kapsamındaki yirmi dört ligi** 
 
 ---
 
+### 9.3 Hangisi Daha
+
+Kullanıcı §9.2'nin altı istatistiğinden **birini** ve bir **yön** seçer ("daha çok" / "daha az"). Karşısına iki oyuncu gelir, değerleri gizlidir; hangisinin daha fazla (ya da daha az) olduğunu seçer. **Doğruysa seçtiği oyuncu kalır**, karşısına yeni bir rakip gelir — her turda bir oyuncu değişir. Yanlışta koşu biter ve skor, verilen doğru cevap sayısıdır.
+
+§9.2 ile aynı sayıları kullanır ama **başka bir soru sorar**: orada "bu değere kim yakın" diye bir büyüklük tahmini istenir, burada iki isim arasında bir **sıralama** kararı. Bu yüzden §9.2'nin BR-18 puanlaması burada hiç kullanılmaz; doğru ya da yanlış vardır.
+
+#### Ölçüm: havuz
+
+Havuz BR-15'in tanınırlık ölçütüyle kurulur (küratörlü kulüplerde 100+ maç, 2+ kulüp) ama §9.2'nin aksine **altı istatistiğin hepsi aranmaz** — yalnızca karşılaştırılan istatistik gerekir. Ölçüldü (2026-08-08, **6.464 tanınır oyuncu**):
+
+| İstatistik   | Havuz | Kapsam | min | medyan | max |
+| ------------ | ----: | -----: | --: | -----: | --: |
+| Kulüp maçı   | 6.464 |   %100 | 100 |    305 | 962 |
+| Kulüp golü   | 6.458 |   %100 |   0 |     26 | 600 |
+| Kulüp sayısı | 6.464 |   %100 |   2 |      5 |  17 |
+| A millî maç  | 3.578 |    %55 |   0 |     18 | 233 |
+| Boy          | 4.369 |    %68 | 157 |    180 | 203 |
+| Kilo         | 3.333 |    %52 |  50 |     75 | 117 |
+
+Eksik istatistik oyunu durdurmaz, yalnızca o istatistiğin havuzunu daraltır — §9.2'deki BR-16'nın aynı davranışı. Hiçbir istatistikte "rakip bulunamadı" durumu ölçülmedi (%0,00).
+
+#### Ölçüm: "kazanan kalır" tek başına bir SÖMÜRÜ doğuruyor
+
+Kazanan kaldığı için kalan oyuncu her turda "o ana kadarki en büyük" olur. Rakip havuzdan rastgele çekilirse yeni oyuncunun daha büyük çıkma olasılığı n'inci turda 1/(n+2)'ye düşer — yani **hiçbir şey bilmeden "hep kalanı seç" demek kazanan bir stratejidir**. Ölçüldü (20.000 koşu, tanınır havuz):
+
+| İstatistik   | Strateji       | medyan | p90 | p99 |  ≥10 seri | ≥25 seri |
+| ------------ | -------------- | -----: | --: | --: | --------: | -------: |
+| Kulüp maçı   | **hep kalanı** |      0 |  11 | 145 | **%11,0** | **%5,0** |
+|              | yazı tura      |      0 |   3 |   6 |      %0,1 |     %0,0 |
+| Kulüp sayısı | **hep kalanı** |      0 |  15 | 245 | **%13,7** | **%7,1** |
+|              | yazı tura      |      1 |   3 |   6 |      %0,1 |     %0,0 |
+| Boy          | **hep kalanı** |      1 |  14 | 315 | **%13,2** | **%7,2** |
+|              | yazı tura      |      0 |   3 |   6 |      %0,1 |     %0,0 |
+
+Diğer üç istatistikte de aynı: hep kalanı seçen %9,5–13,7 oranında 10+ seri yapıyor, p99'da 120–315 seriye ulaşıyor. Skor bilgiyi değil sabrı ölçerdi.
+
+#### Ölçüm: dengeli rakip sömürüyü kapatıyor
+
+Çözüm mekaniği değiştirmiyor — kazanan yine kalıyor, her turda yine bir oyuncu değişiyor. Değişen tek şey **rakibin nereden çekildiği**: yazı tura atılır, tura ise kalanın değerinden **büyük**, yazı ise **küçük** oyuncular arasından seçilir. Aynı 20.000 koşu:
+
+| İstatistik   | Strateji       | medyan | p90 | p99 | ≥10 seri | tek yanlı tur |
+| ------------ | -------------- | -----: | --: | --: | -------: | ------------: |
+| Kulüp maçı   | **hep kalanı** |      0 |   3 |   6 | **%0,1** |          %7,1 |
+| Kulüp golü   | **hep kalanı** |      0 |   3 |   6 | **%0,1** |         %11,8 |
+| Kulüp sayısı | **hep kalanı** |      0 |   2 |   6 | **%0,1** |         %29,0 |
+| A millî maç  | **hep kalanı** |      0 |   2 |   6 | **%0,1** |         %19,2 |
+| Boy          | **hep kalanı** |      1 |   3 |   6 | **%0,2** |         %23,2 |
+| Kilo         | **hep kalanı** |      0 |   3 |   6 | **%0,1** |          %6,5 |
+
+Bilgisiz strateji artık yazı turayla **birebir aynı** (p90 = 3, p99 = 6). "Tek yanlı tur", kalan oyuncu uca yaklaştığı için bir tarafın boş kaldığı turların oranıdır; oyun o turda yine kurulur (tek taraftan çekilir) ve ölçüm gösteriyor ki %29'a varan tek yanlılık bile sömürüyü geri getirmiyor.
+
+#### Ölçüm: beraberlik gerçek bir sorun
+
+Aynı değere sahip iki oyuncuda "doğru cevap" diye bir şey yoktur. Ölçüldü:
+
+| İstatistik   |  Berabere | Bandın elediği çift | Band |
+| ------------ | --------: | ------------------: | ---: |
+| Kulüp maçı   |      %0,3 |               %11,7 |   25 |
+| Kulüp golü   |      %1,7 |               %10,1 |    5 |
+| Kulüp sayısı | **%14,1** |           **%40,2** |    2 |
+| A millî maç  |      %2,5 |               %15,6 |    5 |
+| Boy          |      %4,9 |               %21,3 |    3 |
+| Kilo         |      %4,6 |               %21,7 |    3 |
+
+**Kulüp sayısı en kaba eksen** ve öyle kalıyor: yalnızca 16 farklı değer taşıdığı için rastgele iki oyuncunun %14,1'i berabere ve 2'lik band çiftlerin %40,2'sini eliyor. Listeden çıkarılmadı çünkü band uygulandığında oynanabilir (yukarıdaki tabloda sömürü kapalı); ama en dar havuz odur ve zorluk ayarı yapılacaksa ilk oraya bakılır.
+
+Band, oyunun zorluğunu ayarlayan **tek sayıdır** — §9.2'deki `SCORE_TOLERANCE_FACTOR`'ün buradaki karşılığı. Değerler ölçülerek kondu: her biri, çiftlerin ~%10–22'sini eleyen en küçük anlamlı fark (kulüp sayısı ölçeğin kabalığı yüzünden istisna).
+
+#### Ölçüm: maliyet
+
+Tanınırlık havuzu 405 bin dönemi tarıyor ve süreç başına **bir kez** kuruluyor; veri bir derleme çıktısı olduğu için (§3.1) süreç boyunca değişmez. Seçim SQL'de değil, sıralı dizide ikili aramayla yapılıyor. Ölçüldü (`npm run bench`):
+
+| Yol                          |    Ölçülen | Bütçe  |
+| ---------------------------- | ---------: | ------ |
+| Soğuk (havuz kurulumu dâhil) |     306 ms | 600 ms |
+| Sıcak (tur başına, p95)      | **0,7 ms** | 10 ms  |
+
+Soğuk maliyet bir "başlangıç gideri" diye kenara konamaz: sunucusuz ortamda onu ilk isteği yapan kullanıcı öder. Sıcak bütçenin ölçülenin 14 katı olması bilinçli — 1,4 ms'lik bir kapı ölçüm gürültüsünde kalırdı ve kapının koruduğu şey zaten başka: seçimin bir gün bellekten SQL'e dönmesi (o regresyon 100 ms'in üstünde olurdu).
+
+#### Kurallar
+
+- **BR-28 — Zincir: kazanan kalır.** Doğru cevapta **seçilen** oyuncu bir sonraki tura geçer ve karşısına yeni bir rakip gelir; her turda yalnızca bir oyuncu değişir. Yanlış cevapta koşu biter, skor doğru cevap sayısıdır. Koşu boyunca aynı oyuncu ikinci kez rakip olarak sunulmaz.
+- **BR-29 — Ayırt edilebilirlik bandı.** Bir çift, ancak iki değer arasında istatistiğe özgü asgari fark varsa kurulur (kulüp maçı 25, kulüp golü 5, kulüp sayısı 2, millî maç 5, boy 3, kilo 3). Beraberlik ve kıl payı farklar ölçüldü (yukarıda); bandsız oyun bilgi değil kura sorardı — BR-9'un oynanabilirlik bandıyla aynı gerekçe.
+- **BR-30 — Dengeli rakip.** Yeni rakip, kalan oyuncunun değerine göre **yazı turayla** ya büyük ya küçük taraftan çekilir. Bir taraf boşsa diğerinden çekilir ve tur yine kurulur. Rastgele çekim ölçülerek elendi: bilgisiz "hep kalanı seç" stratejisi %9,5–13,7 oranında 10+ seri yapıyordu, dengeli çekimde %0,1.
+- **BR-31 — Tanınırlık havuzu.** Havuz BR-15'in tanınırlık ölçütünü kullanır (küratörlü kulüplerde 100+ maç, 2+ kulüp) ama yalnızca **karşılaştırılan** istatistiğin dolu olmasını ister. Altısını birden aramak havuzu 6.464'ten 1.927'ye düşürürdü ve bunun oyuna hiçbir katkısı yok: sorulmayan istatistiğin dolu olması gerekmiyor.
+- **BR-32 — Değerler cevaptan ÖNCE istemciye gitmez.** Tur yanıtı yalnızca iki oyuncunun kimliğini ve adını taşır; sayılar cevap gönderildikten sonra dönen yanıtta açılır. BR-12 ve BR-20 ile aynı kural — değerler baştan gönderilseydi oyun tarayıcı konsolunda çözülürdü.
+
+**Skor yereldir ve bu bilinçli.** Koşu durumu istemcide tutulur; sunucu her turu tek tek doğrular ama koşuyu hatırlamaz. Dolayısıyla ısrarlı bir kullanıcı aynı çifti tekrar tekrar sorarak kendi skorunu şişirebilir. Bu, BR-26'nın kabul ettiği riskle aynı sınıftır: skor kimseye karşı yarışmıyor, sıralama tablosu yok (§10.2). Sıralama tablosu eklenirse **bu kabul geçersizleşir** ve koşu durumunun sunucuya taşınması gerekir.
+
+---
+
 ## 10. Yol Haritası
 
 ### Faz 0 — Temel ✅
@@ -2655,6 +2818,26 @@ paket ~218 MB'a çıkar ve §10.2'nin "~2 kat marj" ilkesi biterdi.
 QID'lerini tek `VALUES` bloğunda gönderiyordu ve 617 kulüpte URL sınırını
 aştı. 6 ligde görünmezdi, 8 ligde de görünmedi. Kapsamı yayından önce
 genişletmenin somut kazancı budur: sınır, üretimde değil burada patladı.
+
+### Faz 4.10 — Dördüncü oyun modu: "Hangisi daha" ✅
+
+Ürün sahibi §9'un "az mı çok mu" satırını istedi ve mekaniği tarif etti: bir
+istatistik seçilir, iki oyuncudan hangisinin daha fazla olduğu sorulur, doğru
+cevapta **seçilen oyuncu kalır**, yanlışta koşu biter.
+
+**Mekanik ölçüldü ve bir sömürü buldu.** Kazanan kaldığı için kalan oyuncu her
+turda "o ana kadarki en büyük" oluyor; rakip rastgele çekildiğinde hiçbir şey
+bilmeden "hep kalanı seç" demek %9,5–13,7 oranında 10+ seri yapıyordu (§9.3).
+Mekanik korundu, rakip seçimi dengelendi ve sömürü yazı tura düzeyine indi
+(%0,1). Tarif edilen oyun aynen duruyor — değişen tek şey rakibin nereden
+çekildiği.
+
+- [x] Havuz ve dağılım ölçüldü: 6.464 tanınır oyuncu, istatistik başına
+      3.333–6.464 (BR-31)
+- [x] Sömürü ölçüldü ve dengeli rakiple kapatıldı (BR-30)
+- [x] Beraberlik ölçüldü; ayırt edilebilirlik bandı kondu (BR-29)
+- [x] Değerler cevaptan önce istemciye gönderilmiyor (BR-32)
+- [x] §9.3, §6.6 ve BR-28…BR-32 şartnameye yazıldı
 
 ### Faz 4.5 — Yayın
 

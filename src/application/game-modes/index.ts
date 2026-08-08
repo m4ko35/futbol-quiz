@@ -2,6 +2,7 @@ import { commonPlayersMode } from "./common-players";
 import { gridMode } from "./grid";
 import { GameModeRegistry } from "./registry";
 import { statMatchMode } from "./stat-match";
+import { whichMoreMode } from "./which-more";
 
 /**
  * Kayıtlı oyun modları — PROJECT.md §9.
@@ -14,6 +15,7 @@ export const gameModes = new GameModeRegistry();
 gameModes.register(commonPlayersMode);
 gameModes.register(gridMode);
 gameModes.register(statMatchMode);
+gameModes.register(whichMoreMode);
 
 export { GameModeRegistry } from "./registry";
 export type { GameMode, GameModeDeps, RegisteredGameMode } from "./types";

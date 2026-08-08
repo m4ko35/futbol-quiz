@@ -2,6 +2,7 @@ import type { ZodType } from "zod";
 import type { ClubRepository } from "../ports/club-repository";
 import type { PlayerRepository } from "../ports/player-repository";
 import type { StatMatchRepository } from "../ports/stat-match-repository";
+import type { WhichMoreRepository } from "../ports/which-more-repository";
 
 /**
  * Oyun modu sözleşmesi — PROJECT.md §9.
@@ -22,6 +23,7 @@ export interface GameModeDeps {
   readonly clubs: ClubRepository;
   readonly players: PlayerRepository;
   readonly statMatch: StatMatchRepository;
+  readonly whichMore: WhichMoreRepository;
 }
 
 export interface GameMode<TInput, TOutput> {

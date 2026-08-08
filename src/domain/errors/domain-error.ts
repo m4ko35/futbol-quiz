@@ -110,3 +110,24 @@ export class StatMatchUnavailableError extends DomainError {
     super("Bugünün oyuncusu hazırlanamadı.");
   }
 }
+
+/**
+ * "Hangisi daha" havuzu BOŞ (§9.3).
+ *
+ * `GridUnavailableError` ile aynı sınıf: kullanıcı hatası değil, sunucu tarafı
+ * bir başarısızlık. Buraya yalnızca koşunun İLK oyuncusu bile bulunamadığında
+ * düşülür — yani ilgili istatistik veri kümesinde hiç yoksa (`heightCm`
+ * çekilmemiş gibi).
+ *
+ * KOŞU İÇİNDE HAVUZUN TÜKENMESİ BU DEĞİLDİR. Görülen oyuncular dışlandıkça
+ * (BR-28) aday bitebilir; o beklenen bir sondur ve `pair: null` ile normal bir
+ * yanıt olarak döner (§6.6). Onu da hataya çevirmek, oyunun normal akışını
+ * §6.3'ün hata sözleşmesine sokardı.
+ */
+export class RoundUnavailableError extends DomainError {
+  readonly code = "ROUND_UNAVAILABLE";
+
+  constructor() {
+    super("Bu istatistikte sunulabilecek yeni bir eşleşme kalmadı.");
+  }
+}

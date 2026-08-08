@@ -1,8 +1,10 @@
+import { STAT_KEYS } from "../src/domain/services/stat-match";
 import { DEFAULT_SPELL_FILTER } from "../src/domain/services/spell-filter";
 import { clubId } from "../src/domain/value-objects/identifiers";
 import { PrismaClient } from "../src/generated/prisma";
 import { PrismaClubRepository } from "../src/infrastructure/db/repositories/prisma-club-repository";
 import { PrismaPlayerRepository } from "../src/infrastructure/db/repositories/prisma-player-repository";
+import { PrismaWhichMoreRepository } from "../src/infrastructure/db/repositories/prisma-which-more-repository";
 
 /**
  * Sorgu performansı ölçümü — `npm run bench` (PROJECT.md §1.4).
@@ -34,6 +36,26 @@ const P95_BUDGET_MS = 150;
  * ilk çağrıdan sonrası önbellekten geliyor (aşağıda ayrıca ölçülüyor).
  */
 const CRITERIA_BUDGET_MS = 250;
+
+/**
+ * "Hangisi daha" bütçeleri (§9.3).
+ *
+ * İKİYE AYRILDI çünkü iki maliyet farklı sınıflarda: havuz kurulumu süreç
+ * başına BİR kez ödenir (BR-31), tur maliyeti HER turda. Tek bütçeye
+ * sıkıştırmak, kullanıcının gerçekten beklediği süreyi (tur) soğuk maliyetin
+ * altında gizlerdi.
+ *
+ * SOĞUK: ölçülen 280 ms, bütçe ölçülenin ~2 katı — BR-22'nin tavanında ve
+ * §9.1'in ölçüt bütçesinde kullanılan ölçek.
+ *
+ * SICAK: ölçülen p95 0,7 ms. Burada "2 kat" kuralı işlemez — 1,4 ms'lik bir
+ * kapı ölçüm gürültüsünün içinde kalır ve rastgele kırmızıya döner. Kapının
+ * işi bu değil zaten: koruduğu şey, seçimin bir gün bellekten SQL'e geri
+ * dönmesi. O regresyon 100 ms'in üstünde olurdu, yani 10 ms hem gürültünün
+ * çok üstünde hem de yakaladığı hatanın bir mertebe altında.
+ */
+const WHICH_MORE_COLD_BUDGET_MS = 600;
+const WHICH_MORE_BUDGET_MS = 10;
 
 /** Ölçüm sayısı: p95'in oturması için yeterli, koşu süresi için makul. */
 const SAMPLES = 300;
@@ -220,7 +242,85 @@ async function main(): Promise<void> {
       `p95 ${percentile(warmTimes, 0.95).toFixed(1)} ms`,
   );
 
+  /*
+   * "Hangisi daha" turu (§9.3).
+   *
+   * İKİ AYRI MALİYET, ikisi de ölçülür:
+   *
+   *  · SOĞUK — tanınırlık havuzu süreç başına bir kez kuruluyor (BR-31) ve
+   *    405 bin dönemi tarıyor. Sunucusuz bir ortamda bunu ilk isteği yapan
+   *    kullanıcı öder, dolayısıyla "başlangıç maliyeti" diye kenara konamaz.
+   *  · SICAK — her turda ödenen maliyet. Seçim bellekte ikili aramayla
+   *    yapılıyor; kalan iş yalnızca iki oyuncunun tanıtım kulüplerini okumak.
+   */
+  console.log('\n=== "Hangisi daha" turu (§9.3) ===');
+  const whichMore = new PrismaWhichMoreRepository(prisma);
+
+  const coldStarted = performance.now();
+  const firstPick = await whichMore.findCandidate({
+    statKey: "appearances",
+    threshold: null,
+    side: "any",
+    exclude: [],
+  });
+  const coldMs = performance.now() - coldStarted;
+  console.log(
+    `  soğuk (havuz kurulumu dâhil): ${coldMs.toFixed(1)} ms   ` +
+      `(bütçe ${String(WHICH_MORE_COLD_BUDGET_MS)} ms)`,
+  );
+
+  if (firstPick === null) {
+    throw new Error("Havuz boş — `npm run etl` çalıştırılmamış olabilir.");
+  }
+
+  const roundTimes: number[] = [];
+  for (let i = 0; i < 120; i++) {
+    const key = STAT_KEYS[i % STAT_KEYS.length];
+    if (key === undefined) continue;
+
+    const started = performance.now();
+    const staying = await whichMore.findCandidate({
+      statKey: key,
+      threshold: null,
+      side: "any",
+      exclude: [],
+    });
+    if (staying !== null) {
+      await whichMore.findCandidate({
+        statKey: key,
+        threshold: staying.value,
+        side: i % 2 === 0 ? "above" : "below",
+        exclude: [],
+      });
+    }
+    roundTimes.push(performance.now() - started);
+  }
+  roundTimes.sort((a, b) => a - b);
+  const roundP95 = percentile(roundTimes, 0.95);
+  console.log(
+    `  sıcak (tur başına): medyan ${percentile(roundTimes, 0.5).toFixed(1)} ms   ` +
+      `p95 ${roundP95.toFixed(1)} ms   (bütçe ${String(WHICH_MORE_BUDGET_MS)} ms)`,
+  );
+
   await prisma.$disconnect();
+
+  if (coldMs > WHICH_MORE_COLD_BUDGET_MS) {
+    console.log(
+      `\nBÜTÇE AŞILDI: "Hangisi daha" havuz kurulumu ${coldMs.toFixed(1)} ms > ` +
+        `${String(WHICH_MORE_COLD_BUDGET_MS)} ms (§9.3)`,
+    );
+    process.exitCode = 1;
+    return;
+  }
+
+  if (roundP95 > WHICH_MORE_BUDGET_MS) {
+    console.log(
+      `\nBÜTÇE AŞILDI: "Hangisi daha" turu p95 ${roundP95.toFixed(1)} ms > ` +
+        `${String(WHICH_MORE_BUDGET_MS)} ms (§9.3)`,
+    );
+    process.exitCode = 1;
+    return;
+  }
 
   if (criteriaP95 > CRITERIA_BUDGET_MS) {
     console.log(

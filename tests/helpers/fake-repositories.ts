@@ -12,6 +12,12 @@ import type {
   StatMatchRepository,
   StatMatchTarget,
 } from "@/application/ports/stat-match-repository";
+import type {
+  WhichMoreCandidate,
+  WhichMoreCandidateQuery,
+  WhichMoreRepository,
+} from "@/application/ports/which-more-repository";
+import { MIN_GAP } from "@/domain/services/which-more";
 import type { Club } from "@/domain/entities/club";
 import type { Player } from "@/domain/entities/player";
 import type { StatKey } from "@/domain/services/stat-match";
@@ -266,5 +272,79 @@ export class FakeStatMatchRepository implements StatMatchRepository {
       this.#candidates.find((c) => c.id === id) ??
       this.#choosable.find((c) => c.id === id);
     return Promise.resolve(player?.stats[key] ?? null);
+  }
+}
+
+/** Havuzdaki bir oyuncu — testler yalnızca sorulan istatistiği vermek zorunda. */
+export interface FakeWhichMorePlayer {
+  readonly id: string;
+  readonly name: string;
+  readonly clubs?: readonly string[];
+  readonly values: Partial<Record<StatKey, number>>;
+}
+
+/**
+ * §9.3 — "Hangisi daha" deposunun bellek içi uygulaması.
+ *
+ * PORT SÖZLEŞMESİNİ GERÇEKTEN UYGULAR: BR-29 bandı, BR-30'un taraf seçimi ve
+ * dışlama listesi burada da geçerlidir. Sözleşmeyi çiğneyen bir fake, use-case
+ * testlerini yeşil gösterip üretimde patlayan bir kural boşluğu bırakırdı.
+ *
+ * SEÇİM RASTGELE DEĞİL, sıradaki İLK uygun adaydır. Rastgelelik testin
+ * beklentisini yazılamaz kılardı; dengelemenin doğruluğu domain testinde,
+ * gerçek dağılım ise §9.3'ün benzetimiyle ölçülüyor.
+ */
+export class FakeWhichMoreRepository implements WhichMoreRepository {
+  readonly #players: readonly FakeWhichMorePlayer[];
+
+  constructor(players: readonly FakeWhichMorePlayer[] = []) {
+    this.#players = players;
+  }
+
+  findCandidate(
+    query: WhichMoreCandidateQuery,
+  ): Promise<WhichMoreCandidate | null> {
+    const excluded = new Set<string>(query.exclude);
+    const gap = MIN_GAP[query.statKey];
+
+    const match = this.#players.find((one) => {
+      if (excluded.has(one.id)) return false;
+
+      const value = one.values[query.statKey];
+      if (value === undefined) return false;
+      if (query.threshold === null) return true;
+
+      if (Math.abs(value - query.threshold) < gap) return false;
+      if (query.side === "above") return value > query.threshold;
+      if (query.side === "below") return value < query.threshold;
+      return true;
+    });
+
+    return Promise.resolve(
+      match === undefined ? null : this.#toCandidate(match, query.statKey),
+    );
+  }
+
+  findPlayer(
+    id: PlayerId,
+    statKey: StatKey,
+  ): Promise<WhichMoreCandidate | null> {
+    const found = this.#players.find((one) => one.id === id);
+    if (found === undefined || found.values[statKey] === undefined) {
+      return Promise.resolve(null);
+    }
+    return Promise.resolve(this.#toCandidate(found, statKey));
+  }
+
+  #toCandidate(
+    player: FakeWhichMorePlayer,
+    statKey: StatKey,
+  ): WhichMoreCandidate {
+    return {
+      id: player.id as PlayerId,
+      name: player.name,
+      clubs: player.clubs ?? [],
+      value: player.values[statKey] ?? 0,
+    };
   }
 }
