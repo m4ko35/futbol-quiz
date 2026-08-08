@@ -766,7 +766,64 @@ Bu bir hata değil, **doğru davranış**: indekste bulunmayan ad atlanır, tahm
 
 **Katman veri kümesini yine bozmadı.** Ayıklanan dönem Aşama 1'deki gibi **3**; bloklayıcı hata yok. Yükleme sonrası `db:verify` de temiz — özellikle **"golü maçından fazla dönem: 0"**, yani dördüncü ihlalin (§4.3 tablosu) düzeltmesi ana dil verisiyle de tutuyor. İki uyarı büyüdü: örtüşen dönem 1.988 → 2.053, kuruluş yılından önceki dönem 9.158 → 10.162. İkincisi §10.2'de zaten "P571 sık sık selef kulübü gösteriyor" diye kayıtlı gürültülü bir denetim.
 
-**Atıf.** Wikidata CC0, Vikipedi CC BY-SA. Çıkarılan şey olgudur ve olgular telife tabi değildir; yine de altbilgi her iki kaynağı da anar (§7.11).
+**Atıf — OLGULAR İÇİN.** Wikidata CC0, Vikipedi CC BY-SA. Çıkarılan şey olgudur ve olgular telife tabi değildir; yine de altbilgi her iki kaynağı da anar (§7.11).
+
+> **Bu gerekçe GÖRSELLERİ KAPSAMAZ.** Bir arma ya da fotoğraf olgu değil, telife tabi bir eserdir. Yukarıdaki cümle uzun süre armaları da örttü sanıldı; ölçüm bunun yanlış olduğunu gösterdi (aşağıda). Görsellerin kendi sözleşmesi vardır ve §4.3.1'de yazılıdır.
+
+#### 4.3.1 Arma kaynağı ve lisansı
+
+Kulüp armaları **üç kaynaktan, bu sırayla** aranır ve **yalnızca özgür lisanslı** olanlar kabul edilir:
+
+| Sıra | Kaynak                                 | Neden bu sırada                                                     |
+| ---- | -------------------------------------- | ------------------------------------------------------------------- |
+| 1    | Vikipedi bilgi kutusu (tr→en→it→de→fr) | En güncel armalar burada; ürün sahibinin gözlemi ölçümle doğrulandı |
+| 2    | Wikidata `P154`                        | Kararlı ve makine okunur, ama seyrek ve daha eski                   |
+| 3    | Commons kategorisi (`P373`)            | Yapısı gereği özgür; ilk ikisinin bulamadığını yakalıyor            |
+
+**ÖLÇÜM: Vikipedi gerçekten daha güncel — ve tam da bu yüzden çoğu KULLANILAMAZ.** 60 armasız seçilebilir kulüpte ölçüldü (2026-08-08):
+
+| Bulgu                                            |              Sayı |
+| ------------------------------------------------ | ----------------: |
+| Bilgi kutusunda arma bulunan kulüp               |           59 / 60 |
+| Bulunan dosyalardan **adil kullanım** (non-free) | **67 / 80 = %84** |
+| Commons'ta (özgür)                               |           10 / 80 |
+
+Kulüplerin güncel resmî logoları Vikipedi'ye **adil kullanım** gerekçesiyle yükleniyor; Commons yalnızca özgür dosya barındırdığı için orada yoklar. Adil kullanım, Vikipedi'nin **kendi maddesinde** kullanma izniidir — üçüncü bir siteye yeniden kullanım hakkı vermez. Bu yüzden `NonFree` işaretli hiçbir dosya alınmaz (BR-33).
+
+**ÖZGÜR DOSYALARLA KAPANAN BOŞLUK: %20.** Aynı 60 kulüpte beş dil ve Commons kategorisi tarandı:
+
+| Kaynak             |             Kulüp |
+| ------------------ | ----------------: |
+| Vikipedi `tr`      |                 5 |
+| Vikipedi `en`      |                 3 |
+| Commons kategorisi |                 4 |
+| **Toplam**         | **12 / 60 = %20** |
+
+**KOŞUNUN GERÇEK SONUCU.** Örneklem 60 kulüptü; boru hattı 906 seçilebilir kulübün tamamına koşuldu ve tahmin tuttu:
+
+|                          |        Önce |           Sonra |
+| ------------------------ | ----------: | --------------: |
+| Seçilebilir kulüpte arma | 270 (%29,8) | **396 (%43,7)** |
+
+Kaynağa göre yeni armalar: Commons kategorisi 97, Vikipedi `tr` 35, Vikipedi `en` 19, `de`/`fr` 15. Commons kategorisi tahmin edilenden çok daha verimli çıktı (örneklemde 4/60 iken bütünde en büyük kaynak) — çünkü örneklemde yalnızca 36 kategori yoklanabilmişti.
+
+Kalan ~510 kulüp doldurulamıyor. Bu bir uygulama eksikliği değil, **kaynak sınırıdır**; §10.2'ye borç olarak yazılmaz çünkü kapatılabilir bir borç değildir.
+
+**ÇIKARIM DOĞRULANMADAN KABUL EDİLMEZ.** İlk koşu bunu pahalı biçimde gösterdi: bilgi kutusunun genel `image` alanı ve Commons kategorisi arma yerine başka görseller getirdi ve bunlar veritabanına YAZILDI —
+
+```
+1. FK Příbram     → Stadion Na Litavce2.jpg        (stadyum)
+Bolton Wanderers  → Alf Farman.jpg                 (bir oyuncu portresi)
+Athletic Bilbao   → Kit socks …bluelogo.png        (forma çorabı)
+Cagliari          → IMG Logo del Trofeo Gigi Riva  (kupa logosu)
+A.C. Savoia       → Coat of arms of the Duchy of Savoy
+```
+
+Eklenen akla yatkınlık süzgeci (`isPlausibleCrest`) iki koşulu birleştiriyor: adında armaya işaret eden bir sözcük geçmeli **ya da** kulüp adıyla ortak belirteç taşımalı, ve bir RET listesini (stadyum, forma, kupa, hava fotoğrafı…) geçmemeli. Toplam **28 yanlış arma** kaldırıldı, 37 aday baştan elendi.
+
+**Süzgecin kendisi de bir hata verdi ve ölçülerek düzeltildi.** İlk hâlinde kısa sözcükler kelime içinde eşleşiyordu: `arma` → "Alf F**arma**n", `badge` → "Billy the B**adge**r" (Fulham'ın maskotu). İkisi de veritabanına yazılmıştı. Kısa sözcükler artık kelime sınırı istiyor, uzun ve ayırt edici olanlar (`logo`, `crest`, `stemma`…) istemiyor — çünkü dosya adları sıkışık yazılıyor (`BaltykaFCLogo2018.png`).
+
+Süzgeç birkaç DOĞRU armayı da eliyor (kısaltmayla adlandırılmış dosyalar). Bu bilinçli bir takas: yanlış arma, boş armadan kötüdür (§2.7).
 
 ---
 
@@ -1073,6 +1130,8 @@ Bunlar `domain/services/` içinde saf fonksiyon olarak yaşar ve birim testi ile
   **Tek takvim yılına sığan dönem istisnası.** `2024 → 2024` kaydında iki kural ters düşer (başlangıç 2024, bitiş 2023). Bitiş kuralının dayanağı "ayrılış, Y−1 sezonunun sonundadır" varsayımıdır; katılış aynı yıl olduğunda bu geçersizdir. Bu durumda bitiş başlangıca hizalanır. İhmal edilemez: veri kümesinde başlangıcı bitişine eşit **19.478** dönem var, yani düzeltilmezse ayıklama oranı §8.2'deki %1 eşiğini katlayarak aşar ve ETL hiç tamamlanamaz.
 
 - **BR-7 — Kapsam: erkek ligleri.** Veri kümesi hedeflenen altı erkek ligiyle sınırlıdır. Wikidata kadın takımı dönemlerini çoğu zaman **aynı kulüp varlığına** bağladığı için ayrım kulüp düzeyinde yapılamıyor; `P21` (cinsiyet) alanı yalnızca bu kapsamı uygulamak üzere okunur, veritabanına yazılmaz ve arayüzde gösterilmez. `P21` kaydı olmayan oyuncular **kapsamda kalır** — eksik meta veri dışlama gerekçesi değildir. Kadın futbolu ileride kendi lig kümesiyle ayrı bir kapsam olarak eklenebilir (§10.2).
+- **BR-33 — Arma yalnızca ÖZGÜR lisanslı dosyadan gelir.** `NonFree` işaretli (adil kullanım) hiçbir dosya alınmaz; alınırsa site telif ihlaline girer. Ölçüldü (§4.3.1): Vikipedi bilgi kutularındaki armaların %84'ü bu sınıfta ve reddedilir. Kural bir tercih değil sınırdır — "arma boş kalsın" sonucu, kullanılamayacak bir dosyayı göstermekten iyidir (§2.7 ile aynı yön).
+- **BR-34 — Atıf gerektiren arma, atıf verisi OLMADAN gösterilmez.** CC BY / CC BY-SA dosyalarında yazar, lisans adı ve dosya sayfası birlikte saklanır; üçünden biri eksikse arma `null` sayılır. Eksik atıfla göstermek, lisansın koşulunu çiğnemek demektir; `db:verify` bunu ölçer (§8.2).
 - **BR-8 — Kanıt düzeyi.** Bir `Spell`, `startYear`, `endYear`, `appearances` ve `goals` alanlarının **dördü de** boşsa **kanıtsızdır**; en az biri doluysa kanıtlıdır. Kanıtsız dönemler BR-1 kapsamında **sayılır** (elenmez), fakat API yanıtında ve arayüzde açıkça işaretlenir. Gerekçe ve ölçüm §1.4'tedir; özeti: eleme, uydurma kayıtlarla birlikte doğru kayıtları da siliyor ve Wikidata ikisini ayıracak bir sinyal taşımıyor. BR-5'in sıralaması bu dönemleri kendiliğinden en sona koyar (ne maç sayısı ne yıl bilgisi vardır), dolayısıyla ayrı bir sıralama kuralı gerekmez.
 
 ---
@@ -1516,6 +1575,16 @@ Faz 3'te ölçüldü: sayfada **0 adet** `style="..."` özniteliği ve **0 adet*
 #### Görsel kaynakları
 
 Kulüp armaları yalnızca `upload.wikimedia.org` alanından yüklenir; kural hem CSP `img-src`'de hem `next.config.ts` içindeki `images.remotePatterns` beyaz listesinde tanımlıdır. Rastgele URL'den görsel yüklenmesine izin verilmez — aksi hâlde görsel optimizasyon ucu bir SSRF aracına dönüşür.
+
+> **Alan adı beyaz listesi LİSANSI DENETLEMEZ.** `upload.wikimedia.org` hem Commons'ın özgür dosyalarını hem tek tek Vikipedilere yüklenmiş **adil kullanım** dosyalarını sunar; ikisi de aynı konaktan gelir ve yol dışında hiçbir farkları yoktur. Yani güvenlik beyaz listesi geçilmiş olması "bu görseli kullanabiliriz" demek değildir. Lisans denetimi ETL'de yapılır (§4.3.1, BR-33) ve `db:verify` ile ölçülür.
+
+#### Görsel atfı
+
+Armaların bir kısmı **CC BY / CC BY-SA** lisanslıdır ve bu lisanslar atıf ister: yazar adı, lisans adı ve dosya sayfasına bağlantı. Ölçüldü (2026-08-08, 40 kulüplük örneklem): armaların **%20'si** atıf zorunlu, %80'i kamu malı.
+
+Atıf `/kaynaklar` sayfasında toplanır ve altbilgiden her sayfaya bağlanır. Kaynak künyesi veriyle birlikte taşınır (`Club.crestLicense`, `crestAuthor`, `crestFilePage`) — arayüzde elle yazılan bir liste, veri tazelendiğinde sessizce yanlışa döner.
+
+> **Bu açık YAYINDA DEĞİL, ama vardı.** Armalar Faz 4'te eklendiğinde atıf yükümlülüğü fark edilmedi; §4.3'ün "olgular telife tabi değildir" gerekçesinin görselleri de kapsadığı sanıldı. Ölçüm bunu çürüttü ve açık Faz 4.11'de kapatıldı. Kayda geçiyor ki bir sonraki görsel türü (oyuncu fotoğrafı) eklenirken aynı hata tekrarlanmasın — fotoğraflarda atıf oranı çok daha yüksek: ölçülen **%88**.
 
 > **Faz 3'te ölçülen uyumsuzluk ÇÖZÜLDÜ (Faz 4).** Sorun ikiliydi: veri `http://commons.wikimedia.org/wiki/Special:FilePath/…` biçimindeydi (114 armanın 114'ü) **ve** hiçbir bileşen armaları render etmiyordu. İkisi de düzeltildi — ETL adresi `upload.wikimedia.org`'a normalize ediyor (`scripts/etl/pipeline/crest-url.ts`), `ClubCrest` bileşeni gösteriyor.
 >
@@ -2838,6 +2907,29 @@ Mekanik korundu, rakip seçimi dengelendi ve sömürü yazı tura düzeyine indi
 - [x] Beraberlik ölçüldü; ayırt edilebilirlik bandı kondu (BR-29)
 - [x] Değerler cevaptan önce istemciye gönderilmiyor (BR-32)
 - [x] §9.3, §6.6 ve BR-28…BR-32 şartnameye yazıldı
+
+### Faz 4.11 — Armalar: kapsam ve lisans
+
+Ürün sahibi armaların Vikipedi'den tamamlanmasını istedi ve gerekçesi doğruydu:
+**Vikipedi'deki armalar daha güncel.** Ölçüm gerekçeyi doğruladı ama aynı ölçüm
+kullanımı engelledi: güncel resmî logolar Vikipedi'ye **adil kullanım**
+gerekçesiyle yükleniyor (%84) ve bu, üçüncü bir siteye yeniden kullanım hakkı
+vermiyor (§4.3.1).
+
+**İkinci bulgu istenmemişti ama yayında duruyordu:** mevcut armaların %20'si
+CC BY / CC BY-SA ve atıf istiyor; altbilgide yalnızca "Wikidata + Vikipedi"
+yazıyordu. §4.3'ün "olgular telife tabi değildir" gerekçesi görselleri
+kapsamıyor.
+
+- [x] Arma geçişi (`npm run db:crests`): Vikipedi (5 dil) → Wikidata `P154` → Commons kategorisi
+- [x] `NonFree` ve Commons dışı dosyalar reddedilir (BR-33) — 508 aday elendi
+- [x] Lisans künyesi veriyle taşınır: `crestLicense`, `crestAuthor`, `crestFilePage`
+- [x] Eski 283 armanın künyesi tamamlandı; doğrulanamayan 1 tanesi kaldırıldı
+- [x] Akla yatkınlık süzgeci: 28 yanlış arma (stadyum, portre, kupa) kaldırıldı
+- [x] `/kaynaklar` atıf sayfası + altbilgi bağlantısı (BR-34)
+- [x] `db:verify`: Commons dışı arma 0, künyesi eksik arma 0/413
+
+**Sonuç:** seçilebilir kulüplerde arma **%29,8 → %43,7**; künyesi eksik arma **0**.
 
 ### Faz 4.5 — Yayın
 

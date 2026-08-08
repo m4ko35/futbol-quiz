@@ -406,6 +406,16 @@ const MIN_STAT_COVERAGE = { caps: 0.14, height: 0.26, weight: 0.16 } as const;
 const MIN_DAILY_CANDIDATES = 365;
 
 /**
+ * Künyesi eksik arma sayısının tavanı — BR-34.
+ *
+ * SIFIR. Geçiş dönemi bitti: `npm run db:crests` 283 eski armanın künyesini
+ * tamamladı, doğrulanamayan 1 tanesini kaldırdı ve ölçülen sonuç 0/413.
+ * Tavan bir pay değil bir KURAL: künyesi eksik arma zaten gösterilmemeli, o
+ * yüzden veritabanında da bulunmamalı.
+ */
+const MAX_UNCREDITED_CRESTS = 0;
+
+/**
  * BR-21 / BR-22 — arama ağırlığı ve maç/gol akla yatkınlığı.
  *
  * Üçü de bir kez ölçülerek bulunmuş hatadır; buradaki amaç aynı hatanın
@@ -576,6 +586,68 @@ async function verifyWhichMorePool(): Promise<void> {
   }
 }
 
+/**
+ * Arma lisansı — PROJECT.md §4.3.1, §7.3, BR-33, BR-34.
+ *
+ * İKİ AYRI KURAL, ikisi de veri tarafında ölçülüyor:
+ *
+ *  BR-33  Arma yalnızca Commons'tan gelir. Yapısal olarak denetlenebilir:
+ *         Commons dosyaları `/wikipedia/commons/` yolunda durur, bir Vikipedi'ye
+ *         yüklenmiş adil kullanım dosyaları ise `/wikipedia/tr/`, `/wikipedia/en/`
+ *         gibi yerel yollarda. Konak ikisinde de aynı olduğu için CSP beyaz
+ *         listesi bunu AYIRT EDEMEZ (§7.3) — kapı burada.
+ *
+ *  BR-34  Atıf künyesi eksik arma gösterilmez. Lisans ve dosya sayfası
+ *         zorunludur; atıf gerektiren lisanslarda yazar da.
+ */
+async function verifyCrestLicensing(): Promise<void> {
+  console.log("\n=== Arma lisansı (BR-33, BR-34) ===");
+
+  const withCrest = await prisma.club.findMany({
+    where: { crestUrl: { not: null } },
+    select: {
+      shortName: true,
+      crestUrl: true,
+      crestLicense: true,
+      crestFilePage: true,
+    },
+  });
+
+  const COMMONS_PREFIX = "https://upload.wikimedia.org/wikipedia/commons/";
+  const outsideCommons = withCrest.filter(
+    (club) => !(club.crestUrl ?? "").startsWith(COMMONS_PREFIX),
+  );
+
+  check(
+    outsideCommons.length === 0,
+    `Commons dışı arma: ${outsideCommons.length}` +
+      (outsideCommons.length === 0
+        ? ""
+        : ` — ör. ${outsideCommons[0]?.shortName ?? "?"}`),
+  );
+
+  const missingCredit = withCrest.filter(
+    (club) => club.crestLicense === null || club.crestFilePage === null,
+  );
+
+  check(
+    missingCredit.length <= MAX_UNCREDITED_CRESTS,
+    `künyesi eksik arma: ${missingCredit.length}/${withCrest.length}` +
+      (missingCredit.length === 0
+        ? ""
+        : ` — ör. ${missingCredit[0]?.shortName ?? "?"}`),
+  );
+
+  const selectable = await prisma.club.count({ where: { isSelectable: true } });
+  const selectableWithCrest = await prisma.club.count({
+    where: { isSelectable: true, crestUrl: { not: null } },
+  });
+  console.log(
+    `  ℹ seçilebilir kulüplerde arma: ${selectableWithCrest}/${selectable} ` +
+      `(%${((selectableWithCrest / selectable) * 100).toFixed(1)})`,
+  );
+}
+
 async function verifyKnownPairs(): Promise<void> {
   console.log("\n=== Ortak oyuncu çiftleri ===");
 
@@ -624,6 +696,7 @@ async function main(): Promise<void> {
     await verifyPlayerStats();
     await verifyDailyCandidates();
     await verifyWhichMorePool();
+    await verifyCrestLicensing();
     await verifyKnownPairs();
   } finally {
     await prisma.$disconnect();

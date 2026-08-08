@@ -55,6 +55,22 @@ model Club {
   foundedYear Int?
   crestUrl    String?
 
+  /// Arma künyesi — PROJECT.md §4.3.1, §7.3, BR-34.
+  ///
+  /// NEDEN VERİYLE TAŞINIYOR: armaların %20'si CC BY / CC BY-SA ve bu lisanslar
+  /// yazar + lisans adı + dosya sayfası ister. Arayüzde elle yazılan bir liste
+  /// veri tazelendiğinde sessizce yanlışa dönerdi; künye armanın kendisiyle
+  /// aynı yerden gelmeli.
+  ///
+  /// `crestLicense` "Public domain" / "CC BY-SA 4.0" gibi kısa lisans adıdır.
+  /// `crestAuthor` atıf gerekmiyorsa null olabilir (kamu malı dosyalarda
+  /// yazar bilinse de anılması zorunlu değil).
+  /// `crestFilePage` Commons dosya sayfasıdır — lisansın tam metnine ve
+  /// yazarın kendi beyanına giden tek kararlı adres.
+  crestLicense  String?
+  crestAuthor   String?
+  crestFilePage String?
+
   // MVP'de seçim listesinde görünür mü (§1.3). Oyuncunun geçtiği her kulüp
   // veritabanına girer ama yalnızca küratörlü liste seçilebilir olur.
   isSelectable Boolean @default(false)

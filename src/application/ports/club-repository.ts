@@ -45,4 +45,24 @@ export interface ClubRepository {
    * (§8.2), çalışma zamanı değil.
    */
   findByWikidataIds(wikidataIds: readonly string[]): Promise<Club[]>;
+
+  /**
+   * Arma atıf künyeleri — PROJECT.md §7.3, BR-34.
+   *
+   * SÖZLEŞME: yalnızca arması OLAN ve lisans künyesi TAM olan kulüpler döner.
+   * Künyesi eksik bir kulübün burada görünmemesi bir gizleme değil, kuralın
+   * kendisi: BR-34 gereği künyesi eksik arma zaten gösterilmez.
+   *
+   * Kulüp adına göre sıralı döner — sayfa alfabetik okunacak.
+   */
+  listCrestCredits(): Promise<readonly CrestCredit[]>;
+}
+
+/** Bir armanın atıf künyesi (§7.3). */
+export interface CrestCredit {
+  readonly clubName: string;
+  readonly license: string;
+  /** Kamu malı dosyalarda yazar anılmak zorunda değil. */
+  readonly author: string | null;
+  readonly filePage: string;
 }

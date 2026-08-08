@@ -61,13 +61,24 @@ export function toCommonsFileUrl(raw: string | null): string | null {
   // ikonu kullanıcıya sitenin çalışmadığını söyler (§2.7).
   if (match?.[1] === undefined) return null;
 
-  let fileName: string;
   try {
-    fileName = decodeURIComponent(match[1]).replaceAll(" ", "_");
+    return commonsFileUrl(decodeURIComponent(match[1]));
   } catch {
     // Bozuk yüzde kodlaması: `decodeURIComponent` fırlatır.
     return null;
   }
+}
+
+/**
+ * Commons dosya ADINDAN gösterilebilir adres üretir.
+ *
+ * `toCommonsFileUrl`'den AYRILDI çünkü ikinci bir çağıran var: Vikipedi bilgi
+ * kutusundan gelen armalar (§4.3.1) dosya adı olarak geliyor, `Special:FilePath`
+ * adresi olarak değil. Aynı MD5 şeması iki yerde yazılsaydı biri düzeltilip
+ * diğeri unutulurdu.
+ */
+export function commonsFileUrl(rawFileName: string): string | null {
+  const fileName = rawFileName.trim().replaceAll(" ", "_");
   if (fileName.length === 0 || fileName.includes("/")) return null;
 
   const hash = createHash("md5").update(fileName, "utf8").digest("hex");

@@ -1,6 +1,7 @@
 import type {
   ClubRepository,
   ClubSearchQuery,
+  CrestCredit,
 } from "@/application/ports/club-repository";
 import type { Club } from "@/domain/entities/club";
 import { clubId, type ClubId } from "@/domain/value-objects/identifiers";
@@ -58,6 +59,43 @@ export class PrismaClubRepository implements ClubRepository {
     });
 
     return rows.map(toClub);
+  }
+
+  /**
+   * §7.3, BR-34 — arma atıf künyeleri.
+   *
+   * ÜÇ ALANIN DA DOLU OLMASI ŞART. Eksik künyeli bir arma zaten
+   * gösterilmemeli; onu atıf listesinde de göstermek, eksikliği görünmez
+   * kılmak olurdu. `db:verify` aynı koşulu veri tarafında ölçer.
+   */
+  async listCrestCredits(): Promise<readonly CrestCredit[]> {
+    const rows = await this.#prisma.club.findMany({
+      where: {
+        crestUrl: { not: null },
+        crestLicense: { not: null },
+        crestFilePage: { not: null },
+      },
+      select: {
+        shortName: true,
+        crestLicense: true,
+        crestAuthor: true,
+        crestFilePage: true,
+      },
+      orderBy: { shortName: "asc" },
+    });
+
+    return rows.flatMap((row) =>
+      row.crestLicense === null || row.crestFilePage === null
+        ? []
+        : [
+            {
+              clubName: row.shortName,
+              license: row.crestLicense,
+              author: row.crestAuthor,
+              filePage: row.crestFilePage,
+            },
+          ],
+    );
   }
 }
 

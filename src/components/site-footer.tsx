@@ -42,7 +42,29 @@ export function SiteFooter({ dataGeneratedAt }: SiteFooterProps) {
         >
           Wikidata
         </a>
-        &apos;dan derlenmiştir.
+        &apos;dan ve{" "}
+        <a
+          href="https://tr.wikipedia.org"
+          className="font-medium text-accent underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          rel="noreferrer noopener"
+          target="_blank"
+        >
+          Vikipedi
+        </a>
+        &apos;den derlenmiştir.{" "}
+        {/*
+          ARMA ATFI BURADAN BAĞLANIR (§7.3, BR-34). Armaların bir kısmı
+          CC BY / CC BY-SA lisanslı ve bu lisanslar yazarın anılmasını ŞART
+          koşuyor. Bağlantı her sayfada duruyor çünkü atıf, görselin
+          gösterildiği yerden ulaşılabilir olmalı.
+        */}
+        <a
+          href="/kaynaklar"
+          className="font-medium text-accent underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        >
+          Arma kaynakları ve lisanslar
+        </a>
+        .
       </p>
 
       {dataGeneratedAt !== null && (

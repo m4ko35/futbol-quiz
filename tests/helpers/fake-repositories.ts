@@ -1,6 +1,7 @@
 import type {
   ClubRepository,
   ClubSearchQuery,
+  CrestCredit,
 } from "@/application/ports/club-repository";
 import type {
   CommonPlayersQuery,
@@ -88,6 +89,22 @@ export class FakeClubRepository implements ClubRepository {
       this.#clubs.filter((club) => club.isSelectable && wanted.has(club.id)),
     );
   }
+
+  /**
+   * §7.3 — atıf künyeleri. Fake, künyeyi kulüp nesnesinde taşımadığı için boş
+   * döner; sözleşmenin gerçek veriyle davranışı bütünleşme testinde ölçülüyor.
+   */
+  listCrestCredits(): Promise<readonly CrestCredit[]> {
+    return Promise.resolve(this.#credits);
+  }
+
+  /** Testler künye listesini açıkça verebilir. */
+  withCredits(credits: readonly CrestCredit[]): this {
+    this.#credits = credits;
+    return this;
+  }
+
+  #credits: readonly CrestCredit[] = [];
 }
 
 export class FakePlayerRepository implements PlayerRepository {

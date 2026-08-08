@@ -25,6 +25,7 @@
     "db:studio": "prisma studio",
     "etl": "tsx scripts/etl/index.ts",
     "db:verify": "tsx scripts/etl/verify-data.ts",
+    "db:crests": "tsx scripts/etl/crests.ts",
     "bench": "tsx scripts/benchmark.ts",
     "dataset:fetch": "tsx scripts/fetch-dataset.ts",
     "vercel-build": "npm run dataset:fetch && prisma generate && next build"
