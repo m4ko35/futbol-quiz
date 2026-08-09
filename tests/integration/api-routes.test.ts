@@ -37,11 +37,21 @@ function request(path: string): NextRequest {
 beforeAll(async () => {
   db = createTestDatabase();
 
+  await db.prisma.league.create({
+    data: {
+      id: "lg1",
+      wikidataId: "Q485568",
+      name: "Süper Lig",
+      country: "TR",
+    },
+  });
+
   await db.prisma.club.createMany({
     data: [
       {
         id: CLUB_A,
         wikidataId: "Q495299",
+        leagueId: "lg1",
         name: "Galatasaray Spor Kulübü",
         shortName: "Galatasaray",
         searchKey: toSearchKey("Galatasaray Spor Kulübü"),
@@ -143,6 +153,52 @@ describe("GET /api/clubs — §6.1", () => {
     expect(body.data[0]).not.toHaveProperty("searchKey");
     expect(body.data[0]).not.toHaveProperty("isSelectable");
     expect(body.data[0]).not.toHaveProperty("wikidataId");
+  });
+
+  /**
+   * BR-37 — lig süzgeci SINIRDA doğrulanır.
+   *
+   * BU TESTLER BİR KUSURU YAKALADIKTAN SONRA YAZILDI: şema `/^Qd+$/` diye
+   * inmişti (kaçış karakteri kaybolmuş) ve GEÇERLİ her QID reddediliyordu.
+   * Birim ve bileşen testleri bunu göremezdi — uç noktanın kendi doğrulaması
+   * hiç sınanmıyordu.
+   */
+  it("lig süzgeci yalnızca o ligin kulüplerini döndürür", async () => {
+    const response = await clubsRoute.GET(request("/api/clubs?league=Q485568"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data.map((c: { shortName: string }) => c.shortName)).toEqual([
+      "Galatasaray",
+    ]);
+  });
+
+  it("lig süzgeci ad aramasıyla birlikte çalışır", async () => {
+    const response = await clubsRoute.GET(
+      request("/api/clubs?league=Q485568&q=Arsenal"),
+    );
+    const body = await response.json();
+
+    // Arsenal ada uyuyor ama o ligde değil.
+    expect(body.data).toEqual([]);
+  });
+
+  it("QID biçiminde olmayan lig değeri 400 verir", async () => {
+    const response = await clubsRoute.GET(request("/api/clubs?league=DROP"));
+
+    expect(response.status).toBe(400);
+  });
+
+  it("tanınmayan lig QID'i 200 ve boş liste verir", async () => {
+    // Geçerli biçimde ama karşılığı olmayan bir kimlik bir istemci hatası
+    // DEĞİL: veri kümesi değiştiğinde eski bir bağlantı böyle görünür.
+    const response = await clubsRoute.GET(
+      request("/api/clubs?league=Q999999999"),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data).toEqual([]);
   });
 
   it("seçilemez kulübü aramayla bile döndürmez", async () => {

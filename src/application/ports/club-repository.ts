@@ -21,11 +21,36 @@ export interface ClubSearchQuery {
 
   /** Döndürülecek azami kayıt. Çağıran tarafın kelepçelemesi beklenir (§7.1). */
   readonly limit: number;
+
+  /**
+   * Lig süzgeci — BR-37. `null` ise bütün liglerde aranır.
+   *
+   * DEĞERİ QID'DİR, veritabanı kimliği değil. Kimlikler (`cuid`) her ETL
+   * koşusunda değişir; bir süzgeç değeri adres çubuğuna ya da paylaşılan bir
+   * bağlantıya girebildiği için koşudan koşuya sabit kalmak zorunda (§9.1'in
+   * ızgara havuzunu QID ile sabitlemesiyle aynı gerekçe).
+   *
+   * Tanınmayan QID hata DEĞİL, boş sonuçtur: port'un işi veri getirmek, geçerli
+   * kimlik denetimi yapmak değil (`findByIds` ile aynı sözleşme).
+   */
+  readonly leagueWikidataId: string | null;
 }
 
 export interface ClubRepository {
   /** Yalnızca `isSelectable` kulüpler döner (§5.3). */
   search(query: ClubSearchQuery): Promise<Club[]>;
+
+  /**
+   * Gözatılabilir lig künyeleri — BR-37, §7.14.
+   *
+   * SÖZLEŞME: yalnızca SEÇİLEBİLİR kulübü olan ligler döner ve `clubCount`
+   * yalnızca seçilebilir kulüpleri sayar. Kullanıcı listede başka bir kulüp
+   * göremediği için başka bir sayı göstermek yanlış beklenti kurardı — "41"
+   * yazıp 32 kulüp göstermek, eksikliği veri kusuru gibi okutur.
+   *
+   * Ada göre sıralı döner; liste kullanıcıya olduğu gibi basılır.
+   */
+  listLeagues(): Promise<readonly LeagueSummary[]>;
 
   /**
    * Verilen kimliklere karşılık gelen kulüpler.
@@ -65,4 +90,15 @@ export interface CrestCredit {
   /** Kamu malı dosyalarda yazar anılmak zorunda değil. */
   readonly author: string | null;
   readonly filePage: string;
+}
+
+/** Gözatma listesindeki bir lig (§7.14). */
+export interface LeagueSummary {
+  /** Kararlı kimlik — süzgeç bu değerle çalışır. */
+  readonly wikidataId: string;
+  readonly name: string;
+  /** ISO 3166-1 alpha-2. */
+  readonly country: string;
+  /** Ligdeki SEÇİLEBİLİR kulüp sayısı. */
+  readonly clubCount: number;
 }

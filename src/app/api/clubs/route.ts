@@ -28,6 +28,18 @@ import { ValidationError } from "@/domain/errors/domain-error";
 const querySchema = z.object({
   q: z.string().max(MAX_SEARCH_TERM_LENGTH).optional(),
   limit: z.coerce.number().int().min(1).max(MAX_CLUB_RESULTS).optional(),
+  /**
+   * BR-37 — lig süzgeci, Wikidata QID'i.
+   *
+   * BİÇİM BURADA ZORLANIR. Değer sorguya doğrudan girmiyor (Prisma bağlı
+   * parametre kullanıyor, §7.2) ama serbest bir dize kabul etmek, sınırın
+   * ayrıştırılmamış girdiyi içeri geçirmesi demekti (§2.3). Kalıp aynı
+   * zamanda `assertQid` ile aynı — ETL ve istek yolu aynı biçimi tanır.
+   */
+  league: z
+    .string()
+    .regex(/^Q[0-9]+$/u)
+    .optional(),
 });
 
 export async function GET(request: NextRequest): Promise<Response> {
@@ -47,7 +59,8 @@ export async function GET(request: NextRequest): Promise<Response> {
         // düzeltebileceği kadarını söyleyen sabit bir mesaj döner.
         throw new ValidationError(
           `Geçersiz arama parametresi. "q" en fazla ${MAX_SEARCH_TERM_LENGTH} ` +
-            `karakter, "limit" 1–${MAX_CLUB_RESULTS} aralığında olmalıdır.`,
+            `karakter, "limit" 1–${MAX_CLUB_RESULTS} aralığında, "league" ise ` +
+            `bir Wikidata kimliği (Q…) olmalıdır.`,
         );
       }
 
@@ -57,6 +70,9 @@ export async function GET(request: NextRequest): Promise<Response> {
           ...(parsed.data.limit === undefined
             ? {}
             : { limit: parsed.data.limit }),
+          ...(parsed.data.league === undefined
+            ? {}
+            : { league: parsed.data.league }),
         },
         { clubs: repositories.clubs },
       );

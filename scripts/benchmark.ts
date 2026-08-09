@@ -160,7 +160,7 @@ async function main(): Promise<void> {
     "bay",
   ]) {
     const started = performance.now();
-    await clubs.search({ term, limit: 20 });
+    await clubs.search({ term, limit: 20, leagueWikidataId: null });
     searchTimes.push(performance.now() - started);
   }
   searchTimes.sort((a, b) => a - b);

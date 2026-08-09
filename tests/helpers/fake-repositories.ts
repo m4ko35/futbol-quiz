@@ -2,6 +2,7 @@ import type {
   ClubRepository,
   ClubSearchQuery,
   CrestCredit,
+  LeagueSummary,
 } from "@/application/ports/club-repository";
 import type {
   CommonPlayersQuery,
@@ -60,14 +61,45 @@ export class FakeClubRepository implements ClubRepository {
 
   search(query: ClubSearchQuery): Promise<Club[]> {
     const term = query.term === null ? null : toSearchKey(query.term);
+    const members =
+      query.leagueWikidataId === null
+        ? null
+        : (this.#leagues.get(query.leagueWikidataId) ?? new Set<string>());
 
     const matched = this.#clubs
       .filter((club) => club.isSelectable)
       .filter((club) => term === null || toSearchKey(club.name).includes(term))
+      // BR-37 — tanınmayan lig QID'i hata değil, BOŞ sonuç (port sözleşmesi).
+      .filter((club) => members === null || members.has(club.id))
       .sort((a, b) => a.shortName.localeCompare(b.shortName, "tr"))
       .slice(0, query.limit);
 
     return Promise.resolve(matched);
+  }
+
+  /**
+   * §7.14 — gözatılabilir ligler.
+   *
+   * `clubCount` VERİLEN DEĞİL, TÜRETİLEN bir sayıdır: fake'in sözleşmeyi
+   * ihlal edip "41 kulüp" deyip 3 kulüp döndürmesi mümkün olmamalı. Aynı
+   * sebeple seçilebilir kulübü olmayan lig hiç dönmez.
+   */
+  listLeagues(): Promise<readonly LeagueSummary[]> {
+    const selectable = new Set<string>(
+      this.#clubs.filter((club) => club.isSelectable).map((club) => club.id),
+    );
+
+    return Promise.resolve(
+      this.#leagueInfo
+        .map((league) => ({
+          ...league,
+          clubCount: [...(this.#leagues.get(league.wikidataId) ?? [])].filter(
+            (id) => selectable.has(id),
+          ).length,
+        }))
+        .filter((league) => league.clubCount > 0)
+        .sort((a, b) => a.name.localeCompare(b.name, "tr")),
+    );
   }
 
   findByIds(ids: readonly ClubId[]): Promise<Club[]> {
@@ -104,7 +136,36 @@ export class FakeClubRepository implements ClubRepository {
     return this;
   }
 
+  /**
+   * Testler lig üyeliğini açıkça verebilir — BR-37.
+   *
+   * Domain `Club` varlığı lig taşımaz (dış kaynak kimliği bir domain kavramı
+   * değil, §5.1) ve taşıması için de bir sebep yok: lig yalnızca SEÇİM
+   * yüzeyinin bir kolaylığı. Üyelik bu yüzden fake'in kendi tablosunda durur.
+   */
+  withLeagues(
+    leagues: readonly {
+      readonly wikidataId: string;
+      readonly name: string;
+      readonly country: string;
+      readonly clubIds: readonly string[];
+    }[],
+  ): this {
+    this.#leagueInfo = leagues.map(({ wikidataId, name, country }) => ({
+      wikidataId,
+      name,
+      country,
+      clubCount: 0,
+    }));
+    this.#leagues = new Map(
+      leagues.map((l) => [l.wikidataId, new Set(l.clubIds)]),
+    );
+    return this;
+  }
+
   #credits: readonly CrestCredit[] = [];
+  #leagueInfo: LeagueSummary[] = [];
+  #leagues = new Map<string, Set<string>>();
 }
 
 export class FakePlayerRepository implements PlayerRepository {

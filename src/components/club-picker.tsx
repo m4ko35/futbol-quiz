@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import type { ClubDto } from "@/application/dto/club-dto";
+import type { LeagueSummary } from "@/application/ports/club-repository";
 import { ClubMark } from "./club-mark";
 
 /**
@@ -15,6 +16,16 @@ import { ClubMark } from "./club-mark";
  * ODAK KURALI: klavye odağı HER ZAMAN metin kutusunda kalır; listede gezinme
  * `aria-activedescendant` ile bildirilir. Odağı seçeneklere taşımak ekran
  * okuyucuda yazılan metnin kaybolmasına yol açar.
+ *
+ * İKİ KADEMELİ GÖZAT (BR-37, §7.14). Ad yazarak arama yalnızca kulübün adını
+ * BİLEN kullanıcı için çalışır; "Hollanda'da hangi takımlar var" sorusunun
+ * arama kutusunda karşılığı yok. Bu yüzden kutu boşken lig listesi görünür,
+ * bir lig seçilince o ligin kulüpleri gelir.
+ *
+ * İKİ KADEME TEK LİSTEDİR. Lig satırları da kulüp satırları da aynı
+ * `role="listbox"` içinde `role="option"` olarak durur; ok tuşları,
+ * `aria-activedescendant` ve Enter tek kod yolundan geçer. İki ayrı gezinme
+ * modeli yazmak, ikisinin ayrışması demekti.
  */
 
 export interface ClubPickerProps {
@@ -31,9 +42,28 @@ export interface ClubPickerProps {
    * veri elimizde hazır.
    */
   readonly initialOptions?: readonly ClubDto[];
+  /**
+   * Gözatılabilir ligler — BR-37. Boş verilirse seçici tek kademeli çalışır
+   * (bugünkü davranış), yani özellik veri olmadan kendini kapatır.
+   */
+  readonly leagues?: readonly LeagueSummary[];
   /** Arama fonksiyonu; testlerde sahte bir uygulama verilir. */
-  search(term: string, signal: AbortSignal): Promise<ClubDto[]>;
+  search(
+    term: string,
+    leagueWikidataId: string | null,
+    signal: AbortSignal,
+  ): Promise<ClubDto[]>;
 }
+
+/**
+ * Listede bir satır: ya bir lig ya bir kulüp.
+ *
+ * AYRIK BİRLEŞİM, iki ayrı dizi DEĞİL: gezinme indeksi tek bir liste üzerinde
+ * çalışmalı, yoksa "kaçıncı satırdayım" sorusunun iki farklı cevabı olur.
+ */
+type Row =
+  | { readonly kind: "league"; readonly league: LeagueSummary }
+  | { readonly kind: "club"; readonly club: ClubDto };
 
 /** Tuş vuruşu başına istek atmamak için bekleme süresi. */
 const DEBOUNCE_MS = 200;
@@ -44,6 +74,7 @@ export function ClubPicker({
   onSelect,
   excludeId,
   initialOptions = [],
+  leagues = [],
   search,
 }: ClubPickerProps) {
   const inputId = useId();
@@ -55,11 +86,25 @@ export function ClubPicker({
   const [activeIndex, setActiveIndex] = useState(-1);
   const [isLoading, setIsLoading] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [league, setLeague] = useState<LeagueSummary | null>(null);
+
+  /**
+   * Lig listesi ne zaman gösterilir: KUTU BOŞ ve lig seçilmemişken.
+   *
+   * Kullanıcı yazmaya başlayınca liste kendiliğinden bütün kulüplarda arama
+   * sonucuna döner — yani bugünkü davranış hiç kaybolmuyor, yalnızca boş
+   * kutunun daha önce boşa harcanan hâli değerlendiriliyor.
+   */
+  const showLeagues =
+    league === null && term.trim() === "" && leagues.length > 0;
 
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!isOpen) return;
+    // Lig listesi gösterilirken kulüp isteği atmak boşuna: sonuç ekrana
+    // çıkmayacak. İstek kademe değişince kendiliğinden tetiklenir.
+    if (showLeagues) return;
 
     // Her arama kendi denetleyicisiyle iptal edilir. Aksi hâlde yavaş kalan
     // eski bir yanıt, yeni yanıttan SONRA gelip listeyi geriye alabilir.
@@ -68,7 +113,7 @@ export function ClubPicker({
       setIsLoading(true);
       setFailed(false);
 
-      search(term, controller.signal)
+      search(term, league?.wikidataId ?? null, controller.signal)
         .then((results) => {
           setOptions(results);
           // Yeni sonuç geldiğinde vurgu başa döner. Boş liste durumu
@@ -92,9 +137,26 @@ export function ClubPicker({
       clearTimeout(timer);
       controller.abort();
     };
-  }, [term, isOpen, search]);
+  }, [term, isOpen, league, showLeagues, search]);
 
-  const visible = options.filter((club) => club.id !== excludeId);
+  const clubs = options.filter((club) => club.id !== excludeId);
+
+  const rows: readonly Row[] = showLeagues
+    ? leagues.map((l) => ({ kind: "league" as const, league: l }))
+    : clubs.map((c) => ({ kind: "club" as const, club: c }));
+
+  /**
+   * Liste KESİLDİ Mİ? — BR-37.
+   *
+   * Sessiz kesme bir kusurdur: kullanıcı ligin tamamını gördüğünü sanar ve
+   * aradığı kulübü "veri kümesinde yok" diye okur. Ölçüldü — Serie A'da 83,
+   * Bundesliga'da 59 seçilebilir kulüp var, üst sınır ise 50.
+   *
+   * Yalnızca kutu BOŞKEN gösterilir: kullanıcı yazdığında liste zaten
+   * daralıyor ve "83 kulüpten 3'ü" cümlesi yanıltıcı olurdu.
+   */
+  const truncated =
+    league !== null && term.trim() === "" && options.length < league.clubCount;
 
   /**
    * Gerçekte vurgulanan seçenek — saklanan indeksten TÜRETİLİR.
@@ -112,30 +174,69 @@ export function ClubPicker({
    * kılıyor.
    */
   const highlighted =
-    visible.length === 0
+    rows.length === 0
       ? -1
-      : Math.min(Math.max(activeIndex, 0), visible.length - 1);
+      : Math.min(Math.max(activeIndex, 0), rows.length - 1);
 
   function choose(club: ClubDto): void {
     onSelect(club);
     setTerm("");
     setIsOpen(false);
     setActiveIndex(-1);
+    setLeague(null);
+  }
+
+  /** Kademe 2'ye gir. Liste KAPANMAZ — gezinme sürüyor, seçim bitmedi. */
+  function enterLeague(next: LeagueSummary): void {
+    setLeague(next);
+    setTerm("");
+    setActiveIndex(0);
+  }
+
+  /** Kademe 1'e dön. */
+  function leaveLeague(): void {
+    setLeague(null);
+    setTerm("");
+    setActiveIndex(0);
+  }
+
+  /** Satır ne olursa olsun tek giriş noktası: Enter, tıklama, dokunma. */
+  function activate(row: Row): void {
+    if (row.kind === "league") enterLeague(row.league);
+    else choose(row.club);
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>): void {
+    /**
+     * ESCAPE İKİ ANLAM TAŞIR ve sırası önemlidir: kademe 2'de GERİ, kademe
+     * 1'de KAPAT. Tek tuşla doğrudan kapanmak, ligin içine girmiş kullanıcıyı
+     * tek yanlış tuşta en başa atardı; kademeli geri alma, gezinmenin tersine
+     * çevrilebilir olmasıdır (§7.14).
+     */
     if (event.key === "Escape") {
+      if (league !== null) {
+        leaveLeague();
+        return;
+      }
       setIsOpen(false);
       setActiveIndex(-1);
       return;
     }
 
+    // Boş kutuda geri silmek de kademe 1'e döner: kullanıcı ligin adını
+    // silerek çıkmayı dener ve silinecek bir şey kalmadığında bunu bekler.
+    if (event.key === "Backspace" && term === "" && league !== null) {
+      event.preventDefault();
+      leaveLeague();
+      return;
+    }
+
     if (event.key === "Enter") {
-      const active = visible[highlighted];
+      const active = rows[highlighted];
       if (isOpen && active !== undefined) {
-        // Form gönderimini engelle: Enter burada "seç" demek.
+        // Form gönderimini engelle: Enter burada "seç" ya da "lige gir" demek.
         event.preventDefault();
-        choose(active);
+        activate(active);
       }
       return;
     }
@@ -147,9 +248,9 @@ export function ClubPicker({
       setIsOpen(true);
       return;
     }
-    if (visible.length === 0) return;
+    if (rows.length === 0) return;
 
-    const last = visible.length - 1;
+    const last = rows.length - 1;
     if (event.key === "Home") setActiveIndex(0);
     else if (event.key === "End") setActiveIndex(last);
     else if (event.key === "ArrowDown") {
@@ -207,13 +308,39 @@ export function ClubPicker({
           {isOpen && (
             <div className="absolute z-20 mt-1.5 max-h-72 w-full overflow-auto rounded-xl border border-line bg-surface p-1 shadow-pop">
               {/*
+                KADEME 2 BAŞLIĞI. Kullanıcı hangi ligin içinde olduğunu
+                görmeli; "geri" için de tıklanabilir bir hedef gerekiyor.
+                `tabIndex={-1}` ve `onMouseDown`: odak kuralı gereği düğme
+                odağı arama kutusundan ALMAZ (§7.14).
+              */}
+              {league !== null && (
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold hover:bg-accent-soft"
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    leaveLeague();
+                  }}
+                >
+                  <span aria-hidden="true" className="text-muted">
+                    ‹
+                  </span>
+                  <span className="truncate">{league.name}</span>
+                  <span className="ml-auto text-xs font-normal text-muted">
+                    tüm ligler
+                  </span>
+                </button>
+              )}
+
+              {/*
                 DURUM METNİ LİSTENİN DIŞINDA.
                 `role="listbox"` yalnızca `option` çocuğu barındırabilir
                 (WAI-ARIA "required owned elements"). "Sonuç yok" bir seçenek
                 değildir; listenin içine konduğunda `aria-required-children`
                 ihlali oluşur ve ekran okuyucu boş listede gezinmeye çalışır.
               */}
-              {visible.length === 0 && (
+              {rows.length === 0 && (
                 <p className="px-3 py-2.5 text-sm text-muted">
                   {isLoading
                     ? "Aranıyor…"
@@ -226,11 +353,21 @@ export function ClubPicker({
               <ul
                 id={listboxId}
                 role="listbox"
-                aria-label={`${label} sonuçları`}
+                aria-label={
+                  showLeagues
+                    ? `${label}: lig listesi`
+                    : league === null
+                      ? `${label} sonuçları`
+                      : `${label}: ${league.name} kulüpleri`
+                }
               >
-                {visible.map((club, index) => (
+                {rows.map((row, index) => (
                   <li
-                    key={club.id}
+                    key={
+                      row.kind === "league"
+                        ? row.league.wikidataId
+                        : row.club.id
+                    }
                     id={`${listboxId}-${String(index)}`}
                     role="option"
                     aria-selected={index === highlighted}
@@ -241,22 +378,50 @@ export function ClubPicker({
                     // blur olayından sonra gelir ve o sırada liste kapanmış olur.
                     onMouseDown={(event) => {
                       event.preventDefault();
-                      choose(club);
+                      activate(row);
                     }}
                     onMouseEnter={() => {
                       setActiveIndex(index);
                     }}
                   >
-                    <span className="flex items-center gap-2">
-                      <ClubMark club={club} />
-                      <span className="font-medium">{club.shortName}</span>
-                      {club.country !== null && (
-                        <span className="text-muted">{club.country}</span>
-                      )}
-                    </span>
+                    {row.kind === "league" ? (
+                      <span className="flex items-center gap-2">
+                        <span className="font-medium">{row.league.name}</span>
+                        <span className="text-muted">{row.league.country}</span>
+                        <span className="ml-auto tabular-nums text-muted">
+                          {row.league.clubCount}
+                        </span>
+                        <span aria-hidden="true" className="text-muted">
+                          ›
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <ClubMark club={row.club} />
+                        <span className="font-medium">
+                          {row.club.shortName}
+                        </span>
+                        {row.club.country !== null && (
+                          <span className="text-muted">{row.club.country}</span>
+                        )}
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>
+
+              {/*
+                KESME SESSİZ OLAMAZ (BR-37). Üst sınır bir kaynak koruması,
+                bu satır bir dürüstlük koşulu — ikisi çelişmiyor. Söylenmezse
+                kullanıcı ligin tamamını gördüğünü sanar ve aradığı kulübü
+                "veri kümesinde yok" diye okur.
+              */}
+              {truncated && league !== null && (
+                <p className="border-t border-line px-3 py-2 text-xs text-muted">
+                  {league.clubCount} kulüpten {options.length} tanesi
+                  gösteriliyor — daraltmak için yazın.
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -283,10 +448,22 @@ export function ClubPicker({
         </div>
       )}
 
-      {/* Ekran okuyucuya durum bildirimi. `polite`: kullanıcının yazmasını
-          kesmeden, uygun bir anda okunur. */}
+      {/*
+        Ekran okuyucuya durum bildirimi. `polite`: kullanıcının yazmasını
+        kesmeden, uygun bir anda okunur.
+
+        KADEME DE DUYURULUR (§7.14). Liste kulüplerden liglere döndüğünde
+        görsel olarak apaçık ama ekran okuyucu için SESSİZ bir olaydır;
+        yalnızca sayı okunsaydı kullanıcı neyin arasında gezindiğini bilemezdi.
+      */}
       <span aria-live="polite" className="sr-only">
-        {isOpen && !isLoading ? `${String(visible.length)} kulüp bulundu` : ""}
+        {!isOpen || isLoading
+          ? ""
+          : showLeagues
+            ? `${String(rows.length)} lig listeleniyor`
+            : league === null
+              ? `${String(rows.length)} kulüp bulundu`
+              : `${league.name}: ${String(rows.length)} kulüp`}
       </span>
     </div>
   );

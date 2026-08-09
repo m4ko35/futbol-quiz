@@ -1,4 +1,4 @@
-import { searchClubs } from "@/application/use-cases/search-clubs";
+import { listLeagues, searchClubs } from "@/application/use-cases/search-clubs";
 import { CommonPlayersQuiz } from "@/components/common-players-quiz";
 import { SiteFooter } from "@/components/site-footer";
 import { datasets, repositories } from "@/infrastructure/db/repositories";
@@ -13,11 +13,15 @@ import { datasets, repositories } from "@/infrastructure/db/repositories";
  */
 export default async function Home() {
   // İkisi birbirinden bağımsız; sırayla beklemek boşuna gecikme olurdu.
-  const [initialClubs, dataGeneratedAt, selectableClubs] = await Promise.all([
-    searchClubs({}, { clubs: repositories.clubs }),
-    datasets.getGeneratedAt(),
-    datasets.countSelectableClubs(),
-  ]);
+  const [initialClubs, dataGeneratedAt, selectableClubs, leagues] =
+    await Promise.all([
+      searchClubs({}, { clubs: repositories.clubs }),
+      datasets.getGeneratedAt(),
+      datasets.countSelectableClubs(),
+      // BR-37 — lig listesi sunucuda hazırlanır; ayrı bir API ucu açmak yeni
+      // bir hız sınırı yüzeyi ve ilk açılışta fazladan bir istek demekti (§6.1).
+      listLeagues({ clubs: repositories.clubs }),
+    ]);
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 px-5 py-10 sm:px-6 sm:py-14">
@@ -52,7 +56,7 @@ export default async function Home() {
         </p>
       </header>
 
-      <CommonPlayersQuiz initialClubs={initialClubs} />
+      <CommonPlayersQuiz initialClubs={initialClubs} leagues={leagues} />
 
       <SiteFooter dataGeneratedAt={dataGeneratedAt} />
     </main>

@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_CLUB_RESULTS,
   MAX_CLUB_RESULTS,
+  listLeagues,
   searchClubs,
 } from "@/application/use-cases/search-clubs";
+import { clubId } from "@/domain/value-objects/identifiers";
 import { aClub } from "../../helpers/builders";
 import { FakeClubRepository } from "../../helpers/fake-repositories";
 
@@ -125,6 +127,70 @@ describe("searchClubs use-case", () => {
       "id",
       "name",
       "shortName",
+    ]);
+  });
+});
+
+/**
+ * BR-37 — lig süzgeci.
+ *
+ * Use-case'in işi ORKESTRASYON: süzgeci port'a olduğu gibi geçirmek ve boş
+ * değeri `null`'a indirgemek. Süzme kuralı port'ta, biçim doğrulaması ise
+ * sınırdaki Zod şemasında — üçü ayrı yerde durduğu için burada yalnızca
+ * geçişin doğruluğu ölçülüyor.
+ */
+describe("searchClubs — lig süzgeci", () => {
+  const superLig = {
+    wikidataId: "Q485568",
+    name: "Süper Lig",
+    country: "TR",
+    clubIds: ["gs", "bjk"],
+  };
+
+  function repo() {
+    return new FakeClubRepository([
+      aClub({ id: clubId("gs"), shortName: "Galatasaray" }),
+      aClub({ id: clubId("bjk"), shortName: "Beşiktaş" }),
+      aClub({ id: clubId("ars"), shortName: "Arsenal" }),
+    ]).withLeagues([superLig]);
+  }
+
+  it("lig verilince yalnızca o ligin kulüpleri döner", async () => {
+    const result = await searchClubs({ league: "Q485568" }, { clubs: repo() });
+
+    expect(result.map((c) => c.shortName)).toEqual(["Beşiktaş", "Galatasaray"]);
+  });
+
+  it("lig verilmezse bütün kulüpler döner — bugünkü davranış korunur", async () => {
+    const result = await searchClubs({}, { clubs: repo() });
+
+    expect(result.map((c) => c.shortName)).toContain("Arsenal");
+  });
+
+  it("boş dize `null` sayılır, 'hiçbir ligle eşleşmeyen süzgeç' değil", async () => {
+    // `term` ile aynı ayrım: boş dize tesadüfen doğru davranan bir değerdir
+    // ve tesadüfen doğru olan davranış ilk değişiklikte bozulur.
+    const result = await searchClubs({ league: "   " }, { clubs: repo() });
+
+    expect(result.map((c) => c.shortName)).toContain("Arsenal");
+  });
+
+  it("tanınmayan lig boş liste verir, hata FIRLATMAZ", async () => {
+    const result = await searchClubs({ league: "Q999999" }, { clubs: repo() });
+
+    expect(result).toEqual([]);
+  });
+
+  it("listLeagues kulüp sayısını TÜRETİR, verilen sayıya güvenmez", async () => {
+    const result = await listLeagues({ clubs: repo() });
+
+    expect(result).toEqual([
+      {
+        wikidataId: "Q485568",
+        name: "Süper Lig",
+        country: "TR",
+        clubCount: 2,
+      },
     ]);
   });
 });

@@ -317,13 +317,21 @@ describe("PrismaPlayerRepository — port sözleşmesi", () => {
 
 describe("PrismaClubRepository", () => {
   it("yalnızca seçilebilir kulüpleri döndürür", async () => {
-    const result = await clubs.search({ term: null, limit: 50 });
+    const result = await clubs.search({
+      term: null,
+      limit: 50,
+      leagueWikidataId: null,
+    });
 
     expect(result.map((c) => c.shortName)).not.toContain("Lillois");
   });
 
   it("seçilemez kulüp aranarak da bulunamaz", async () => {
-    const result = await clubs.search({ term: "Lillois", limit: 50 });
+    const result = await clubs.search({
+      term: "Lillois",
+      limit: 50,
+      leagueWikidataId: null,
+    });
 
     expect(result).toEqual([]);
   });
@@ -331,19 +339,31 @@ describe("PrismaClubRepository", () => {
   it("Türkçe karakterli aramayı aksansız anahtar üzerinden çözer", async () => {
     // Veritabanındaki anahtar "besiktas jk"; kullanıcı "Beşiktaş" yazıyor.
     // Normalizasyon iki tarafta da aynı olmasa bu arama boş dönerdi.
-    const result = await clubs.search({ term: "Beşiktaş", limit: 10 });
+    const result = await clubs.search({
+      term: "Beşiktaş",
+      limit: 10,
+      leagueWikidataId: null,
+    });
 
     expect(result.map((c) => c.shortName)).toEqual(["Beşiktaş"]);
   });
 
   it("aksansız yazımla da bulur", async () => {
-    const result = await clubs.search({ term: "besiktas", limit: 10 });
+    const result = await clubs.search({
+      term: "besiktas",
+      limit: 10,
+      leagueWikidataId: null,
+    });
 
     expect(result.map((c) => c.shortName)).toEqual(["Beşiktaş"]);
   });
 
   it("limit'e uyar", async () => {
-    const result = await clubs.search({ term: null, limit: 2 });
+    const result = await clubs.search({
+      term: null,
+      limit: 2,
+      leagueWikidataId: null,
+    });
 
     expect(result).toHaveLength(2);
   });
@@ -356,6 +376,81 @@ describe("PrismaClubRepository", () => {
 
   it("findByIds boş girdi için veritabanına gitmeden boş döner", async () => {
     expect(await clubs.findByIds([])).toEqual([]);
+  });
+
+  // ── BR-37: lig süzgeci ve gözatma ────────────────────────────────────
+  //
+  // Sözleşmenin GERÇEK veritabanında da geçerli olduğu burada ölçülür;
+  // fake ile birim testi aynı kuralı bellek içinde denetliyor.
+
+  it("lig süzgeci yalnızca o ligin kulüplerini döndürür", async () => {
+    const result = await clubs.search({
+      term: null,
+      limit: 50,
+      leagueWikidataId: "Q485568",
+    });
+
+    // Tohumda yalnızca Galatasaray Süper Lig'e bağlı; Arsenal ve Beşiktaş
+    // ligsiz. Süzgeç onları ELEMELİ.
+    expect(result.map((c) => c.shortName)).toEqual(["Galatasaray"]);
+  });
+
+  it("lig süzgeci ad aramasıyla BİRLİKTE çalışır", async () => {
+    const result = await clubs.search({
+      term: "besiktas",
+      limit: 50,
+      leagueWikidataId: "Q485568",
+    });
+
+    // Beşiktaş ada uyuyor ama o ligde değil: iki koşul VE ile birleşmeli.
+    expect(result).toEqual([]);
+  });
+
+  it("tanınmayan lig QID'i hata değil, BOŞ sonuçtur", async () => {
+    // Port sözleşmesi (`findByIds` ile aynı): geçerli kimlik denetimi
+    // port'un işi değil. Hata fırlatmak, sınırdaki Zod doğrulamasıyla
+    // ikinci bir kural yeri açardı.
+    const result = await clubs.search({
+      term: null,
+      limit: 50,
+      leagueWikidataId: "Q999999999",
+    });
+
+    expect(result).toEqual([]);
+  });
+
+  it("listLeagues seçilebilir kulüp sayısını verir", async () => {
+    const result = await clubs.listLeagues();
+
+    expect(result).toEqual([
+      {
+        wikidataId: "Q485568",
+        name: "Süper Lig",
+        country: "TR",
+        clubCount: 1,
+      },
+    ]);
+  });
+
+  it("seçilebilir kulübü OLMAYAN lig listelenmez", async () => {
+    // Tıklandığında boş liste veren bir satır, kullanıcıya veri kusuru gibi
+    // görünür. Ligin kulübü var ama seçilemez — yine de gösterilmemeli.
+    await db.prisma.league.create({
+      data: {
+        id: "lgBos",
+        wikidataId: "Q7654321",
+        name: "Boş Lig",
+        country: "FR",
+      },
+    });
+    await db.prisma.club.update({
+      where: { id: "clubEski" },
+      data: { leagueId: "lgBos" },
+    });
+
+    const result = await clubs.listLeagues();
+
+    expect(result.map((l) => l.wikidataId)).not.toContain("Q7654321");
   });
 });
 

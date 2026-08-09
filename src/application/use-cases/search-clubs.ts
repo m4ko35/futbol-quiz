@@ -1,5 +1,5 @@
 import { toClubDto, type ClubDto } from "../dto/club-dto";
-import type { ClubRepository } from "../ports/club-repository";
+import type { ClubRepository, LeagueSummary } from "../ports/club-repository";
 
 /**
  * Kulüp arama / otomatik tamamlama — PROJECT.md §6.1.
@@ -15,6 +15,8 @@ export const MAX_SEARCH_TERM_LENGTH = 50;
 export interface SearchClubsInput {
   readonly term?: string;
   readonly limit?: number;
+  /** BR-37 — lig QID'i. Verilmezse bütün liglerde aranır. */
+  readonly league?: string;
 }
 
 export interface SearchClubsDeps {
@@ -28,9 +30,36 @@ export async function searchClubs(
   const clubs = await deps.clubs.search({
     term: normalizeTerm(input.term),
     limit: clampLimit(input.limit),
+    leagueWikidataId: normalizeLeague(input.league),
   });
 
   return clubs.map(toClubDto);
+}
+
+/**
+ * Gözatılabilir ligler — BR-37.
+ *
+ * Use-case'ten geçiyor, port'tan doğrudan okunmuyor: sayfa da API de aynı
+ * listeyi almalı ve "hangi ligler gösterilir" kararı tek yerde durmalı.
+ */
+export async function listLeagues(
+  deps: SearchClubsDeps,
+): Promise<readonly LeagueSummary[]> {
+  return deps.clubs.listLeagues();
+}
+
+/**
+ * Lig süzgecini normalleştirir; BİÇİMİ BURADA DENETLENMEZ.
+ *
+ * Sınırdaki Zod şeması QID biçimini zaten doğruluyor (§2.3) ve tanınmayan bir
+ * QID port sözleşmesi gereği boş sonuç veriyor. Burada ikinci bir doğrulama
+ * yazmak, iki yerde ayrışabilecek bir kural üretirdi.
+ */
+function normalizeLeague(league: string | undefined): string | null {
+  if (league === undefined) return null;
+
+  const trimmed = league.trim();
+  return trimmed.length === 0 ? null : trimmed;
 }
 
 /**

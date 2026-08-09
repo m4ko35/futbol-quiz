@@ -1233,6 +1233,7 @@ Bunlar `domain/services/` içinde saf fonksiyon olarak yaşar ve birim testi ile
 - **BR-34 — Atıf gerektiren arma, atıf verisi OLMADAN gösterilmez.** CC BY / CC BY-SA dosyalarında yazar, lisans adı ve dosya sayfası birlikte saklanır; üçünden biri eksikse arma `null` sayılır. Eksik atıfla göstermek, lisansın koşulunu çiğnemek demektir; `db:verify` bunu ölçer (§8.2).
 - **BR-35 — Her kulüp bir işaret taşır; hiçbir yuva boş kalmaz.** Kulüp adının yanındaki işaret sabit ölçüdedir ve iki içerikten birini taşır: lisanslı arma varsa arma, yoksa kulüp adından türetilen baş harfler. "Bazı kulüpte arma, bazısında boşluk" durumu yasaktır — armanın kapsamı %43,7 olduğu için bu, listelerin yarısının delik görünmesi demekti. Baş harfler bir VERİ DEĞİL, addan türetilir; ek bir kaynak, ETL adımı veya lisans yüzeyi getirmez (§7.13).
 - **BR-36 — Dejenere kulüp çifti işaretlenir, birleştirilmez.** Ortak oyuncu sayısı, iki kulübün küçüğünün altyapı dışı tekil oyuncu sayısının **%75'ine** ulaşırsa sonuç _dejenere_ sayılır: liste bir keşif değil, küçük kulübün kadro dökümüdür. Sonuç **değişmez** — hiçbir kayıt gizlenmez, silinmez, birleştirilmez — yalnızca ölçülen olgu kullanıcıya bildirilir. Bildirimde kimlik iddiası **yasaktır** ("aynı kulüp" denmez): tetiklenen yedi çiftin ikisi gerçekten ayrı kulüptür (§5.3). Eşik ölçülen boş banda konmuştur (%69,4 ile %76,8 arasında hiçbir çift yok) ve kural yalnızca ortak oyuncu modunu kapsar; ızgarada zorluğu BR-9 yönetir.
+- **BR-37 — Kulüp seçimi ada YAZMAKLA sınırlı değildir; lige göre gözatılabilir.** Seçici iki kademelidir: arama kutusu boşken 24 ligin listesi (kulüp sayılarıyla), bir lig seçilince o ligin kulüpleri. Yazmak kademe 1'de bütün kulüplarda, kademe 2'de ligin içinde arar — yani ad araması hiçbir kademede kaybolmaz. Süzgeç değeri lig **QID'idir**, veritabanı kimliği değil: kimlikler her ETL koşusunda değişir, QID değişmez (§9.1 ile aynı gerekçe). Liste `MAX_CLUB_RESULTS` sınırında kesilirse kesildiği AÇIKÇA yazılır ("83 kulüpten 50'si gösteriliyor"); sessiz kesme, kullanıcıya eksik listeyi tam liste diye gösterir ve aradığı kulübü "veri kümesinde yok" sanmasına yol açar (§7.14).
 - **BR-8 — Kanıt düzeyi.** Bir `Spell`, `startYear`, `endYear`, `appearances` ve `goals` alanlarının **dördü de** boşsa **kanıtsızdır**; en az biri doluysa kanıtlıdır. Kanıtsız dönemler BR-1 kapsamında **sayılır** (elenmez), fakat API yanıtında ve arayüzde açıkça işaretlenir. Gerekçe ve ölçüm §1.4'tedir; özeti: eleme, uydurma kayıtlarla birlikte doğru kayıtları da siliyor ve Wikidata ikisini ayıracak bir sinyal taşımıyor. BR-5'in sıralaması bu dönemleri kendiliğinden en sona koyar (ne maç sayısı ne yıl bilgisi vardır), dolayısıyla ayrı bir sıralama kuralı gerekmez.
 
 ---
@@ -1245,10 +1246,11 @@ Tüm uçlar `Content-Type: application/json` döner. Hata gövdesi tek biçimlid
 
 Kulüp arama / otomatik tamamlama.
 
-| Parametre | Tip    | Zorunlu | Kural                   |
-| --------- | ------ | ------- | ----------------------- |
-| `q`       | string | hayır   | 1–50 karakter, kırpılır |
-| `limit`   | int    | hayır   | 1–50, varsayılan 20     |
+| Parametre | Tip    | Zorunlu | Kural                                            |
+| --------- | ------ | ------- | ------------------------------------------------ |
+| `q`       | string | hayır   | 1–50 karakter, kırpılır                          |
+| `limit`   | int    | hayır   | 1–50, varsayılan 20                              |
+| `league`  | string | hayır   | Lig QID'i (`^Q\d+$`); yalnızca o ligin kulüpleri |
 
 ```jsonc
 // 200 OK
@@ -1264,6 +1266,12 @@ Kulüp arama / otomatik tamamlama.
   ],
 }
 ```
+
+**`league` neden QID, veritabanı kimliği değil.** Kulüp kimlikleri (`cuid`) her ETL koşusunda değişir; §9.1'de ızgara havuzunun QID ile sabitlenmesinin sebebi de budur. Bir süzgeç değeri adres çubuğuna, yer imine ya da paylaşılan bir bağlantıya girebildiği için **koşudan koşuya sabit kalmak zorundadır**. `q` ve `limit` gibi geçici parametrelerden farkı bu.
+
+**Lig listesinin kendisi bu uçtan GELMEZ.** Sayfa sunucuda render ediliyor ve 24 liglik künye orada zaten elde (§6.1'in tüketicisi `page.tsx`, kendi API'sine HTTP atmıyor). Ayrı bir `/api/leagues` ucu açmak; yeni bir hız sınırı yüzeyi, yeni bir doğrulama şeması ve ilk açılışta fazladan bir gidiş-dönüş demekti. Liste bileşene **özellik olarak** geçirilir.
+
+Lig künyesi kulüp sayısını da taşır (`clubCount`) ve bu sayı **seçilebilir** kulüpleri sayar — kullanıcı listede yalnızca onları görebildiği için başka bir sayı göstermek yanlış beklenti kurardı.
 
 ### 6.2 `GET /api/common-players`
 
@@ -2027,6 +2035,30 @@ Sivasspor   (TR) → Sİ      AC Milan  (IT) → MI
 `İstanbulspor`'un ilk harfi kaynakta zaten `İ` olduğu için tek başına sorun çıkarmıyordu; kural asıl **tek sözcüklü adların ikinci harfinde** iş görüyor.
 
 İşaret `aria-hidden`: yanındaki kulüp adının görsel tekrarıdır, yeni bilgi taşımaz (WCAG 1.1.1, arma ile aynı gerekçe).
+
+### 7.14 Kulüp Seçici: iki kademeli gözat (BR-37)
+
+Ad yazarak arama 906 kulübün adını **bilen** kullanıcı için çalışır. Bilmeyen için çalışmaz: "Hollanda'da hangi takımlar var" sorusunun arama kutusunda karşılığı yok. Seçici bu yüzden iki kademelidir.
+
+**Kademe 1 — arama kutusu boşken lig listesi.** 24 lig, kulüp sayılarıyla. Kullanıcı yazmaya başladığında liste kendiliğinden **bütün kulüplarda arama** sonucuna döner; yani bugünkü davranış aynen korunur ve lig listesi yalnızca boş kutuda görünür.
+
+**Kademe 2 — bir lig seçilince o ligin kulüpleri.** Yazmak artık **ligin içinde** arar. Geri dönüş `Escape` ile ya da başlıktaki "‹" ile olur.
+
+**`Escape` iki anlam taşır ve sırası önemlidir:** kademe 2'de **geri**, kademe 1'de **kapat**. Tek tuşla doğrudan kapanmak, ligin içine girmiş kullanıcıyı tek yanlış tuşta en başa atardı; kademeli geri alma, gezinmenin tersine çevrilebilir olmasıdır.
+
+**ODAK KURALI DEĞİŞMEDİ (§7.13 ile aynı gerekçe).** Klavye odağı her iki kademede de metin kutusunda kalır; hem lig hem kulüp listesi `role="listbox"` + `role="option"` olduğu için `aria-activedescendant` ve ok tuşları tek bir kodla iki kademede de çalışır. Geri düğmesi `tabIndex={-1}` taşır ve `onMouseDown` ile çalışır — odağı kutudan almaz.
+
+**Kademe değişimi DUYURULUR.** Görsel olarak liste değişiyor ama ekran okuyucu için bu sessiz bir olaydır; `aria-live="polite"` bir durum satırı hangi kademede olunduğunu ve kaç sonuç bulunduğunu söyler.
+
+#### Kesme SESSİZ olamaz
+
+Üst sınır `MAX_CLUB_RESULTS = 50` (§7.1) ve **bu sınır lig süzgecinde de korunur**. Ama ölçüldü: Serie A'da 83, Bundesliga'da 59, La Liga'da 58 seçilebilir kulüp var. Yani büyük liglerde liste **kesilir**.
+
+Kesildiğini söylememek bir kusur olurdu: kullanıcı ligin tamamını gördüğünü sanır ve aradığı kulübü "veri kümesinde yok" diye okur — §1.3'ün kapsam uyarısıyla aynı hata sınıfı. Liste kesildiğinde sayı açıkça yazılır:
+
+> _83 kulüpten 50'si gösteriliyor — daraltmak için yazın._
+
+Sınırı yükseltmek yerine bunun seçilmesi bilinçlidir: sınır bir kaynak koruması, kesme bildirimi ise bir dürüstlük koşuludur; ikisi çelişmiyor.
 
 ---
 

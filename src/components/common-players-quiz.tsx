@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ClubDto } from "@/application/dto/club-dto";
 import type { CommonPlayersResultDto } from "@/application/dto/common-players-dto";
+import type { LeagueSummary } from "@/application/ports/club-repository";
+import { MAX_CLUB_RESULTS } from "@/application/use-cases/search-clubs";
 import { ClubPicker } from "./club-picker";
 import { CommonPlayersResult } from "./common-players-result";
 
@@ -43,6 +45,8 @@ const LOADING: FetchState = { status: "loading" };
 
 export interface CommonPlayersQuizProps {
   readonly initialClubs: readonly ClubDto[];
+  /** BR-37 — gözatılabilir ligler; sunucuda hazırlanır (§6.1). */
+  readonly leagues: readonly LeagueSummary[];
 }
 
 /** API hata gövdesinden kullanıcıya gösterilebilir mesajı çıkarır (§6.3). */
@@ -64,7 +68,10 @@ async function readErrorMessage(response: Response): Promise<string> {
   return "Sonuçlar alınamadı. Lütfen tekrar deneyin.";
 }
 
-export function CommonPlayersQuiz({ initialClubs }: CommonPlayersQuizProps) {
+export function CommonPlayersQuiz({
+  initialClubs,
+  leagues,
+}: CommonPlayersQuizProps) {
   const [clubA, setClubA] = useState<ClubDto | null>(null);
   const [clubB, setClubB] = useState<ClubDto | null>(null);
   const [completed, setCompleted] = useState<CompletedRequest | null>(null);
@@ -81,8 +88,27 @@ export function CommonPlayersQuiz({ initialClubs }: CommonPlayersQuizProps) {
         : LOADING;
 
   const searchClubs = useCallback(
-    async (term: string, signal: AbortSignal): Promise<ClubDto[]> => {
-      const query = term.trim() === "" ? "" : `?q=${encodeURIComponent(term)}`;
+    async (
+      term: string,
+      leagueWikidataId: string | null,
+      signal: AbortSignal,
+    ): Promise<ClubDto[]> => {
+      const params = new URLSearchParams();
+      if (term.trim() !== "") params.set("q", term);
+      if (leagueWikidataId !== null) {
+        params.set("league", leagueWikidataId);
+        /**
+         * Lig gözatılırken izin verilen EN YÜKSEK sayı istenir — BR-37.
+         *
+         * Üst sınır (50) DEĞİŞMİYOR; değişen, varsayılanın (20) bu bağlamda
+         * yanlış olması: kullanıcı "Serie A"ya tıklayınca ligi görmek ister,
+         * ligin dörtte birini değil. Sorgu tek lige daraldığı için maliyet de
+         * genel aramadan düşük.
+         */
+        params.set("limit", String(MAX_CLUB_RESULTS));
+      }
+
+      const query = params.size === 0 ? "" : `?${params.toString()}`;
       const response = await fetch(`/api/clubs${query}`, { signal });
 
       if (!response.ok) throw new Error(await readErrorMessage(response));
@@ -152,6 +178,7 @@ export function CommonPlayersQuiz({ initialClubs }: CommonPlayersQuizProps) {
           onSelect={setClubA}
           excludeId={clubB?.id}
           initialOptions={initialClubs}
+          leagues={leagues}
           search={searchClubs}
         />
         <span
@@ -166,6 +193,7 @@ export function CommonPlayersQuiz({ initialClubs }: CommonPlayersQuizProps) {
           onSelect={setClubB}
           excludeId={clubA?.id}
           initialOptions={initialClubs}
+          leagues={leagues}
           search={searchClubs}
         />
       </div>

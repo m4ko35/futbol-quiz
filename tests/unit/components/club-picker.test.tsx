@@ -202,7 +202,8 @@ describe("ClubPicker — arama ve durumlar", () => {
     await user.type(screen.getByRole("combobox"), "gala");
 
     await waitFor(() => {
-      expect(search).toHaveBeenCalledWith("gala", expect.anything());
+      // İkinci argüman lig süzgeci (BR-37); lig seçili değilken null.
+      expect(search).toHaveBeenCalledWith("gala", null, expect.anything());
     });
   });
 
@@ -276,5 +277,180 @@ describe("ClubPicker — arama ve durumlar", () => {
     await user.click(within(listbox).getByText("Galatasaray"));
 
     expect(onSelect).toHaveBeenCalledWith(CLUBS[2]);
+  });
+});
+
+/**
+ * BR-37 / §7.14 — iki kademeli gözat.
+ *
+ * Ad yazarak arama yalnızca kulübün adını BİLEN kullanıcı için çalışır.
+ * Bu testler, gözatmanın ad aramasını KAYBETMEDEN eklendiğini kilitliyor.
+ */
+describe("ClubPicker — lige göre gözat", () => {
+  const LEAGUES = [
+    { wikidataId: "Q485568", name: "Süper Lig", country: "TR", clubCount: 41 },
+    {
+      wikidataId: "Q9448",
+      name: "Premier League",
+      country: "GB",
+      clubCount: 51,
+    },
+    { wikidataId: "Q15804", name: "Serie A", country: "IT", clubCount: 83 },
+  ];
+
+  function setupLeagues(
+    overrides: Partial<Parameters<typeof ClubPicker>[0]> = {},
+  ) {
+    const onSelect = vi.fn();
+    const search = vi.fn().mockResolvedValue(CLUBS);
+    render(
+      <ClubPicker
+        label="Birinci kulüp"
+        selected={null}
+        onSelect={onSelect}
+        initialOptions={CLUBS}
+        leagues={LEAGUES}
+        search={search}
+        {...overrides}
+      />,
+    );
+    return { onSelect, search, user: userEvent.setup() };
+  }
+
+  it("boş kutuda lig listesini gösterir", async () => {
+    const { user } = setupLeagues();
+    await user.click(screen.getByRole("combobox"));
+
+    const list = screen.getByRole("listbox");
+    expect(within(list).getByText("Süper Lig")).toBeInTheDocument();
+    expect(within(list).getByText("Serie A")).toBeInTheDocument();
+    // Kulüp sayısı listede görünür — kullanıcı ne kadar büyük olduğunu bilir.
+    expect(within(list).getByText("83")).toBeInTheDocument();
+  });
+
+  it("YAZINCA ad araması geri gelir — özellik eskisini yemez", async () => {
+    const { user, search } = setupLeagues();
+    await user.click(screen.getByRole("combobox"));
+    await user.type(screen.getByRole("combobox"), "gala");
+
+    await waitFor(() => {
+      expect(search).toHaveBeenCalledWith("gala", null, expect.anything());
+    });
+    const list = screen.getByRole("listbox");
+    expect(within(list).getByText("Galatasaray")).toBeInTheDocument();
+    expect(within(list).queryByText("Süper Lig")).not.toBeInTheDocument();
+  });
+
+  it("lige tıklayınca o ligin kulüpleri istenir, liste KAPANMAZ", async () => {
+    const { user, search, onSelect } = setupLeagues();
+    await user.click(screen.getByRole("combobox"));
+    await user.click(screen.getByText("Süper Lig"));
+
+    await waitFor(() => {
+      expect(search).toHaveBeenCalledWith("", "Q485568", expect.anything());
+    });
+    // Lig seçmek bir KULÜP seçimi değildir.
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+  });
+
+  it("kademe 2'de yazmak ligin İÇİNDE arar", async () => {
+    const { user, search } = setupLeagues();
+    await user.click(screen.getByRole("combobox"));
+    await user.click(screen.getByText("Süper Lig"));
+    await user.type(screen.getByRole("combobox"), "bes");
+
+    await waitFor(() => {
+      expect(search).toHaveBeenCalledWith("bes", "Q485568", expect.anything());
+    });
+  });
+
+  it("Escape kademe 2'de GERİ gider, kapatmaz", async () => {
+    // Tek tuşla kapanmak, ligin içine girmiş kullanıcıyı tek yanlış tuşta en
+    // başa atardı; kademeli geri alma gezinmeyi tersine çevrilebilir kılar.
+    const { user } = setupLeagues();
+    await user.click(screen.getByRole("combobox"));
+    await user.click(screen.getByText("Süper Lig"));
+
+    await user.keyboard("{Escape}");
+
+    const list = screen.getByRole("listbox");
+    expect(within(list).getByText("Süper Lig")).toBeInTheDocument();
+  });
+
+  it("Escape kademe 1'de listeyi kapatır", async () => {
+    const { user } = setupLeagues();
+    await user.click(screen.getByRole("combobox"));
+
+    await user.keyboard("{Escape}");
+
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+
+  it("klavyeyle lige girilebilir — fare zorunlu değil", async () => {
+    const { user, search } = setupLeagues();
+    await user.click(screen.getByRole("combobox"));
+    await user.keyboard("{ArrowDown}{Enter}");
+
+    await waitFor(() => {
+      expect(search).toHaveBeenCalledWith(
+        "",
+        expect.stringMatching(/^Q\d+$/u),
+        expect.anything(),
+      );
+    });
+  });
+
+  it("kademe 2'de kulüp seçilince süzgeç sıfırlanır", async () => {
+    const { user, onSelect } = setupLeagues();
+    await user.click(screen.getByRole("combobox"));
+    await user.click(screen.getByText("Süper Lig"));
+    await waitFor(() => {
+      expect(screen.getByText("Galatasaray")).toBeInTheDocument();
+    });
+    await user.click(screen.getByText("Galatasaray"));
+
+    expect(onSelect).toHaveBeenCalledWith(
+      expect.objectContaining({ shortName: "Galatasaray" }),
+    );
+  });
+
+  /**
+   * KESME SESSİZ OLAMAZ (BR-37). Ölçüldü: Serie A'da 83 seçilebilir kulüp
+   * var, üst sınır 50. Söylenmezse kullanıcı ligin tamamını gördüğünü sanar
+   * ve aradığı kulübü "veri kümesinde yok" diye okur.
+   */
+  it("liste kesildiğinde kaç kulüpten kaçının gösterildiğini söyler", async () => {
+    const { user } = setupLeagues();
+    await user.click(screen.getByRole("combobox"));
+    await user.click(screen.getByText("Serie A"));
+
+    await waitFor(() => {
+      expect(screen.getByText(/83 kulüpten 3 tanesi/u)).toBeInTheDocument();
+    });
+  });
+
+  it("liste kesilmediyse uyarı GÖSTERİLMEZ", async () => {
+    // Her listede duran bir uyarı, uyarı olmaktan çıkar.
+    const { user } = setupLeagues({
+      leagues: [
+        { wikidataId: "Q1", name: "Küçük Lig", country: "TR", clubCount: 3 },
+      ],
+    });
+    await user.click(screen.getByRole("combobox"));
+    await user.click(screen.getByText("Küçük Lig"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Galatasaray")).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/gösteriliyor/u)).not.toBeInTheDocument();
+  });
+
+  it("lig verilmezse tek kademeli çalışır — özellik veri olmadan kapanır", async () => {
+    const { user } = setupLeagues({ leagues: [] });
+    await user.click(screen.getByRole("combobox"));
+
+    const list = screen.getByRole("listbox");
+    expect(within(list).getByText("Galatasaray")).toBeInTheDocument();
   });
 });
