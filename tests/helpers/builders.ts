@@ -29,6 +29,10 @@ export function aClub(overrides: Partial<Club> = {}): Club {
     foundedYear: 1900,
     crestUrl: null,
     isSelectable: true,
+    // BR-36 paydası. Varsayılan yüksek tutuldu ki dejenerelik uyarısı
+    // KAZAYLA tetiklenmesin: ilgisiz bir testte iki oyuncu paylaşan iki
+    // kulüp, küçük bir varsayılanla "dejenere" sayılırdı.
+    playerCount: 1000,
     ...overrides,
   };
 }

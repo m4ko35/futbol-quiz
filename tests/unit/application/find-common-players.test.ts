@@ -311,3 +311,90 @@ describe("findCommonPlayers use-case", () => {
     expect(reversed.clubA.shortName).toBe("Arsenal");
   });
 });
+
+describe("findCommonPlayers — BR-36 dejenere çift", () => {
+  /** Ortak sayısı kadar aday üretir; her biri iki kulüpte de dönemli. */
+  const shared = (count: number) =>
+    Array.from({ length: count }, (_, i) => ({
+      player: aPlayer({ name: `Ortak ${String(i)}` }),
+      spells: [aSpell({ clubId: CLUB_A }), aSpell({ clubId: CLUB_B })],
+    }));
+
+  it("dejenere olmayan çiftte `degenerate` null döner", async () => {
+    const result = await findCommonPlayers(
+      { clubA: CLUB_A, clubB: CLUB_B },
+      {
+        clubs: new FakeClubRepository([
+          aClub({ id: CLUB_A, shortName: "Galatasaray", playerCount: 500 }),
+          aClub({ id: CLUB_B, shortName: "Arsenal", playerCount: 500 }),
+        ]),
+        players: new FakePlayerRepository(shared(3)),
+      },
+    );
+
+    expect(result.count).toBe(3);
+    expect(result.degenerate).toBeNull();
+  });
+
+  it("dejenere çiftte ölçümü döndürür ve LİSTEYİ DEĞİŞTİRMEZ", async () => {
+    // Condal (65 oyuncu) × Barcelona: 52 ortak → %80,0.
+    const result = await findCommonPlayers(
+      { clubA: CLUB_A, clubB: CLUB_B },
+      {
+        clubs: new FakeClubRepository([
+          aClub({ id: CLUB_A, shortName: "Condal", playerCount: 65 }),
+          aClub({ id: CLUB_B, shortName: "Barcelona", playerCount: 1457 }),
+        ]),
+        players: new FakePlayerRepository(shared(52)),
+      },
+    );
+
+    expect(result.degenerate).toEqual({
+      sharedPlayers: 52,
+      smallerClubPlayers: 65,
+      smallerClubName: "Condal",
+    });
+    // Uyarı bir SÜZGEÇ DEĞİL: 52 oyuncunun hepsi yanıtta kalmalı.
+    expect(result.count).toBe(52);
+    expect(result.players).toHaveLength(52);
+  });
+
+  it("ölçüm BR-1'in çıktısından gelir — ayrı bir sayım yapılmaz", async () => {
+    // Altyapı dönemleri BR-2 ile elenince pay küçülür; payda `playerCount`
+    // olduğu için SABİT kalır ve oran DÜŞER. Yani süzgeç uyarıyı bastırabilir,
+    // doğuramaz (§6.2).
+    const candidates = [
+      ...shared(3),
+      ...Array.from({ length: 40 }, (_, i) => ({
+        player: aPlayer({ name: `Altyapı ${String(i)}` }),
+        spells: [
+          aSpell({ clubId: CLUB_A, isYouth: true }),
+          aSpell({ clubId: CLUB_B, isYouth: true }),
+        ],
+      })),
+    ];
+    const clubs = [
+      aClub({ id: CLUB_A, shortName: "Küçük", playerCount: 50 }),
+      aClub({ id: CLUB_B, shortName: "Büyük", playerCount: 900 }),
+    ];
+
+    const withYouth = await findCommonPlayers(
+      { clubA: CLUB_A, clubB: CLUB_B, filter: { includeYouth: true } },
+      {
+        clubs: new FakeClubRepository(clubs),
+        players: new FakePlayerRepository(candidates),
+      },
+    );
+    const withoutYouth = await findCommonPlayers(
+      { clubA: CLUB_A, clubB: CLUB_B },
+      {
+        clubs: new FakeClubRepository(clubs),
+        players: new FakePlayerRepository(candidates),
+      },
+    );
+
+    // 43/50 = %86 → dejenere; 3/50 = %6 → değil.
+    expect(withYouth.degenerate?.sharedPlayers).toBe(43);
+    expect(withoutYouth.degenerate).toBeNull();
+  });
+});

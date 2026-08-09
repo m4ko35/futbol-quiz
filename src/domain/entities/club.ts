@@ -19,4 +19,13 @@ export interface Club {
    * sonuç alır. Eşik ve gerekçesi: §5.3.
    */
   readonly isSelectable: boolean;
+
+  /**
+   * Altyapı dışı TEKİL oyuncu sayısı — BR-36'nın paydası.
+   *
+   * Bir kulüpteki dönem sayısı değildir: aynı oyuncu aynı kulüpte birden çok
+   * dönem geçirmiş olabilir ve dejenerelik ölçüsü "kadronun ne kadarı" diye
+   * sorduğu için kişi sayar, kayıt değil.
+   */
+  readonly playerCount: number;
 }

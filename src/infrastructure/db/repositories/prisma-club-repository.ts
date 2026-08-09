@@ -108,6 +108,7 @@ function toClub(row: {
   foundedYear: number | null;
   crestUrl: string | null;
   isSelectable: boolean;
+  playerCount: number;
 }): Club {
   return {
     id: clubId(row.id),
@@ -117,5 +118,6 @@ function toClub(row: {
     foundedYear: row.foundedYear,
     crestUrl: row.crestUrl,
     isSelectable: row.isSelectable,
+    playerCount: row.playerCount,
   };
 }

@@ -72,6 +72,25 @@ export async function loadDataset(
   }
 
   // ─── Kulüpler ─────────────────────────────────────────────────────────
+  //
+  // Dejenerelik paydası (BR-36) burada, YAZMADAN ÖNCE hesaplanır — arama
+  // ağırlığıyla (BR-21) aynı gerekçe: girdi zaten bellekte, dönemler henüz
+  // veritabanında değil ve tek tarama yetiyor.
+  //
+  // KAYIT DEĞİL KİŞİ SAYILIR: aynı oyuncu aynı kulüpte birden çok dönem
+  // geçirmiş olabilir (kiralık dönüşü, yıllar sonra geri dönüş) ve BR-36
+  // "kadronun ne kadarı" diye sorduğu için tekilleştirme şart.
+  const playersByClub = new Map<string, Set<string>>();
+  for (const spell of input.spells) {
+    if (spell.isYouth) continue;
+    let players = playersByClub.get(spell.clubWikidataId);
+    if (players === undefined) {
+      players = new Set<string>();
+      playersByClub.set(spell.clubWikidataId, players);
+    }
+    players.add(spell.playerWikidataId);
+  }
+
   const clubIdByQid = new Map<string, string>();
   for (const chunk of chunked(input.clubs, CHUNK_SIZE)) {
     await prisma.$transaction(
@@ -83,6 +102,7 @@ export async function loadDataset(
           country: club.country,
           foundedYear: club.foundedYear,
           crestUrl: club.crestUrl,
+          playerCount: playersByClub.get(club.wikidataId)?.size ?? 0,
           isSelectable: input.selectableClubIds.has(club.wikidataId),
           leagueId: leagueIdByQid.get(club.leagueWikidataId ?? "") ?? null,
         };

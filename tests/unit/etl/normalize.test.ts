@@ -74,8 +74,26 @@ describe("looksLikeYouthOrReserve — BR-2", () => {
   it("altyapı ve yedek takımları tanır", () => {
     expect(looksLikeYouthOrReserve("Galatasaray U19")).toBe(true);
     expect(looksLikeYouthOrReserve("Real Madrid Youth")).toBe(true);
-    expect(looksLikeYouthOrReserve("Bayern Munich II")).toBe(true);
     expect(looksLikeYouthOrReserve("Chelsea Reserves")).toBe(true);
+    expect(looksLikeYouthOrReserve("Ajax Academy")).toBe(true);
+  });
+
+  it("hükümdar adını yedek takım SANMAZ — ölçülmüş kusur", () => {
+    // "Willem II" bir Eredivisie kulübü. Kalıp ad sonundaki "II" ekini yedek
+    // takım geleneği (`Ajax II`) sandığı için 510 döneminin hepsi altyapı
+    // işaretlenmiş ve kulüp seçilebilir olduğu hâlde her modda SIFIR sonuç
+    // veriyordu.
+    //
+    // 992 kulübün tamamı tarandı: kalıba takılan tek kulüp buydu ve veri
+    // kümesinde gerçek yedek takım YOK — çıkarılan iki dal hiçbir doğru
+    // eşleşme üretmiyor, bir gerçek kulübü siliyordu (§5.4, BR-2).
+    expect(looksLikeYouthOrReserve("Willem II")).toBe(false);
+
+    // Bedeli açıkça yazılıyor: gerçek yedek takımlar da artık ADINDAN
+    // tanınmıyor. Doğru ayrım "eki atınca kalan ad başka bir kulübe mi ait"
+    // sorusudur ve kulüp evreninin tamamını görmeyi gerektirir (§10.2).
+    expect(looksLikeYouthOrReserve("Bayern Munich II")).toBe(false);
+    expect(looksLikeYouthOrReserve("Barcelona B")).toBe(false);
   });
 
   it("A takımlarını yanlışlıkla işaretlemez", () => {

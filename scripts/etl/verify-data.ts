@@ -213,8 +213,19 @@ async function verifyIntegrity(): Promise<void> {
   // Kullanıcı böyle bir kulübü seçip neredeyse boş sonuç alırdı.
   const weak = selectableClubs.filter((c) => c._count.spells < MIN_SPELLS);
 
+  // BR-36'nın paydası. Sıfır kalırsa kural sessizce SUSAR — dejenere çift
+  // uyarısı hiç çıkmaz ve bu, ekranda hiçbir belirti vermeyen bir gerileme
+  // olurdu. Seçilebilir kulübün altyapı dışı oyuncusu olmalı.
+  const unmeasured = await prisma.club.count({
+    where: { isSelectable: true, playerCount: 0 },
+  });
+
   check(emptyClubs === 0, `dönemi olmayan kulüp: ${emptyClubs}`);
   check(stalePlayers === 0, `dönemi olmayan oyuncu: ${stalePlayers}`);
+  check(
+    unmeasured === 0,
+    `seçilebilir ama oyuncu sayısı 0 (BR-36 paydası): ${unmeasured}`,
+  );
   check(
     weak.length === 0,
     `seçilebilir ama ${MIN_SPELLS} dönemden az: ${weak.length}` +

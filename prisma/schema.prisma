@@ -71,6 +71,21 @@ model Club {
   crestAuthor   String?
   crestFilePage String?
 
+  /// Altyapı DIŞI tekil oyuncu sayısı — PROJECT.md §5.3, BR-36.
+  ///
+  /// Dejenere kulüp çiftini ölçmenin paydası. `Player.careerAppearances` ile
+  /// aynı gerekçeyle denormalize: değer `Spell` satırlarından türer, Prisma
+  /// ilişki sayımına göre süzemez ve her istekte iki ek `COUNT DISTINCT`
+  /// atmak ortak oyuncu sorgusunun bütçesini ikiye katlardı (§7.1).
+  ///
+  /// TANIMI SABİTTİR ve `includeYouth` / `includeLoans` süzgeçlerinden
+  /// ETKİLENMEZ. Bilinçli: süzgeç daraldığında pay küçülür, payda sabit
+  /// kalır, oran DÜŞER. Yani süzgeç uyarıyı bastırabilir ama doğuramaz —
+  /// hata payı güvenli tarafa düşer.
+  ///
+  /// ETL her tam koşuda yeniden hesaplar; elle güncellenmez.
+  playerCount Int @default(0)
+
   // MVP'de seçim listesinde görünür mü (§1.3). Oyuncunun geçtiği her kulüp
   // veritabanına girer ama yalnızca küratörlü liste seçilebilir olur.
   isSelectable Boolean @default(false)

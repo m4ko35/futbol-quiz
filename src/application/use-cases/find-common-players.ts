@@ -1,4 +1,5 @@
 import { ClubNotFoundError, SameClubError } from "@/domain/errors/domain-error";
+import { findDegeneratePair } from "@/domain/services/club-pair-quality";
 import { findCommonPlayers as applyRules } from "@/domain/services/common-players";
 import {
   DEFAULT_SPELL_FILTER,
@@ -78,5 +79,13 @@ export async function findCommonPlayers(
     clubB: toClubDto(clubB),
     count: common.length,
     players: common.map(toCommonPlayerDto),
+    // BR-36 — kuralın girdisi BR-1'in ÇIKTISIDIR, ayrı bir sayım değil.
+    // Ayrı sorgu atmak, ekranda görünen listeyle uyarıdaki sayının
+    // ayrışabileceği ikinci bir yol açardı (BR-16'nın ölçülmüş hata sınıfı).
+    degenerate: findDegeneratePair({
+      clubA,
+      clubB,
+      sharedPlayers: common.length,
+    }),
   };
 }

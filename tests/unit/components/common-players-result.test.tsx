@@ -51,6 +51,7 @@ const result = (
       spellsAtB: [spell({ startYear: 2005, endYear: 2011, appearances: 214 })],
     },
   ],
+  degenerate: null,
   ...overrides,
 });
 
@@ -240,5 +241,67 @@ describe("BR-8 — kanıtsız dönem işareti", () => {
 
     const badges = screen.getAllByText(/kaynakta ayrıntı yok/u);
     expect(badges[0]?.textContent?.trim().length).toBeGreaterThan(0);
+  });
+});
+
+describe("BR-36 — dejenere çift uyarısı", () => {
+  const degenerate = () =>
+    result({
+      degenerate: {
+        sharedPlayers: 52,
+        smallerClubPlayers: 65,
+        smallerClubName: "Condal",
+      },
+    });
+
+  it("dejenere değilken uyarı YOK", () => {
+    render(<CommonPlayersResult result={result()} />);
+
+    expect(screen.queryByText(/kadrolarının neredeyse tamamını/)).toBeNull();
+  });
+
+  it("ham sayıları gösterir — kullanıcı iddiayı denetleyebilmeli", () => {
+    render(<CommonPlayersResult result={degenerate()} />);
+
+    const note = screen.getByRole("complementary");
+    expect(note).toHaveTextContent("Condal");
+    expect(note).toHaveTextContent("65");
+    expect(note).toHaveTextContent("52");
+  });
+
+  it("KİMLİK İDDİA ETMEZ: 'aynı kulüp' demez", () => {
+    // Kuralın tetiklendiği yedi çiftin ikisi gerçekten ayrı kulüptür
+    // (Condal/Barcelona, Kharkiv/Metalist 1925). Kesin bir kimlik ifadesi
+    // orada düpedüz yanlış olurdu — §5.3.
+    render(<CommonPlayersResult result={degenerate()} />);
+
+    const text = screen.getByRole("complementary").textContent ?? "";
+    expect(text).not.toMatch(/aynı kulüp(tür|ler)\b/);
+    expect(text).toMatch(/olabilir/);
+  });
+
+  it("uyarı bir SÜZGEÇ değil: liste olduğu gibi kalır", () => {
+    render(<CommonPlayersResult result={degenerate()} />);
+
+    expect(screen.getByText("Emmanuel Eboué")).toBeInTheDocument();
+    expect(screen.getByRole("complementary")).toHaveTextContent(
+      "Liste değiştirilmedi",
+    );
+  });
+
+  it("listenin ÜSTÜNDE durur — uyarı listeyi çerçeveler", () => {
+    const { container } = render(<CommonPlayersResult result={degenerate()} />);
+
+    const note = container.querySelector("aside");
+    const list = container.querySelector("ul.overflow-hidden");
+    if (note === null || list === null) {
+      throw new Error("uyarı ya da oyuncu listesi basılmadı");
+    }
+
+    // Uyarı listeyi ÇERÇEVELİYOR, dipnotu değil: sıra bozulursa kullanıcı
+    // listeyi okuduktan sonra "aslında bu liste şüpheli" uyarısını görür.
+    expect(
+      note.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 });

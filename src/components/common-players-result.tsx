@@ -3,6 +3,7 @@ import type {
   CommonPlayersResultDto,
   SpellDto,
 } from "@/application/dto/common-players-dto";
+import type { DegeneratePair } from "@/domain/services/club-pair-quality";
 import { ClubMark } from "./club-mark";
 
 /**
@@ -129,8 +130,37 @@ function PlayerRow({
   );
 }
 
+/**
+ * BR-36 — dejenere çift uyarısı.
+ *
+ * KİMLİK İDDİA ETMEZ. Kuralın tetiklendiği yedi çiftin ikisi (Condal /
+ * Barcelona, Kharkiv / Metalist 1925) gerçekten ayrı kulüptür; "aynı kulüp"
+ * demek orada düpedüz yanlış olurdu. Metin ölçülen olguyu söyler, olası
+ * açıklamaları da olasılık olarak bırakır — kullanıcı ham sayıları görüp
+ * kendisi karar verebilsin.
+ *
+ * Listenin ÜSTÜNDE durur: uyarı listeyi çerçeveliyor, dipnotu değil.
+ */
+function DegenerateNote({ pair }: { pair: DegeneratePair }) {
+  return (
+    <aside className="rounded-xl border border-line-strong bg-warn-soft p-4 text-sm">
+      <p className="font-semibold text-warn">
+        Bu iki kulüp kadrolarının neredeyse tamamını paylaşıyor.
+      </p>
+      <p className="mt-1 text-muted">
+        {pair.smallerClubName} adına kayıtlı{" "}
+        <span className="tabular-nums">{pair.smallerClubPlayers}</span>{" "}
+        oyuncunun <span className="tabular-nums">{pair.sharedPlayers}</span>
+        &apos;i bu listede. İki kayıt aynı kulübün Wikidata&apos;da ikiye
+        bölünmüş hâli olabileceği gibi, biri diğerinin yedek takımı ya da selefi
+        de olabilir. Liste değiştirilmedi.
+      </p>
+    </aside>
+  );
+}
+
 export function CommonPlayersResult({ result }: CommonPlayersResultProps) {
-  const { clubA, clubB, count, players } = result;
+  const { clubA, clubB, count, players, degenerate } = result;
 
   if (count === 0) {
     return (
@@ -185,6 +215,15 @@ export function CommonPlayersResult({ result }: CommonPlayersResultProps) {
           {count} ortak oyuncu
         </span>
       </h2>
+
+      {/*
+        DOĞRULUK DEĞİL VARLIK DENETİMİ. Yanıt istemciye `as` ile geçiyor
+        (fetch sınırında Zod yok), yani tipin "null olabilir" demesi alanın
+        GELDİĞİNİ garanti etmiyor. Eksik alan `!== null` denetiminden geçip
+        bileşeni çökertirdi — ölçüldü, sahte yanıt kullanan bileşen testi
+        patladı. Eksik ölçüm uyarısızlığa düşer; sayfayı düşürmez.
+      */}
+      {degenerate ? <DegenerateNote pair={degenerate} /> : null}
 
       <ul className="overflow-hidden rounded-xl border border-line bg-surface shadow-card">
         {players.map((player) => (

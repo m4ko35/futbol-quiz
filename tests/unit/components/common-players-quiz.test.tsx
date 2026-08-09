@@ -36,6 +36,7 @@ const SUCCESS_BODY = {
     clubA: CLUBS[0],
     clubB: CLUBS[1],
     count: 1,
+    degenerate: null,
     players: [
       {
         id: "p1",

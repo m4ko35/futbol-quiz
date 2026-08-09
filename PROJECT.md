@@ -894,6 +894,7 @@ model Club {
   country     String
   foundedYear Int?
   crestUrl    String?
+  playerCount Int     @default(0)      // BR-36: altyapı dışı TEKİL oyuncu
   isSelectable Boolean @default(false) // MVP seçim listesinde görünür mü
   leagueId    String?
   league      League? @relation(fields: [leagueId], references: [id])
@@ -1091,23 +1092,61 @@ Birleştirme oyuncu geçişinden **önce** yapılır: gölgede dönemi olan oyun
 
 ##### Kapatılmayan boşluk: bağsız ikizler
 
-Kural **ilişki taşıyan** çiftleri kapatıyor. Wikidata'da bazı ikizler hiçbir ilişki taşımıyor: `Gençlerbirliği SK` (487 dönem) ile `Gençlerbirliği (futbol takımı)` (436) arasında ne `P361` ne `P831` ne de `P527` var. İki taraf da `Q476028`, yani sınıf kısıtı da onları ayrı sayar. Sorgu bu çifti **hiç göremiyor**.
+Kural **ilişki taşıyan** çiftleri kapatıyor. Wikidata'da bazı ikizler hiçbir ilişki taşımıyor: `Gençlerbirliği SK` (509 dönem) ile `Gençlerbirliği (futbol takımı)` (453) arasında ne `P361` ne `P831` ne de `P527` var. İki taraf da `Q476028`, yani sınıf kısıtı da onları ayrı sayar. Sorgu bu çifti **hiç göremiyor**.
 
-Ortak oyuncu oranı (%92) onları yakalardı. **Yakalamak için kullanılmadı** ve gerekçesi ölçüldü: evrendeki 73.153 kulüp çiftinin %50 ve üstü ortak oyuncu paylaşan 7'si incelendiğinde oranın ikizle akrabayı ayırmadığı görüldü.
+Boşluğu kapatmak için dört ayırt edici sırayla denendi; **dördü de ölçümle elendi**:
 
-| Oran | Çift                               | Gerçekte ne                             |
-| ---- | ---------------------------------- | --------------------------------------- |
-| %94  | SSC Ancona / A.C. Ancona           | yeniden kurulmuş kulüp                  |
-| %92  | Gençlerbirliği SK / Gençlerbirliği | **gerçek ikiz**                         |
-| %80  | FC Barcelona / **CD Condal**       | Barcelona'nın 1950'lerdeki yedek takımı |
-| %69  | Toulouse FC / Toulouse FC          | eski/yeni kulüp                         |
-| %65  | Vicenza Calcio / LR Vicenza        | ad değişikliği                          |
-| %59  | Troyes AC / AS Troyes              | selef/halef                             |
-| %50  | SSC Napoli / **Ilva Bagnolese**    | Napoli'nin selefi                       |
+| Denenen ayırt edici          | Neden elendi                                                                                                                                       |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ortak oyuncu oranı           | İkizi akrabadan ayırmıyor — aşağıdaki tablo.                                                                                                       |
+| Dönem zamanlarının örtüşmesi | İkizde %99; ama Ancona %100, Troyes %100, Vicenza %96. Ayırt etmiyor.                                                                              |
+| Kuruluş yılı (`P571`)        | Gölge kayıtta `P571` hiç yok — karşılaştırılacak değer bulunmuyor.                                                                                 |
+| Vikipedi madde sayısı        | Gölgelerin **gerçek maddeleri var**: `Q20473364` → tr.wikipedia "Gençlerbirliği (futbol takımı)", `Q108001798` → sv.wikipedia "IFK Norrköping FK". |
 
-Gerçek ikiz (%92) ile yeniden kurulmuş kulüp (%94) **aynı bantta**; %80'lik bir eşik Barcelona'yı yedek takımıyla birleştirirdi. Yedek takım ve selef kulüp doğaları gereği oyuncu paylaşır — oran bu üçünü ayırt edemez.
+Son satır bir varsayım olarak kurulup **uygulandıktan sonra** çürüdü: kural yazıldı, birim testleri geçti, gerçek veri üzerinde 15 ad çakışmasının **hiçbirinde** tetiklenmedi. Ölçüm varsayımı yalanlayınca çalışan kod geri alındı — eşiği 1'e çekmek kuralı veriden değil sonuçtan türetmek olurdu.
 
-Bu yüzden ikinci bir kural **yazılmadı**. Kalan tek kullanıcıya görünen ikiz Gençlerbirliği'dir ve doğru düzeltme yeri **kaynağın kendisi**: Wikidata'da iki öğenin birleştirilmesi. Uydurulmuş bir eşikle burada kapatmak, iki gerçek kulübü karıştırma riskini veri kümesine yaymak olurdu.
+Ortak oyuncu oranı ikizleri yakalardı. **Birleştirme için kullanılmadı** ve gerekçesi ölçüldü: 906 seçilebilir kulübün 409.965 çiftinden en az bir oyuncu paylaşan 118.247'si tarandığında, üst banttaki çiftlerin bir kısmının ikiz DEĞİL akraba olduğu görüldü.
+
+| Oran  | Çift                                          | Gerçekte ne                             |
+| ----- | --------------------------------------------- | --------------------------------------- |
+| %94,0 | Ancona / A.C. Ancona                          | yeniden kurulmuş kulüp                  |
+| %92,5 | Gençlerbirliği / Gençlerbirliği (futbol tak.) | **gerçek ikiz**                         |
+| %89,1 | Kharkiv / FK Metalist 1925 Harkiv             | ayrı kulüpler, kadro devri              |
+| %80,0 | **CD Condal** / Barcelona                     | Barcelona'nın 1950'lerdeki yedek takımı |
+| %79,0 | Örgryte IS / Örgryte IS Fotboll               | **gerçek ikiz**                         |
+| %79,0 | IFK Norrköping / IFK Norrköping FK            | **gerçek ikiz**                         |
+| %76,8 | Karpaty Lviv / FK Karpaty Lviv                | **gerçek ikiz**                         |
+| %69,4 | Toulouse FC (1937) / Toulouse FC (1970)       | eski/yeni kulüp                         |
+| %64,8 | LR Vicenza / Vicenza                          | ad değişikliği                          |
+| %59,4 | Troyes AC / AS Troyes                         | selef/halef                             |
+
+Gerçek ikiz (%92,5) ile yeniden kurulmuş kulüp (%94,0) **aynı bantta**; %80'lik bir eşik Barcelona'yı yedek takımıyla birleştirirdi. Yedek takım, selef kulüp ve kadro devralan kulüp doğaları gereği oyuncu paylaşır — oran bu dördünü ayırt edemez.
+
+Bu yüzden birleştiren bir kural **yazılmadı**. Doğru düzeltme yeri **kaynağın kendisi**: Wikidata'da eksik ilişkinin eklenmesi. Uydurulmuş bir eşikle burada kapatmak, iki gerçek kulübü karıştırma riskini veri kümesine yaymak olurdu.
+
+##### Oran BİRLEŞTİRMEZ, ama SORUYU değerlendirir (BR-36)
+
+Yukarıdaki tablo bir yenilgi gibi okunuyor; değil. Oran **yanlış soruya** cevap veriyordu. "Bu iki kayıt aynı kulüp mü?" sorusunda çöküyor. Ama ortak oyuncu modunun sorduğu soru bu değil:
+
+> Bu iki kulübün ortak oyuncularını bulmak **bir şey öğretiyor mu?**
+
+Bu soruda oran çökmüyor, **tanım oluyor**. Condal ile Barcelona hukuken ayrı kulüptür — ve "hem Condal'da hem Barcelona'da oynayan" listesi yine de değersizdir, çünkü Condal'ın 65 oyuncusunun 52'si zaten Barcelona'da oynamış. Kimliği bilmeye gerek yok; cevabın **küçük kulübün kadrosunun tamamına yakınını kapladığını** ölçmek yetiyor.
+
+**Eşik uydurulmadı, ölçülen boşluğa kondu.** 118.247 kesişen çiftin oran dağılımında %69,4 ile %76,8 arasında **hiçbir çift yok**. Eşik o boş bandın içine konur; 0,70 ile 0,75 arası her değer aynı yedi çifti verir.
+
+| Eşik | Tetiklenen çift |
+| ---- | --------------- |
+| 0,60 | 10              |
+| 0,70 | **7**           |
+| 0,75 | **7**           |
+| 0,80 | 4               |
+| 0,90 | 2               |
+
+**Asgari kadro tabanı ölçüldü ve EKLENMEDİ.** İlk taslakta "küçük tarafta en az N oyuncu" koşulu vardı. Ölçüm: 0,75 eşiğinde taban 0 da, 25 de, 50 de **aynı yedi çifti** veriyor. Etkisi ölçülüp sıfır çıkan bir ayar, ileride birinin çevireceği boş bir düğmedir — kural tek eşikli kaldı.
+
+**Risk profili birleştirmenin tam tersidir ve karar bunun üzerine kuruludur.** Yanlış birleştirme veriye yayılır ve geri alınamaz; yanlış uyarı bir cümledir. Bu yüzden aynı sinyal, birleştirmede reddedilirken uyarıda kabul edilir. Uyarı metni de bu ayrımı korur: "aynı kulüp" **denmez** (Condal ve Kharkiv çiftlerinde yanlış olurdu), yalnızca ölçülen şey söylenir.
+
+Kural **ızgara modlarını kapsamaz.** Orada soru "bir isim söyle"dir ve zorluğu BR-9'un cevap sayısı bandı yönetir: 52 cevaplı bir hücre kolaydır ama bozuk değildir. Kapsam, kullanıcının iki kulübü serbest seçtiği tek yerdir — ortak oyuncu modu.
 
 ##### Ayrı kalan kulüpler seçicide AYIRT EDİLEBİLMELİ
 
@@ -1143,6 +1182,9 @@ Bunlar `domain/services/` içinde saf fonksiyon olarak yaşar ve birim testi ile
 
 - **BR-1 — Ortak oyuncu tanımı:** Bir oyuncu, A kulübünde en az bir `Spell` ve B kulübünde en az bir `Spell` kaydına sahipse ortaktır. Dönemlerin zaman olarak örtüşmesi _gerekmez_ (zaten aynı anda iki kulüpte olamaz).
 - **BR-2 — Altyapı dönemi:** `isYouth = true` olan dönemler varsayılan olarak **sayılmaz**. Kullanıcı "altyapıyı da dahil et" seçeneğiyle açabilir.
+
+  **Ad kalıbından `II` ve tek harflik `B` ekleri ÇIKARILDI (Faz 4.11).** Tespit kulübün adına bakıyor ve bu ekler yedek takım geleneğini (`Ajax II`, `Barcelona B`) hedefliyordu. Ölçüm — 992 kulübün tamamı tarandı — kalıba takılan **tek** kulübü verdi: **Willem II**, bir Eredivisie kulübü. Sonuç ağırdı: 510 döneminin hepsi altyapı sayıldığı için kulüp seçilebilir olduğu hâlde **her modda sıfır sonuç** veriyordu. Aynı tarama gerçek yedek takım sayısını da verdi: **sıfır** — kulüp evreni lig üyeliğinden geliyor ve yedek takımlar bu liglerde yok. Yani iki dal hiçbir doğru eşleşme üretmiyor, bir gerçek kulübü siliyordu. Kusur BR-36'nın `db:verify` denetimi (`playerCount = 0`) tarafından bulundu. Yedek takımlar ileride evrene girerse ad kalıbı yetmez: doğru ayrım "eki atınca kalan ad başka bir kulübe mi ait" sorusudur (§10.2).
+
 - **BR-3 — Kiralık:** Kiralık dönemler varsayılan olarak **sayılır**, fakat listede açıkça "kiralık" rozetiyle işaretlenir.
 - **BR-4 — Aynı kulüp seçimi:** A ile B aynı kulüp ise istek reddedilir (`400`).
 - **BR-5 — Sıralama:** Sonuçlar, iki kulüpteki toplam maç sayısına göre azalan; maç bilgisi yoksa en son dönem yılına göre azalan sıralanır.
@@ -1169,6 +1211,7 @@ Bunlar `domain/services/` içinde saf fonksiyon olarak yaşar ve birim testi ile
 - **BR-33 — Arma yalnızca ÖZGÜR lisanslı dosyadan gelir.** `NonFree` işaretli (adil kullanım) hiçbir dosya alınmaz; alınırsa site telif ihlaline girer. Ölçüldü (§4.3.1): Vikipedi bilgi kutularındaki armaların %84'ü bu sınıfta ve reddedilir. Kural bir tercih değil sınırdır — "arma boş kalsın" sonucu, kullanılamayacak bir dosyayı göstermekten iyidir (§2.7 ile aynı yön).
 - **BR-34 — Atıf gerektiren arma, atıf verisi OLMADAN gösterilmez.** CC BY / CC BY-SA dosyalarında yazar, lisans adı ve dosya sayfası birlikte saklanır; üçünden biri eksikse arma `null` sayılır. Eksik atıfla göstermek, lisansın koşulunu çiğnemek demektir; `db:verify` bunu ölçer (§8.2).
 - **BR-35 — Her kulüp bir işaret taşır; hiçbir yuva boş kalmaz.** Kulüp adının yanındaki işaret sabit ölçüdedir ve iki içerikten birini taşır: lisanslı arma varsa arma, yoksa kulüp adından türetilen baş harfler. "Bazı kulüpte arma, bazısında boşluk" durumu yasaktır — armanın kapsamı %43,7 olduğu için bu, listelerin yarısının delik görünmesi demekti. Baş harfler bir VERİ DEĞİL, addan türetilir; ek bir kaynak, ETL adımı veya lisans yüzeyi getirmez (§7.13).
+- **BR-36 — Dejenere kulüp çifti işaretlenir, birleştirilmez.** Ortak oyuncu sayısı, iki kulübün küçüğünün altyapı dışı tekil oyuncu sayısının **%75'ine** ulaşırsa sonuç _dejenere_ sayılır: liste bir keşif değil, küçük kulübün kadro dökümüdür. Sonuç **değişmez** — hiçbir kayıt gizlenmez, silinmez, birleştirilmez — yalnızca ölçülen olgu kullanıcıya bildirilir. Bildirimde kimlik iddiası **yasaktır** ("aynı kulüp" denmez): tetiklenen yedi çiftin ikisi gerçekten ayrı kulüptür (§5.3). Eşik ölçülen boş banda konmuştur (%69,4 ile %76,8 arasında hiçbir çift yok) ve kural yalnızca ortak oyuncu modunu kapsar; ızgarada zorluğu BR-9 yönetir.
 - **BR-8 — Kanıt düzeyi.** Bir `Spell`, `startYear`, `endYear`, `appearances` ve `goals` alanlarının **dördü de** boşsa **kanıtsızdır**; en az biri doluysa kanıtlıdır. Kanıtsız dönemler BR-1 kapsamında **sayılır** (elenmez), fakat API yanıtında ve arayüzde açıkça işaretlenir. Gerekçe ve ölçüm §1.4'tedir; özeti: eleme, uydurma kayıtlarla birlikte doğru kayıtları da siliyor ve Wikidata ikisini ayıracak bir sinyal taşımıyor. BR-5'in sıralaması bu dönemleri kendiliğinden en sona koyar (ne maç sayısı ne yıl bilgisi vardır), dolayısıyla ayrı bir sıralama kuralı gerekmez.
 
 ---
@@ -1217,6 +1260,7 @@ Kulüp arama / otomatik tamamlama.
     "clubA": { "id": "…", "shortName": "Galatasaray", "crestUrl": "…" },
     "clubB": { "id": "…", "shortName": "Arsenal", "crestUrl": "…" },
     "count": 3,
+    "degenerate": null, // BR-36 — dejenere değilse null
     "players": [
       {
         "id": "…",
@@ -1250,6 +1294,22 @@ Kulüp arama / otomatik tamamlama.
 ```
 
 **`hasEvidence` (BR-8).** Dört alanın (`startYear`, `endYear`, `appearances`, `goals`) hiçbiri dolu değilse `false` olur. Kuralı istemcinin türetmesi de mümkündü; kasten sunucuda tutuluyor, çünkü bu bir **iş kuralıdır** ve iki yerde ayrı ayrı yazılırsa er geç ayrışır (§2.4 ile aynı gerekçe: karar tek yerde verilir).
+
+**`degenerate` (BR-36).** Çift dejenere değilse `null`; dejenere ise ölçümün kendisi döner:
+
+```jsonc
+"degenerate": {
+  "sharedPlayers": 52, // ortak oyuncu
+  "smallerClubPlayers": 65, // küçük kulübün tekil oyuncu sayısı
+  "smallerClubName": "Condal", // uyarı cümlesinde geçen ad
+}
+```
+
+Oran **hesaplanıp gönderilmez**, iki sayı gönderilir. Arayüz "65 oyuncusunun 52'si" diye yazabilmeli; tek bir yüzde bu cümleyi kuramaz ve kullanıcı ham sayıları görmeden iddiayı denetleyemez. Karar (eşik) sunucuda, ifade istemcide — `hasEvidence` ile aynı bölüşüm.
+
+Alan **kimlik iddiası taşımaz.** BR-36 gereği tetiklenen çiftlerin bir kısmı gerçekten ayrı kulüptür; sözleşme yalnızca ölçülen olguyu taşır, yorumu değil.
+
+`playerCount` denominatörü **sabit tanımlıdır** (altyapı dışı tekil oyuncu) ve `includeYouth` / `includeLoans` ile değişmez. Bu bilinçli: kullanıcı süzgeci daralttığında pay küçülür, payda sabit kalır, yani oran **düşer**. Süzgeç uyarıyı bastırabilir ama **doğuramaz** — yanlış tarafa kaçan bir hata yok.
 
 **`isCurrent` neden yok.** Faz 1 şemasında bu alan vardı ve "oyuncu hâlâ kulüpte" diye okunuyordu. Faz 4'te ölçüldü: alan gerçekte "Wikidata'da bitiş tarihi girilmemiş" demek. Man United'ın "güncel kadrosunda" Herbert Broomfield (1909) ve Harold Hardman (1912), Bayern'inkinde Paul Francke (1899) çıkıyor; 32.102 dönemde bitiş tarihi eksik. Yanlış olduğu **bilinen** bir alanı sözleşmede tutmak, onu tüketen herkes için tuzaktır — alan sözleşmeden çıkarıldı. Ham değer veritabanında duruyor (ileride güvenilir bir kaynakla düzeltilebilir), ama dışarı verilmiyor. Bitişi bilinmeyen dönem arayüzde `2011 – ?` olarak gösterilir.
 

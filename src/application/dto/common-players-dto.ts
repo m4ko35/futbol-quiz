@@ -1,4 +1,5 @@
 import type { Spell } from "@/domain/entities/spell";
+import type { DegeneratePair } from "@/domain/services/club-pair-quality";
 import type { CommonPlayer } from "@/domain/services/common-players";
 import { hasEvidence } from "@/domain/services/spell-evidence";
 import type { ClubDto } from "./club-dto";
@@ -29,6 +30,18 @@ export interface CommonPlayersResultDto {
   readonly clubB: ClubDto;
   readonly count: number;
   readonly players: readonly CommonPlayerDto[];
+
+  /**
+   * BR-36 — çift dejenere değilse `null`.
+   *
+   * `hasEvidence` ile aynı bölüşüm: eşiği sunucu bilir, cümleyi istemci
+   * kurar. Kararı istemciye bırakmak, eşiğin iki yerde ayrı yaşaması demekti.
+   *
+   * Alan KİMLİK İDDİASI TAŞIMAZ. Tetiklenen çiftlerin bir kısmı (Condal /
+   * Barcelona, Kharkiv / Metalist 1925) gerçekten ayrı kulüptür; sözleşme
+   * ölçülen olguyu taşır, yorumunu değil.
+   */
+  readonly degenerate: DegeneratePair | null;
 }
 
 /**

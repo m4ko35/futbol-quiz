@@ -58,6 +58,7 @@ const RESULT: CommonPlayersResultDto = {
   clubA: club("a", "Galatasaray"),
   clubB: club("b", "Arsenal"),
   count: 2,
+  degenerate: null,
   players: [
     {
       id: "p1",

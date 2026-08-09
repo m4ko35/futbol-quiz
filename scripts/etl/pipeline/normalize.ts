@@ -103,9 +103,24 @@ export function toShortName(fullName: string): string {
  *
  * Bu takımlar ayrı Wikidata varlıklarıdır ve "A takımında oynadı" sayılmaz
  * (BR-2). Ad kalıbına bakmak kusursuz değil ama pratikte iyi çalışıyor.
+ *
+ * `II` VE TEK HARFLİK `B` EKLERİ ÇIKARILDI — ölçüldü. Kalıp yedek takım
+ * geleneğini (`Ajax II`, `Barcelona B`) hedefliyordu, ama tek başına bir ad
+ * ekiyle hükümdar adını ayırt edemiyor: 992 kulübün TAMAMI tarandığında
+ * kalıba takılan tek kulüp **Willem II** çıktı — Eredivisie kulübü, yedek
+ * takım değil. Sonucu ağırdı: 510 dönemin hepsi altyapı sayıldığı için kulüp
+ * her modda sıfır sonuç veriyordu (BR-2 altyapıyı elediği için).
+ *
+ * Aynı tarama gerçek yedek takım sayısını da verdi: **sıfır**. Kulüp evreni
+ * lig üyeliğinden geliyor ve yedek takımlar bu liglerde yok. Yani çıkarılan
+ * iki dal bu veri kümesinde hiçbir doğru eşleşme üretmiyordu.
+ *
+ * Yedek takımlar ileride evrene girerse (§10.2) ad kalıbı YETMEZ: doğru
+ * ayrım "eki atınca geriye kalan ad başka bir kulübe ait mi" sorusudur ve
+ * bu, kulüp evreninin tamamını görmeyi gerektirir.
  */
 export function looksLikeYouthOrReserve(name: string): boolean {
-  return /\b(u-?\d{2}|under-?\d{2}|youth|academy|reserves?|altyap[ıi]|genç(ler)?|[AB]\s*tak[ıi]m[ıi]|\bII\b|\bB\b)\s*$/iu.test(
+  return /\b(u-?\d{2}|under-?\d{2}|youth|academy|reserves?|altyap[ıi]|genç(ler)?|[AB]\s*tak[ıi]m[ıi])\s*$/iu.test(
     name.trim(),
   );
 }
