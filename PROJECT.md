@@ -1682,6 +1682,11 @@ Geçişli bağımlılıklardaki açıklar, üst paketleri **düşürmek yerine**
 | --------- | --------- | ----------------------------------------------------------------- | ---------------------------------- |
 | `sharp`   | `^0.35.3` | libvips CVE-2026-33327/33328/35590/35591 (`GHSA-f88m-g3jw-g9cj`)  | **Çalışma zamanı** — görsel işleme |
 | `postcss` | `^8.5.23` | sourceMappingURL üzerinden yol geçişi (`GHSA-r28c-9q8g-f849` vb.) | Derleme zamanı CSS işleme          |
+| `nanoid`  | `^3.3.17` | özel üreteçte sonsuz döngü (`GHSA-2v37-7h3g-55p8`)                | Derleme zamanı — `next → postcss`  |
+
+> **`nanoid` girdisi bir SÜRÜM ARALIĞI sorunu değil, KİLİT sorunuydu ve bu yüzden kayda değer.** `postcss@8.5.23` zaten `^3.3.16` istiyordu, yani yamalı sürüm aralığın içindeydi; `package-lock.json` sadece eski çözünürlükte (`3.3.16`) donmuştu. Bir `npm update` de kapatırdı. `overrides` yine de tercih edildi: aralık izin veriyor diye kilidin bir daha aşağı düşmeyeceğinin garantisi yok, ve tablo bu satırın neden var olduğunu taşıyor. Çözülen sürüm `3.3.18`.
+>
+> Bu açık **CI'ı dört itme boyunca kırmızı tuttu** (2026-08-08 → 09) ve sebebi bizim kodumuz değildi. Kayda geçiyor: `audit:ci` bloklayıcı bir kapıdır, dolayısıyla yukarı akıştaki bir uyarı yayımı derlemeyi durdurur. Beklenen davranış budur; müdahale de bu tablodaki gibi olur.
 
 > `npm audit fix --force` **kullanılmaz**: önerdiği "düzeltme" `next@9.3.3` ve `eslint-config-next@12.0.4` gibi yıllar öncesine dönüşlerdir; net etkisi güvenliği azaltmaktır.
 
