@@ -1071,18 +1071,39 @@ Sebep Wikidata'nın modellemesi: şemsiye **spor kulübü** (çok şubeli) ile o
 
 **AYNI BAĞ İKİ FARKLI ŞEYİ GÖSTERİYOR ve karışması pahalı.** `P361` (parçası) ve `P831` (ana kulüp) hem ikizleri hem SELEF/HALEF kulüpleri bağlar: `RC Roubaix`, 1945'te `CO Roubaix-Tourcoing`'i oluşturan birleşmeye girmiştir ve o bağ da `P361`'dir. İkisi ayrı kulüptür; birleştirmek iki gerçek kulübün geçmişini karıştırırdı.
 
-**Ayrımı eşik değil SINIF verir.** İki taraf da `Q476028` (futbol kulübü) ise bağ bir birleşme kaydıdır. Aksi hâlde bir taraf şemsiye spor kulübü (`Q847017`, `Q13580678`) ya da "erkek futbol takımı" (`Q103229495`) varlığıdır ve iki kayıt aynı futbol geçmişini paylaşır.
+**Ayrımı eşik değil SINIF verir** — ama sorulacak soru "iki taraf da futbol kulübü mü" DEĞİLDİR. Doğru soru şudur: **bir tarafta ŞEMSİYE sınıfı (`Q847017` spor kulübü, `Q13580678` çok şubeli kulüp) var mı, ötekinde yok mu?** Bağ ancak bu asimetri varsa şemsiye/şube ayrımıdır; iki taraf da düz futbol kulübüyse bağ bir birleşme kaydıdır.
 
-> **Kural 23 çiftin hepsinde sınandı: 22 birleşiyor, 1'i (Roubaix) ayrı kalıyor.** Bağımsız bir sinyal aynı şeyi söylüyor — gerçek ikizlerde aynı oyuncu iki tarafta birden görünüyor, selef/halefte görünmüyor:
+> **İlk kural "iki taraf da `Q476028` ise ele" diyordu ve ÖLÇÜLEREK yanlış bulundu.** Wikidata çok şubeli kulüpleri düzenli olarak İKİ sınıfla birden etiketliyor — şemsiye kulüp aynı zamanda futbol kulübüdür:
 >
-> | Çift                              | İki taraf da futbol kulübü? | Ortak oyuncu | Karar          |
-> | --------------------------------- | --------------------------- | ------------ | -------------- |
-> | Fenerbahçe / Fenerbahçe SK        | hayır (şemsiye)             | 81/97 (%84)  | **birleştir**  |
-> | Hannover 96 / Hannover 96         | hayır (erkek takımı)        | 6/7 (%86)    | **birleştir**  |
-> | Bursaspor / Bursaspor Kulübü      | hayır (şemsiye)             | 23/38 (%61)  | **birleştir**  |
-> | CO Roubaix-Tourcoing / RC Roubaix | **evet**                    | 4/53 (%8)    | **ayrı bırak** |
+> | Öğe                            | `P31`                     |
+> | ------------------------------ | ------------------------- |
+> | `Q329607` IFK Norrköping       | `Q847017` + **`Q476028`** |
+> | `Q297906` Örgryte IS           | `Q847017` + **`Q476028`** |
+> | `Q33748` Hannover 96 (şemsiye) | `Q847017` + **`Q476028`** |
+>
+> Şube de doğal olarak `Q476028` taşıyor. Yani "ikisi de futbol kulübü" koşulu gerçek ikizlerde de sağlanıyordu ve kural onları **kendi elinde tuttuğu hâlde** eliyordu. Kusur Wikidata'da değil, sorgudaydı.
+
+> **Yeni kural bütün evrende ölçüldü (992 kulüp).** Mevcut kural 71 çift buluyor, yeni kural 67. Fark aldatıcı — içeriğe bakılınca:
+>
+> | Değişim                 | Sayı | Etkisi                                                                                                       |
+> | ----------------------- | ---- | ------------------------------------------------------------------------------------------------------------ |
+> | Yeni kuralın kazandığı  | 3    | **Örgryte IS** ve **IFK Norrköping** ikizleri kapanıyor; üçüncüsü evren dışı bir ebeveyne bağlı              |
+> | Yeni kuralın kaybettiği | 7    | **hepsi evren dışı ebeveyne bağlı** — birleştirme iki ucu da tanımayan çifti zaten atıyor (`merge-clubs.ts`) |
+>
+> Yani veri kümesinde net etki: **iki gerçek ikiz kapanıyor, hiçbir şey kaybedilmiyor.**
+
+> **§5.3'ün belgelediği dört çift gerileme testi olarak yeniden koşuldu ve dördü de doğru davranıyor:**
+>
+> | Çift                              | Şemsiye sınıfı asimetrisi             | Ortak oyuncu | Karar          |
+> | --------------------------------- | ------------------------------------- | ------------ | -------------- |
+> | Fenerbahçe / Fenerbahçe SK        | var (`Q19648` = `Q13580678`)          | 81/97 (%84)  | **birleştir**  |
+> | Hannover 96 / Hannover 96         | var (`Q33748` = `Q847017`+`Q476028`)  | 6/7 (%86)    | **birleştir**  |
+> | Bursaspor / Bursaspor Kulübü      | var (`Q6096484` = `Q847017`)          | 23/38 (%61)  | **birleştir**  |
+> | CO Roubaix-Tourcoing / RC Roubaix | **yok** (ikisi de yalnızca `Q476028`) | 4/53 (%8)    | **ayrı bırak** |
 >
 > Ortak oyuncu oranı kuralın KENDİSİ DEĞİL, doğrulamasıdır. Eşik uydurmak dört veri noktasına eğri uydurmak olurdu; sınıf kısıtı ise Wikidata'nın kendi anlamını okuyor.
+
+> **Birleşme YÖNÜ değişmedi ve bunun görünür bir bedeli var.** Yön hâlâ dönem sayısıyla belirlenir (aşağıda), şemsiye/şube ilişkisiyle değil. Sonuç: Örgryte ve IFK Norrköping'de şube kaydı daha çok döneme sahip olduğu için asıl kayıt o oluyor ve kulüp listede **"Örgryte IS Fotboll"** / **"IFK Norrköping FK"** diye görünecek. İkisi de yanlış ad değil; yönü ilişkiye bağlamak ise Fenerbahçe'yi "Fenerbahçe SK"ye çevirirdi. Ölçülmemiş bir iyileştirme için ölçülmüş bir davranış bozulmuyor (§10.2).
 
 Hangi tarafın asıl olduğunu yine **dönem sayısı** söyler — bu bölümün zaten kurduğu karar mercii. Eşitlikte QID sırası belirler; sıranın koşudan koşuya sabit kalması şart, aksi hâlde aynı veri farklı kulüp kimlikleri üretir.
 

@@ -37,13 +37,32 @@ const CLUB_CLASS_VALUES = CLUB_CLASSES.map((id) => `wd:${assertQid(id)}`).join(
 );
 
 /**
- * "Futbol kulübü" sınıfı — ikiz ayrımının dayanağı (`clubDuplicates`).
+ * ŞEMSİYE sınıfları — ikiz ayrımının dayanağı (`clubDuplicates`).
  *
- * Beyaz listedeki diğer beş sınıf (spor kulübü, çok takımlı kulüp, erkek
- * futbol takımı…) bir kulübün ŞEMSİYESİNİ ya da ŞUBESİNİ anlatıyor; yalnızca
- * bu sınıf "kendi başına bir futbol kulübü" demek.
+ * Bu iki sınıf "birden çok şubesi olan kurum" demek; bir kulübün futbol
+ * şubesi bunları taşımaz. İkiz ayrımı bu ASİMETRİYE dayanır.
+ *
+ * ÖNCEKİ KURAL "iki taraf da `Q476028` (futbol kulübü) ise ele" diyordu ve
+ * ÖLÇÜLEREK yanlış bulundu: Wikidata çok şubeli kulüpleri düzenli olarak İKİ
+ * sınıfla birden etiketliyor.
+ *
+ *   Q329607 IFK Norrköping      → Q847017 + Q476028
+ *   Q297906 Örgryte IS          → Q847017 + Q476028
+ *   Q33748  Hannover 96 (şemsiye) → Q847017 + Q476028
+ *
+ * Şube de doğal olarak `Q476028` taşıdığı için koşul GERÇEK ikizlerde de
+ * sağlanıyor ve kural onları kendi elinde tuttuğu hâlde eliyordu — Örgryte
+ * ile IFK Norrköping böyle kaçtı. Kusur Wikidata'da değil, sorgudaydı.
+ *
+ * Yeni kural 992 kulübün tamamında ölçüldü: iki gerçek ikiz kazanılıyor,
+ * kaybedilen yedi çiftin hepsi evren dışı bir ebeveyne bağlı ve
+ * `mergeDuplicateClubs` onları zaten atıyordu. §5.3'ün dört gerileme çifti
+ * (Fenerbahçe, Hannover 96, Bursaspor birleşiyor; Roubaix ayrı kalıyor)
+ * yeniden koşuldu ve dördü de doğru davranıyor.
  */
-const CLUB_ONLY_CLASS = assertQid("Q476028");
+const UMBRELLA_CLASS_VALUES = ["Q847017", "Q13580678"]
+  .map((id) => `wd:${assertQid(id)}`)
+  .join(" ");
 
 /** Kulüp meta verisi — iki kulüp sorgusunda da aynı. */
 const CLUB_FIELDS = `
@@ -317,15 +336,16 @@ GROUP BY ?league ?leagueLabel`.trim();
  * birleşmeye girmiş ve o bağ da `P361`. İkisi AYRI kulüptür; birleştirmek
  * iki gerçek kulübün geçmişini karıştırırdı.
  *
- * Ayrımı SINIF verir, eşik değil: iki taraf da `Q476028` (futbol kulübü) ise
- * bağ bir birleşme kaydıdır. Aksi hâlde bir taraf şemsiye spor kulübü
- * (`Q847017`, `Q13580678`) ya da "erkek futbol takımı" (`Q103229495`)
- * varlığıdır ve iki kayıt aynı futbol geçmişini paylaşır.
+ * Ayrımı SINIF verir, eşik değil — ama sorulacak soru "iki taraf da futbol
+ * kulübü mü" DEĞİL, **şemsiye sınıfı asimetrik mi**: ebeveyn `Q847017` /
+ * `Q13580678` taşıyor, kulüp taşımıyorsa bağ bir şemsiye/şube ayrımıdır.
+ * İki taraf da düz futbol kulübüyse bağ bir birleşme kaydıdır ve döndürülmez.
+ * Önceki kuralın neden yanlış olduğu `UMBRELLA_CLASS_VALUES` üzerinde.
  *
- * ÖLÇÜLDÜ, 23 ÇİFTİN HEPSİNDE: kural 22'sini birleştiriyor, 1'ini (Roubaix)
- * ayrı bırakıyor. Ortak oyuncu oranı bağımsız olarak aynı şeyi söylüyor —
- * ikizlerde aynı oyuncu iki tarafta birden görünüyor (Fenerbahçe %84),
- * selef/halefte görünmüyor (%8).
+ * ÖLÇÜLDÜ, §5.3'ÜN DÖRT GERİLEME ÇİFTİNDE: Fenerbahçe, Hannover 96 ve
+ * Bursaspor birleşiyor, Roubaix ayrı kalıyor. Ortak oyuncu oranı bağımsız
+ * olarak aynı şeyi söylüyor — ikizlerde aynı oyuncu iki tarafta birden
+ * görünüyor (Fenerbahçe %84), selef/halefte görünmüyor (%8).
  *
  * `P527` (parçaları) BİLEREK YOK: ölçüldü, evren içindeki 9 bağının hepsi
  * zaten `P361`/`P831` ile de geliyor — eklemek yalnızca yinelenen kenar
@@ -339,9 +359,11 @@ SELECT DISTINCT ?club ?parent WHERE {
   VALUES ?club { ${values} }
   ?club (wdt:${WD.PROP_PART_OF}|wdt:${WD.PROP_PARENT_CLUB}) ?parent .
   FILTER(?club != ?parent)
+  ?parent wdt:P31 ?parentClass .
+  VALUES ?parentClass { ${UMBRELLA_CLASS_VALUES} }
   FILTER NOT EXISTS {
-    ?club wdt:P31 wd:${CLUB_ONLY_CLASS} .
-    ?parent wdt:P31 wd:${CLUB_ONLY_CLASS} .
+    ?club wdt:P31 ?clubClass .
+    VALUES ?clubClass { ${UMBRELLA_CLASS_VALUES} }
   }
 }`.trim();
 }

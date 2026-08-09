@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  clubDuplicates,
   clubsByLeagueLink,
   clubsFromSeasonParents,
   clubsFromSeasons,
@@ -72,5 +73,49 @@ describe("QID enjeksiyon koruması", () => {
 
   it("geçerli QID kabul edilir", () => {
     expect(() => clubsByLeagueLink(SUPER_LIG)).not.toThrow();
+  });
+});
+
+describe("clubDuplicates — §5.3 ikiz ayrımı", () => {
+  const sparql = clubDuplicates(["Q641373", "Q20473364"]);
+
+  /**
+   * ÖNCEKİ KURAL "iki taraf da Q476028 ise ele" diyordu ve ÖLÇÜLEREK yanlış
+   * bulundu: Wikidata çok şubeli kulüpleri İKİ sınıfla birden etiketliyor
+   * (IFK Norrköping ve Örgryte IS = Q847017 + Q476028). Şube de doğal olarak
+   * Q476028 taşıdığı için koşul GERÇEK ikizlerde de sağlanıyor, kural onları
+   * kendi elinde tuttuğu hâlde eliyordu.
+   *
+   * Bu test o kuralın geri gelmesini engelliyor: sorgu ikizi Q476028
+   * simetrisiyle DEĞİL, şemsiye sınıfı asimetrisiyle ayırmalı.
+   */
+  it("ayrımı Q476028 simetrisine dayandırmaz", () => {
+    expect(sparql).not.toMatch(/wd:Q476028/u);
+  });
+
+  it("ebeveynde ŞEMSİYE sınıfı arar", () => {
+    expect(sparql).toMatch(/\?parent wdt:P31 \?parentClass/u);
+    expect(sparql).toMatch(/VALUES \?parentClass \{[^}]*wd:Q847017[^}]*\}/u);
+    expect(sparql).toMatch(/VALUES \?parentClass \{[^}]*wd:Q13580678[^}]*\}/u);
+  });
+
+  /**
+   * ASİMETRİ ŞART. Yalnızca "ebeveyn şemsiye" arasaydı, iki şemsiye kulübün
+   * birbirine bağlandığı hâller de ikiz sayılırdı; kuralın söylediği şey
+   * "biri şemsiye, öteki DEĞİL".
+   */
+  it("kulübün şemsiye OLMADIĞINI da denetler", () => {
+    expect(sparql).toMatch(
+      /FILTER NOT EXISTS \{[\s\S]*\?club wdt:P31 \?clubClass/u,
+    );
+  });
+
+  it("iki bağı da okur (P361 ve P831) ve kendine bağlıyı eler", () => {
+    expect(sparql).toMatch(/wdt:P361\|wdt:P831/u);
+    expect(sparql).toMatch(/FILTER\(\?club != \?parent\)/u);
+  });
+
+  it("QID biçimini doğrular (enjeksiyon koruması)", () => {
+    expect(() => clubDuplicates(["Q1; DROP"])).toThrow(/Geçersiz/u);
   });
 });
