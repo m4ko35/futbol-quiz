@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  classifyLocalFile,
   cleanAuthor,
   commonsFilePage,
   extractCrestFile,
@@ -10,6 +11,7 @@ import {
   isUsableFile,
   toAttribution,
   type FileMetadata,
+  type LocalFileMetadata,
 } from "../../../scripts/etl/pipeline/crest-source";
 
 /** §4.3.1 — arma çıkarımı ve lisans sınıflandırması (BR-33, BR-34). */
@@ -241,6 +243,95 @@ describe("fileNameFromCrestUrl", () => {
         "https://upload.wikimedia.org/wikipedia/tr/a/ab/Y.png",
       ),
     ).toBeNull();
+  });
+});
+
+describe("classifyLocalFile — §4.3.1 denetimi", () => {
+  const LOCAL: LocalFileMetadata = {
+    exists: true,
+    onCommons: false,
+    licenseShortName: null,
+    license: null,
+    usageTerms: null,
+    artist: null,
+    attributionRequired: false,
+    nonFree: false,
+    copyrighted: null,
+    restrictions: null,
+  };
+
+  it("Commons'ta çıkan dosyayı ret sebebi saymaz", () => {
+    // `imagerepository: shared` bizim arama hatamızdır, dosyanın kusuru değil.
+    expect(classifyLocalFile({ ...LOCAL, onCommons: true })).toBe("commons");
+  });
+
+  it("NonFree işaretini adil kullanım sayar", () => {
+    expect(classifyLocalFile({ ...LOCAL, nonFree: true })).toBe(
+      "adil-kullanım",
+    );
+  });
+
+  it("adil kullanım, ABD kısıtından AĞIR basar", () => {
+    // İkisi birden işaretliyse dosya zaten telifli; hafif olanı raporlamak
+    // durumu olduğundan iyi gösterirdi.
+    expect(
+      classifyLocalFile({
+        ...LOCAL,
+        nonFree: true,
+        licenseShortName: "Public domain in the United States",
+      }),
+    ).toBe("adil-kullanım");
+  });
+
+  it("künyede AÇIKÇA yazan ABD kısıtını yakalar", () => {
+    expect(
+      classifyLocalFile({
+        ...LOCAL,
+        licenseShortName: "Public domain in the United States",
+      }),
+    ).toBe("yalnızca-ABD");
+    expect(
+      classifyLocalFile({ ...LOCAL, usageTerms: "PD-ineligible-USonly" }),
+    ).toBe("yalnızca-ABD");
+  });
+
+  /**
+   * BU TESTİN SEBEBİ ÖLÇÜLMÜŞ BİR HATA.
+   *
+   * Bu künye ile dünya çapında kamu malı olan bir dosyanınki AYNI. Ölçüldü:
+   * bu kovaya düşen 7 dosyanın 5'i `{{PD-ineligible-USonly}}` çıktı — yani
+   * künyeye bakıp "özgür" demek 5 telifli dosyayı siteye sokardı.
+   */
+  it("özgür GÖRÜNEN künyeyi özgür İLAN ETMEZ", () => {
+    const verdict = classifyLocalFile({
+      ...LOCAL,
+      license: "pd",
+      licenseShortName: "PD",
+      usageTerms: "Public domain",
+      copyrighted: "False",
+    });
+
+    expect(verdict).toBe("özgür-görünüyor");
+    // Kova adı "özgür" OLMAMALI: bu değer doğrudan kullanıma yol açamaz.
+    expect(verdict).not.toBe("özgür");
+  });
+
+  it("tanımadığı künyeyi özgür saymaz", () => {
+    // Almanca `Bild-LogoSH` ve Fransızca `marque déposée` buraya düşer.
+    expect(
+      classifyLocalFile({
+        ...LOCAL,
+        licenseShortName: "Logo",
+        copyrighted: "True",
+      }),
+    ).toBe("belirsiz");
+    expect(
+      classifyLocalFile({ ...LOCAL, licenseShortName: "marque déposée" }),
+    ).toBe("belirsiz");
+  });
+
+  it("yerel vikide de olmayan dosyayı ayırır", () => {
+    expect(classifyLocalFile({ ...LOCAL, exists: false })).toBe("yok");
   });
 });
 

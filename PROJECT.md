@@ -825,6 +825,42 @@ Eklenen akla yatkınlık süzgeci (`isPlausibleCrest`) iki koşulu birleştiriyo
 
 Süzgeç birkaç DOĞRU armayı da eliyor (kısaltmayla adlandırılmış dosyalar). Bu bilinçli bir takas: yanlış arma, boş armadan kötüdür (§2.7).
 
+##### Denetim: "Commons'ta yok" gerçekten "telifli" mi? (`npm run db:crest-audit`)
+
+BR-33 dosyaları **Commons'ta olup olmadığına** göre eliyor. Bu bir vekil ölçüttür: Commons'ta olmamanın üç sebebi olabilir ve yalnızca biri telif. Reddin haklı olup olmadığı ölçülmeden bilinemezdi, bu yüzden ayrı bir denetim betiği yazıldı — geçişle **aynı** adayları türetir (ortak `crest-fetch.ts`), yoksa ölçtüğü şey geçişin davranışı olmazdı.
+
+**SONUÇ (2026-08-09, 579 armasız kulüp, 507 denetlenen dosya):**
+
+| Karar                     |   Dosya |   Pay |
+| ------------------------- | ------: | ----: |
+| Adil kullanım (`NonFree`) | **484** | %95,5 |
+| Belirsiz — yerel şablon   |      15 |  %3,0 |
+| Künyesi özgür görünen     |       7 |  %1,4 |
+| Yerel vikide de yok       |       1 |  %0,2 |
+
+**Kullanılabilir çıkan: 2 dosya (507'de).** IFK Malmö ve Al-Shabab Riyad — düz `{{PD}}`, Commons kısıtı yok.
+
+**KÜNYE, ÖZGÜRLÜĞÜ KANITLAMAYA YETMİYOR.** Bu denetimin en pahalı bulgusu. `extmetadata`, dünya çapında kamu malı olan bir dosya ile **yalnızca ABD'de** kamu malı olanı ayırt edemiyor; `{{PD-ineligible-USonly}}` ile düz `{{PD}}` aynı üç alanı üretiyor:
+
+```
+LicenseShortName: "PD"   UsageTerms: "Public domain"   Copyrighted: "False"
+```
+
+Ayrım yalnızca dosya sayfasının şablon metninde ("Do not copy this file to Wikimedia Commons", "non-free … in its home country"). Özgür görünen 7 dosya elle denetlendi: **5'i ABD'ye özgü çıktı** (SC Fives, SKA Habarovsk, Volos, Örgryte, Tirol Innsbruck), 2'si gerçekten özgürdü. Künyeye bakıp otomatik karar verilseydi 5 telifli dosya siteye girerdi. `classifyLocalFile` bu yüzden `özgür` değil **`özgür-görünüyor`** döner — bir izin değil, insanın bakması için ayrılmış kova.
+
+**Belirsiz 15 dosya iki yerel şablondan geliyor; ikisi de reddedildi:**
+
+| Şablon                           | Ne diyor                                                                                                                                                               | Karar |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| `de` — Logo, Marken-/Namensrecht | "Erreicht nicht die nötige Schöpfungshöhe … jedoch markenrechtlicher Schutz" — **Alman hukukuna göre** telifsiz, kullanım "ausschließlich zu enzyklopädischen Zwecken" | ret   |
+| `fr` — marque déposée            | "Copyright – utilisation restreinte"; yalnızca FR/CA/US için koşullu, başka bağlamda kullanılmaması **öneriliyor**                                                     | ret   |
+
+Almanca şablonun kapsadığı kulüpler Portekiz, Çek, Norveç, İsveç ve Ukrayna kulüpleri: telifsizlik iddiası **kaynak ülke için değil**, Almanya için. Bu, `PD-USonly` ile yapı olarak aynı durum ve BR-33 ikisini de aynı gerekçeyle eliyor — tek bir ülkede özgür olmak yeterli değil.
+
+**Yönlendirme şüphesi ölçüldü ve çürüdü.** `imageinfo` sorgusu `redirects=1` göndermiyordu; Commons'ta yeniden adlandırılan dosyaların eski adla aranınca "yok" görüneceği düşünüldü. Parametre eklendi: **kurtarılan dosya 0**. Gizli kusur olarak düzeltme yerinde kalıyor, ama kapsama katkısı yok.
+
+**Sonuç: 507 dosyanın 505'i gerçekten kullanılamaz.** Ret oranı %99,6 doğruydu; BR-33'ün vekil ölçütü ölçümle doğrulandı.
+
 ---
 
 ## 5. Veri Modeli

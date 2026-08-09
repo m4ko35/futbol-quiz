@@ -232,6 +232,91 @@ export interface CrestAttribution {
 }
 
 /**
+ * YEREL vikideki bir dosyanın künyesi — yalnızca denetim için (§4.3.1).
+ *
+ * `FileMetadata`'dan ayrı tutuluyor çünkü SORU FARKLI. Orada soru "bu dosyayı
+ * kullanabilir miyiz"; burada "Commons'ta olmayan bu dosya NEDEN orada değil".
+ * İkisini tek tipte birleştirmek, ikinci sorunun cevabının birinciye sızmasına
+ * ve BR-33'ün sessizce gevşemesine yol açardı.
+ */
+export interface LocalFileMetadata {
+  readonly exists: boolean;
+  /** `imagerepository === "shared"` — dosya aslında Commons'ta. */
+  readonly onCommons: boolean;
+  readonly licenseShortName: string | null;
+  /** Makine okunur lisans kodu (`pd`, `cc-by-sa-4.0`, `fair use`). */
+  readonly license: string | null;
+  readonly usageTerms: string | null;
+  readonly artist: string | null;
+  readonly attributionRequired: boolean;
+  readonly nonFree: boolean;
+  readonly copyrighted: string | null;
+  readonly restrictions: string | null;
+}
+
+/**
+ * Bir yerel dosyanın Commons dışında kalma SEBEBİ.
+ *
+ * `belirsiz` kasten var: künyesi bu dört kovaya oturmayan dosyayı özgür
+ * SAYMAK, kanıtlamadığımız bir şeyi varsaymak olurdu. Denetim bunları ayrı
+ * listeler ve ham etiketlerini basar — karar veriye bakılarak verilir.
+ */
+export type LocalFileVerdict =
+  | "commons" // aslında Commons'ta; adres yönlendirme ardında kalmış
+  | "adil-kullanım" // NonFree işaretli — telifli, yeniden kullanılamaz
+  | "yalnızca-ABD" // künyesi ABD kısıtını AÇIKÇA söylüyor
+  | "özgür-görünüyor" // künye özgür diyor ama KANIT DEĞİL — aşağıya bakın
+  | "yok" // dosya yerel vikide de yok
+  | "belirsiz";
+
+/** Künyede AÇIKÇA görünen ABD kısıtı. */
+const US_ONLY = /united\s+states|\bus\b[\s-]*only|usonly/iu;
+
+/** Özgür sayılan lisans kodlarının kökü. */
+const FREE_LICENSE = /^(pd|cc0|cc-by(-sa)?(-\d|$)|cc-sa|gfdl|fal|ogl)/iu;
+
+/**
+ * Yerel dosya neden Commons'ta değil?
+ *
+ * SIRA ÖNEMLİ. `onCommons` en başta: bu bir ret sebebi değil, bizim arama
+ * hatamızdır. `nonFree` ondan hemen sonra gelir — ABD kısıtı taşıyan bir dosya
+ * AYNI ZAMANDA adil kullanım olabilir ve o durumda ağır olan kazanır.
+ *
+ * "ÖZGÜR-GÖRÜNÜYOR" BİR İZİN DEĞİL, BİR SORU İŞARETİDİR.
+ *
+ * ÖLÇÜLMÜŞ HATA (§4.3.1). İlk yazımda bu kova "özgür" adını taşıyordu ve
+ * doğrudan kullanılabilir sayılıyordu. Ölçüm bunu çürüttü: `extmetadata`,
+ * dünya çapında kamu malı olan bir dosya ile YALNIZCA ABD'de kamu malı olanı
+ * AYIRT EDEMİYOR. `{{PD-ineligible-USonly}}` de düz `{{PD}}` de aynı üç alanı
+ * üretiyor —
+ *
+ *   LicenseShortName: "PD" · UsageTerms: "Public domain" · Copyrighted: "False"
+ *
+ * Ayrım yalnızca dosya sayfasının şablon metninde ("Do not copy this file to
+ * Wikimedia Commons", "non-free … in its home country"). Bu kovaya düşen 7
+ * dosya elle denetlendi: 5'i ABD'ye özgüydü, 2'si gerçekten özgürdü. Yani
+ * künyeye bakıp otomatik karar verilseydi 5 telifli dosya sitede olurdu.
+ *
+ * Bu yüzden karar burada BİTMEZ; kova insanın bakması için ayrılır.
+ */
+export function classifyLocalFile(meta: LocalFileMetadata): LocalFileVerdict {
+  if (!meta.exists) return "yok";
+  if (meta.onCommons) return "commons";
+  if (meta.nonFree) return "adil-kullanım";
+
+  const short = meta.licenseShortName ?? "";
+  const terms = meta.usageTerms ?? "";
+  if (US_ONLY.test(short) || US_ONLY.test(terms)) return "yalnızca-ABD";
+
+  const code = meta.license ?? "";
+  if (FREE_LICENSE.test(code) || meta.copyrighted === "False") {
+    return "özgür-görünüyor";
+  }
+
+  return "belirsiz";
+}
+
+/**
  * BR-33 — bu dosya kullanılabilir mi?
  *
  * YALNIZCA COMMONS'TAKİLER. Bir Vikipedi'ye yüklenmiş yerel dosyalar iki
