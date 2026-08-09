@@ -67,7 +67,38 @@ describe("ClubMark — BR-35", () => {
     );
 
     expect(container.querySelector("img")).toBeNull();
-    expect(container).toHaveTextContent("MU");
+    expect(container).toHaveTextContent("MAU");
+  });
+
+  /**
+   * KARO ÖLÇÜSÜ ÜÇ HARFİN ÖNKOŞULU (§7.13). Üç harf 20 px'lik yuvada
+   * okunmuyordu; iki harfin ilk gerekçesi buydu. Varsayılan küçültülürse
+   * harf sayısı kararı da yeniden ölçülmelidir — bu test o bağı tutuyor.
+   */
+  it("varsayılan yuva 26 px", () => {
+    const { container } = render(
+      <ClubMark club={club({ crestUrl: null, shortName: "Everton" })} />,
+    );
+
+    expect(container.firstElementChild).toHaveStyle({
+      width: "26px",
+      height: "26px",
+    });
+  });
+
+  it("üç harf iki harften küçük punto ile yazılır", () => {
+    // Aynı oranda yazıldığında üçüncü harf yuvadan taşıyor.
+    const ucHarf = render(
+      <ClubMark club={club({ crestUrl: null, shortName: "Everton" })} />,
+    ).container.firstElementChild;
+    const ikiHarf = render(
+      <ClubMark club={club({ crestUrl: null, shortName: "A" })} />,
+    ).container.firstElementChild;
+
+    const punto = (el: Element | null) =>
+      Number.parseFloat((el as HTMLElement).style.fontSize);
+
+    expect(punto(ucHarf)).toBeLessThan(punto(ikiHarf));
   });
 
   it("baş harflerde kulübün ülkesini dikkate alır", () => {
@@ -78,7 +109,7 @@ describe("ClubMark — BR-35", () => {
       />,
     );
 
-    expect(container).toHaveTextContent("Sİ");
+    expect(container).toHaveTextContent("SİV");
   });
 
   it("baş harf yuvası da aynı ölçüyü tutar", () => {

@@ -8,3 +8,8 @@ prisma/migrations
 scripts/etl/.cache
 src/generated
 *.db
+
+# Dışarıdan gelen tasarım teslimatı — bizim kaynağımız değil, bir referans.
+# Yeniden biçimlendirmek 2.274 satırı değiştirir ve sürümler arası
+# karşılaştırmayı imkânsız kılar.
+ARAYUZ-TASARIM.html

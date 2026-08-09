@@ -44,6 +44,13 @@ const PAIRS: readonly [string, string, number, string][] = [
   ["foreground", "wrong-soft", TEXT, "yanlış hücredeki oyuncu adı"],
   ["wrong", "surface", TEXT, "kart üzerindeki hata metni"],
   ["warn", "warn-soft", TEXT, "kiralık rozeti, orta puan bandı"],
+  ["note", "note-soft", TEXT, "kesme uyarısı, kaynakta ayrıntı yok"],
+  ["note", "background", TEXT, "kapsam cümlesi, sayfa üzerinde"],
+  ["note", "surface", TEXT, "kart içindeki kenar notu"],
+  ["foreground", "surface-2", TEXT, "kart içi ikinci kattaki ana metin"],
+  ["muted", "surface-2", TEXT, "kart içi ikinci kattaki ikincil metin"],
+
+  ["line-strong", "surface-2", UI, "ikinci kat üzerindeki hücre kenarlığı"],
 
   ["line-strong", "background", UI, "girdi kenarlığı, boş ızgara hücresi"],
   ["line-strong", "surface", UI, "kart içindeki girdi kenarlığı"],
@@ -51,6 +58,30 @@ const PAIRS: readonly [string, string, number, string][] = [
   ["accent", "surface", UI, "odak konturu, kart üzerinde"],
   ["correct", "surface", UI, "doğru hücre kenarlığı"],
   ["wrong", "surface", UI, "yanlış hücre kenarlığı"],
+];
+
+/**
+ * AYRI OKUNMASI GEREKEN ROLLER — oran denetiminin göremediği kusur.
+ *
+ * NEDEN VAR. İlk palette `--accent` ile `--correct` BİREBİR aynı tondu
+ * (`#15803d`). Yukarıdaki çiftlerin hepsi geçiyordu, çünkü her biri kendi
+ * zeminine karşı ölçülüyor; çakışan şey oranlar değil ROLLERİN KENDİSİYDİ.
+ * Sonuç: ızgarada "doğru bilinmiş hücre" ile "birincil düğme" aynı sinyali
+ * veriyordu ve iki rolü ayırmak için yazılmış bütün arayüz boşa çıkıyordu.
+ *
+ * Buradaki çiftler arayüzde YAN YANA görünür ve ayırt edilmeleri gerekir.
+ * Ton yakınlığı değil, EŞİTLİK aranıyor: farkın ne kadar olacağı bir tasarım
+ * kararıdır, ama sıfır olması her zaman bir kusurdur.
+ */
+const DISTINCT: readonly [string, string, string][] = [
+  ["accent", "correct", "birincil düğme ile doğru hücre"],
+  ["accent", "wrong", "birincil düğme ile hata"],
+  ["accent", "warn", "birincil düğme ile kiralık rozeti"],
+  ["accent", "note", "birincil eylem ile kenar notu"],
+  ["correct", "warn", "doğru hücre ile orta puan bandı"],
+  ["warn", "note", "alarm ile kenar notu"],
+  ["accent-soft", "correct-soft", "seçili zemin ile doğru hücre zemini"],
+  ["warn-soft", "note-soft", "alarm zemini ile not zemini"],
 ];
 
 function channel(value: number): number {
@@ -95,8 +126,11 @@ function readTokens(): {
 
   const collect = (section: string): Record<string, string> => {
     const found: Record<string, string> = {};
+    // Rol adı RAKAM içerebilir (`--surface-2`). Desen önce `[a-z-]+` idi ve
+    // böyle bir belirteci sessizce atlıyordu: eksik anahtar `undefined` olarak
+    // ölçüme giriyor, test kontrast kusuru gibi görünen bir çökmeyle patlıyordu.
     for (const match of section.matchAll(
-      /--([a-z-]+):\s*(#[0-9a-f]{6})\s*;/giu,
+      /--([a-z0-9-]+):\s*(#[0-9a-f]{6})\s*;/giu,
     )) {
       found[match[1]!.toLowerCase()] = match[2]!.toLowerCase();
     }
@@ -121,11 +155,26 @@ describe("renk kontrastı — WCAG 2.1 AA (§7.12)", () => {
     expect(contrastRatio("#16a34a", "#ffffff")).toBeLessThan(TEXT);
   });
 
+  describe.each([
+    ["açık", light],
+    ["koyu", dark],
+  ])("%s mod — roller birbirinden ayrı", (_mode, tokens) => {
+    it.each(DISTINCT)("%s ≠ %s — %s", (a, b) => {
+      expect(
+        tokens[a],
+        `--${a} ile --${b} aynı ton (${tokens[a] ?? "?"}); iki rolü ayırmak için yazılmış arayüz tek renge düşer`,
+      ).not.toBe(tokens[b]);
+    });
+  });
+
   it.each([
     ["açık", light],
     ["koyu", dark],
   ])("%s modda her belirteç tanımlı", (_mode, tokens) => {
-    const required = new Set(PAIRS.flatMap(([fg, bg]) => [fg, bg]));
+    const required = new Set([
+      ...PAIRS.flatMap(([fg, bg]) => [fg, bg]),
+      ...DISTINCT.flatMap(([a, b]) => [a, b]),
+    ]);
 
     for (const name of required) {
       expect(tokens[name], `--${name} tanımsız`).toMatch(/^#[0-9a-f]{6}$/u);

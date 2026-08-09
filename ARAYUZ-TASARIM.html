@@ -1,0 +1,2274 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Futbol Quiz — Arayüz Tasarımı</title>
+
+<style>
+/* ============================================================
+   BELIRTECLER  (§5.4 — rol adlari korunur, koyu mod tek yerden)
+   ============================================================ */
+:root, .app.t-light {
+  --background:#F2F4F8;  --surface:#FFFFFF;    --surface-2:#E7EBF2;
+  --foreground:#111823;  --muted:#5A6575;
+  --line:#D9E0EA;        --line-strong:#7A8595;
+  --accent:#2B41C4;      --accent-fg:#FFFFFF;  --accent-soft:#E3E8FF;
+  --correct:#0B6E3F;     --correct-soft:#D9F2E3;
+  --wrong:#B3242F;       --wrong-soft:#FBE2E4;
+  --warn:#7A5200;        --warn-soft:#FAEDCF;
+  --note:#6A6153;        --note-soft:#EFEBE3;
+  --shadow-card:0 1px 2px rgba(17,24,35,.06), 0 2px 8px rgba(17,24,35,.05);
+  --shadow-pop:0 8px 24px rgba(17,24,35,.14), 0 2px 6px rgba(17,24,35,.08);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --background:#0D1117;  --surface:#151B24;    --surface-2:#1D2530;
+    --foreground:#E7ECF3;  --muted:#98A3B3;
+    --line:#232C38;        --line-strong:#5A6879;
+    --accent:#7B93FF;      --accent-fg:#0A0E15;  --accent-soft:#1A2242;
+    --correct:#4FD98C;     --correct-soft:#0E2A1D;
+    --wrong:#FF7A82;       --wrong-soft:#301418;
+    --warn:#F2B950;        --warn-soft:#2C2011;
+    --note:#B3A794;        --note-soft:#23201A;
+    --shadow-card:0 1px 2px rgba(0,0,0,.5), 0 2px 8px rgba(0,0,0,.35);
+    --shadow-pop:0 10px 28px rgba(0,0,0,.62), 0 2px 6px rgba(0,0,0,.45);
+  }
+}
+:root[data-theme="dark"], .app.t-dark {
+  --background:#0D1117;  --surface:#151B24;    --surface-2:#1D2530;
+  --foreground:#E7ECF3;  --muted:#98A3B3;
+  --line:#232C38;        --line-strong:#5A6879;
+  --accent:#7B93FF;      --accent-fg:#0A0E15;  --accent-soft:#1A2242;
+  --correct:#4FD98C;     --correct-soft:#0E2A1D;
+  --wrong:#FF7A82;       --wrong-soft:#301418;
+  --warn:#F2B950;        --warn-soft:#2C2011;
+  --note:#B3A794;        --note-soft:#23201A;
+  --shadow-card:0 1px 2px rgba(0,0,0,.5), 0 2px 8px rgba(0,0,0,.35);
+  --shadow-pop:0 10px 28px rgba(0,0,0,.62), 0 2px 6px rgba(0,0,0,.45);
+}
+
+/* Mockup yazi yigini — gercek aileler §2'de adiyla bildirildi */
+:root{
+  --f-ui:"Helvetica Neue", Arial, "Segoe UI", Roboto, system-ui, sans-serif;
+  --f-text:Georgia, "Times New Roman", "Noto Serif", serif;
+  --r:3px; --r-lg:6px;
+}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--background); color:var(--foreground);
+  font-family:var(--f-ui); font-size:16px; line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{text-wrap:balance; margin:0; line-height:1.15}
+p{margin:0}
+svg{display:block}
+
+/* ============================================================
+   BELGE KABUGU
+   ============================================================ */
+.wrap{max-width:1180px; margin:0 auto; padding:0 24px}
+.doc-head{
+  border-bottom:1px solid var(--line); background:var(--surface);
+  padding:56px 0 40px; margin-bottom:8px;
+}
+.kicker{
+  font-size:11px; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--accent); font-weight:700; margin-bottom:18px;
+}
+.doc-head h1{font-size:clamp(34px,5.2vw,56px); font-weight:800; letter-spacing:-.028em}
+.doc-head .lede{
+  font-family:var(--f-text); font-size:19px; line-height:1.62; color:var(--muted);
+  max-width:62ch; margin-top:18px;
+}
+.meta-row{display:flex; flex-wrap:wrap; gap:10px; margin-top:26px}
+.meta-chip{
+  font-size:12px; padding:5px 10px; border:1px solid var(--line);
+  border-radius:var(--r); color:var(--muted); background:var(--background);
+}
+.meta-chip b{color:var(--foreground); font-weight:700}
+
+section{padding:52px 0; border-bottom:1px solid var(--line)}
+.sec-head{display:flex; align-items:baseline; gap:14px; margin-bottom:8px; flex-wrap:wrap}
+.sec-num{
+  font-size:12px; font-weight:800; color:var(--accent-fg); background:var(--accent);
+  padding:3px 8px; border-radius:var(--r); letter-spacing:.04em;
+  font-variant-numeric:tabular-nums;
+}
+.sec-head h2{font-size:clamp(24px,3vw,34px); font-weight:800; letter-spacing:-.02em}
+.sec-sub{
+  font-family:var(--f-text); color:var(--muted); font-size:17px;
+  max-width:66ch; margin:14px 0 34px; line-height:1.62;
+}
+h3.sub{
+  font-size:13px; text-transform:uppercase; letter-spacing:.12em; font-weight:800;
+  color:var(--foreground); margin:44px 0 16px; padding-bottom:9px;
+  border-bottom:2px solid var(--foreground);
+}
+h4.sub2{font-size:15px; font-weight:700; margin:28px 0 12px; color:var(--foreground)}
+.prose{font-family:var(--f-text); font-size:16px; line-height:1.68; color:var(--muted); max-width:68ch}
+.prose + .prose{margin-top:14px}
+.prose b, .prose strong{color:var(--foreground); font-weight:700}
+.prose code{
+  font-family:ui-monospace,"SF Mono",Consolas,monospace; font-size:.86em;
+  background:var(--surface-2); padding:1px 5px; border-radius:2px; color:var(--foreground);
+}
+ul.prose{padding-left:20px; margin:14px 0}
+ul.prose li{margin:7px 0}
+
+.decide{
+  border:1px solid var(--line); border-left:3px solid var(--accent);
+  background:var(--surface); padding:18px 20px; border-radius:var(--r);
+  margin:22px 0; max-width:74ch;
+}
+.decide .lbl{
+  font-size:11px; letter-spacing:.13em; text-transform:uppercase;
+  font-weight:800; color:var(--accent); margin-bottom:7px;
+}
+.decide p{font-family:var(--f-text); color:var(--muted); font-size:15.5px; line-height:1.62}
+.decide p b{color:var(--foreground)}
+.decide p + p{margin-top:10px}
+
+.docnote{
+  border:1px dashed var(--note); background:var(--note-soft);
+  padding:15px 18px; border-radius:var(--r); margin:22px 0; max-width:74ch;
+}
+.docnote p{font-family:var(--f-text); color:var(--note); font-size:15px; line-height:1.6}
+.docnote b{color:var(--foreground)}
+
+/* ============================================================
+   EKRAN CERCEVESI
+   ============================================================ */
+.frames{display:flex; flex-direction:column; gap:34px; margin-top:26px}
+.screen{border:1px solid var(--line); border-radius:var(--r-lg); overflow:hidden; background:var(--surface)}
+.screen-bar{
+  display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  padding:11px 15px; border-bottom:1px solid var(--line); background:var(--surface);
+}
+.screen-bar .n{
+  font-size:11px; font-weight:800; letter-spacing:.05em; color:var(--muted);
+  font-variant-numeric:tabular-nums; border:1px solid var(--line);
+  padding:2px 7px; border-radius:2px;
+}
+.screen-bar .t{font-size:14px; font-weight:700; color:var(--foreground)}
+.screen-bar .d{font-family:var(--f-text); font-size:14px; color:var(--muted); flex:1 1 240px}
+.screen-bar .th{
+  font-size:10px; letter-spacing:.1em; text-transform:uppercase; font-weight:800;
+  padding:3px 8px; border-radius:2px; background:var(--surface-2); color:var(--muted);
+}
+.screen-body{overflow-x:auto; background:var(--background)}
+.screen-body > .app{min-width:940px}
+.screen-body.narrow > .app{min-width:390px; width:390px; margin:0 auto}
+.screen-body.mid > .app{min-width:720px}
+
+/* ============================================================
+   UYGULAMA — ORTAK KABUK
+   ============================================================ */
+.app{
+  background:var(--background); color:var(--foreground);
+  font-family:var(--f-ui); font-size:15px; line-height:1.5;
+}
+.app *{box-sizing:border-box}
+.app-in{max-width:1120px; margin:0 auto; padding:0 24px}
+
+.hdr{display:flex; align-items:stretch; border-bottom:1px solid var(--line); background:var(--surface)}
+.brand{
+  display:flex; align-items:center; gap:9px; padding:0 20px 0 24px;
+  border-right:1px solid var(--line); flex:0 0 auto;
+}
+.brand .wm{font-weight:800; font-size:15px; letter-spacing:-.01em; white-space:nowrap}
+.nav{display:flex; flex:1 1 auto; min-width:0}
+.nav a{
+  display:flex; align-items:center; gap:8px; padding:13px 16px;
+  text-decoration:none; color:var(--muted); font-size:13.5px; font-weight:600;
+  border-right:1px solid var(--line); border-bottom:2px solid transparent;
+  white-space:nowrap; transition:background .14s ease, color .14s ease;
+}
+.nav a:hover{background:var(--surface-2); color:var(--foreground)}
+.nav a.on{color:var(--foreground); background:var(--accent-soft); border-bottom-color:var(--accent); font-weight:700}
+.nav a .g{color:var(--line-strong); flex:0 0 auto}
+.nav a.on .g{color:var(--accent)}
+.nav a:focus-visible{outline:2px solid var(--accent); outline-offset:-3px}
+
+/* mod kunyesi: baslik + sayac tek seritte */
+.kunye{
+  display:flex; align-items:flex-end; gap:24px; flex-wrap:wrap;
+  padding:22px 0 16px; border-bottom:2px solid var(--foreground);
+}
+.kunye .idg{
+  flex:0 0 auto; width:44px; height:44px; border:1px solid var(--line-strong);
+  border-radius:var(--r); display:flex; align-items:center; justify-content:center;
+  color:var(--accent); background:var(--surface);
+}
+.kunye .txt{flex:1 1 300px; min-width:0}
+.kunye .eyebrow{font-size:10.5px; letter-spacing:.15em; text-transform:uppercase; color:var(--muted); font-weight:800}
+.kunye h1{font-size:26px; font-weight:800; letter-spacing:-.02em; margin-top:3px}
+.kunye .task{font-family:var(--f-text); font-size:15px; color:var(--muted); margin-top:5px}
+.kunye .task b{color:var(--foreground); font-weight:700}
+
+/* skor tabelasi */
+.tab{
+  flex:0 0 auto; display:flex; align-items:stretch;
+  border:1px solid var(--line-strong); border-radius:var(--r); overflow:hidden; background:var(--surface);
+}
+.tab .cell{padding:7px 15px 8px; border-right:1px solid var(--line); text-align:right; min-width:76px}
+.tab .cell:last-child{border-right:0}
+.tab .cell .k{font-size:9.5px; letter-spacing:.13em; text-transform:uppercase; color:var(--muted); font-weight:800}
+.tab .cell .v{
+  font-size:30px; font-weight:800; letter-spacing:-.035em; line-height:1.06;
+  font-variant-numeric:tabular-nums; margin-top:1px;
+}
+.tab .cell .v.sm{font-size:18px; letter-spacing:-.02em; padding-top:8px}
+.v.c-acc{color:var(--accent)} .v.c-ok{color:var(--correct)}
+.v.c-no{color:var(--wrong)} .v.c-mid{color:var(--warn)}
+.tab.lit{background:var(--accent-soft); border-color:var(--accent)}
+
+/* kapsam seridi (§5.2) */
+.scope{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; padding:11px 0 10px}
+.scope .s-lbl{font-size:10px; letter-spacing:.13em; text-transform:uppercase; font-weight:800; color:var(--note); flex:0 0 auto}
+.scope .s-txt{font-family:var(--f-text); font-size:13.5px; color:var(--note); flex:1 1 340px; line-height:1.5}
+.scope .s-txt b{color:var(--foreground); font-weight:700; font-variant-numeric:tabular-nums}
+.ligs{display:flex; gap:4px; flex-wrap:wrap; padding:0 0 14px; border-bottom:1px solid var(--line)}
+.lig{
+  font-size:10px; font-weight:700; letter-spacing:.06em; padding:2px 6px;
+  border:1px solid var(--line); border-radius:2px; color:var(--muted);
+  background:var(--surface); white-space:nowrap;
+}
+
+/* kulup / oyuncu isareti (§5.1) */
+.mark{
+  flex:0 0 auto; display:inline-flex; align-items:center; justify-content:center;
+  width:26px; height:26px; border-radius:var(--r); overflow:hidden;
+  font-size:9.5px; font-weight:800; letter-spacing:.01em; line-height:1;
+  background:var(--accent-soft); color:var(--accent);
+  border:1px solid var(--line); text-transform:uppercase;
+}
+.mark.crest{background:var(--surface); padding:2px}
+.mark.nat{background:transparent; color:var(--foreground); border:1px dashed var(--line-strong); border-radius:50%; font-size:9px}
+.mark.s{width:20px; height:20px; font-size:8px}
+.mark.l{width:38px; height:38px; font-size:13px}
+.mark.xl{width:54px; height:54px; font-size:18px}
+.mark.p{background:var(--note-soft); color:var(--note); border-radius:50%}
+
+/* dugmeler */
+.btn{
+  font-family:inherit; font-size:13.5px; font-weight:700; cursor:pointer;
+  padding:8px 15px; border-radius:var(--r); border:1px solid var(--line-strong);
+  background:var(--surface); color:var(--foreground);
+  transition:background .14s ease, border-color .14s ease, color .14s ease;
+}
+.btn:hover{background:var(--surface-2); border-color:var(--foreground)}
+.btn:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.btn.pri{background:var(--accent); color:var(--accent-fg); border-color:var(--accent)}
+.btn.pri:hover{filter:brightness(1.08); border-color:var(--accent)}
+.btn.sm{font-size:12px; padding:5px 10px}
+.btn.gh{border-color:var(--line); color:var(--muted); background:transparent}
+.btn.gh:hover{color:var(--foreground); border-color:var(--line-strong); background:var(--surface-2)}
+.btn.on{background:var(--accent-soft); border-color:var(--accent); color:var(--foreground)}
+.btn[disabled]{opacity:.5; cursor:not-allowed; border-style:dashed}
+.btn[disabled]:hover{background:var(--surface); border-color:var(--line-strong)}
+.lnk{
+  background:none; border:0; padding:0; font:inherit; font-size:12.5px; font-weight:700;
+  color:var(--accent); text-decoration:underline; text-underline-offset:3px; cursor:pointer;
+}
+.lnk:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:2px}
+
+/* rozetler */
+.badge{
+  display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700;
+  padding:2px 7px; border-radius:2px; border:1px solid var(--line);
+  background:var(--surface-2); color:var(--muted); white-space:nowrap;
+}
+.badge.ok{background:var(--correct-soft); color:var(--correct); border-color:var(--correct)}
+.badge.no{background:var(--wrong-soft); color:var(--wrong); border-color:var(--wrong)}
+.badge.wn{background:var(--warn-soft); color:var(--warn); border-color:var(--warn)}
+.badge.ac{background:var(--accent-soft); color:var(--accent); border-color:var(--accent)}
+.badge.nt{background:var(--note-soft); color:var(--note); border-color:var(--note); border-style:dashed}
+
+/* arsivci notu + uyari */
+.note-strip{
+  display:flex; align-items:flex-start; gap:9px;
+  background:var(--note-soft); border:1px dashed var(--note);
+  border-radius:var(--r); padding:9px 12px;
+  font-family:var(--f-text); font-size:13px; line-height:1.5; color:var(--note);
+}
+.note-strip b{color:var(--foreground); font-weight:700; font-variant-numeric:tabular-nums}
+.note-strip .ic{flex:0 0 auto; margin-top:2px; color:var(--note)}
+.warn-strip{
+  display:flex; align-items:flex-start; gap:10px;
+  background:var(--warn-soft); border:1px solid var(--warn); border-left-width:3px;
+  border-radius:var(--r); padding:11px 14px; font-size:13.5px; line-height:1.5; color:var(--warn);
+}
+.warn-strip b{color:var(--foreground); font-weight:700}
+.warn-strip .ttl{font-weight:800; color:var(--warn); display:block; margin-bottom:2px; font-size:12.5px}
+.warn-strip .ic{flex:0 0 auto; margin-top:2px}
+
+/* ============================================================
+   SECICI
+   ============================================================ */
+.picker{position:relative}
+.pick-lbl{font-size:10px; letter-spacing:.14em; text-transform:uppercase; font-weight:800; color:var(--muted); margin-bottom:6px}
+.pick-in{
+  display:flex; align-items:center; gap:9px; width:100%;
+  border:1px solid var(--line-strong); border-radius:var(--r);
+  background:var(--surface); padding:9px 12px; font-size:14px; color:var(--muted);
+}
+.pick-in.open{border-color:var(--accent); outline:2px solid var(--accent); outline-offset:-3px; color:var(--foreground)}
+.pick-in.filled{border-color:var(--line-strong); color:var(--foreground); font-weight:700; padding:7px 10px}
+.pick-in .caret{margin-left:auto; color:var(--muted)}
+.caretbar{display:inline-block; width:1px; height:15px; background:var(--accent); vertical-align:-3px; margin-right:1px}
+
+.pop{
+  border:1px solid var(--line-strong); border-radius:var(--r); background:var(--surface);
+  box-shadow:var(--shadow-pop); overflow:hidden; margin-top:5px;
+}
+.pop-head{
+  display:flex; align-items:center; gap:9px; padding:8px 12px;
+  border-bottom:1px solid var(--line); background:var(--surface-2);
+}
+.pop-head .bc{font-size:12px; font-weight:800; color:var(--foreground); display:flex; align-items:center; gap:6px}
+.pop-head .bc .sep{color:var(--muted); font-weight:400}
+.pop-head .r{margin-left:auto; display:flex; gap:12px; align-items:center}
+.pop-list{max-height:246px; overflow-y:auto}
+.opt{
+  display:flex; align-items:center; gap:10px; padding:7px 12px; cursor:pointer;
+  border-bottom:1px solid var(--line); font-size:13.5px;
+}
+.opt:last-child{border-bottom:0}
+.opt:hover{background:var(--surface-2)}
+.opt.sel{background:var(--accent-soft); box-shadow:inset 3px 0 0 var(--accent)}
+.opt:focus-visible{outline:2px solid var(--accent); outline-offset:-2px}
+.opt .nm{font-weight:600; color:var(--foreground); min-width:0}
+.opt .nm mark{background:var(--accent-soft); color:var(--accent); font-weight:800; padding:0 1px; border-radius:2px; box-shadow:0 1px 0 var(--accent)}
+.opt .cc{font-size:10.5px; font-weight:700; color:var(--muted); letter-spacing:.06em}
+.opt .rt{margin-left:auto; display:flex; align-items:center; gap:9px; flex:0 0 auto}
+.opt .cnt{font-size:12px; font-weight:700; color:var(--foreground); font-variant-numeric:tabular-nums}
+.opt .chev{color:var(--line-strong)}
+.opt .kind{font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; font-weight:800; color:var(--muted)}
+.bar{width:52px; height:3px; background:var(--surface-2); border-radius:2px; overflow:hidden; flex:0 0 auto}
+.bar i{display:block; height:100%; background:var(--line-strong)}
+.pop-foot{padding:8px 10px; border-top:1px solid var(--line); background:var(--surface)}
+.pop-search{
+  display:flex; align-items:center; gap:8px; padding:9px 12px;
+  border-bottom:1px solid var(--line); font-size:14px; color:var(--foreground); background:var(--surface);
+}
+.pop-search .ph{color:var(--muted)}
+
+/* ============================================================
+   MOD 1 — ORTAK OYUNCU : kesisim + defter
+   ============================================================ */
+.pair{display:grid; grid-template-columns:1fr 46px 1fr; align-items:end; gap:0; padding:20px 0 4px}
+.pair .seam{
+  display:flex; align-items:center; justify-content:center; height:40px;
+  color:var(--accent); font-size:19px; font-weight:800;
+}
+.pair .picker{min-width:0}
+
+.slab{
+  display:flex; align-items:center; gap:18px; flex-wrap:wrap;
+  border:1px solid var(--line-strong); border-top:3px solid var(--accent);
+  background:var(--surface); border-radius:var(--r);
+  padding:14px 18px; margin:18px 0 0;
+}
+.slab.ok{border-top-color:var(--correct)}
+.slab.no{border-top-color:var(--wrong)}
+.slab.nt{border-top-color:var(--note)}
+.slab .big{
+  font-size:52px; font-weight:800; letter-spacing:-.045em; line-height:.94;
+  font-variant-numeric:tabular-nums; color:var(--accent);
+}
+.slab .big.z{color:var(--muted)}
+.slab .cap{font-size:11px; letter-spacing:.13em; text-transform:uppercase; font-weight:800; color:var(--muted)}
+.slab .who{display:flex; align-items:center; gap:9px; font-weight:700; font-size:15px}
+.slab .who .x{color:var(--accent); font-weight:800; font-size:16px; margin:0 2px}
+.slab .grow{flex:1 1 auto}
+
+.ledger{border:1px solid var(--line); border-radius:var(--r); background:var(--surface); overflow:hidden; margin-top:14px}
+.lg-head{
+  display:grid; grid-template-columns:1.05fr 1fr 1fr;
+  border-bottom:2px solid var(--foreground); background:var(--surface-2);
+}
+.lg-head > div{padding:8px 14px; display:flex; align-items:center; gap:8px; border-right:1px solid var(--line)}
+.lg-head > div:last-child{border-right:0}
+.lg-head .h{font-size:11px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--muted)}
+.lg-head .cn{font-size:13px; font-weight:800; color:var(--foreground)}
+.lg-row{display:grid; grid-template-columns:1.05fr 1fr 1fr; border-bottom:1px solid var(--line)}
+.lg-row:last-child{border-bottom:0}
+.lg-row:hover{background:var(--surface-2)}
+.lg-row > div{padding:10px 14px; border-right:1px solid var(--line); min-width:0}
+.lg-row > div:last-child{border-right:0}
+.lg-p .pn{font-weight:700; font-size:14.5px; letter-spacing:-.01em}
+.lg-p .pm{font-size:12px; color:var(--muted); margin-top:1px}
+.spells{display:flex; flex-wrap:wrap; gap:5px}
+.spell{
+  display:inline-flex; align-items:baseline; gap:7px; padding:3px 8px;
+  border:1px solid var(--line); border-left:2px solid var(--line-strong);
+  border-radius:2px; background:var(--background); white-space:nowrap;
+}
+.spell .yr{font-size:13px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-.01em}
+.spell .mc{font-size:11.5px; color:var(--muted); font-variant-numeric:tabular-nums}
+.spell.loan{border-left-color:var(--warn); background:var(--warn-soft)}
+.spell.loan .yr{color:var(--warn)}
+.spell.loan .lb{font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--warn)}
+.spell.unk{
+  border:1px dashed var(--note); border-left:2px dashed var(--note); background:var(--note-soft);
+  font-family:var(--f-text); font-size:12.5px; color:var(--note); font-style:italic;
+}
+.suggest{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px}
+.sg{
+  display:inline-flex; align-items:center; gap:7px; padding:6px 11px; cursor:pointer;
+  border:1px solid var(--line-strong); border-radius:var(--r); background:var(--surface);
+  font-size:13px; font-weight:700; color:var(--foreground);
+}
+.sg:hover{border-color:var(--accent); background:var(--accent-soft)}
+.sg .x{color:var(--accent); font-weight:800}
+.how{display:grid; grid-template-columns:repeat(3,1fr); gap:0; border:1px solid var(--line); border-radius:var(--r); overflow:hidden; margin-top:16px; background:var(--surface)}
+.how > div{padding:14px 16px; border-right:1px solid var(--line)}
+.how > div:last-child{border-right:0}
+.how.q4{grid-template-columns:repeat(4,1fr)}
+.how .st{font-size:10px; letter-spacing:.14em; text-transform:uppercase; font-weight:800; color:var(--accent)}
+.how .sd{font-family:var(--f-text); font-size:14px; color:var(--muted); margin-top:5px; line-height:1.55}
+.how .sd b{color:var(--foreground)}
+
+/* ============================================================
+   MOD 2 — IZGARA : matris
+   ============================================================ */
+.gridwrap{margin-top:18px; overflow-x:auto}
+.gr{display:grid; grid-template-columns:132px repeat(3,1fr); gap:6px; min-width:600px}
+.gr-corner{
+  border:1px solid var(--line-strong); border-radius:var(--r); background:var(--surface);
+  display:flex; flex-direction:column; justify-content:center; padding:10px 12px;
+}
+.gr-corner .k{font-size:9.5px; letter-spacing:.13em; text-transform:uppercase; font-weight:800; color:var(--muted)}
+.gr-corner .v{font-size:30px; font-weight:800; letter-spacing:-.04em; font-variant-numeric:tabular-nums; line-height:1.04; color:var(--accent)}
+.gr-corner .s{font-size:11px; color:var(--muted); font-weight:700; margin-top:3px; font-variant-numeric:tabular-nums}
+.gr-corner .pips{display:flex; gap:3px; margin-top:7px}
+.gr-corner .pips i{width:8px; height:8px; border:1px solid var(--line-strong); border-radius:1px; display:block}
+.gr-corner .pips i.used{background:var(--line-strong)}
+.gh{
+  border:1px solid var(--line); border-radius:var(--r); background:var(--surface);
+  padding:9px 11px; display:flex; align-items:center; gap:8px; min-width:0;
+}
+.gh{border-left:3px solid var(--accent)}
+.gh .nm{font-size:13px; font-weight:700; letter-spacing:-.01em; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.gh .kd{font-size:9px; letter-spacing:.1em; text-transform:uppercase; font-weight:800; color:var(--muted); display:block; margin-top:1px}
+.gh.lit{border-color:var(--accent); background:var(--accent-soft)}
+.cellbtn{
+  border:1px dashed var(--line-strong); border-radius:var(--r); background:var(--surface);
+  min-height:92px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:5px; cursor:pointer; padding:9px; font-family:inherit; color:var(--muted); width:100%;
+  transition:border-color .14s ease, background .14s ease;
+}
+.cellbtn:hover{border-color:var(--accent); background:var(--accent-soft); color:var(--accent)}
+.cellbtn:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.cellbtn .plus{font-size:19px; font-weight:400; line-height:1}
+.cellbtn.target{border:2px solid var(--accent); background:var(--accent-soft); color:var(--accent)}
+.cellbtn .tg{font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase}
+.cell-f{
+  border-radius:var(--r); min-height:92px; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:4px; padding:9px; text-align:center;
+}
+.cell-f.ok{border:1px solid var(--correct); background:var(--correct-soft)}
+.cell-f.no{border:1px solid var(--wrong); background:var(--wrong-soft)}
+.cell-f .st{display:flex; align-items:center; gap:5px; font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase}
+.cell-f.ok .st{color:var(--correct)} .cell-f.no .st{color:var(--wrong)}
+.cell-f .pn{font-size:13px; font-weight:700; color:var(--foreground); line-height:1.25}
+.cell-f .pm{font-size:10.5px; color:var(--muted)}
+
+.share{border:1px solid var(--line-strong); border-radius:var(--r); background:var(--surface); padding:14px 16px; margin-top:14px}
+.share .t{font-size:11px; letter-spacing:.13em; text-transform:uppercase; font-weight:800; color:var(--muted); margin-bottom:9px}
+.share .box{
+  display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+  border:1px solid var(--line); border-radius:var(--r); background:var(--background); padding:12px 14px;
+}
+.share pre{
+  margin:0; font-family:ui-monospace,"SF Mono",Consolas,monospace; font-size:13px;
+  line-height:1.45; color:var(--foreground); letter-spacing:.09em;
+}
+.share .cap{font-family:var(--f-text); font-size:13px; color:var(--muted); flex:1 1 200px; line-height:1.5}
+
+.build{border:1px solid var(--line); border-radius:var(--r); background:var(--surface); margin-top:26px; overflow:hidden}
+.build-h{display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:12px 16px; border-bottom:1px solid var(--line); background:var(--surface-2)}
+.build-h .t{font-size:14px; font-weight:800}
+.build-b{padding:16px}
+.field{margin-bottom:16px}
+.field .fl{font-size:11px; letter-spacing:.1em; text-transform:uppercase; font-weight:800; color:var(--foreground); margin-bottom:3px}
+.field .fh{font-family:var(--f-text); font-size:13px; color:var(--muted); margin-bottom:8px}
+.field.off .fl, .field.off .fh{color:var(--muted); opacity:.75}
+.slots{display:grid; grid-template-columns:repeat(3,1fr); gap:8px}
+.slot{
+  border:1px dashed var(--line-strong); border-radius:var(--r); background:var(--background);
+  padding:10px 12px; font-size:13px; font-weight:700; color:var(--muted); cursor:pointer;
+  font-family:inherit; text-align:left; display:flex; align-items:center; gap:8px;
+}
+.slot:hover{border-color:var(--accent); color:var(--foreground)}
+.slot:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.slot.next{border-style:solid; border-color:var(--accent); color:var(--foreground); background:var(--accent-soft)}
+.slot.done{border-style:solid; border-color:var(--line-strong); color:var(--foreground); background:var(--surface)}
+.slot[disabled]{opacity:.45; cursor:not-allowed}
+.stepn{
+  flex:0 0 auto; width:17px; height:17px; border-radius:50%; border:1px solid currentColor;
+  display:inline-flex; align-items:center; justify-content:center; font-size:10px; font-weight:800;
+  font-variant-numeric:tabular-nums;
+}
+
+/* ============================================================
+   MOD 3 — ISTATISTIK : sayi dogrusu
+   ============================================================ */
+.pcard{
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  border:1px solid var(--line-strong); border-radius:var(--r);
+  background:var(--surface); padding:14px 16px; margin-top:18px;
+}
+.pcard .nm{font-size:19px; font-weight:800; letter-spacing:-.02em}
+.pcard .nat{font-size:12.5px; color:var(--muted); font-weight:700}
+.rule{
+  flex:1 1 260px; min-width:220px; font-family:var(--f-text); font-size:14px;
+  color:var(--muted); line-height:1.5; border-left:2px solid var(--accent); padding-left:12px;
+}
+.rule b{color:var(--foreground); font-weight:700}
+.rule .hi{color:var(--accent); font-weight:700; font-style:italic}
+
+.strow{
+  display:grid; grid-template-columns:190px 1fr 118px; align-items:center; gap:16px;
+  border:1px solid var(--line); border-radius:var(--r); background:var(--surface);
+  padding:12px 16px; margin-bottom:8px;
+}
+.strow .lab{min-width:0}
+.strow .lab .k{font-size:10px; letter-spacing:.12em; text-transform:uppercase; font-weight:800; color:var(--muted)}
+.strow .lab .v{font-size:31px; font-weight:800; letter-spacing:-.04em; line-height:1.06; font-variant-numeric:tabular-nums; margin-top:1px}
+.axis{position:relative; height:46px}
+.axis .track{position:absolute; left:0; right:0; top:26px; height:2px; background:var(--line)}
+.axis .gap{position:absolute; top:24px; height:6px; border-radius:1px; opacity:.55}
+.axis .gap.ok{background:var(--correct)} .axis .gap.mid{background:var(--warn)} .axis .gap.lo{background:var(--wrong)}
+.axis .tick{position:absolute; top:16px; width:2px; height:22px; background:var(--foreground)}
+.axis .tick.t2{background:var(--accent)}
+.axis .tl{
+  position:absolute; top:0; font-size:10px; font-weight:800; white-space:nowrap;
+  font-variant-numeric:tabular-nums; transform:translateX(-50%);
+}
+.axis .tl.t1{color:var(--foreground)} .axis .tl.t2{color:var(--accent)}
+.axis .ends{position:absolute; left:0; right:0; top:34px; display:flex; justify-content:space-between}
+.axis .ends span{font-size:9.5px; color:var(--muted); font-variant-numeric:tabular-nums}
+.axis .pin{position:absolute; top:14px; transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; gap:2px}
+.strow .res{text-align:right; min-width:0}
+.strow .res .who{font-size:13px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.strow .res .pct{font-size:20px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-.03em; line-height:1.15}
+.pct.ok{color:var(--correct)} .pct.mid{color:var(--warn)} .pct.lo{color:var(--wrong)}
+.strow.wait{border-style:dashed}
+.strow.wait .lab .v{color:var(--foreground)}
+
+/* ============================================================
+   MOD 4 — HANGISI DAHA : duello
+   ============================================================ */
+.q{display:flex; align-items:center; gap:16px; flex-wrap:wrap; padding:20px 0 6px}
+.q h2{font-size:27px; font-weight:800; letter-spacing:-.025em; flex:1 1 320px}
+.q h2 em{font-style:normal; color:var(--accent)}
+.duel{display:grid; grid-template-columns:1fr 62px 1fr; align-items:stretch; gap:0; margin-top:10px}
+.dp{border:1px solid var(--line-strong); border-radius:var(--r); background:var(--surface); padding:16px 18px; display:flex; flex-direction:column; gap:11px}
+.dp.pick{cursor:pointer}
+.dp.pick:hover{border-color:var(--accent); background:var(--accent-soft)}
+.dp:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.dp .who{display:flex; align-items:center; gap:10px}
+.dp .who .nm{font-size:19px; font-weight:800; letter-spacing:-.02em; line-height:1.2}
+.dp .clubs{display:flex; flex-wrap:wrap; gap:6px}
+.dp .cl{display:inline-flex; align-items:center; gap:6px; border:1px solid var(--line); border-radius:2px; padding:3px 7px; background:var(--background); font-size:12px; font-weight:700}
+.cover{
+  height:54px; border-radius:var(--r); border:1px solid var(--line-strong);
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  font-size:11px; letter-spacing:.14em; text-transform:uppercase; font-weight:800; color:var(--muted);
+  background-color:var(--surface-2);
+  background-image:repeating-linear-gradient(135deg, transparent 0 7px, var(--line) 7px 8px);
+}
+.reveal{height:54px; display:flex; align-items:baseline; gap:9px}
+.reveal .n{font-size:42px; font-weight:800; letter-spacing:-.045em; font-variant-numeric:tabular-nums; line-height:1}
+.reveal .u{font-size:12px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.1em}
+.dp.won{border-color:var(--correct); border-width:2px; background:var(--correct-soft)}
+.dp.won .reveal .n{color:var(--correct)}
+.dp.lost{border-color:var(--wrong); background:var(--wrong-soft)}
+.dp.lost .reveal .n{color:var(--wrong)}
+.dp.out{opacity:.62}
+.seamv{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; position:relative}
+.seamv::before{content:""; position:absolute; top:0; bottom:0; width:1px; background:var(--line)}
+.seamv .vs{
+  position:relative; z-index:1; background:var(--background); border:1px solid var(--line-strong);
+  border-radius:50%; width:46px; height:46px; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; line-height:1;
+}
+.seamv .vs .k{font-size:7.5px; letter-spacing:.1em; text-transform:uppercase; font-weight:800; color:var(--muted)}
+.seamv .vs .n{font-size:20px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-.03em; color:var(--accent)}
+.seamv.hit .vs{border-color:var(--correct); background:var(--correct-soft)}
+.seamv.hit .vs .n{color:var(--correct)}
+.tagrow{display:flex; align-items:center; gap:8px; flex-wrap:wrap; min-height:22px}
+.nextup{
+  display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:12px;
+  border:1px dashed var(--line-strong); border-radius:var(--r); padding:11px 14px; background:var(--surface);
+}
+.nextup .k{font-size:10px; letter-spacing:.13em; text-transform:uppercase; font-weight:800; color:var(--muted)}
+.optgrid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px}
+.dirgrid{display:grid; grid-template-columns:repeat(2,minmax(0,260px)); gap:8px}
+
+/* ============================================================
+   ALTBILGI / KAYNAKLAR / 404
+   ============================================================ */
+.ftr{border-top:1px solid var(--line); margin-top:34px; padding:16px 0 26px; display:flex; gap:18px; flex-wrap:wrap; align-items:baseline}
+.ftr p{font-family:var(--f-text); font-size:12.5px; color:var(--muted); line-height:1.55}
+.ftr a{color:var(--accent); text-decoration:underline; text-underline-offset:2px}
+.srctab{width:100%; border-collapse:collapse; font-size:13px; margin-top:14px}
+.srctab th{
+  text-align:left; font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted);
+  font-weight:800; padding:8px 12px; border-bottom:2px solid var(--foreground);
+}
+.srctab td{padding:9px 12px; border-bottom:1px solid var(--line); vertical-align:middle}
+.srctab tr:hover td{background:var(--surface-2)}
+.srctab .c1{display:flex; align-items:center; gap:9px; font-weight:700}
+.nf{display:flex; flex-direction:column; align-items:center; text-align:center; gap:14px; padding:64px 0 70px}
+.nf .code{font-size:74px; font-weight:800; letter-spacing:-.05em; line-height:1; color:var(--accent); font-variant-numeric:tabular-nums}
+
+/* ============================================================
+   MOBIL — 390px kararlari
+   ============================================================ */
+.m .app-in{padding:0 14px}
+.m .brand{padding:0 12px; border-right:0}
+.m .hdr{flex-direction:column}
+.m .nav{border-top:1px solid var(--line)}
+.m .nav a{flex:1 1 0; min-width:0; flex-direction:column; gap:3px; padding:7px 2px 6px; font-size:10px; text-align:center; border-right:1px solid var(--line)}
+.m .nav a:last-child{border-right:0}
+.m .kunye{padding:14px 0 12px; gap:12px}
+.m .kunye h1{font-size:20px}
+.m .kunye .idg{width:34px; height:34px}
+.m .tab{width:100%}
+.m .tab .cell{flex:1 1 0; min-width:0; text-align:left}
+.m .pair{grid-template-columns:1fr; gap:8px; padding:14px 0 4px}
+.m .pair .seam{height:24px; transform:rotate(90deg)}
+.m .lg-head{display:none}
+.m .lg-row{grid-template-columns:1fr; gap:0}
+.m .lg-row > div{border-right:0; border-bottom:1px solid var(--line); padding:9px 12px}
+.m .lg-row > div:last-child{border-bottom:0}
+.m .lg-c::before{
+  content:attr(data-club); display:block; font-size:9.5px; letter-spacing:.11em;
+  text-transform:uppercase; font-weight:800; color:var(--muted); margin-bottom:5px;
+}
+.m .gr{grid-template-columns:78px repeat(3,minmax(74px,1fr)); gap:4px; min-width:0}
+.m .gr-corner{padding:7px 8px}
+.m .gr-corner .v{font-size:21px}
+.m .gh{padding:6px 7px; flex-direction:column; align-items:flex-start; gap:2px}
+.m .gh .nm{font-size:11px}
+.m .cellbtn, .m .cell-f{min-height:74px; padding:5px}
+.m .cell-f .pn{font-size:11px}
+.m .strow{grid-template-columns:1fr; gap:9px; padding:11px 13px}
+.m .strow .res{text-align:left; display:flex; align-items:baseline; gap:10px}
+.m .duel{grid-template-columns:1fr; gap:0}
+.m .seamv{height:52px; flex-direction:row}
+.m .seamv::before{top:auto; bottom:auto; left:0; right:0; width:auto; height:1px}
+.m .how{grid-template-columns:1fr}
+.m .how > div{border-right:0; border-bottom:1px solid var(--line)}
+.m .optgrid{grid-template-columns:repeat(2,1fr)}
+.m .dirgrid{grid-template-columns:1fr}
+.m .slots{grid-template-columns:1fr}
+.m .ligs{gap:3px}
+
+@media (prefers-reduced-motion: reduce){
+  *, *::before, *::after{
+    animation-duration:.001ms !important; animation-iteration-count:1 !important;
+    transition-duration:.001ms !important; scroll-behavior:auto !important;
+  }
+}
+@media (max-width:720px){
+  .wrap{padding:0 16px}
+  .how, .how.q4{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+<symbol id="g-ortak" viewBox="0 0 24 24"><circle cx="9.2" cy="12" r="6.2" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="14.8" cy="12" r="6.2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 6.55a6.2 6.2 0 0 0 0 10.9 6.2 6.2 0 0 0 0-10.9z" fill="currentColor" opacity=".85"/></symbol>
+<symbol id="g-izgara" viewBox="0 0 24 24"><g fill="currentColor"><rect x="4" y="4" width="4.6" height="4.6" rx="1"/><rect x="9.7" y="4" width="4.6" height="4.6" rx="1" opacity=".4"/><rect x="15.4" y="4" width="4.6" height="4.6" rx="1" opacity=".4"/><rect x="4" y="9.7" width="4.6" height="4.6" rx="1" opacity=".4"/><rect x="9.7" y="9.7" width="4.6" height="4.6" rx="1"/><rect x="15.4" y="9.7" width="4.6" height="4.6" rx="1" opacity=".4"/><rect x="4" y="15.4" width="4.6" height="4.6" rx="1" opacity=".4"/><rect x="9.7" y="15.4" width="4.6" height="4.6" rx="1" opacity=".4"/><rect x="15.4" y="15.4" width="4.6" height="4.6" rx="1"/></g></symbol>
+<symbol id="g-istat" viewBox="0 0 24 24"><path d="M3 15h18" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M6.5 15v-3M12 15V6M17.5 15v-5.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="5" r="2.1" fill="currentColor"/></symbol>
+<symbol id="g-hangi" viewBox="0 0 24 24"><rect x="3.6" y="7" width="6.6" height="13" rx="1.3" fill="currentColor"/><rect x="13.8" y="12" width="6.6" height="8" rx="1.3" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M6.9 4.4v-.1M17.1 8.6V8.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+<symbol id="ic-note" viewBox="0 0 16 16"><path d="M8 1.6v12.8M1.6 8h12.8M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+<symbol id="ic-warn" viewBox="0 0 16 16"><path d="M8 1.9 15 14H1L8 1.9z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 6.2v3.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="8" cy="11.7" r=".95" fill="currentColor"/></symbol>
+<symbol id="ic-check" viewBox="0 0 16 16"><path d="M2.8 8.4 6.3 12l7-8.2" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="ic-x" viewBox="0 0 16 16"><path d="M3.6 3.6l8.8 8.8M12.4 3.6l-8.8 8.8" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/></symbol>
+<symbol id="ic-chev" viewBox="0 0 16 16"><path d="M6 3.5 10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="ic-back" viewBox="0 0 16 16"><path d="M10 3.5 5.5 8 10 12.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="ic-search" viewBox="0 0 16 16"><circle cx="7.1" cy="7.1" r="4.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10.6 10.6 14 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+<symbol id="cr-a" viewBox="0 0 20 20"><path d="M10 1.5 17.5 4v7.2c0 4-3.4 6.4-7.5 7.3-4.1-.9-7.5-3.3-7.5-7.3V4L10 1.5z" fill="#8B1E2D"/><path d="M2.5 9h15" stroke="#F0D264" stroke-width="2.2"/><circle cx="10" cy="6" r="1.9" fill="#F0D264"/></symbol>
+<symbol id="cr-b" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8.6" fill="#12386B"/><circle cx="10" cy="10" r="5.3" fill="#F5F6F8"/><circle cx="10" cy="10" r="2.3" fill="#12386B"/></symbol>
+<symbol id="cr-c" viewBox="0 0 20 20"><path d="M10 1.6 18 5.2v6.1c0 3.8-3.6 6.3-8 7.2-4.4-.9-8-3.4-8-7.2V5.2L10 1.6z" fill="#0E6B3C"/><path d="M10 1.6 18 5.2v6.1c0 1.3-.4 2.4-1.1 3.3H10V1.6z" fill="#F3F4F6"/></symbol>
+<symbol id="cr-d" viewBox="0 0 20 20"><rect x="1.6" y="1.6" width="16.8" height="16.8" rx="2.4" fill="#1B1D22"/><path d="M4.6 4.6h4v10.8h-4zM11.4 4.6h4v10.8h-4z" fill="#D8DCE2"/></symbol>
+</defs></svg>
+
+<header class="doc-head"><div class="wrap">
+  <div class="kicker">Tasarım yönü + ekran tasarımı · Sürüm 1</div>
+  <h1>Futbol Quiz — Kayıt Defteri</h1>
+  <p class="lede">Bu belge iki iş yapıyor: önce <b>yönü</b> savunuyor (palet, tipografi, düzen fikri), sonra o yönü <b>dört modun bütün ekranlarında</b> gösteriyor. Renkler ölçüldü, roller korundu, eksik durumlar tamamlandı.</p>
+  <div class="meta-row">
+    <span class="meta-chip">Veri kümesi <b>7 Ağustos 2026</b></span>
+    <span class="meta-chip">Kontrast <b>9/9 zorunlu çift geçti</b></span>
+    <span class="meta-chip">Arayüz dili <b>Türkçe</b></span>
+    <span class="meta-chip">Dış bağlantı <b>yok</b></span>
+    <span class="meta-chip">Bileşen kütüphanesi <b>yok</b></span>
+  </div>
+</div></header>
+
+<main class="wrap">
+
+<!-- ================= 1. YON ================= -->
+<section>
+  <div class="sec-head"><span class="sec-num">01</span><h2>Yön</h2></div>
+  <p class="sec-sub">Bu ürün bir oyun gibi görünmek istiyor ama aslında bir <b>kayıt kümesi</b>: 405.418 dönem kaydı, yıl aralıkları, maç sayıları ve kaynağın sustuğu yerlere düşülmüş notlar. Yön buradan çıkıyor.</p>
+
+  <h3 class="sub">Fikir: kayıt mavisi, sonuç yeşili</h3>
+  <p class="prose">Üründe iki ayrı ses var ve bugün ikisi de aynı yeşille konuşuyor. Ayırıyorum:</p>
+  <ul class="prose">
+    <li><b>Kayıt</b> — kulüpler, yıllar, dönemler, seçiciler, gezinme, birincil eylemler. Bunların rengi <b>mürekkep mavisi</b>. Transferi deftere yazan kalemin rengi.</li>
+    <li><b>Sonuç</b> — doğru, yanlış, yakınlık bandı. Bunların rengi yeşil / amber / kırmızı ve <b>başka hiçbir işte kullanılmıyor</b>.</li>
+    <li><b>Not</b> — kesme uyarısı, "kaynakta ayrıntı yok", kapsam metni. Yeni bir rol: <code>--note</code>. Kurşun kalem tonunda, kesik çizgili, serif. Alarm değil, arşivcinin kenar notu.</li>
+  </ul>
+
+  <div class="decide">
+    <div class="lbl">Bu neden zorunluydu, tercih değil</div>
+    <p>Bugün yeşil aynı anda beş iş yapıyor: marka, aktif sekme, metin içi sayı vurgusu, birincil düğme ve doğru hücre. Beş işi olan bir renk hiçbir işi yapmaz — ızgarada "doğru" ile "düğme" aynı sinyali veriyor. <code>correct</code>, <code>wrong</code> ve <code>warn</code> rolleri yeşil/kırmızı/amberi zaten sahiplendiği için <b>accent bu üçlünün dışına çıkmak zorunda</b>. Mavi, mor, camgöbeği arasından mürekkep mavisini seçtim: arşiv fikrine bağlanıyor, futbol yeşiliyle çarpışmıyor ve iki temada da taşıyor.</p>
+  </div>
+
+  <h3 class="sub">Aldığım risk: sayı kahraman olsun</h3>
+  <p class="prose">Bu üründe her ekran bir sayıya bakıyor — <b>55 ortak oyuncu</b>, <b>2/9</b>, <b>%62</b>, <b>Seri 7</b>, <b>1993–2002</b>, <b>240 maç</b>. Bugün bunların hepsi köşede, 11 puntoda duruyor; en büyük tipografi ise sayfa başlığında, yani gezinmede zaten yazan kelimenin tekrarında.</p>
+  <p class="prose">Tersine çeviriyorum: <b>başlık küçülüyor, sayı büyüyor.</b> Dört modun dördünde de aynı yerde — künye çubuğunun sağında — bir <b>skor tabelası</b> var ve modun canlı sayısını 30 punto tabular rakamla taşıyor. Sonuç anı geldiğinde sayı 52 puntoya çıkıyor. Ürünün karakteri tam olarak bu: sayılar konuşuyor, başlık susuyor.</p>
+
+  <h3 class="sub">İkinci risk: baş harf rozeti bir kusur değil, ürünün alfabesi</h3>
+  <p class="prose">Kulüplerin %56'sında arma yok ve oyuncuların hiçbirinde fotoğraf yok. Yani <b>baş harf karesi bu ürünün tek evrensel görselidir</b> — yama değil, alfabe. Sabit ölçüde, mürekkep mavisi zeminde, sıkı harf aralıklı bir karo olarak tasarladım; arma varsa aynı karonun içine yerleşiyor. Üstelik ölçtüğüm gerçek bir kusuru da çözüyor: A.C. Carpi ile A.C. Savoia bugün aynı listede ikisi de <code>AC</code>. Türetme kuralını §3'te yazdım.</p>
+
+  <div class="docnote"><p><b>Gözden geçirme notu.</b> İlk taslakta neredeyse koyu zemin + tek parlak yeşil vurguya gidiyordum. İki sebeple attım: bir, sitenin bugünkü hâli zaten o ve şikâyet edilen sorun tam oradan çıkıyor; iki, o kombinasyon üretilmiş tasarımların en bilindik kalıbı. Aynı şekilde armaların etrafına kurulacak her düzeni de baştan eledim — %43,7 kapsamla arma taşıyıcı öge olamaz.</p></div>
+
+  <h3 class="sub">Düzen fikri: künye — tabela — gövde</h3>
+  <p class="prose">Her sayfa üç bantla açılıyor ve gövde moda göre tamamen değişiyor. Üstteki iki bant her modda aynı yerde durur (öğrenilir), gövde her modda farklı bir yapı kurar (ayrışır):</p>
+  <div class="how">
+    <div><div class="st">Bant 1 — Künye</div><div class="sd">Mod işareti + mod adı + <b>ne yapacaksın</b> cümlesi. Sayfa başlığı 26 puntoya iniyor; gezinmedeki etiketin tekrarı olmaktan çıkıp göreve dönüşüyor.</div></div>
+    <div><div class="st">Bant 2 — Tabela</div><div class="sd">Aynı hizada, sağda. Modun canlı sayısı: <b>0/9 · 9 hak</b>, <b>0/6 · —</b>, <b>Seri 3</b>. Dört modda aynı bileşen, aynı yer.</div></div>
+    <div><div class="st">Bant 3 — Gövde</div><div class="sd">Modun kendi yapısı: <b>kesişim</b>, <b>matris</b>, <b>sayı doğrusu</b>, <b>düello</b>. Dördü birbirine benzemiyor.</div></div>
+  </div>
+
+  <h3 class="sub">Dört yapısal imza</h3>
+  <div class="how q4">
+    <div><div class="st">Ortak Oyuncu</div><div class="sd">İki dikey sütun ve ortada <b>∩</b> dikişi. Sonuç bir <b>defter</b>: cetvelli satırlar, iki kulüp sabit sütun başlığı, dönemler mürekkep hücreleri.</div></div>
+    <div><div class="st">Izgara</div><div class="sd">Matrisin kendisi sayfa. Boş duran <b>sol üst köşe tabelaya dönüşüyor</b>. Seçici hücrenin altına kenetleniyor, sayfanın dibine değil.</div></div>
+    <div><div class="st">İstatistik</div><div class="sd">Her satır bir <b>sayı doğrusu</b>. Hedef ve tahmin aynı eksende işaretli, aradaki mesafe taralı. Kıyas artık kafada değil ekranda.</div></div>
+    <div><div class="st">Hangisi Daha</div><div class="sd">İki panel, ortada dikiş ve dikişin üstünde <b>seri sayacı</b>. Gizli değer tire değil, <b>taralı kapak</b>.</div></div>
+  </div>
+</section>
+
+<style>
+.sw-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(168px,1fr)); gap:10px; margin-top:16px}
+.sw{border:1px solid var(--line); border-radius:var(--r); overflow:hidden; background:var(--surface)}
+.sw .chip{height:56px; display:flex; align-items:flex-end; justify-content:flex-end; padding:6px 8px; font-size:10px; font-weight:800; letter-spacing:.04em}
+.sw .meta{padding:7px 9px 8px}
+.sw .rn{font-size:11.5px; font-weight:800; color:var(--foreground); font-family:ui-monospace,"SF Mono",Consolas,monospace}
+.sw .use{font-size:11px; color:var(--muted); font-family:var(--f-text); line-height:1.4; margin-top:2px}
+.tblwrap{overflow-x:auto; margin-top:16px; border:1px solid var(--line); border-radius:var(--r)}
+table.dt{width:100%; border-collapse:collapse; font-size:13.5px; min-width:560px; background:var(--surface)}
+table.dt th{
+  text-align:left; font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted);
+  font-weight:800; padding:9px 13px; border-bottom:2px solid var(--foreground); white-space:nowrap;
+}
+table.dt td{padding:8px 13px; border-bottom:1px solid var(--line); vertical-align:middle}
+table.dt tr:last-child td{border-bottom:0}
+table.dt .mono{font-family:ui-monospace,"SF Mono",Consolas,monospace; font-size:12.5px}
+table.dt .num{font-variant-numeric:tabular-nums; font-weight:700; text-align:right; white-space:nowrap}
+.pass{color:var(--correct); font-weight:800}
+.tokenblock{
+  overflow-x:auto; background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--r); padding:16px 18px; margin-top:16px;
+}
+.tokenblock pre{
+  margin:0; font-family:ui-monospace,"SF Mono",Consolas,monospace;
+  font-size:12.5px; line-height:1.72; color:var(--foreground);
+}
+.tokenblock .c{color:var(--muted)}
+.tokenblock .p{color:var(--accent)}
+.spec{display:grid; grid-template-columns:repeat(auto-fit,minmax(232px,1fr)); gap:12px; margin-top:16px}
+.spec > div{border:1px solid var(--line); border-radius:var(--r); padding:14px 16px; background:var(--surface)}
+.spec .st{font-size:10px; letter-spacing:.13em; text-transform:uppercase; font-weight:800; color:var(--accent)}
+.spec .sd{font-family:var(--f-text); font-size:14px; color:var(--muted); margin-top:6px; line-height:1.56}
+.spec .sd b{color:var(--foreground)}
+.inv{display:flex; flex-wrap:wrap; gap:10px; align-items:flex-start; margin-top:14px}
+.invcell{border:1px solid var(--line); border-radius:var(--r); background:var(--background); padding:14px; min-width:132px}
+.invcell .cl{font-size:9.5px; letter-spacing:.11em; text-transform:uppercase; font-weight:800; color:var(--muted); margin-bottom:9px}
+.tr-demo{font-size:30px; letter-spacing:.02em; font-weight:700; color:var(--foreground); margin-top:8px; word-spacing:.1em}
+</style>
+
+<!-- ================= 2. BELIRTECLER ================= -->
+<section>
+  <div class="sec-head"><span class="sec-num">02</span><h2>Belirteçler ve kontrast</h2></div>
+  <p class="sec-sub">Rol adları korundu; <code>--note</code> ve <code>--surface-2</code> eklendi (§5.4 yeni role izin veriyor). Hiçbir bileşen <code>dark:</code> varyantı taşımıyor — koyu mod yalnızca aşağıdaki blokta yeniden tanımlanıyor.</p>
+
+  <h3 class="sub">Açık tema</h3>
+  <div class="sw-grid">
+    <div class="sw"><div class="chip" style="background:#F2F4F8;color:#111823">#F2F4F8</div><div class="meta"><div class="rn">--background</div><div class="use">Soğuk kâğıt. Nötr, maviye hafif kaydırıldı.</div></div></div>
+    <div class="sw"><div class="chip" style="background:#FFFFFF;color:#111823;box-shadow:inset 0 0 0 1px #D9E0EA">#FFFFFF</div><div class="meta"><div class="rn">--surface</div><div class="use">Kart, defter, açılır liste.</div></div></div>
+    <div class="sw"><div class="chip" style="background:#E7EBF2;color:#111823">#E7EBF2</div><div class="meta"><div class="rn">--surface-2</div><div class="use">Yeni. Tablo başlığı, çukur zemin.</div></div></div>
+    <div class="sw"><div class="chip" style="background:#111823;color:#F2F4F8">#111823</div><div class="meta"><div class="rn">--foreground</div><div class="use">Mürekkep siyahı, maviye çalar.</div></div></div>
+    <div class="sw"><div class="chip" style="background:#5A6575;color:#FFFFFF">#5A6575</div><div class="meta"><div class="rn">--muted</div><div class="use">İkincil metin, etiket.</div></div></div>
+    <div class="sw"><div class="chip" style="background:#D9E0EA;color:#111823">#D9E0EA</div><div class="meta"><div class="rn">--line</div><div class="use">Cetvel çizgisi, kart kenarı.</div></div></div>
+    <div class="sw"><div class="chip" style="background:#7A8595;color:#FFFFFF">#7A8595</div><div class="meta"><div class="rn">--line-strong</div><div class="use">Girdi kenarı, ayırıcı. 3:1 taşır.</div></div></div>
+    <div class="sw"><div class="chip" style="background:#2B41C4;color:#FFFFFF">#2B41C4</div><div class="meta"><div class="rn">--accent</div><div class="use">Kayıt mürekkebi. Tek vurgu rengi.</div></div></div>
+    <div class="sw"><div class="chip" style="background:#FFFFFF;color:#2B41C4;box-shadow:inset 0 0 0 1px #D9E0EA">#FFFFFF</div><div class="meta"><div class="rn">--accent-fg</div><div class="use">Mürekkep üstündeki metin.</div></div></div>
+    <div class="sw"><div class="chip" style="background:#E3E8FF;color:#2B41C4">#E3E8FF</div><div class="meta"><div class="rn">--accent-soft</div><div class="use">Aktif sekme, seçili satır.</div></div></div>
+    <div class="sw"><div class="chip" style="background:#0B6E3F;color:#FFFFFF">#0B6E3F</div><div class="meta"><div class="rn">--correct</div><div class="use">Yalnızca doğru cevap.</div></div></div>
+    <div class="sw"><div class="chip" style="background:#D9F2E3;color:#0B6E3F">#D9F2E3</div><div class="meta"><div class="rn">--correct-soft</div><div class="use">Doğru hücre zemini.</div></div></div>
+    <div class="sw"><div class="chip" style="background:#B3242F;color:#FFFFFF">#B3242F</div><div class="meta"><div class="rn">--wrong</div><div class="use">Yalnızca yanlış cevap.</div></div></div>
+    <div class="sw"><div class="chip" style="background:#FBE2E4;color:#B3242F">#FBE2E4</div><div class="meta"><div class="rn">--wrong-soft</div><div class="use">Yanlış hücre zemini.</div></div></div>
+    <div class="sw"><div class="chip" style="background:#7A5200;color:#FFFFFF">#7A5200</div><div class="meta"><div class="rn">--warn</div><div class="use">Kiralık, orta band, ikiz kulüp.</div></div></div>
+    <div class="sw"><div class="chip" style="background:#FAEDCF;color:#7A5200">#FAEDCF</div><div class="meta"><div class="rn">--warn-soft</div><div class="use">Uyarı zemini.</div></div></div>
+    <div class="sw"><div class="chip" style="background:#6A6153;color:#FFFFFF">#6A6153</div><div class="meta"><div class="rn">--note <b style="color:#2B41C4">yeni</b></div><div class="use">Arşivci notu. Sıcak kurşun kalem.</div></div></div>
+    <div class="sw"><div class="chip" style="background:#EFEBE3;color:#6A6153">#EFEBE3</div><div class="meta"><div class="rn">--note-soft</div><div class="use">Not zemini, kesik çizgili.</div></div></div>
+  </div>
+
+  <h3 class="sub">Koyu tema</h3>
+  <div class="sw-grid">
+    <div class="sw"><div class="chip" style="background:#0D1117;color:#E7ECF3">#0D1117</div><div class="meta"><div class="rn">--background</div><div class="use">Mavi-grafit. Saf siyah değil.</div></div></div>
+    <div class="sw"><div class="chip" style="background:#151B24;color:#E7ECF3">#151B24</div><div class="meta"><div class="rn">--surface</div><div class="use">Kart, defter, açılır liste.</div></div></div>
+    <div class="sw"><div class="chip" style="background:#1D2530;color:#E7ECF3">#1D2530</div><div class="meta"><div class="rn">--surface-2</div><div class="use">Yeni. Tablo başlığı, çukur zemin.</div></div></div>
+    <div class="sw"><div class="chip" style="background:#E7ECF3;color:#0D1117">#E7ECF3</div><div class="meta"><div class="rn">--foreground</div><div class="use">Kâğıt beyazı, maviye çalar.</div></div></div>
+    <div class="sw"><div class="chip" style="background:#98A3B3;color:#0D1117">#98A3B3</div><div class="meta"><div class="rn">--muted</div><div class="use">İkincil metin, etiket.</div></div></div>
+    <div class="sw"><div class="chip" style="background:#232C38;color:#E7ECF3">#232C38</div><div class="meta"><div class="rn">--line</div><div class="use">Cetvel çizgisi, kart kenarı.</div></div></div>
+    <div class="sw"><div class="chip" style="background:#5A6879;color:#E7ECF3">#5A6879</div><div class="meta"><div class="rn">--line-strong</div><div class="use">Girdi kenarı, ayırıcı. 3:1 taşır.</div></div></div>
+    <div class="sw"><div class="chip" style="background:#7B93FF;color:#0A0E15">#7B93FF</div><div class="meta"><div class="rn">--accent</div><div class="use">Kayıt mürekkebi, koyuda açılır.</div></div></div>
+    <div class="sw"><div class="chip" style="background:#0A0E15;color:#7B93FF">#0A0E15</div><div class="meta"><div class="rn">--accent-fg</div><div class="use">Mürekkep üstündeki metin.</div></div></div>
+    <div class="sw"><div class="chip" style="background:#1A2242;color:#7B93FF">#1A2242</div><div class="meta"><div class="rn">--accent-soft</div><div class="use">Aktif sekme, seçili satır.</div></div></div>
+    <div class="sw"><div class="chip" style="background:#4FD98C;color:#0E2A1D">#4FD98C</div><div class="meta"><div class="rn">--correct</div><div class="use">Yalnızca doğru cevap.</div></div></div>
+    <div class="sw"><div class="chip" style="background:#0E2A1D;color:#4FD98C">#0E2A1D</div><div class="meta"><div class="rn">--correct-soft</div><div class="use">Doğru hücre zemini.</div></div></div>
+    <div class="sw"><div class="chip" style="background:#FF7A82;color:#301418">#FF7A82</div><div class="meta"><div class="rn">--wrong</div><div class="use">Yalnızca yanlış cevap.</div></div></div>
+    <div class="sw"><div class="chip" style="background:#301418;color:#FF7A82">#301418</div><div class="meta"><div class="rn">--wrong-soft</div><div class="use">Yanlış hücre zemini.</div></div></div>
+    <div class="sw"><div class="chip" style="background:#F2B950;color:#2C2011">#F2B950</div><div class="meta"><div class="rn">--warn</div><div class="use">Kiralık, orta band, ikiz kulüp.</div></div></div>
+    <div class="sw"><div class="chip" style="background:#2C2011;color:#F2B950">#2C2011</div><div class="meta"><div class="rn">--warn-soft</div><div class="use">Uyarı zemini.</div></div></div>
+    <div class="sw"><div class="chip" style="background:#B3A794;color:#23201A">#B3A794</div><div class="meta"><div class="rn">--note <b style="color:#7B93FF">yeni</b></div><div class="use">Arşivci notu. Sıcak kurşun kalem.</div></div></div>
+    <div class="sw"><div class="chip" style="background:#23201A;color:#B3A794">#23201A</div><div class="meta"><div class="rn">--note-soft</div><div class="use">Not zemini, kesik çizgili.</div></div></div>
+  </div>
+
+  <h3 class="sub">Kontrast ölçümü — §5.3'ün istediği dokuz çift</h3>
+  <div class="tblwrap"><table class="dt">
+    <thead><tr><th>Çift</th><th>Eşik</th><th>Açık</th><th></th><th>Koyu</th><th></th><th>Ne için</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">foreground / background</td><td class="num">4,5</td><td class="num">16,18</td><td class="pass">geçti</td><td class="num">15,94</td><td class="pass">geçti</td><td>Gövde metni</td></tr>
+      <tr><td class="mono">foreground / surface</td><td class="num">4,5</td><td class="num">17,82</td><td class="pass">geçti</td><td class="num">14,57</td><td class="pass">geçti</td><td>Kart içi metin</td></tr>
+      <tr><td class="mono">muted / background</td><td class="num">4,5</td><td class="num">5,37</td><td class="pass">geçti</td><td class="num">7,41</td><td class="pass">geçti</td><td>İkincil metin</td></tr>
+      <tr><td class="mono">muted / surface</td><td class="num">4,5</td><td class="num">5,91</td><td class="pass">geçti</td><td class="num">6,77</td><td class="pass">geçti</td><td>Etiket, meta</td></tr>
+      <tr><td class="mono">accent-fg / accent</td><td class="num">4,5</td><td class="num">7,91</td><td class="pass">geçti</td><td class="num">6,87</td><td class="pass">geçti</td><td>Birincil düğme</td></tr>
+      <tr><td class="mono">warn / warn-soft</td><td class="num">4,5</td><td class="num">5,96</td><td class="pass">geçti</td><td class="num">8,95</td><td class="pass">geçti</td><td>Kiralık rozeti</td></tr>
+      <tr><td class="mono">wrong / wrong-soft</td><td class="num">4,5</td><td class="num">5,33</td><td class="pass">geçti</td><td class="num">6,75</td><td class="pass">geçti</td><td>Yanlış hücre</td></tr>
+      <tr><td class="mono">correct / correct-soft</td><td class="num">4,5</td><td class="num">5,36</td><td class="pass">geçti</td><td class="num">8,51</td><td class="pass">geçti</td><td>Doğru hücre</td></tr>
+      <tr><td class="mono">line-strong / background</td><td class="num">3,0</td><td class="num">3,40</td><td class="pass">geçti</td><td class="num">3,33</td><td class="pass">geçti</td><td>Bileşen sınırı, odak</td></tr>
+      <tr><td class="mono">note / note-soft <span class="badge ac">yeni</span></td><td class="num">4,5</td><td class="num">5,12</td><td class="pass">geçti</td><td class="num">6,86</td><td class="pass">geçti</td><td>Arşivci notu</td></tr>
+      <tr><td class="mono">note / background <span class="badge ac">yeni</span></td><td class="num">4,5</td><td class="num">5,53</td><td class="pass">geçti</td><td class="num">8,00</td><td class="pass">geçti</td><td>Kapsam metni</td></tr>
+    </tbody>
+  </table></div>
+  <p class="prose" style="margin-top:14px">Ayrıca ölçtüğüm ve geçen yirmi ek çift var: her semantik rengin <code>surface</code> ve <code>background</code> üstündeki hâli, <code>accent</code>/<code>accent-soft</code>, <code>foreground</code>'un beş yumuşak zemin üstündeki okunurluğu. Odak halkası <code>--accent</code> ile çiziliyor ve iki temada da <code>background</code>'a karşı 6,7:1 taşıyor — 3:1 eşiğinin iki katı.</p>
+
+  <h3 class="sub">Kopyalanacak blok</h3>
+  <div class="tokenblock"><pre><span class="c">/* Acik tema — tam palet bare :root uzerinde */</span>
+<span class="p">:root</span> {
+  --background:#F2F4F8;  --surface:#FFFFFF;    --surface-2:#E7EBF2;
+  --foreground:#111823;  --muted:#5A6575;
+  --line:#D9E0EA;        --line-strong:#7A8595;
+  --accent:#2B41C4;      --accent-fg:#FFFFFF;  --accent-soft:#E3E8FF;
+  --correct:#0B6E3F;     --correct-soft:#D9F2E3;
+  --wrong:#B3242F;       --wrong-soft:#FBE2E4;
+  --warn:#7A5200;        --warn-soft:#FAEDCF;
+  --note:#6A6153;        --note-soft:#EFEBE3;
+  --shadow-card:0 1px 2px rgba(17,24,35,.06), 0 2px 8px rgba(17,24,35,.05);
+  --shadow-pop:0 8px 24px rgba(17,24,35,.14), 0 2px 6px rgba(17,24,35,.08);
+}
+<span class="c">/* Sistem koyu — yalnizca belirtecler yeniden tanimlanir */</span>
+<span class="p">@media (prefers-color-scheme: dark)</span> {
+  <span class="p">:root:not([data-theme="light"])</span> { <span class="c">/* asagidaki koyu deger kumesi */</span> }
+}
+<span class="p">:root[data-theme="dark"]</span> {
+  --background:#0D1117;  --surface:#151B24;    --surface-2:#1D2530;
+  --foreground:#E7ECF3;  --muted:#98A3B3;
+  --line:#232C38;        --line-strong:#5A6879;
+  --accent:#7B93FF;      --accent-fg:#0A0E15;  --accent-soft:#1A2242;
+  --correct:#4FD98C;     --correct-soft:#0E2A1D;
+  --wrong:#FF7A82;       --wrong-soft:#301418;
+  --warn:#F2B950;        --warn-soft:#2C2011;
+  --note:#B3A794;        --note-soft:#23201A;
+  --shadow-card:0 1px 2px rgba(0,0,0,.5), 0 2px 8px rgba(0,0,0,.35);
+  --shadow-pop:0 10px 28px rgba(0,0,0,.62), 0 2px 6px rgba(0,0,0,.45);
+}</pre></div>
+  <div class="docnote"><p><b>Uygulama notu.</b> Bu mockup koyu değerleri iki kez yazıyor (medya sorgusu + <code>[data-theme]</code>) çünkü düz CSS'te paylaşılan bir küme yok. Tailwind v4 tarafında <code>@theme</code> içinde tek kez tanımlayıp iki seçiciye bağlamak yeterli — çoğaltma uygulamaya taşınmasın.</p></div>
+</section>
+
+<style>
+.demo-focus{outline:2px solid var(--accent) !important; outline-offset:2px !important}
+.demo-focus-in{outline:2px solid var(--accent) !important; outline-offset:-3px !important}
+.stateset{display:flex; flex-wrap:wrap; gap:20px; margin-top:14px}
+.stateset > figure{margin:0; display:flex; flex-direction:column; gap:7px; align-items:flex-start}
+.stateset figcaption{font-size:10px; letter-spacing:.11em; text-transform:uppercase; font-weight:800; color:var(--muted)}
+.markdemo{display:flex; flex-wrap:wrap; gap:9px; margin-top:12px}
+.md1{display:flex; flex-direction:column; align-items:center; gap:6px; width:78px; text-align:center}
+.md1 .cap{font-size:10px; color:var(--muted); line-height:1.3; font-weight:600}
+.md1 .cap b{color:var(--foreground); display:block; font-size:10.5px}
+.scale-row{display:flex; align-items:baseline; gap:16px; padding:11px 0; border-bottom:1px solid var(--line); flex-wrap:wrap}
+.scale-row .sp{font-size:10px; letter-spacing:.11em; text-transform:uppercase; font-weight:800; color:var(--muted); width:112px; flex:0 0 auto}
+.scale-row .sv{font-size:11.5px; color:var(--muted); font-family:ui-monospace,"SF Mono",Consolas,monospace; margin-left:auto; white-space:nowrap}
+</style>
+
+<!-- ================= 3. TIPOGRAFI ================= -->
+<section>
+  <div class="sec-head"><span class="sec-num">03</span><h2>Tipografi</h2></div>
+  <p class="sec-sub">İki aile, iki ses. Bu bir süs eşleşmesi değil: <b>tipografi kimin konuştuğunu söylüyor</b>. Veri makinenin sesiyle, uyarı ve açıklama arşivcinin sesiyle konuşur.</p>
+
+  <div class="spec">
+    <div>
+      <div class="st">Hedef aile 1 — veri ve arayüz</div>
+      <div style="font-size:27px; font-weight:800; letter-spacing:-.025em; margin-top:9px">Archivo</div>
+      <div class="sd"><b>Neden.</b> Adı zaten arşiv. Omnibus-Type'ın değişken grotesk'i; <code>wdth</code> ekseni 62–125 arasında, yani <b>tek aileyle</b> hem sıkışık etiket hem geniş tabela rakamı çıkıyor. Latin Extended-A tam, Türkçe eksiksiz. <code>next/font/google</code> ile derleme anında indirilip kendi sunucumuzdan servis edilir — CSP'ye takılmaz.</div>
+      <div class="sd" style="margin-top:8px"><b>Kullanım.</b> Başlık, gezinme, düğme, etiket ve <b>bütün rakamlar</b>. Tabela ve büyük sayılarda <code>wdth 112</code>, ağırlık 800, <code>letter-spacing -.04em</code>, <code>tabular-nums</code>. Küçük büyük harf etiketlerde <code>wdth 88</code>.</div>
+    </div>
+    <div>
+      <div class="st">Hedef aile 2 — arşivcinin sesi</div>
+      <div style="font-family:var(--f-text); font-size:27px; font-weight:600; letter-spacing:-.01em; margin-top:9px">Source Serif 4</div>
+      <div class="sd"><b>Neden.</b> Ürünün dürüstlük metinleri makinenin çıktısı değil, insanın notu: "kaynakta ayrıntı yok", "83 kulüpten 50'si gösteriliyor", kapsam cümlesi, mod tarifi. Serif bunları <b>farklı bir ses</b> olarak işaretliyor ve kullanıcı iki saniyede öğreniyor: eğimli/tırnaklı olan yazı, verinin kendisi değil onun hakkında söylenen şey.</div>
+      <div class="sd" style="margin-top:8px"><b>Kullanım.</b> Görev cümlesi, kapsam, arşivci notu, boş durum açıklaması, altbilgi. Asla sayı taşımaz, asla düğme olmaz.</div>
+    </div>
+    <div>
+      <div class="st">Üçüncü aile yok</div>
+      <div class="sd" style="margin-top:9px">Veri için ayrı bir mono aile eklemedim. Archivo'nun <code>tabular-nums</code>'ı dönem hücrelerini ve tabelayı hizalamaya yetiyor; üçüncü aile hem indirme yükü hem gereksiz bir ses. <b>Entegrasyonda doğrulanacak tek şey</b> Archivo'nun <code>tnum</code> özelliğinin sürümde bulunduğu — bulunmazsa çare <code>font-feature-settings:"tnum" 1</code> yerine sabit genişlikli rakam varyantına geçmek, aile değiştirmek değil.</div>
+    </div>
+  </div>
+
+  <h4 class="sub2">Mockup'ta ne görüyorsunuz</h4>
+  <p class="prose">Gerçek yazı tipi dosyası bu mockup'a gömülemez (dış bağlantı yasak, ikili veri uydurulamaz). Bu yüzden ölçüsel olarak yakın sistem yığınlarıyla temsil ediliyor — satır uzunluğu ve ritim yanıltmasın diye:</p>
+  <div class="tblwrap"><table class="dt">
+    <thead><tr><th>Rol</th><th>Hedef aile</th><th>Mockup yığını</th><th>Neden yakın</th></tr></thead>
+    <tbody>
+      <tr><td>Arayüz + veri</td><td><b>Archivo</b></td><td class="mono">"Helvetica Neue", Arial, "Segoe UI", Roboto, system-ui</td><td>Yüksek x-yüksekliği, dar kapanışlı grotesk; Arial/Helvetica Archivo'ya en yakın sistem karşılığı</td></tr>
+      <tr><td>Arşivci sesi</td><td><b>Source Serif 4</b></td><td class="mono">Georgia, "Times New Roman", "Noto Serif"</td><td>Georgia da geniş x-yüksekliğine ve kalın tırnaklara sahip ekran serifi</td></tr>
+    </tbody>
+  </table></div>
+  <div class="docnote"><p><b>Mockup'ta olmayan tek şey genişlik ekseni.</b> Sistem yığınında güvenilir bir sıkışık kesim yok, o yüzden büyük harf etiketleri burada <code>letter-spacing</code> ile temsil ediliyor. Gerçek derlemede Archivo'nun <code>wdth</code> ekseni kullanılacak; etiketler <b>bir tık daha dar ve daha yoğun</b> görünecek, düzen ölçüleri değişmeyecek.</p></div>
+
+  <h4 class="sub2">Türkçe karakter denetimi</h4>
+  <p class="prose">Her iki hedef aile de şu kümeyi eksiksiz taşıyor. Noktasız <code>ı</code> ile noktalı <code>İ</code> ayrımı, ürünün adlarında sürekli geçtiği için (Beşiktaş, Çaykur Rizespor, İstanbul) pazarlık konusu değil:</p>
+  <div class="tr-demo">ı İ ğ Ğ ş Ş ç Ç ö Ö ü Ü — Beşiktaş · Çaykur Rizespor · Gençlerbirliği</div>
+
+  <h4 class="sub2">Ölçek</h4>
+  <div style="margin-top:10px">
+    <div class="scale-row"><span class="sp">Tabela — büyük</span><span style="font-size:52px;font-weight:800;letter-spacing:-.045em;font-variant-numeric:tabular-nums;line-height:1">55</span><span class="sv">52 / 0.94 / 800 / -.045em / tnum</span></div>
+    <div class="scale-row"><span class="sp">Tabela — canlı</span><span style="font-size:30px;font-weight:800;letter-spacing:-.035em;font-variant-numeric:tabular-nums">0/9</span><span class="sv">30 / 1.06 / 800 / -.035em / tnum</span></div>
+    <div class="scale-row"><span class="sp">Mod başlığı</span><span style="font-size:26px;font-weight:800;letter-spacing:-.02em">Ortak Oyuncu</span><span class="sv">26 / 1.15 / 800 / -.02em</span></div>
+    <div class="scale-row"><span class="sp">Panel başlığı</span><span style="font-size:19px;font-weight:800;letter-spacing:-.02em">Robin van Persie</span><span class="sv">19 / 1.2 / 800 / -.02em</span></div>
+    <div class="scale-row"><span class="sp">Satır adı</span><span style="font-size:14.5px;font-weight:700;letter-spacing:-.01em">Rüştü Reçber</span><span class="sv">14.5 / 1.35 / 700</span></div>
+    <div class="scale-row"><span class="sp">Gövde / arayüz</span><span style="font-size:15px">Kulüp arayın</span><span class="sv">15 / 1.5 / 400</span></div>
+    <div class="scale-row"><span class="sp">Arşivci sesi</span><span style="font-family:var(--f-text);font-size:14px;color:var(--muted)">Kaynakta ayrıntı yok</span><span class="sv">Serif 13–15 / 1.55 / 400</span></div>
+    <div class="scale-row"><span class="sp">Veri hücresi</span><span style="font-size:13px;font-weight:800;font-variant-numeric:tabular-nums">1993 – 2002</span><span class="sv">13 / 1.3 / 800 / tnum</span></div>
+    <div class="scale-row"><span class="sp">Etiket (üst)</span><span style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:800;color:var(--muted)">BİRİNCİ KULÜP</span><span class="sv">10 / .14em / 800 / caps</span></div>
+  </div>
+</section>
+
+<!-- ================= 4. KULUP ISARETI ================= -->
+<section>
+  <div class="sec-head"><span class="sec-num">04</span><h2>Kulüp işareti</h2></div>
+  <p class="sec-sub">§5.1 boş yuvayı yasaklıyor. Ben bir adım öteye gidiyorum: <b>baş harf karosu bu ürünün alfabesi</b>. Kulüplerin %56'sında arma yok, oyuncuların hiçbirinde fotoğraf yok — görselin olmadığı her yerde aynı karo duruyor, o yüzden eksiklik gibi değil sistem gibi okunuyor.</p>
+
+  <h3 class="sub">Üç biçim, tek ölçü</h3>
+  <div class="markdemo">
+    <div class="md1"><span class="mark l crest"><svg viewBox="0 0 20 20" width="30" height="30"><use href="#cr-a"/></svg></span><span class="cap"><b>Arma</b>%43,7</span></div>
+    <div class="md1"><span class="mark l crest"><svg viewBox="0 0 20 20" width="30" height="30"><use href="#cr-b"/></svg></span><span class="cap"><b>Arma</b>aynı çerçeve</span></div>
+    <div class="md1"><span class="mark l">FEN</span><span class="cap"><b>Baş harf</b>%56,3</span></div>
+    <div class="md1"><span class="mark l">BEŞ</span><span class="cap"><b>Baş harf</b>Türkçe harf</span></div>
+    <div class="md1"><span class="mark l">ÇR</span><span class="cap"><b>Baş harf</b>iki kelime</span></div>
+    <div class="md1"><span class="mark l nat">PL</span><span class="cap"><b>Uyruk</b>kesik daire</span></div>
+    <div class="md1"><span class="mark l p">RP</span><span class="cap"><b>Oyuncu</b>yuvarlak</span></div>
+  </div>
+  <p class="prose" style="margin-top:16px">Üç biçim <b>renkle değil formla</b> ayrışıyor: kulüp = dolu kare, uyruk = kesik çizgili daire, oyuncu = yumuşak yuvarlak. Bu ayrım ızgarada kritik, çünkü orada satır ölçütü kulüp de ülke de olabiliyor ve bugün bu bilgi yalnızca 9 puntoluk <code>KULÜP</code>/<code>UYRUK</code> etiketinde duruyor.</p>
+
+  <h3 class="sub">Türetme kuralı — ölçtüğüm çakışmayı çözüyor</h3>
+  <p class="prose">Bugünkü üretici kulüp adının baş harflerini alıyor ve <b>A.C. Carpi ile A.C. Savoia aynı listede ikisi de <code>AC</code> çıkıyor</b>. Kural şu şekilde değişiyor:</p>
+  <ul class="prose">
+    <li><b>1. Genel ekleri at.</b> <code>AC, FC, SC, CF, SS, AS, US, FK, SK, BK, IF, VfB, TSV, SSD, Calcio</code> ve baştaki sayılar (<code>1.</code>, <code>08</code>, <code>1899</code>) atılır.</li>
+    <li><b>2. Kalan ayırt edici kelime sayısına bak.</b> İki veya daha fazlaysa her birinin ilk harfi (en çok 3). Tekse ilk üç harf.</li>
+    <li><b>3. Çakışma varsa uzat.</b> Aynı karo iki kulübe düşerse harf sayısı artırılır; hâlâ eşitse ülke kodu ikinci satıra iner.</li>
+    <li><b>4. Türkçe harfler korunur</b> — <code>Beşiktaş</code> → <code>BEŞ</code>, asla <code>BES</code> değil.</li>
+  </ul>
+  <div class="tblwrap"><table class="dt">
+    <thead><tr><th>Kulüp</th><th>Bugün</th><th>Öneri</th><th>Kural</th></tr></thead>
+    <tbody>
+      <tr><td>A.C. Carpi</td><td><span class="mark s">AC</span></td><td><span class="mark s">CAR</span></td><td>Ek atıldı, tek kelime → 3 harf</td></tr>
+      <tr><td>A.C. Savoia</td><td><span class="mark s">AC</span> <span class="badge no">çakışma</span></td><td><span class="mark s">SAV</span></td><td>Çakışma çözüldü</td></tr>
+      <tr><td>ASKÖ Pasching</td><td><span class="mark s">AP</span></td><td><span class="mark s">PAS</span></td><td>ASKÖ genel ek</td></tr>
+      <tr><td>08 Homburg</td><td><span class="mark s">HO</span></td><td><span class="mark s">HOM</span></td><td>Baştaki sayı atıldı</td></tr>
+      <tr><td>1. FC Köln</td><td><span class="mark s">FK</span></td><td><span class="mark s">KÖL</span></td><td>Sayı + FC atıldı, Ö korundu</td></tr>
+      <tr><td>Çaykur Rizespor</td><td><span class="mark s">ÇR</span></td><td><span class="mark s">ÇR</span></td><td>İki ayırt edici kelime — değişmedi</td></tr>
+      <tr><td>Internazionale Milano</td><td><span class="mark s">IM</span></td><td><span class="mark s">IM</span></td><td>İki kelime — değişmedi</td></tr>
+    </tbody>
+  </table></div>
+  <div class="docnote"><p><b>Bu mockup'ta armalar temsilîdir.</b> Gerçek armalar <code>upload.wikimedia.org</code>'dan gelir ve bu dosya dış kaynak yükleyemez, o yüzden yukarıdaki iki arma satır içi SVG ile çizilmiş yer tutuculardır. Gösterdikleri şey renk veya biçim değil, <b>çerçevenin ikisini de aynı ölçüde taşıdığı</b>.</p></div>
+</section>
+
+<!-- ================= 5. BILESEN ENVANTERI ================= -->
+<section>
+  <div class="sec-head"><span class="sec-num">05</span><h2>Bileşen envanteri</h2></div>
+  <p class="sec-sub">Durumlar atlanmadı — özellikle <b>odak</b>. Odak her yerde <code>outline: 2px solid var(--accent)</code>, iç gölge değil (§5.3). Aşağıda odak durumları statik olarak zorlanmış hâlde gösteriliyor.</p>
+
+  <div class="app t-light" style="border:1px solid var(--line); border-radius:var(--r-lg); padding:22px; margin-top:18px">
+    <h4 class="sub2" style="margin-top:0">Düğmeler</h4>
+    <div class="stateset">
+      <figure><button class="btn pri">Izgarayı kur</button><figcaption>Birincil</figcaption></figure>
+      <figure><button class="btn pri demo-focus">Izgarayı kur</button><figcaption>Birincil · odak</figcaption></figure>
+      <figure><button class="btn">Değiştir</button><figcaption>İkincil</figcaption></figure>
+      <figure><button class="btn demo-focus">Değiştir</button><figcaption>İkincil · odak</figcaption></figure>
+      <figure><button class="btn on">Kulüp maçı</button><figcaption>Seçili</figcaption></figure>
+      <figure><button class="btn gh">Vazgeç</button><figcaption>Hayalet</figcaption></figure>
+      <figure><button class="btn" disabled>Ölçüt seç</button><figcaption>Devre dışı</figcaption></figure>
+      <figure><button class="lnk">Vazgeç</button><figcaption>Bağlantı</figcaption></figure>
+    </div>
+
+    <h4 class="sub2">Rozetler ve veri hücreleri</h4>
+    <div class="stateset">
+      <figure><span class="badge ac">55 ortak oyuncu</span><figcaption>Vurgu</figcaption></figure>
+      <figure><span class="badge ok"><svg width="11" height="11"><use href="#ic-check"/></svg>doğru</span><figcaption>Doğru</figcaption></figure>
+      <figure><span class="badge no"><svg width="11" height="11"><use href="#ic-x"/></svg>yanlış</span><figcaption>Yanlış</figcaption></figure>
+      <figure><span class="badge wn">ikiz olabilir</span><figcaption>Uyarı</figcaption></figure>
+      <figure><span class="badge nt">kaynakta ayrıntı yok</span><figcaption>Not</figcaption></figure>
+      <figure><span class="spell"><span class="yr">1993 – 2002</span><span class="mc">240 maç</span></span><figcaption>Dönem</figcaption></figure>
+      <figure><span class="spell"><span class="yr">2006</span><span class="mc">8 maç</span></span><figcaption>Tek sezon</figcaption></figure>
+      <figure><span class="spell loan"><span class="yr">1999</span><span class="lb">kiralık</span><span class="mc">24 maç</span></span><figcaption>Kiralık</figcaption></figure>
+      <figure><span class="spell unk">kaynakta ayrıntı yok</span><figcaption>Kanıtsız</figcaption></figure>
+    </div>
+    <p class="prose" style="font-size:14px; margin-top:12px">Kiralık dönem hem amber hem <b>"kiralık" yazılı</b>; doğru/yanlış hem renkli hem simgeli hem yazılı. Renk hiçbir yerde tek gösterge değil.</p>
+
+    <h4 class="sub2">Izgara hücresi</h4>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(146px,1fr)); gap:10px; max-width:760px">
+      <figure style="margin:0"><button class="cellbtn"><span class="plus">+</span></button><figcaption style="font-size:10px;letter-spacing:.11em;text-transform:uppercase;font-weight:800;color:var(--muted);margin-top:6px">Boş</figcaption></figure>
+      <figure style="margin:0"><button class="cellbtn demo-focus"><span class="plus">+</span></button><figcaption style="font-size:10px;letter-spacing:.11em;text-transform:uppercase;font-weight:800;color:var(--muted);margin-top:6px">Odak</figcaption></figure>
+      <figure style="margin:0"><button class="cellbtn target"><span class="plus">+</span><span class="tg">yazılıyor</span></button><figcaption style="font-size:10px;letter-spacing:.11em;text-transform:uppercase;font-weight:800;color:var(--muted);margin-top:6px">Hedef</figcaption></figure>
+      <figure style="margin:0"><div class="cell-f ok"><span class="st"><svg width="11" height="11"><use href="#ic-check"/></svg>doğru</span><span class="pn">Mauro Icardi</span><span class="pm">Galatasaray · Inter</span></div><figcaption style="font-size:10px;letter-spacing:.11em;text-transform:uppercase;font-weight:800;color:var(--muted);margin-top:6px">Doğru</figcaption></figure>
+      <figure style="margin:0"><div class="cell-f no"><span class="st"><svg width="11" height="11"><use href="#ic-x"/></svg>yanlış</span><span class="pn">Yunus Akgün</span><span class="pm">Inter kaydı yok</span></div><figcaption style="font-size:10px;letter-spacing:.11em;text-transform:uppercase;font-weight:800;color:var(--muted);margin-top:6px">Yanlış</figcaption></figure>
+    </div>
+    <p class="prose" style="font-size:14px; margin-top:12px">Yanlış hücre artık <b>neden yanlış olduğunu</b> da söylüyor ("Inter kaydı yok"). Hak yakan bir tahminde bunu söylememek bilgi saklamaktı.</p>
+
+    <h4 class="sub2">Girdi ve açılır liste</h4>
+    <div style="display:flex; gap:14px; flex-wrap:wrap; max-width:820px">
+      <div style="flex:1 1 232px"><div class="pick-lbl">Boş</div><div class="pick-in"><svg width="15" height="15" style="color:var(--muted)"><use href="#ic-search"/></svg>Kulüp arayın…</div></div>
+      <div style="flex:1 1 232px"><div class="pick-lbl">Odaklı / açık</div><div class="pick-in open"><svg width="15" height="15" style="color:var(--accent)"><use href="#ic-search"/></svg><span class="caretbar"></span>Serie A içinde arayın…</div></div>
+      <div style="flex:1 1 232px"><div class="pick-lbl">Dolu</div><div class="pick-in filled"><span class="mark s">FEN</span>Fenerbahçe<button class="lnk" style="margin-left:auto">Değiştir</button></div></div>
+    </div>
+    <div style="display:flex; gap:14px; flex-wrap:wrap; margin-top:16px; max-width:820px">
+      <div style="flex:1 1 300px"><div class="pick-lbl">Seçenek durumları</div>
+        <div class="pop"><div class="pop-list">
+          <div class="opt"><span class="mark s">ARS</span><span class="nm">Arsenal</span><span class="cc">EN</span><span class="rt"><span class="kind">kulüp</span></span></div>
+          <div class="opt sel"><span class="mark s">AVL</span><span class="nm">Aston Villa</span><span class="cc">EN</span><span class="rt"><span class="kind">kulüp</span></span></div>
+          <div class="opt demo-focus-in"><span class="mark s">CHE</span><span class="nm">Chelsea</span><span class="cc">EN</span><span class="rt"><span class="kind">kulüp</span></span></div>
+          <div class="opt"><span class="mark s">FRO</span><span class="nm">Fros<mark>in</mark>one</span><span class="cc">IT</span><span class="rt"><span class="kind">kulüp</span></span></div>
+        </div></div>
+        <p class="prose" style="font-size:13px;margin-top:8px">Sırasıyla: normal, üzerinde/seçili, <b>klavye odağı</b>, eşleşme vurgulu.</p>
+      </div>
+      <div style="flex:1 1 300px"><div class="pick-lbl">Uyarı biçimleri</div>
+        <div style="display:flex;flex-direction:column;gap:9px">
+          <div class="note-strip"><svg class="ic" width="12" height="12"><use href="#ic-note"/></svg><div><b>83</b> kulüpten <b>50</b> tanesi gösteriliyor — daraltmak için yazın.</div></div>
+          <div class="warn-strip"><svg class="ic" width="14" height="14"><use href="#ic-warn"/></svg><div><span class="ttl">İkiz kayıt olabilir</span>Bu iki kulübün kadroları neredeyse birebir aynı.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 6. ORTAK OYUNCU ================= -->
+<section>
+  <div class="sec-head"><span class="sec-num">06</span><h2>Ortak Oyuncu</h2></div>
+  <p class="sec-sub">Yapısal imza: <b>kesişim ve defter</b>. Başlık + alt başlık + dört satırlık kapsam paragrafı yerine tek künye şeridi; kapsam bilgisi kaybolmuyor, <b>metin olmaktan çıkıp veriye dönüşüyor</b> — bir satır artı 24 lig etiketi.</p>
+
+  <div class="frames">
+
+  <!-- O-1 -->
+  <div class="screen">
+    <div class="screen-bar"><span class="n">O-1</span><span class="t">Boş hâl</span><span class="d">Hiçbir kulüp seçilmemiş. Kapsam baştan söyleniyor (§5.2), üstelik taranabilir hâlde.</span><span class="th">Koyu</span></div>
+    <div class="screen-body"><div class="app t-dark">
+      <div class="hdr">
+        <div class="brand"><svg width="19" height="19" style="color:var(--accent)"><use href="#g-ortak"/></svg><span class="wm">Futbol Quiz</span></div>
+        <nav class="nav">
+          <a href="#" class="on"><svg class="g" width="16" height="16"><use href="#g-ortak"/></svg>Ortak Oyuncu</a>
+          <a href="#"><svg class="g" width="16" height="16"><use href="#g-izgara"/></svg>3×3 Izgara</a>
+          <a href="#"><svg class="g" width="16" height="16"><use href="#g-istat"/></svg>İstatistik</a>
+          <a href="#"><svg class="g" width="16" height="16"><use href="#g-hangi"/></svg>Hangisi Daha</a>
+        </nav>
+      </div>
+      <div class="app-in">
+        <div class="kunye">
+          <div class="idg"><svg width="24" height="24"><use href="#g-ortak"/></svg></div>
+          <div class="txt">
+            <div class="eyebrow">Mod 1 · Kesişim</div>
+            <h1>Ortak Oyuncu</h1>
+            <p class="task">İki kulüp seç; <b>ikisinde de forma giymiş</b> oyuncuları dönemleriyle gör.</p>
+          </div>
+          <div class="tab">
+            <div class="cell"><div class="k">Kulüp</div><div class="v c-acc">906</div></div>
+            <div class="cell"><div class="k">Lig</div><div class="v">24</div></div>
+            <div class="cell"><div class="k">Oyuncu</div><div class="v sm">132.263</div></div>
+          </div>
+        </div>
+        <div class="scope">
+          <span class="s-lbl">Kapsam</span>
+          <p class="s-txt">Yirmi dört üst ligin <b>tarihsel</b> kadroları — bugünkü ve geçmişteki takımlar dâhil. Bu liglerin dışında geçen kariyerler veri kümesinde yer almaz.</p>
+        </div>
+        <div class="ligs">
+          <span class="lig">Premier League EN</span><span class="lig">La Liga ES</span><span class="lig">Serie A IT</span><span class="lig">Bundesliga DE</span><span class="lig">Ligue 1 FR</span><span class="lig">Süper Lig TR</span><span class="lig">Eredivisie NL</span><span class="lig">Primeira Liga PT</span><span class="lig">Premiership SC</span><span class="lig">Pro League BE</span><span class="lig">Super Lig GR</span><span class="lig">Super League CH</span><span class="lig">Premier Liga RU</span><span class="lig">Ekstraklasa PL</span><span class="lig">Fortuna Liga CZ</span><span class="lig">HNL HR</span><span class="lig">Premier Liha UA</span><span class="lig">Superliga DK</span><span class="lig">Eliteserien NO</span><span class="lig">Allsvenskan SE</span><span class="lig">Bundesliga AT</span><span class="lig">Liga I RO</span><span class="lig">MLS US</span><span class="lig">Pro League SA</span>
+        </div>
+        <div class="pair">
+          <div class="picker"><div class="pick-lbl">Birinci kulüp</div><div class="pick-in"><svg width="15" height="15" style="color:var(--muted)"><use href="#ic-search"/></svg>Kulüp arayın…</div></div>
+          <div class="seam">∩</div>
+          <div class="picker"><div class="pick-lbl">İkinci kulüp</div><div class="pick-in"><svg width="15" height="15" style="color:var(--muted)"><use href="#ic-search"/></svg>Kulüp arayın…</div></div>
+        </div>
+        <div style="padding-top:14px">
+          <div class="pick-lbl">Hazır başlangıçlar</div>
+          <div class="suggest">
+            <button class="sg"><span class="mark s">FEN</span>Fenerbahçe<span class="x">∩</span><span class="mark s">BEŞ</span>Beşiktaş</button>
+            <button class="sg"><span class="mark s">GAL</span>Galatasaray<span class="x">∩</span><span class="mark s">IM</span>Inter</button>
+            <button class="sg"><span class="mark s crest"><svg viewBox="0 0 20 20" width="14" height="14"><use href="#cr-c"/></svg></span>Ajax<span class="x">∩</span><span class="mark s">BAR</span>Barcelona</button>
+          </div>
+        </div>
+        <div class="how">
+          <div><div class="st">1 — Seç</div><div class="sd">Ligden gözat ya da yaz. <b>906 kulüp</b> arasından ikisini seç.</div></div>
+          <div><div class="st">2 — Kesiştir</div><div class="sd">İki kadronun <b>ortak</b> oyuncuları listelenir.</div></div>
+          <div><div class="st">3 — Oku</div><div class="sd">Her oyuncunun <b>iki kulüpteki dönemleri</b> yan yana durur.</div></div>
+        </div>
+        <div class="ftr"><p>Veriler <a href="#">Wikidata</a>'dan ve <a href="#">Vikipedi</a>'den derlenmiştir. <a href="#">Arma kaynakları ve lisanslar</a>.</p><p>Veri son güncelleme: 7 Ağustos 2026. Yılda iki kez tazelenir.</p></div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- O-2 -->
+  <div class="screen">
+    <div class="screen-bar"><span class="n">O-2</span><span class="t">Seçici — lig listesi</span><span class="d">Kutu boşken 24 lig. Sayı artık yalnız sayı değil: yanındaki oran çubuğu ligin büyüklüğünü taratıyor.</span><span class="th">Koyu</span></div>
+    <div class="screen-body mid"><div class="app t-dark"><div class="app-in" style="padding-top:20px; padding-bottom:26px">
+      <div class="pair">
+        <div class="picker">
+          <div class="pick-lbl">Birinci kulüp</div>
+          <div class="pick-in open"><svg width="15" height="15" style="color:var(--accent)"><use href="#ic-search"/></svg><span class="caretbar"></span><span style="color:var(--muted)">Lig seçin ya da yazın…</span></div>
+          <div class="pop">
+            <div class="pop-head"><span class="bc">Bütün ligler</span><span class="r"><span style="font-size:11px;color:var(--muted);font-weight:700">24 lig · 906 kulüp</span><button class="lnk">Vazgeç</button></span></div>
+            <div class="pop-list">
+              <div class="opt"><span class="nm">Allsvenskan</span><span class="cc">SE</span><span class="rt"><span class="bar"><i style="width:60%"></i></span><span class="cnt">50</span><svg class="chev" width="13" height="13"><use href="#ic-chev"/></svg></span></div>
+              <div class="opt sel"><span class="nm">Avusturya Bundesliga</span><span class="cc">AT</span><span class="rt"><span class="bar"><i style="width:39%"></i></span><span class="cnt">32</span><svg class="chev" width="13" height="13"><use href="#ic-chev"/></svg></span></div>
+              <div class="opt"><span class="nm">Belçika Birinci Ligi</span><span class="cc">BE</span><span class="rt"><span class="bar"><i style="width:39%"></i></span><span class="cnt">32</span><svg class="chev" width="13" height="13"><use href="#ic-chev"/></svg></span></div>
+              <div class="opt"><span class="nm">Bundesliga</span><span class="cc">DE</span><span class="rt"><span class="bar"><i style="width:71%"></i></span><span class="cnt">59</span><svg class="chev" width="13" height="13"><use href="#ic-chev"/></svg></span></div>
+              <div class="opt"><span class="nm">Danimarka Süper Ligi</span><span class="cc">DK</span><span class="rt"><span class="bar"><i style="width:25%"></i></span><span class="cnt">21</span><svg class="chev" width="13" height="13"><use href="#ic-chev"/></svg></span></div>
+              <div class="opt"><span class="nm">Ekstraklasa</span><span class="cc">PL</span><span class="rt"><span class="bar"><i style="width:43%"></i></span><span class="cnt">36</span><svg class="chev" width="13" height="13"><use href="#ic-chev"/></svg></span></div>
+              <div class="opt"><span class="nm">Eliteserien</span><span class="cc">NO</span><span class="rt"><span class="bar"><i style="width:33%"></i></span><span class="cnt">27</span><svg class="chev" width="13" height="13"><use href="#ic-chev"/></svg></span></div>
+              <div class="opt"><span class="nm">Eredivisie</span><span class="cc">NL</span><span class="rt"><span class="bar"><i style="width:34%"></i></span><span class="cnt">28</span><svg class="chev" width="13" height="13"><use href="#ic-chev"/></svg></span></div>
+              <div class="opt"><span class="nm">Serie A</span><span class="cc">IT</span><span class="rt"><span class="bar"><i style="width:100%"></i></span><span class="cnt">83</span><svg class="chev" width="13" height="13"><use href="#ic-chev"/></svg></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="seam">∩</div>
+        <div class="picker"><div class="pick-lbl">İkinci kulüp</div><div class="pick-in"><svg width="15" height="15" style="color:var(--muted)"><use href="#ic-search"/></svg>Kulüp arayın…</div></div>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- O-3 -->
+  <div class="screen">
+    <div class="screen-bar"><span class="n">O-3</span><span class="t">Seçici — lig içinde + kesme uyarısı</span><span class="d">Eksik durum tamamlandı. Uyarı listenin dibine yapışık: kaydırılıp geçilemiyor (§5.2).</span><span class="th">Koyu</span></div>
+    <div class="screen-body mid"><div class="app t-dark"><div class="app-in" style="padding-top:20px; padding-bottom:26px">
+      <div class="pair">
+        <div class="picker">
+          <div class="pick-lbl">Birinci kulüp</div>
+          <div class="pick-in open"><svg width="15" height="15" style="color:var(--accent)"><use href="#ic-search"/></svg><span class="caretbar"></span><span style="color:var(--muted)">Serie A içinde arayın…</span></div>
+          <div class="pop">
+            <div class="pop-head"><span class="bc"><svg width="13" height="13" style="color:var(--muted)"><use href="#ic-back"/></svg>Bütün ligler<span class="sep">/</span>Serie A</span><span class="r"><button class="lnk">Vazgeç</button></span></div>
+            <div class="pop-list">
+              <div class="opt"><span class="mark s crest"><svg viewBox="0 0 20 20" width="14" height="14"><use href="#cr-a"/></svg></span><span class="nm">A.C. Ancona</span><span class="cc">IT</span></div>
+              <div class="opt sel"><span class="mark s">CAR</span><span class="nm">A.C. Carpi</span><span class="cc">IT</span></div>
+              <div class="opt"><span class="mark s crest"><svg viewBox="0 0 20 20" width="14" height="14"><use href="#cr-d"/></svg></span><span class="nm">A.C. Milan</span><span class="cc">IT</span></div>
+              <div class="opt"><span class="mark s crest"><svg viewBox="0 0 20 20" width="14" height="14"><use href="#cr-a"/></svg></span><span class="nm">A.C. Monza</span><span class="cc">IT</span></div>
+              <div class="opt"><span class="mark s">SAV</span><span class="nm">A.C. Savoia</span><span class="cc">IT</span></div>
+              <div class="opt"><span class="mark s crest"><svg viewBox="0 0 20 20" width="14" height="14"><use href="#cr-b"/></svg></span><span class="nm">ACF Fiorentina</span><span class="cc">IT</span></div>
+            </div>
+            <div class="pop-foot"><div class="note-strip"><svg class="ic" width="12" height="12"><use href="#ic-note"/></svg><div><b>83</b> kulüpten <b>50</b> tanesi gösteriliyor — daraltmak için yazın.</div></div></div>
+          </div>
+        </div>
+        <div class="seam">∩</div>
+        <div class="picker"><div class="pick-lbl">İkinci kulüp</div><div class="pick-in"><svg width="15" height="15" style="color:var(--muted)"><use href="#ic-search"/></svg>Kulüp arayın…</div></div>
+      </div>
+      <p class="prose" style="font-size:13.5px;margin-top:16px">Karo çakışması burada gözle görülüyor: <b>CAR</b> ve <b>SAV</b> artık ayrı — ikisi de <code>AC</code> değil.</p>
+    </div></div></div>
+  </div>
+
+  <!-- O-4 -->
+  <div class="screen">
+    <div class="screen-bar"><span class="n">O-4</span><span class="t">Seçici — yazarak arama</span><span class="d">Eşleşen parça vurgulu. "Delfino neden burada" sorusu ortadan kalkıyor.</span><span class="th">Koyu</span></div>
+    <div class="screen-body mid"><div class="app t-dark"><div class="app-in" style="padding-top:20px; padding-bottom:26px">
+      <div class="pair">
+        <div class="picker">
+          <div class="pick-lbl">Birinci kulüp</div>
+          <div class="pick-in open"><svg width="15" height="15" style="color:var(--accent)"><use href="#ic-search"/></svg><span style="color:var(--foreground);font-weight:700">in</span><span class="caretbar"></span></div>
+          <div class="pop">
+            <div class="pop-head"><span class="bc"><svg width="13" height="13" style="color:var(--muted)"><use href="#ic-back"/></svg>Bütün ligler<span class="sep">/</span>Serie A</span><span class="r"><span style="font-size:11px;color:var(--muted);font-weight:700">7 sonuç</span><button class="lnk">Vazgeç</button></span></div>
+            <div class="pop-list">
+              <div class="opt sel"><span class="mark s crest"><svg viewBox="0 0 20 20" width="14" height="14"><use href="#cr-b"/></svg></span><span class="nm">ACF Fiorent<mark>in</mark>a</span><span class="cc">IT</span></div>
+              <div class="opt"><span class="mark s">MES</span><span class="nm">ACR Mess<mark>in</mark>a</span><span class="cc">IT</span></div>
+              <div class="opt"><span class="mark s">AVE</span><span class="nm">Avell<mark>in</mark>o Calcio 12 SSD</span><span class="cc">IT</span></div>
+              <div class="opt"><span class="mark s">PES</span><span class="nm">Delf<mark>in</mark>o Pescara</span><span class="cc">IT</span></div>
+              <div class="opt"><span class="mark s">FRO</span><span class="nm">Fros<mark>in</mark>one</span><span class="cc">IT</span></div>
+              <div class="opt"><span class="mark s">IM</span><span class="nm"><mark>In</mark>ternazionale Milano</span><span class="cc">IT</span></div>
+              <div class="opt"><span class="mark s">REG</span><span class="nm">Regg<mark>in</mark>a</span><span class="cc">IT</span></div>
+            </div>
+            <div class="pop-foot"><div class="note-strip"><svg class="ic" width="12" height="12"><use href="#ic-note"/></svg><div>Arama kulüp adının <b>her yerinde</b> eşleşir. Bütün liglerde aramak için <b>Serie A</b> kapsamından çıkın.</div></div></div>
+          </div>
+        </div>
+        <div class="seam">∩</div>
+        <div class="picker"><div class="pick-lbl">İkinci kulüp</div><div class="pick-in"><svg width="15" height="15" style="color:var(--muted)"><use href="#ic-search"/></svg>Kulüp arayın…</div></div>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- O-5 -->
+  <div class="screen">
+    <div class="screen-bar"><span class="n">O-5</span><span class="t">Sonuç — dolu defter</span><span class="d">Sonuç anı: 52 puntoluk sayı. Kanıtsız dönem işareti de bu ekranda (Ertuğrul Sağlam satırı).</span><span class="th">Koyu</span></div>
+    <div class="screen-body"><div class="app t-dark">
+      <div class="hdr">
+        <div class="brand"><svg width="19" height="19" style="color:var(--accent)"><use href="#g-ortak"/></svg><span class="wm">Futbol Quiz</span></div>
+        <nav class="nav">
+          <a href="#" class="on"><svg class="g" width="16" height="16"><use href="#g-ortak"/></svg>Ortak Oyuncu</a>
+          <a href="#"><svg class="g" width="16" height="16"><use href="#g-izgara"/></svg>3×3 Izgara</a>
+          <a href="#"><svg class="g" width="16" height="16"><use href="#g-istat"/></svg>İstatistik</a>
+          <a href="#"><svg class="g" width="16" height="16"><use href="#g-hangi"/></svg>Hangisi Daha</a>
+        </nav>
+      </div>
+      <div class="app-in">
+        <div class="kunye">
+          <div class="idg"><svg width="24" height="24"><use href="#g-ortak"/></svg></div>
+          <div class="txt"><div class="eyebrow">Mod 1 · Kesişim</div><h1>Ortak Oyuncu</h1></div>
+          <div class="tab lit"><div class="cell"><div class="k">Ortak oyuncu</div><div class="v c-acc">55</div></div><div class="cell"><div class="k">Toplam dönem</div><div class="v">147</div></div></div>
+        </div>
+        <div class="pair">
+          <div class="picker"><div class="pick-lbl">Birinci kulüp</div><div class="pick-in filled"><span class="mark s">FEN</span>Fenerbahçe<button class="lnk" style="margin-left:auto">Değiştir</button></div></div>
+          <div class="seam">∩</div>
+          <div class="picker"><div class="pick-lbl">İkinci kulüp</div><div class="pick-in filled"><span class="mark s">BEŞ</span>Beşiktaş<button class="lnk" style="margin-left:auto">Değiştir</button></div></div>
+        </div>
+        <div class="ledger">
+          <div class="lg-head">
+            <div><span class="h">Oyuncu</span></div>
+            <div><span class="mark s">FEN</span><span class="cn">Fenerbahçe</span></div>
+            <div><span class="mark s">BEŞ</span><span class="cn">Beşiktaş</span></div>
+          </div>
+          <div class="lg-row">
+            <div class="lg-p"><div class="pn">Rüştü Reçber</div><div class="pm">Kaleci · TR</div></div>
+            <div class="lg-c" data-club="Fenerbahçe"><div class="spells"><span class="spell"><span class="yr">1993 – 2002</span><span class="mc">240 maç</span></span><span class="spell"><span class="yr">2004 – 2005</span><span class="mc">54 maç</span></span><span class="spell"><span class="yr">2006</span><span class="mc">8 maç</span></span></div></div>
+            <div class="lg-c" data-club="Beşiktaş"><div class="spells"><span class="spell"><span class="yr">2007 – 2011</span><span class="mc">103 maç</span></span></div></div>
+          </div>
+          <div class="lg-row">
+            <div class="lg-p"><div class="pn">Gökhan Gönül</div><div class="pm">Defans · TR</div></div>
+            <div class="lg-c" data-club="Fenerbahçe"><div class="spells"><span class="spell"><span class="yr">2007 – 2015</span><span class="mc">254 maç</span></span><span class="spell"><span class="yr">2020</span><span class="mc">21 maç</span></span></div></div>
+            <div class="lg-c" data-club="Beşiktaş"><div class="spells"><span class="spell"><span class="yr">2016 – 2019</span><span class="mc">113 maç</span></span></div></div>
+          </div>
+          <div class="lg-row">
+            <div class="lg-p"><div class="pn">Sergen Yalçın</div><div class="pm">Orta saha · TR</div></div>
+            <div class="lg-c" data-club="Fenerbahçe"><div class="spells"><span class="spell loan"><span class="yr">1999</span><span class="lb">kiralık</span><span class="mc">24 maç</span></span></div></div>
+            <div class="lg-c" data-club="Beşiktaş"><div class="spells"><span class="spell"><span class="yr">1991 – 1996</span><span class="mc">138 maç</span></span><span class="spell"><span class="yr">2002 – 2005</span><span class="mc">91 maç</span></span></div></div>
+          </div>
+          <div class="lg-row">
+            <div class="lg-p"><div class="pn">Ertuğrul Sağlam</div><div class="pm">Forvet · TR</div></div>
+            <div class="lg-c" data-club="Fenerbahçe"><div class="spells"><span class="spell unk">kaynakta ayrıntı yok</span></div></div>
+            <div class="lg-c" data-club="Beşiktaş"><div class="spells"><span class="spell"><span class="yr">1994 – 1999</span><span class="mc">167 maç</span></span></div></div>
+          </div>
+          <div class="lg-row">
+            <div class="lg-p"><div class="pn">Feyyaz Uçar</div><div class="pm">Forvet · TR</div></div>
+            <div class="lg-c" data-club="Fenerbahçe"><div class="spells"><span class="spell"><span class="yr">1994</span><span class="mc">35 maç</span></span></div></div>
+            <div class="lg-c" data-club="Beşiktaş"><div class="spells"><span class="spell"><span class="yr">1982 – 1993</span><span class="mc">320 maç</span></span></div></div>
+          </div>
+          <div class="lg-row">
+            <div class="lg-p"><div class="pn">Tayfur Havutçu</div><div class="pm">Orta saha · TR</div></div>
+            <div class="lg-c" data-club="Fenerbahçe"><div class="spells"><span class="spell"><span class="yr">1993 – 1994</span><span class="mc">53 maç</span></span></div></div>
+            <div class="lg-c" data-club="Beşiktaş"><div class="spells"><span class="spell"><span class="yr">1997 – 2005</span><span class="mc">243 maç</span></span></div></div>
+          </div>
+        </div>
+        <div style="padding-top:12px"><div class="note-strip"><svg class="ic" width="12" height="12"><use href="#ic-note"/></svg><div>Maç sayıları yalnızca kapsanan yirmi dört ligdeki kariyeri sayar. Kaynakta yıl ya da maç bilgisi bulunmayan dönemler <b>silinmez</b>, kesik çizgiyle işaretlenir.</div></div></div>
+        <div class="ftr"><p>Veriler <a href="#">Wikidata</a>'dan ve <a href="#">Vikipedi</a>'den derlenmiştir. <a href="#">Arma kaynakları ve lisanslar</a>.</p></div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- O-6 -->
+  <div class="screen">
+    <div class="screen-bar"><span class="n">O-6</span><span class="t">Sonuç boş çıkan çift</span><span class="d">Sıfır da bir sonuçtur: aynı tabela biçimi, ama nötr. Neden boş olduğu söyleniyor.</span><span class="th">Koyu</span></div>
+    <div class="screen-body mid"><div class="app t-dark"><div class="app-in" style="padding-top:18px;padding-bottom:26px">
+      <div class="pair">
+        <div class="picker"><div class="pick-lbl">Birinci kulüp</div><div class="pick-in filled"><span class="mark s">PAS</span>ASKÖ Pasching<button class="lnk" style="margin-left:auto">Değiştir</button></div></div>
+        <div class="seam">∩</div>
+        <div class="picker"><div class="pick-lbl">İkinci kulüp</div><div class="pick-in filled"><span class="mark s">HOM</span>08 Homburg<button class="lnk" style="margin-left:auto">Değiştir</button></div></div>
+      </div>
+      <div class="slab nt">
+        <div><div class="big z">0</div></div>
+        <div style="flex:1 1 260px">
+          <div class="cap">Ortak oyuncu</div>
+          <p style="font-family:var(--f-text);font-size:14px;color:var(--muted);margin-top:5px;line-height:1.55">Bu iki kulüpte de forma giymiş bir oyuncu <b style="color:var(--foreground)">bulunamadı</b>. Veri kümesi yirmi dört ligin tarihsel kadrolarını kapsar; bu kulüpler dışında geçen kariyerler yer almaz.</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn sm">Pasching'i değiştir</button><button class="btn sm">Homburg'u değiştir</button>
+        </div>
+      </div>
+      <div style="padding-top:14px"><div class="pick-lbl">Bunları dene</div><div class="suggest">
+        <button class="sg"><span class="mark s">PAS</span>ASKÖ Pasching<span class="x">∩</span><span class="mark s">RBS</span>Red Bull Salzburg</button>
+        <button class="sg"><span class="mark s">HOM</span>08 Homburg<span class="x">∩</span><span class="mark s">KAI</span>Kaiserslautern</button>
+      </div></div>
+    </div></div></div>
+  </div>
+
+  <!-- O-7 -->
+  <div class="screen">
+    <div class="screen-bar"><span class="n">O-7</span><span class="t">İkiz kulüp uyarısı</span><span class="d">Eksik durum tamamlandı (§5.2). Uyarı listenin üstünde; <b>liste değiştirilmiyor</b>, kırpılmıyor.</span><span class="th">Koyu</span></div>
+    <div class="screen-body mid"><div class="app t-dark"><div class="app-in" style="padding-top:18px;padding-bottom:26px">
+      <div class="pair">
+        <div class="picker"><div class="pick-lbl">Birinci kulüp</div><div class="pick-in filled"><span class="mark s">GEN</span>Gençlerbirliği<button class="lnk" style="margin-left:auto">Değiştir</button></div></div>
+        <div class="seam">∩</div>
+        <div class="picker"><div class="pick-lbl">İkinci kulüp</div><div class="pick-in filled"><span class="mark s">GNC</span>Gençlerbirliği SK<button class="lnk" style="margin-left:auto">Değiştir</button></div></div>
+      </div>
+      <div class="slab" style="border-top-color:var(--warn)">
+        <div><div class="big" style="color:var(--warn)">312</div></div>
+        <div style="flex:1 1 auto"><div class="cap">Ortak oyuncu</div><div class="who" style="margin-top:5px"><span class="mark s">GEN</span>Gençlerbirliği<span class="x">∩</span><span class="mark s">GNC</span>Gençlerbirliği SK</div></div>
+      </div>
+      <div style="padding-top:12px"><div class="warn-strip"><svg class="ic" width="15" height="15"><use href="#ic-warn"/></svg><div>
+        <span class="ttl">Bu ikisi aynı kulüp olabilir</span>
+        Kadroların <b>%97'si</b> ortak (312 / 321 oyuncu). Büyük ihtimalle aynı kulübün kaynaktaki iki ayrı kaydı — yani bu kesişim bir başarı değil, bir veri kusuru. <b>Liste değiştirilmeden</b> aşağıda gösteriliyor.
+      </div></div></div>
+      <div class="ledger" style="margin-top:12px">
+        <div class="lg-head"><div><span class="h">Oyuncu</span></div><div><span class="mark s">GEN</span><span class="cn">Gençlerbirliği</span></div><div><span class="mark s">GNC</span><span class="cn">Gençlerbirliği SK</span></div></div>
+        <div class="lg-row"><div class="lg-p"><div class="pn">Ümit Karan</div><div class="pm">Forvet · TR</div></div><div class="lg-c" data-club="Gençlerbirliği"><div class="spells"><span class="spell"><span class="yr">1998 – 2000</span><span class="mc">41 maç</span></span></div></div><div class="lg-c" data-club="Gençlerbirliği SK"><div class="spells"><span class="spell"><span class="yr">1998 – 2000</span><span class="mc">41 maç</span></span></div></div></div>
+        <div class="lg-row"><div class="lg-p"><div class="pn">Serkan Balcı</div><div class="pm">Defans · TR</div></div><div class="lg-c" data-club="Gençlerbirliği"><div class="spells"><span class="spell"><span class="yr">2003 – 2007</span><span class="mc">96 maç</span></span></div></div><div class="lg-c" data-club="Gençlerbirliği SK"><div class="spells"><span class="spell"><span class="yr">2003 – 2007</span><span class="mc">96 maç</span></span></div></div></div>
+      </div>
+    </div></div></div>
+  </div>
+
+  </div>
+</section>
+
+<style>
+.gridwrap.open{overflow:visible}
+.cellhost{position:relative}
+.cellpop{position:absolute; top:calc(100% + 6px); left:0; width:320px; z-index:5}
+.cellpop::before{
+  content:""; position:absolute; top:-6px; left:22px; width:10px; height:10px;
+  background:var(--surface); border-left:1px solid var(--line-strong); border-top:1px solid var(--line-strong);
+  transform:rotate(45deg); z-index:1;
+}
+</style>
+
+<!-- ================= 7. IZGARA ================= -->
+<section>
+  <div class="sec-head"><span class="sec-num">07</span><h2>3×3 Izgara</h2></div>
+  <p class="sec-sub">Yapısal imza: <b>matris</b>. Boş duran sol üst köşe tabelaya dönüşüyor, seçici sayfanın dibinden kalkıp <b>hücrenin altına kenetleniyor</b>, ve doldurulmuş ızgara nihayet paylaşılabilir bir şey üretiyor.</p>
+
+  <div class="frames">
+
+  <!-- I-1 -->
+  <div class="screen">
+    <div class="screen-bar"><span class="n">I-1</span><span class="t">Boş ızgara</span><span class="d">Köşe hücresi artık ölü alan değil: kalan hak, harcanan hak ve skor orada.</span><span class="th">Koyu</span></div>
+    <div class="screen-body"><div class="app t-dark">
+      <div class="hdr">
+        <div class="brand"><svg width="19" height="19" style="color:var(--accent)"><use href="#g-ortak"/></svg><span class="wm">Futbol Quiz</span></div>
+        <nav class="nav">
+          <a href="#"><svg class="g" width="16" height="16"><use href="#g-ortak"/></svg>Ortak Oyuncu</a>
+          <a href="#" class="on"><svg class="g" width="16" height="16"><use href="#g-izgara"/></svg>3×3 Izgara</a>
+          <a href="#"><svg class="g" width="16" height="16"><use href="#g-istat"/></svg>İstatistik</a>
+          <a href="#"><svg class="g" width="16" height="16"><use href="#g-hangi"/></svg>Hangisi Daha</a>
+        </nav>
+      </div>
+      <div class="app-in">
+        <div class="kunye">
+          <div class="idg"><svg width="24" height="24"><use href="#g-izgara"/></svg></div>
+          <div class="txt">
+            <div class="eyebrow">Mod 2 · Matris · 9 Ağustos 2026</div>
+            <h1>Günün Izgarası</h1>
+            <p class="task">Her hücreye, satır <b>ve</b> sütun ölçütünün <b>ikisini birden</b> sağlayan bir oyuncu yaz. Herkes aynı ızgarayı görür.</p>
+          </div>
+          <div class="tab"><div class="cell"><div class="k">Doğru</div><div class="v">0<span style="font-size:17px;color:var(--muted)">/9</span></div></div><div class="cell"><div class="k">Kalan hak</div><div class="v c-acc">9</div></div></div>
+        </div>
+        <div class="gridwrap"><div class="gr">
+          <div class="gr-corner">
+            <div class="k">Doğru</div><div class="v">0<span style="font-size:17px;color:var(--muted)">/9</span></div>
+            <div class="s">9 hak kaldı</div>
+            <div class="pips"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          </div>
+          <div class="gh"><span class="mark s">ÇR</span><span style="min-width:0"><span class="nm">Çaykur Rizespor</span><span class="kd">Kulüp</span></span></div>
+          <div class="gh"><span class="mark s">NAN</span><span style="min-width:0"><span class="nm">Nantes</span><span class="kd">Kulüp</span></span></div>
+          <div class="gh"><span class="mark s">IM</span><span style="min-width:0"><span class="nm">Internazionale</span><span class="kd">Kulüp</span></span></div>
+
+          <div class="gh"><span class="mark s nat">PL</span><span style="min-width:0"><span class="nm">Polonya</span><span class="kd">Uyruk</span></span></div>
+          <button class="cellbtn"><span class="plus">+</span></button>
+          <button class="cellbtn"><span class="plus">+</span></button>
+          <button class="cellbtn"><span class="plus">+</span></button>
+
+          <div class="gh"><span class="mark s">GAL</span><span style="min-width:0"><span class="nm">Galatasaray</span><span class="kd">Kulüp</span></span></div>
+          <button class="cellbtn"><span class="plus">+</span></button>
+          <button class="cellbtn"><span class="plus">+</span></button>
+          <button class="cellbtn"><span class="plus">+</span></button>
+
+          <div class="gh"><span class="mark s nat">BR</span><span style="min-width:0"><span class="nm">Brezilya</span><span class="kd">Uyruk</span></span></div>
+          <button class="cellbtn"><span class="plus">+</span></button>
+          <button class="cellbtn"><span class="plus">+</span></button>
+          <button class="cellbtn"><span class="plus">+</span></button>
+        </div></div>
+        <div style="padding-top:12px"><div class="note-strip"><svg class="ic" width="12" height="12"><use href="#ic-note"/></svg><div>Her tahmin bir hak yakar — <b>doğru da yanlış da</b>. Yanlış cevap hücrede kalır, geri alınamaz.</div></div></div>
+        <div class="ftr"><p>Yeni ızgara her gün 03.00'te (TSİ). <a href="#">Arma kaynakları ve lisanslar</a>.</p></div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- I-2 -->
+  <div class="screen">
+    <div class="screen-bar"><span class="n">I-2</span><span class="t">Oyuncu seçici — hücreye kenetli</span><span class="d">Seçici sayfanın dibinde değil, hedef hücrenin altında. Hangi hücreyi doldurduğun metinle değil <b>konumla</b> belli.</span><span class="th">Koyu</span></div>
+    <div class="screen-body"><div class="app t-dark"><div class="app-in" style="padding-top:20px;padding-bottom:290px">
+      <div class="gridwrap open"><div class="gr">
+        <div class="gr-corner"><div class="k">Doğru</div><div class="v">0<span style="font-size:17px;color:var(--muted)">/9</span></div><div class="s">9 hak kaldı</div><div class="pips"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+        <div class="gh lit"><span class="mark s">ÇR</span><span style="min-width:0"><span class="nm">Çaykur Rizespor</span><span class="kd">Kulüp</span></span></div>
+        <div class="gh"><span class="mark s">NAN</span><span style="min-width:0"><span class="nm">Nantes</span><span class="kd">Kulüp</span></span></div>
+        <div class="gh"><span class="mark s">IM</span><span style="min-width:0"><span class="nm">Internazionale</span><span class="kd">Kulüp</span></span></div>
+
+        <div class="gh lit"><span class="mark s nat">PL</span><span style="min-width:0"><span class="nm">Polonya</span><span class="kd">Uyruk</span></span></div>
+        <div class="cellhost">
+          <button class="cellbtn target"><span class="plus">+</span><span class="tg">yazılıyor</span></button>
+          <div class="cellpop"><div class="pop">
+            <div class="pop-head"><span class="bc"><span class="mark s nat">PL</span>Polonya<span class="sep">×</span><span class="mark s">ÇR</span>Rizespor</span><span class="r"><button class="lnk">Vazgeç</button></span></div>
+            <div class="pop-search"><svg width="15" height="15" style="color:var(--accent)"><use href="#ic-search"/></svg><span style="font-weight:700">zi</span><span class="caretbar"></span></div>
+            <div class="pop-list">
+              <div class="opt sel"><span class="mark s p">PZ</span><span class="nm">Piotr <mark>Zi</mark>eliński</span><span class="rt"><span class="kind">Polonya · Orta saha</span></span></div>
+              <div class="opt"><span class="mark s p">KZ</span><span class="nm">Krzysztof <mark>Zi</mark>ółkowski</span><span class="rt"><span class="kind">Polonya · Defans</span></span></div>
+              <div class="opt"><span class="mark s p">MZ</span><span class="nm">Maciej <mark>Zi</mark>eliński</span><span class="rt"><span class="kind">Polonya · Orta saha</span></span></div>
+            </div>
+            <div class="pop-foot"><div class="note-strip"><svg class="ic" width="12" height="12"><use href="#ic-note"/></svg><div>Aramak için en az <b>2</b> karakter. Liste 20 sonuçta kesilir.</div></div></div>
+          </div></div>
+        </div>
+        <button class="cellbtn"><span class="plus">+</span></button>
+        <button class="cellbtn"><span class="plus">+</span></button>
+
+        <div class="gh"><span class="mark s">GAL</span><span style="min-width:0"><span class="nm">Galatasaray</span><span class="kd">Kulüp</span></span></div>
+        <button class="cellbtn"><span class="plus">+</span></button>
+        <button class="cellbtn"><span class="plus">+</span></button>
+        <button class="cellbtn"><span class="plus">+</span></button>
+
+        <div class="gh"><span class="mark s nat">BR</span><span style="min-width:0"><span class="nm">Brezilya</span><span class="kd">Uyruk</span></span></div>
+        <button class="cellbtn"><span class="plus">+</span></button>
+        <button class="cellbtn"><span class="plus">+</span></button>
+        <button class="cellbtn"><span class="plus">+</span></button>
+      </div></div>
+    </div></div></div>
+  </div>
+
+  <!-- I-3 -->
+  <div class="screen">
+    <div class="screen-bar"><span class="n">I-3</span><span class="t">Kısmen dolu — doğru ve yanlış birlikte</span><span class="d">Yanlış hücre neden yanlış olduğunu söylüyor. Köşe tabelası ve pip'ler harcanan hakkı gösteriyor.</span><span class="th">Koyu</span></div>
+    <div class="screen-body"><div class="app t-dark"><div class="app-in" style="padding-top:20px;padding-bottom:26px">
+      <div class="gridwrap"><div class="gr">
+        <div class="gr-corner"><div class="k">Doğru</div><div class="v">1<span style="font-size:17px;color:var(--muted)">/9</span></div><div class="s">7 hak kaldı</div><div class="pips"><i class="used"></i><i class="used"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+        <div class="gh"><span class="mark s">ÇR</span><span style="min-width:0"><span class="nm">Çaykur Rizespor</span><span class="kd">Kulüp</span></span></div>
+        <div class="gh"><span class="mark s">NAN</span><span style="min-width:0"><span class="nm">Nantes</span><span class="kd">Kulüp</span></span></div>
+        <div class="gh"><span class="mark s">IM</span><span style="min-width:0"><span class="nm">Internazionale</span><span class="kd">Kulüp</span></span></div>
+
+        <div class="gh"><span class="mark s nat">PL</span><span style="min-width:0"><span class="nm">Polonya</span><span class="kd">Uyruk</span></span></div>
+        <button class="cellbtn"><span class="plus">+</span></button>
+        <button class="cellbtn"><span class="plus">+</span></button>
+        <button class="cellbtn"><span class="plus">+</span></button>
+
+        <div class="gh"><span class="mark s">GAL</span><span style="min-width:0"><span class="nm">Galatasaray</span><span class="kd">Kulüp</span></span></div>
+        <div class="cell-f no"><span class="st"><svg width="11" height="11"><use href="#ic-x"/></svg>yanlış</span><span class="pn">Yunus Akgün</span><span class="pm">Rizespor kaydı yok</span></div>
+        <button class="cellbtn"><span class="plus">+</span></button>
+        <div class="cell-f ok"><span class="st"><svg width="11" height="11"><use href="#ic-check"/></svg>doğru</span><span class="pn">Mauro Icardi</span><span class="pm">2022–24 · 2013–19</span></div>
+
+        <div class="gh"><span class="mark s nat">BR</span><span style="min-width:0"><span class="nm">Brezilya</span><span class="kd">Uyruk</span></span></div>
+        <button class="cellbtn"><span class="plus">+</span></button>
+        <button class="cellbtn"><span class="plus">+</span></button>
+        <button class="cellbtn"><span class="plus">+</span></button>
+      </div></div>
+    </div></div></div>
+  </div>
+
+  <!-- I-4 -->
+  <div class="screen">
+    <div class="screen-bar"><span class="n">I-4</span><span class="t">Bitmiş ızgara + özet + paylaşım</span><span class="d">Eksik durum tamamlandı. 2/9 <b>başarı yeşiliyle</b> kutlanmıyor; skor kendi bandının rengini alıyor.</span><span class="th">Koyu</span></div>
+    <div class="screen-body"><div class="app t-dark"><div class="app-in" style="padding-top:20px;padding-bottom:26px">
+      <div class="gridwrap"><div class="gr">
+        <div class="gr-corner" style="border-color:var(--wrong)"><div class="k">Bitti</div><div class="v c-no">2<span style="font-size:17px;color:var(--muted)">/9</span></div><div class="s">hak kalmadı</div><div class="pips"><i class="used"></i><i class="used"></i><i class="used"></i><i class="used"></i><i class="used"></i><i class="used"></i><i class="used"></i><i class="used"></i><i class="used"></i></div></div>
+        <div class="gh"><span class="mark s">ÇR</span><span style="min-width:0"><span class="nm">Çaykur Rizespor</span><span class="kd">Kulüp</span></span></div>
+        <div class="gh"><span class="mark s">NAN</span><span style="min-width:0"><span class="nm">Nantes</span><span class="kd">Kulüp</span></span></div>
+        <div class="gh"><span class="mark s">IM</span><span style="min-width:0"><span class="nm">Internazionale</span><span class="kd">Kulüp</span></span></div>
+
+        <div class="gh"><span class="mark s nat">PL</span><span style="min-width:0"><span class="nm">Polonya</span><span class="kd">Uyruk</span></span></div>
+        <div class="cell-f no"><span class="st"><svg width="11" height="11"><use href="#ic-x"/></svg>yanlış</span><span class="pn">Dominique Lefebvre</span><span class="pm">Polonyalı değil</span></div>
+        <div class="cell-f no"><span class="st"><svg width="11" height="11"><use href="#ic-x"/></svg>yanlış</span><span class="pn">Don McVicar</span><span class="pm">Polonyalı değil</span></div>
+        <div class="cell-f ok"><span class="st"><svg width="11" height="11"><use href="#ic-check"/></svg>doğru</span><span class="pn">Piotr Zieliński</span><span class="pm">2024– · Polonya</span></div>
+
+        <div class="gh"><span class="mark s">GAL</span><span style="min-width:0"><span class="nm">Galatasaray</span><span class="kd">Kulüp</span></span></div>
+        <div class="cell-f no"><span class="st"><svg width="11" height="11"><use href="#ic-x"/></svg>yanlış</span><span class="pn">Yunus Akgün</span><span class="pm">Rizespor kaydı yok</span></div>
+        <div class="cell-f no"><span class="st"><svg width="11" height="11"><use href="#ic-x"/></svg>yanlış</span><span class="pn">Marcus Ekenberg</span><span class="pm">Nantes kaydı yok</span></div>
+        <div class="cell-f ok"><span class="st"><svg width="11" height="11"><use href="#ic-check"/></svg>doğru</span><span class="pn">Mauro Icardi</span><span class="pm">2022–24 · 2013–19</span></div>
+
+        <div class="gh"><span class="mark s nat">BR</span><span style="min-width:0"><span class="nm">Brezilya</span><span class="kd">Uyruk</span></span></div>
+        <div class="cell-f no"><span class="st"><svg width="11" height="11"><use href="#ic-x"/></svg>yanlış</span><span class="pn">Damjan Đoković</span><span class="pm">Brezilyalı değil</span></div>
+        <div class="cell-f no"><span class="st"><svg width="11" height="11"><use href="#ic-x"/></svg>yanlış</span><span class="pn">Bengt Nyholm</span><span class="pm">Brezilyalı değil</span></div>
+        <div class="cell-f no"><span class="st"><svg width="11" height="11"><use href="#ic-x"/></svg>yanlış</span><span class="pn">Philippe Coutinho</span><span class="pm">Inter kaydı yok</span></div>
+      </div></div>
+
+      <div class="slab no" style="margin-top:14px">
+        <div><div class="big" style="color:var(--wrong)">2<span style="font-size:26px;color:var(--muted);letter-spacing:0">/9</span></div></div>
+        <div style="flex:1 1 200px"><div class="cap">Izgara bitti</div><p style="font-family:var(--f-text);font-size:14px;color:var(--muted);margin-top:4px;line-height:1.5">En zor hücre <b style="color:var(--foreground)">Brezilya × Internazionale</b> oldu — bugün oynayanların <b style="color:var(--foreground)">%9'u</b> bildi.</p></div>
+        <div class="grow"></div>
+        <div style="text-align:right"><div class="cap">Yeni ızgara</div><div style="font-size:19px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.02em">03.00 <span style="font-size:12px;color:var(--muted);font-weight:700">TSİ</span></div></div>
+      </div>
+
+      <div class="share">
+        <div class="t">Paylaş</div>
+        <div class="box">
+          <pre>Futbol Quiz · 9 Ağustos 2026
+□□■
+□□■
+□□□
+2/9</pre>
+          <p class="cap">Yalnızca desen ve skor kopyalanır — <b style="color:var(--foreground)">oyuncu adları gitmez</b>, yani kimsenin ızgarası bozulmaz.</p>
+          <button class="btn pri">Kopyala</button>
+        </div>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- I-5 -->
+  <div class="screen">
+    <div class="screen-bar"><span class="n">I-5</span><span class="t">Sen kur</span><span class="d">Kilitli alanlar artık "bozuk" değil "sırada": numaralı adımlar. İki gömülü vaat yüzeye çıktı.</span><span class="th">Koyu</span></div>
+    <div class="screen-body mid"><div class="app t-dark"><div class="app-in" style="padding-top:20px;padding-bottom:26px">
+      <div class="build">
+        <div class="build-h"><span class="t">Sen kur</span><span class="badge ok">Çözümü garanti</span><span class="badge nt">kaydedilmez</span></div>
+        <div class="build-b">
+          <p style="font-family:var(--f-text);font-size:14px;color:var(--muted);line-height:1.55;margin-bottom:16px">Liste yalnızca <b style="color:var(--foreground)">oynanabilir</b> ölçütleri gösterir — yani kurduğunuz ızgaranın dokuz hücresinin de bir cevabı vardır. Bu ızgara kaydedilmez, istediğiniz kadar deneyebilirsiniz.</p>
+          <div class="field">
+            <div class="fl">Boyut</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm">2×2</button><button class="btn sm on">3×3</button><button class="btn sm">4×4</button><button class="btn sm">5×5</button></div>
+          </div>
+          <div class="field">
+            <div class="fl">Sütunlar — kulüp</div>
+            <div class="fh">Sütunlar birbiriyle kesişmediği için burada sınır yok.</div>
+            <div class="slots">
+              <button class="slot done"><span class="mark s">GAL</span>Galatasaray</button>
+              <button class="slot next"><span class="stepn">2</span>Kulüp seç</button>
+              <button class="slot"><span class="stepn">3</span>Kulüp seç</button>
+            </div>
+          </div>
+          <div class="field off">
+            <div class="fl">Satırlar — kulüp veya ülke</div>
+            <div class="fh">Önce üç sütunu tamamlayın.</div>
+            <div class="slots">
+              <button class="slot" disabled><span class="stepn">4</span>Ölçüt seç</button>
+              <button class="slot" disabled><span class="stepn">5</span>Ölçüt seç</button>
+              <button class="slot" disabled><span class="stepn">6</span>Ölçüt seç</button>
+            </div>
+          </div>
+          <button class="btn pri" disabled>Izgarayı kur</button>
+        </div>
+      </div>
+    </div></div></div>
+  </div>
+
+  </div>
+</section>
+
+<style>
+/* sayi dogrusu — kesin yerlesim */
+.axis{position:relative; height:58px}
+.axis .track{position:absolute; left:0; right:0; top:33px; height:2px; background:var(--line)}
+.axis .gap{position:absolute; top:31px; height:6px; border-radius:1px; opacity:.6}
+.axis .gap.ok{background:var(--correct)} .axis .gap.mid{background:var(--warn)} .axis .gap.lo{background:var(--wrong)}
+.axis .tick{position:absolute; top:14px; width:2px; height:20px; background:var(--foreground)}
+.axis .tl{
+  position:absolute; top:0; transform:translateX(-50%); font-size:10px; font-weight:800;
+  white-space:nowrap; font-variant-numeric:tabular-nums; color:var(--foreground);
+}
+.axis .pin{position:absolute; top:26px; transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; gap:3px}
+.axis .pin .dot{width:15px; height:15px; border-radius:50%; border:2px solid var(--surface); display:block}
+.axis .pin .dot.ok{background:var(--correct)} .axis .pin .dot.mid{background:var(--warn)} .axis .pin .dot.lo{background:var(--wrong)}
+.axis .pin .pv{font-size:10px; font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap; color:var(--muted)}
+.axis .qm{
+  position:absolute; top:24px; transform:translateX(-50%); width:19px; height:19px; border-radius:50%;
+  border:1px dashed var(--line-strong); color:var(--muted); font-size:10px; font-weight:800;
+  display:flex; align-items:center; justify-content:center;
+}
+.strow .dom{font-size:10px; color:var(--muted); font-variant-numeric:tabular-nums; margin-top:2px; font-weight:700}
+</style>
+
+<!-- ================= 8. ISTATISTIK ================= -->
+<section>
+  <div class="sec-head"><span class="sec-num">08</span><h2>İstatistik Eşleştirme</h2></div>
+  <p class="sec-sub">Yapısal imza: <b>sayı doğrusu</b>. Bu modda ölçek tersine dönmüştü — hedef 31 punto, kıyas 10 punto. Oysa oyunun tamamı iki sayı arasındaki <b>mesafe</b>. Artık o mesafe ekranda çizili.</p>
+
+  <div class="frames">
+
+  <!-- S-1 -->
+  <div class="screen">
+    <div class="screen-bar"><span class="n">S-1</span><span class="t">Günün oyuncusu — 0/6</span><span class="d">Mekanik artık gövde metninde değil: kuralı taşıyan cümle oyuncu kartının ayrılmaz parçası ve vurgular yerinde.</span><span class="th">Koyu</span></div>
+    <div class="screen-body"><div class="app t-dark">
+      <div class="hdr">
+        <div class="brand"><svg width="19" height="19" style="color:var(--accent)"><use href="#g-ortak"/></svg><span class="wm">Futbol Quiz</span></div>
+        <nav class="nav">
+          <a href="#"><svg class="g" width="16" height="16"><use href="#g-ortak"/></svg>Ortak Oyuncu</a>
+          <a href="#"><svg class="g" width="16" height="16"><use href="#g-izgara"/></svg>3×3 Izgara</a>
+          <a href="#" class="on"><svg class="g" width="16" height="16"><use href="#g-istat"/></svg>İstatistik</a>
+          <a href="#"><svg class="g" width="16" height="16"><use href="#g-hangi"/></svg>Hangisi Daha</a>
+        </nav>
+      </div>
+      <div class="app-in">
+        <div class="kunye">
+          <div class="idg"><svg width="24" height="24"><use href="#g-istat"/></svg></div>
+          <div class="txt"><div class="eyebrow">Mod 3 · Ölçek · 9 Ağustos 2026</div><h1>Günün Oyuncusu</h1><p class="task">Altı istatistiğin her biri için, değeri ona <b>en yakın</b> olan <b>başka</b> bir futbolcuyu bul.</p></div>
+          <div class="tab"><div class="cell"><div class="k">Cevaplandı</div><div class="v">0<span style="font-size:17px;color:var(--muted)">/6</span></div></div><div class="cell"><div class="k">Ortalama</div><div class="v sm" style="color:var(--muted)">—</div></div></div>
+        </div>
+        <div class="pcard">
+          <span class="mark xl p">RP</span>
+          <div><div class="nm">Robin van Persie</div><div class="nat">Hollanda · Forvet</div></div>
+          <p class="rule">Bu <b>onun</b> sayıları. Sen her satır için, o sayıya en yakın olduğunu düşündüğün <span class="hi">başka</span> bir futbolcuyu seç. Soru "onu tanıyor musun" değil — <b>başkalarının büyüklüklerini biliyor musun</b>.</p>
+        </div>
+        <div style="margin-top:16px">
+          <div class="strow wait">
+            <div class="lab"><div class="k">Kulüp maçı *</div><div class="v">435</div><div class="dom">ölçek 0 – 800</div></div>
+            <div class="axis"><div class="track"></div><div class="tick" style="left:54.4%"></div><div class="tl" style="left:54.4%">435</div><div class="qm" style="left:76%">?</div></div>
+            <div class="res"><button class="btn">Oyuncu seç</button></div>
+          </div>
+          <div class="strow wait">
+            <div class="lab"><div class="k">Kulüp golü *</div><div class="v">205</div><div class="dom">ölçek 0 – 400</div></div>
+            <div class="axis"><div class="track"></div><div class="tick" style="left:51.3%"></div><div class="tl" style="left:51.3%">205</div><div class="qm" style="left:24%">?</div></div>
+            <div class="res"><button class="btn">Oyuncu seç</button></div>
+          </div>
+          <div class="strow wait">
+            <div class="lab"><div class="k">Oynadığı kulüp *</div><div class="v">4</div><div class="dom">ölçek 0 – 12</div></div>
+            <div class="axis"><div class="track"></div><div class="tick" style="left:33.3%"></div><div class="tl" style="left:33.3%">4</div><div class="qm" style="left:62%">?</div></div>
+            <div class="res"><button class="btn">Oyuncu seç</button></div>
+          </div>
+          <div class="strow wait">
+            <div class="lab"><div class="k">A millî maç</div><div class="v">102</div><div class="dom">ölçek 0 – 200</div></div>
+            <div class="axis"><div class="track"></div><div class="tick" style="left:51%"></div><div class="tl" style="left:51%">102</div><div class="qm" style="left:22%">?</div></div>
+            <div class="res"><button class="btn">Oyuncu seç</button></div>
+          </div>
+          <div class="strow wait">
+            <div class="lab"><div class="k">Boy (cm)</div><div class="v">183</div><div class="dom">ölçek 150 – 210</div></div>
+            <div class="axis"><div class="track"></div><div class="tick" style="left:55%"></div><div class="tl" style="left:55%">183</div><div class="qm" style="left:80%">?</div></div>
+            <div class="res"><button class="btn">Oyuncu seç</button></div>
+          </div>
+          <div class="strow wait">
+            <div class="lab"><div class="k">Kilo (kg)</div><div class="v">78</div><div class="dom">ölçek 55 – 100</div></div>
+            <div class="axis"><div class="track"></div><div class="tick" style="left:51.1%"></div><div class="tl" style="left:51.1%">78</div><div class="qm" style="left:26%">?</div></div>
+            <div class="res"><button class="btn">Oyuncu seç</button></div>
+          </div>
+        </div>
+        <div style="padding-top:10px"><div class="note-strip"><svg class="ic" width="12" height="12"><use href="#ic-note"/></svg><div><b>*</b> işaretli sayılar yalnızca kapsanan yirmi dört ligdeki kariyeri kapsar. Millî maç, boy ve kilo bütün kariyeri kapsar.</div></div></div>
+        <div class="ftr"><p>Yeni oyuncu her gün 03.00'te (TSİ).</p></div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- S-2 -->
+  <div class="screen">
+    <div class="screen-bar"><span class="n">S-2</span><span class="t">Bir istatistik için seçim</span><span class="d">Hedef seçicinin başlığında kalıyor; sayı doğrusu ise aday yazarken <b>canlı</b> ilerliyor.</span><span class="th">Koyu</span></div>
+    <div class="screen-body mid"><div class="app t-dark"><div class="app-in" style="padding-top:20px;padding-bottom:26px">
+      <div class="strow" style="border-color:var(--accent)">
+        <div class="lab"><div class="k">Kulüp maçı *</div><div class="v">435</div><div class="dom">ölçek 0 – 800</div></div>
+        <div class="axis"><div class="track"></div><div class="gap mid" style="left:47.6%;width:6.8%"></div><div class="tick" style="left:54.4%"></div><div class="tl" style="left:54.4%">hedef 435</div><div class="pin" style="left:47.6%"><span class="dot mid"></span><span class="pv">381</span></div></div>
+        <div class="res"><div class="who" style="color:var(--muted)">önizleme</div><div class="pct mid">%76</div></div>
+      </div>
+      <div class="pop" style="max-width:520px">
+        <div class="pop-head"><span class="bc">Kulüp maçı için oyuncu seçin<span class="sep">·</span><span style="color:var(--accent);font-weight:800">hedef 435</span></span><span class="r"><button class="lnk">Vazgeç</button></span></div>
+        <div class="pop-search"><svg width="15" height="15" style="color:var(--accent)"><use href="#ic-search"/></svg><span style="font-weight:700">ica</span><span class="caretbar"></span></div>
+        <div class="pop-list">
+          <div class="opt sel"><span class="mark s p">MI</span><span class="nm">Mauro <mark>Ica</mark>rdi</span><span class="rt"><span class="kind">Arjantin · Forvet</span><span class="cnt">381</span></span></div>
+          <div class="opt"><span class="mark s p">AC</span><span class="nm">Alessandro <mark>Ica</mark>rdo</span><span class="rt"><span class="kind">İtalya · Defans</span><span class="cnt">44</span></span></div>
+        </div>
+        <div class="pop-foot"><div class="note-strip"><svg class="ic" width="12" height="12"><use href="#ic-note"/></svg><div>Günün oyuncusu listede yok — <b>farklı</b> bir futbolcu seçmelisin.</div></div></div>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- S-3 -->
+  <div class="screen">
+    <div class="screen-bar"><span class="n">S-3</span><span class="t">Kısmen cevaplanmış — 3/6</span><span class="d">Eksik durum tamamlandı. Cevaplanan satır dolu ve renkli, bekleyen satır kesik çizgili — ayrım forma bağlı.</span><span class="th">Koyu</span></div>
+    <div class="screen-body mid"><div class="app t-dark"><div class="app-in" style="padding-top:20px;padding-bottom:26px">
+      <div class="kunye" style="padding-top:0;border-bottom:0">
+        <div class="txt"><div class="eyebrow">Mod 3 · Ölçek</div><h1 style="font-size:20px">Günün Oyuncusu</h1></div>
+        <div class="tab"><div class="cell"><div class="k">Cevaplandı</div><div class="v">3<span style="font-size:17px;color:var(--muted)">/6</span></div></div><div class="cell"><div class="k">Şu ana kadar</div><div class="v sm c-mid">%70</div></div></div>
+      </div>
+      <div style="margin-top:14px">
+        <div class="strow">
+          <div class="lab"><div class="k">Kulüp maçı *</div><div class="v">435</div><div class="dom">ölçek 0 – 800</div></div>
+          <div class="axis"><div class="track"></div><div class="gap mid" style="left:47.6%;width:6.8%"></div><div class="tick" style="left:54.4%"></div><div class="tl" style="left:54.4%">435</div><div class="pin" style="left:47.6%"><span class="dot mid"></span><span class="pv">381</span></div></div>
+          <div class="res"><div class="who">Mauro Icardi</div><div class="pct mid">%76</div></div>
+        </div>
+        <div class="strow">
+          <div class="lab"><div class="k">Kulüp golü *</div><div class="v">205</div><div class="dom">ölçek 0 – 400</div></div>
+          <div class="axis"><div class="track"></div><div class="gap lo" style="left:51.3%;width:16.2%"></div><div class="tick" style="left:51.3%"></div><div class="tl" style="left:51.3%">205</div><div class="pin" style="left:67.5%"><span class="dot lo"></span><span class="pv">270</span></div></div>
+          <div class="res"><div class="who">Bafétimbi Gomis</div><div class="pct lo">%37</div></div>
+        </div>
+        <div class="strow">
+          <div class="lab"><div class="k">Oynadığı kulüp *</div><div class="v">4</div><div class="dom">ölçek 0 – 12</div></div>
+          <div class="axis"><div class="track"></div><div class="gap mid" style="left:33.3%;width:8.4%"></div><div class="tick" style="left:33.3%"></div><div class="tl" style="left:33.3%">4</div><div class="pin" style="left:41.7%"><span class="dot mid"></span><span class="pv">5</span></div></div>
+          <div class="res"><div class="who">Ronald Koeman</div><div class="pct mid">%58</div></div>
+        </div>
+        <div class="strow wait">
+          <div class="lab"><div class="k">A millî maç</div><div class="v">102</div><div class="dom">ölçek 0 – 200</div></div>
+          <div class="axis"><div class="track"></div><div class="tick" style="left:51%"></div><div class="tl" style="left:51%">102</div><div class="qm" style="left:22%">?</div></div>
+          <div class="res"><button class="btn">Oyuncu seç</button></div>
+        </div>
+        <div class="strow wait">
+          <div class="lab"><div class="k">Boy (cm)</div><div class="v">183</div><div class="dom">ölçek 150 – 210</div></div>
+          <div class="axis"><div class="track"></div><div class="tick" style="left:55%"></div><div class="tl" style="left:55%">183</div><div class="qm" style="left:80%">?</div></div>
+          <div class="res"><button class="btn">Oyuncu seç</button></div>
+        </div>
+        <div class="strow wait">
+          <div class="lab"><div class="k">Kilo (kg)</div><div class="v">78</div><div class="dom">ölçek 55 – 100</div></div>
+          <div class="axis"><div class="track"></div><div class="tick" style="left:51.1%"></div><div class="tl" style="left:51.1%">78</div><div class="qm" style="left:26%">?</div></div>
+          <div class="res"><button class="btn">Oyuncu seç</button></div>
+        </div>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- S-4 -->
+  <div class="screen">
+    <div class="screen-bar"><span class="n">S-4</span><span class="t">Tur bitti — 6/6</span><span class="d">Altı mesafe aynı anda okunuyor. Bitiş çubuğu skoru <b>kendi bandının rengiyle</b> taşıyor, kutlama yeşiliyle değil.</span><span class="th">Koyu</span></div>
+    <div class="screen-body mid"><div class="app t-dark"><div class="app-in" style="padding-top:20px;padding-bottom:26px">
+      <div class="kunye" style="padding-top:0;border-bottom:0">
+        <div class="txt"><div class="eyebrow">Mod 3 · Ölçek</div><h1 style="font-size:20px">Günün Oyuncusu</h1></div>
+        <div class="tab lit"><div class="cell"><div class="k">Cevaplandı</div><div class="v">6<span style="font-size:17px;color:var(--muted)">/6</span></div></div><div class="cell"><div class="k">Ortalama</div><div class="v c-mid">%62</div></div></div>
+      </div>
+      <div style="margin-top:14px">
+        <div class="strow">
+          <div class="lab"><div class="k">Kulüp maçı *</div><div class="v">435</div><div class="dom">ölçek 0 – 800</div></div>
+          <div class="axis"><div class="track"></div><div class="gap mid" style="left:47.6%;width:6.8%"></div><div class="tick" style="left:54.4%"></div><div class="tl" style="left:54.4%">435</div><div class="pin" style="left:47.6%"><span class="dot mid"></span><span class="pv">381</span></div></div>
+          <div class="res"><div class="who">Mauro Icardi</div><div class="pct mid">%76</div></div>
+        </div>
+        <div class="strow">
+          <div class="lab"><div class="k">Kulüp golü *</div><div class="v">205</div><div class="dom">ölçek 0 – 400</div></div>
+          <div class="axis"><div class="track"></div><div class="gap lo" style="left:51.3%;width:16.2%"></div><div class="tick" style="left:51.3%"></div><div class="tl" style="left:51.3%">205</div><div class="pin" style="left:67.5%"><span class="dot lo"></span><span class="pv">270</span></div></div>
+          <div class="res"><div class="who">Bafétimbi Gomis</div><div class="pct lo">%37</div></div>
+        </div>
+        <div class="strow">
+          <div class="lab"><div class="k">Oynadığı kulüp *</div><div class="v">4</div><div class="dom">ölçek 0 – 12</div></div>
+          <div class="axis"><div class="track"></div><div class="gap mid" style="left:33.3%;width:8.4%"></div><div class="tick" style="left:33.3%"></div><div class="tl" style="left:33.3%">4</div><div class="pin" style="left:41.7%"><span class="dot mid"></span><span class="pv">5</span></div></div>
+          <div class="res"><div class="who">Ronald Koeman</div><div class="pct mid">%58</div></div>
+        </div>
+        <div class="strow">
+          <div class="lab"><div class="k">A millî maç</div><div class="v">102</div><div class="dom">ölçek 0 – 200</div></div>
+          <div class="axis"><div class="track"></div><div class="gap ok" style="left:51%;width:1%"></div><div class="tick" style="left:51%"></div><div class="tl" style="left:51%">102</div><div class="pin" style="left:52%"><span class="dot ok"></span><span class="pv">104</span></div></div>
+          <div class="res"><div class="who">Hakan Çalhanoğlu</div><div class="pct ok">%97</div></div>
+        </div>
+        <div class="strow">
+          <div class="lab"><div class="k">Boy (cm)</div><div class="v">183</div><div class="dom">ölçek 150 – 210</div></div>
+          <div class="axis"><div class="track"></div><div class="gap lo" style="left:55%;width:18.3%"></div><div class="tick" style="left:55%"></div><div class="tl" style="left:55%">183</div><div class="pin" style="left:73.3%"><span class="dot lo"></span><span class="pv">194</span></div></div>
+          <div class="res"><div class="who">Vedat Muriqi</div><div class="pct lo">%17</div></div>
+        </div>
+        <div class="strow">
+          <div class="lab"><div class="k">Kilo (kg)</div><div class="v">78</div><div class="dom">ölçek 55 – 100</div></div>
+          <div class="axis"><div class="track"></div><div class="gap ok" style="left:51.1%;width:4.5%"></div><div class="tick" style="left:51.1%"></div><div class="tl" style="left:51.1%">78</div><div class="pin" style="left:55.6%"><span class="dot ok"></span><span class="pv">80</span></div></div>
+          <div class="res"><div class="who">Ozan Kabak</div><div class="pct ok">%85</div></div>
+        </div>
+      </div>
+      <div class="slab" style="border-top-color:var(--warn);margin-top:14px">
+        <div><div class="big" style="color:var(--warn)">%62</div></div>
+        <div style="flex:1 1 200px"><div class="cap">Tur bitti · ortalama</div><p style="font-family:var(--f-text);font-size:14px;color:var(--muted);margin-top:4px;line-height:1.5">En iyi tahminin <b style="color:var(--foreground)">A millî maç</b> (%97), en uzağı <b style="color:var(--foreground)">boy</b> (%17).</p></div>
+        <div class="grow"></div>
+        <div style="text-align:right"><div class="cap">Yeni oyuncu</div><div style="font-size:19px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.02em">03.00 <span style="font-size:12px;color:var(--muted);font-weight:700">TSİ</span></div></div>
+      </div>
+    </div></div></div>
+  </div>
+
+  </div>
+</section>
+
+<!-- ================= 9. HANGISI DAHA ================= -->
+<section>
+  <div class="sec-head"><span class="sec-num">09</span><h2>Hangisi Daha</h2></div>
+  <p class="sec-sub">Yapısal imza: <b>düello</b>. En oyun olan mod, en çok tempo hak eden mod. İki panel, ortada dikiş, dikişin üstünde seri sayacı. Gizli değer artık bir tire değil — <b>kapak</b>.</p>
+
+  <div class="frames">
+
+  <!-- H-1 -->
+  <div class="screen">
+    <div class="screen-bar"><span class="n">H-1</span><span class="t">İstatistik ve yön seçimi</span><span class="d">Form kurarken sorunun kendisi büyük puntoda canlı yazılıyor — mod okumadan öğreniliyor.</span><span class="th">Koyu</span></div>
+    <div class="screen-body"><div class="app t-dark">
+      <div class="hdr">
+        <div class="brand"><svg width="19" height="19" style="color:var(--accent)"><use href="#g-ortak"/></svg><span class="wm">Futbol Quiz</span></div>
+        <nav class="nav">
+          <a href="#"><svg class="g" width="16" height="16"><use href="#g-ortak"/></svg>Ortak Oyuncu</a>
+          <a href="#"><svg class="g" width="16" height="16"><use href="#g-izgara"/></svg>3×3 Izgara</a>
+          <a href="#"><svg class="g" width="16" height="16"><use href="#g-istat"/></svg>İstatistik</a>
+          <a href="#" class="on"><svg class="g" width="16" height="16"><use href="#g-hangi"/></svg>Hangisi Daha</a>
+        </nav>
+      </div>
+      <div class="app-in">
+        <div class="kunye">
+          <div class="idg"><svg width="24" height="24"><use href="#g-hangi"/></svg></div>
+          <div class="txt"><div class="eyebrow">Mod 4 · Düello</div><h1>Hangisi Daha</h1><p class="task">Doğru bildiğin sürece seçtiğin oyuncu kalır, karşısına yenisi gelir. <b>Bir yanlış koşuyu bitirir.</b></p></div>
+          <div class="tab"><div class="cell"><div class="k">En uzun serin</div><div class="v">7</div></div></div>
+        </div>
+        <div class="q"><h2>Hangisi daha çok <em>kulüp maçı</em> yaptı?</h2></div>
+        <div style="display:flex;gap:26px;flex-wrap:wrap;padding-top:12px">
+          <div style="flex:1 1 380px">
+            <div class="pick-lbl">Hangi istatistik?</div>
+            <div class="optgrid" style="margin-bottom:18px">
+              <button class="btn on">Kulüp maçı</button><button class="btn">Kulüp golü</button><button class="btn">Oynadığı kulüp</button>
+              <button class="btn">A millî maç</button><button class="btn">Boy</button><button class="btn">Kilo</button>
+            </div>
+            <div class="pick-lbl">Hangi yön?</div>
+            <div class="dirgrid"><button class="btn on">daha çok kulüp maçı yaptı</button><button class="btn">daha az kulüp maçı yaptı</button></div>
+            <div style="margin-top:20px"><button class="btn pri" style="font-size:15px;padding:11px 26px">Başla</button></div>
+          </div>
+          <div style="flex:0 1 300px">
+            <div class="note-strip"><svg class="ic" width="12" height="12"><use href="#ic-note"/></svg><div>Kulüp maçı ve kulüp golü yalnızca <b>kapsamdaki 24 ligi</b> sayar. Boy, kilo ve millî maç bütün kariyeri kapsar.</div></div>
+          </div>
+        </div>
+        <div class="ftr"><p>Skor kaydedilmez; her koşu kendi başınadır.</p></div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- H-2 -->
+  <div class="screen">
+    <div class="screen-bar"><span class="n">H-2</span><span class="t">Karşılaştırma turu</span><span class="d">Kulüpler modun tek ipucu, o yüzden büyütüldü ve işaretlendi. Değer taralı kapağın altında.</span><span class="th">Koyu</span></div>
+    <div class="screen-body mid"><div class="app t-dark"><div class="app-in" style="padding-top:18px;padding-bottom:26px">
+      <div class="q"><h2 style="font-size:23px">Hangisi daha çok <em>kulüp golü</em> attı?</h2><span class="badge nt">yalnızca 24 lig sayılır</span></div>
+      <div class="duel">
+        <button class="dp pick">
+          <div class="who"><span class="mark l p">JH</span><div><div class="nm">Jürgen Hartmann</div><div style="font-size:12px;color:var(--muted);font-weight:700">Almanya · Forvet</div></div></div>
+          <div class="clubs"><span class="cl"><span class="mark s">HSV</span>Hamburger SV</span><span class="cl"><span class="mark s">STU</span>Stuttgart</span><span class="cl"><span class="mark s">BAS</span>Basel</span></div>
+          <div class="cover">gizli</div>
+          <div class="tagrow"><span class="badge ac">kalan oyuncu</span></div>
+        </button>
+        <div class="seamv"><div class="vs"><span class="k">seri</span><span class="n">0</span></div></div>
+        <button class="dp pick">
+          <div class="who"><span class="mark l p">AB</span><div><div class="nm">Alfredo Bodoira</div><div style="font-size:12px;color:var(--muted);font-weight:700">İtalya · Kaleci</div></div></div>
+          <div class="clubs"><span class="cl"><span class="mark s">JUV</span>Juventus</span><span class="cl"><span class="mark s crest"><svg viewBox="0 0 20 20" width="12" height="12"><use href="#cr-a"/></svg></span>A.C. Ancona</span><span class="cl"><span class="mark s">ANC</span>Ancona</span></div>
+          <div class="cover">gizli</div>
+          <div class="tagrow"><span class="badge">yeni rakip</span></div>
+        </button>
+      </div>
+      <p class="prose" style="font-size:13.5px;margin-top:14px">Panele tıklamak "bunun sayısı daha yüksek" demektir. İki panel de tıklanabilir; klavyede <code>←</code> / <code>→</code> ile seçilir, odak halkası panelin dışını sarar.</p>
+    </div></div></div>
+  </div>
+
+  <!-- H-3 -->
+  <div class="screen">
+    <div class="screen-bar"><span class="n">H-3</span><span class="t">Doğru cevap sonrası</span><span class="d">Eksik durum tamamlandı — modun ödül anı buydu ve hiç tasarlanmamıştı.</span><span class="th">Koyu</span></div>
+    <div class="screen-body mid"><div class="app t-dark"><div class="app-in" style="padding-top:18px;padding-bottom:26px">
+      <div class="q"><h2 style="font-size:23px">Hangisi daha çok <em>kulüp golü</em> attı?</h2><span class="badge ok"><svg width="11" height="11"><use href="#ic-check"/></svg>doğru</span></div>
+      <div class="duel">
+        <div class="dp won">
+          <div class="who"><span class="mark l p">JH</span><div><div class="nm">Jürgen Hartmann</div><div style="font-size:12px;color:var(--muted);font-weight:700">Almanya · Forvet</div></div></div>
+          <div class="clubs"><span class="cl"><span class="mark s">HSV</span>Hamburger SV</span><span class="cl"><span class="mark s">STU</span>Stuttgart</span><span class="cl"><span class="mark s">BAS</span>Basel</span></div>
+          <div class="reveal"><span class="n">17</span><span class="u">gol</span></div>
+          <div class="tagrow"><span class="badge ok"><svg width="11" height="11"><use href="#ic-check"/></svg>senin seçimin</span><span class="badge ac">kalıyor</span></div>
+        </div>
+        <div class="seamv hit"><div class="vs"><span class="k">seri</span><span class="n">1</span></div></div>
+        <div class="dp lost out">
+          <div class="who"><span class="mark l p">AB</span><div><div class="nm">Alfredo Bodoira</div><div style="font-size:12px;color:var(--muted);font-weight:700">İtalya · Kaleci</div></div></div>
+          <div class="clubs"><span class="cl"><span class="mark s">JUV</span>Juventus</span><span class="cl"><span class="mark s crest"><svg viewBox="0 0 20 20" width="12" height="12"><use href="#cr-a"/></svg></span>A.C. Ancona</span><span class="cl"><span class="mark s">ANC</span>Ancona</span></div>
+          <div class="reveal"><span class="n">0</span><span class="u">gol</span></div>
+          <div class="tagrow"><span class="badge">eleniyor</span></div>
+        </div>
+      </div>
+      <div class="nextup">
+        <span class="k">Sırada</span>
+        <span class="mark p">LZ</span>
+        <span style="font-weight:800;font-size:15px">Luciano Zecchini</span>
+        <span style="font-size:12.5px;color:var(--muted);font-weight:700">İtalya · Defans</span>
+        <span class="grow" style="flex:1 1 auto"></span>
+        <button class="btn pri sm">Devam</button>
+      </div>
+      <div class="docnote" style="margin-top:16px;max-width:none"><p><b>Hareket.</b> Kapaklar 180 ms'de yukarı kayarak açılır, sayı 240 ms sayarak yerine oturur, seri halkası bir kez 1,06 ölçeğe atar. Elenen panel 160 ms'de sağa kayıp yerini yeni rakibe bırakır. <code>prefers-reduced-motion</code> açıkken hiçbiri olmaz: kapak anında kalkar, sayı doğrudan yazılır, panel yer değiştirmez.</p></div>
+    </div></div></div>
+  </div>
+
+  <!-- H-4 -->
+  <div class="screen">
+    <div class="screen-bar"><span class="n">H-4</span><span class="t">Koşu bitti</span><span class="d">Artık <b>senin seçimin hangisiydi</b> ekranda yazıyor — bugünkü tasarımda bu bilgi hiç yoktu.</span><span class="th">Koyu</span></div>
+    <div class="screen-body mid"><div class="app t-dark"><div class="app-in" style="padding-top:18px;padding-bottom:26px">
+      <div class="q"><h2 style="font-size:23px">Hangisi daha çok <em>kulüp golü</em> attı?</h2><span class="badge no"><svg width="11" height="11"><use href="#ic-x"/></svg>yanlış</span></div>
+      <div class="duel">
+        <div class="dp won">
+          <div class="who"><span class="mark l p">JH</span><div><div class="nm">Jürgen Hartmann</div><div style="font-size:12px;color:var(--muted);font-weight:700">Almanya · Forvet</div></div></div>
+          <div class="clubs"><span class="cl"><span class="mark s">HSV</span>Hamburger SV</span><span class="cl"><span class="mark s">STU</span>Stuttgart</span><span class="cl"><span class="mark s">BAS</span>Basel</span></div>
+          <div class="reveal"><span class="n">17</span><span class="u">gol</span></div>
+          <div class="tagrow"><span class="badge ok">doğru cevap buydu</span></div>
+        </div>
+        <div class="seamv"><div class="vs" style="border-color:var(--wrong)"><span class="k">seri</span><span class="n" style="color:var(--wrong)">1</span></div></div>
+        <div class="dp lost">
+          <div class="who"><span class="mark l p">LZ</span><div><div class="nm">Luciano Zecchini</div><div style="font-size:12px;color:var(--muted);font-weight:700">İtalya · Defans</div></div></div>
+          <div class="clubs"><span class="cl"><span class="mark s">TOR</span>Torino</span><span class="cl"><span class="mark s">PRA</span>A.C. Prato</span><span class="cl"><span class="mark s">SAM</span>UC Sampdoria</span></div>
+          <div class="reveal"><span class="n">3</span><span class="u">gol</span></div>
+          <div class="tagrow"><span class="badge no"><svg width="11" height="11"><use href="#ic-x"/></svg>senin seçimin</span></div>
+        </div>
+      </div>
+      <div class="slab no" style="margin-top:14px">
+        <div><div class="big" style="color:var(--wrong)">1</div></div>
+        <div style="flex:1 1 220px"><div class="cap">Koşu bitti · doğru cevap</div><p style="font-family:var(--f-text);font-size:14px;color:var(--muted);margin-top:4px;line-height:1.5">14 gol fark vardı. En uzun serin <b style="color:var(--foreground)">7</b>.</p></div>
+        <div class="grow"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri">Yeniden başla</button><button class="btn">Ölçütü değiştir</button></div>
+      </div>
+    </div></div></div>
+  </div>
+
+  </div>
+</section>
+
+<!-- ================= 10. GENEL ================= -->
+<section>
+  <div class="sec-head"><span class="sec-num">10</span><h2>Genel ekranlar</h2></div>
+  <p class="sec-sub">Açık tema aynı belirteçlerden geliyor — hiçbir bileşende <code>dark:</code> varyantı yok. Kaynaklar sayfası ve 404 ekranı da tamamlandı.</p>
+
+  <div class="frames">
+
+  <!-- G-1 -->
+  <div class="screen">
+    <div class="screen-bar"><span class="n">G-1</span><span class="t">Açık tema — Ortak Oyuncu sonucu</span><span class="d">O-5 ile birebir aynı işaretleme; yalnızca belirteç değerleri değişti.</span><span class="th">Açık</span></div>
+    <div class="screen-body"><div class="app t-light">
+      <div class="hdr">
+        <div class="brand"><svg width="19" height="19" style="color:var(--accent)"><use href="#g-ortak"/></svg><span class="wm">Futbol Quiz</span></div>
+        <nav class="nav">
+          <a href="#" class="on"><svg class="g" width="16" height="16"><use href="#g-ortak"/></svg>Ortak Oyuncu</a>
+          <a href="#"><svg class="g" width="16" height="16"><use href="#g-izgara"/></svg>3×3 Izgara</a>
+          <a href="#"><svg class="g" width="16" height="16"><use href="#g-istat"/></svg>İstatistik</a>
+          <a href="#"><svg class="g" width="16" height="16"><use href="#g-hangi"/></svg>Hangisi Daha</a>
+        </nav>
+      </div>
+      <div class="app-in">
+        <div class="kunye">
+          <div class="idg"><svg width="24" height="24"><use href="#g-ortak"/></svg></div>
+          <div class="txt"><div class="eyebrow">Mod 1 · Kesişim</div><h1>Ortak Oyuncu</h1></div>
+          <div class="tab lit"><div class="cell"><div class="k">Ortak oyuncu</div><div class="v c-acc">55</div></div><div class="cell"><div class="k">Toplam dönem</div><div class="v">147</div></div></div>
+        </div>
+        <div class="pair">
+          <div class="picker"><div class="pick-lbl">Birinci kulüp</div><div class="pick-in filled"><span class="mark s">FEN</span>Fenerbahçe<button class="lnk" style="margin-left:auto">Değiştir</button></div></div>
+          <div class="seam">∩</div>
+          <div class="picker"><div class="pick-lbl">İkinci kulüp</div><div class="pick-in filled"><span class="mark s">BEŞ</span>Beşiktaş<button class="lnk" style="margin-left:auto">Değiştir</button></div></div>
+        </div>
+        <div class="ledger">
+          <div class="lg-head"><div><span class="h">Oyuncu</span></div><div><span class="mark s">FEN</span><span class="cn">Fenerbahçe</span></div><div><span class="mark s">BEŞ</span><span class="cn">Beşiktaş</span></div></div>
+          <div class="lg-row">
+            <div class="lg-p"><div class="pn">Rüştü Reçber</div><div class="pm">Kaleci · TR</div></div>
+            <div class="lg-c" data-club="Fenerbahçe"><div class="spells"><span class="spell"><span class="yr">1993 – 2002</span><span class="mc">240 maç</span></span><span class="spell"><span class="yr">2004 – 2005</span><span class="mc">54 maç</span></span><span class="spell"><span class="yr">2006</span><span class="mc">8 maç</span></span></div></div>
+            <div class="lg-c" data-club="Beşiktaş"><div class="spells"><span class="spell"><span class="yr">2007 – 2011</span><span class="mc">103 maç</span></span></div></div>
+          </div>
+          <div class="lg-row">
+            <div class="lg-p"><div class="pn">Sergen Yalçın</div><div class="pm">Orta saha · TR</div></div>
+            <div class="lg-c" data-club="Fenerbahçe"><div class="spells"><span class="spell loan"><span class="yr">1999</span><span class="lb">kiralık</span><span class="mc">24 maç</span></span></div></div>
+            <div class="lg-c" data-club="Beşiktaş"><div class="spells"><span class="spell"><span class="yr">1991 – 1996</span><span class="mc">138 maç</span></span><span class="spell"><span class="yr">2002 – 2005</span><span class="mc">91 maç</span></span></div></div>
+          </div>
+          <div class="lg-row">
+            <div class="lg-p"><div class="pn">Ertuğrul Sağlam</div><div class="pm">Forvet · TR</div></div>
+            <div class="lg-c" data-club="Fenerbahçe"><div class="spells"><span class="spell unk">kaynakta ayrıntı yok</span></div></div>
+            <div class="lg-c" data-club="Beşiktaş"><div class="spells"><span class="spell"><span class="yr">1994 – 1999</span><span class="mc">167 maç</span></span></div></div>
+          </div>
+        </div>
+        <div style="padding-top:12px"><div class="note-strip"><svg class="ic" width="12" height="12"><use href="#ic-note"/></svg><div>Kaynakta yıl ya da maç bilgisi bulunmayan dönemler <b>silinmez</b>, kesik çizgiyle işaretlenir.</div></div></div>
+        <div class="ftr"><p>Veriler <a href="#">Wikidata</a>'dan ve <a href="#">Vikipedi</a>'den derlenmiştir.</p></div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- G-2 -->
+  <div class="screen">
+    <div class="screen-bar"><span class="n">G-2</span><span class="t">Açık tema — ızgara, kısmen dolu</span><span class="d">Doğru/yanlış açık zeminde de hem renkli hem simgeli hem yazılı.</span><span class="th">Açık</span></div>
+    <div class="screen-body"><div class="app t-light"><div class="app-in" style="padding-top:20px;padding-bottom:26px">
+      <div class="gridwrap"><div class="gr">
+        <div class="gr-corner"><div class="k">Doğru</div><div class="v">1<span style="font-size:17px;color:var(--muted)">/9</span></div><div class="s">7 hak kaldı</div><div class="pips"><i class="used"></i><i class="used"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+        <div class="gh"><span class="mark s">ÇR</span><span style="min-width:0"><span class="nm">Çaykur Rizespor</span><span class="kd">Kulüp</span></span></div>
+        <div class="gh"><span class="mark s">NAN</span><span style="min-width:0"><span class="nm">Nantes</span><span class="kd">Kulüp</span></span></div>
+        <div class="gh"><span class="mark s">IM</span><span style="min-width:0"><span class="nm">Internazionale</span><span class="kd">Kulüp</span></span></div>
+        <div class="gh"><span class="mark s nat">PL</span><span style="min-width:0"><span class="nm">Polonya</span><span class="kd">Uyruk</span></span></div>
+        <button class="cellbtn"><span class="plus">+</span></button>
+        <button class="cellbtn"><span class="plus">+</span></button>
+        <button class="cellbtn"><span class="plus">+</span></button>
+        <div class="gh"><span class="mark s">GAL</span><span style="min-width:0"><span class="nm">Galatasaray</span><span class="kd">Kulüp</span></span></div>
+        <div class="cell-f no"><span class="st"><svg width="11" height="11"><use href="#ic-x"/></svg>yanlış</span><span class="pn">Yunus Akgün</span><span class="pm">Rizespor kaydı yok</span></div>
+        <button class="cellbtn"><span class="plus">+</span></button>
+        <div class="cell-f ok"><span class="st"><svg width="11" height="11"><use href="#ic-check"/></svg>doğru</span><span class="pn">Mauro Icardi</span><span class="pm">2022–24 · 2013–19</span></div>
+        <div class="gh"><span class="mark s nat">BR</span><span style="min-width:0"><span class="nm">Brezilya</span><span class="kd">Uyruk</span></span></div>
+        <button class="cellbtn"><span class="plus">+</span></button>
+        <button class="cellbtn"><span class="plus">+</span></button>
+        <button class="cellbtn"><span class="plus">+</span></button>
+      </div></div>
+    </div></div></div>
+  </div>
+
+  <!-- G-3 -->
+  <div class="screen">
+    <div class="screen-bar"><span class="n">G-3</span><span class="t">/kaynaklar</span><span class="d">Yasal zorunluluk sayfası. Sade kalıyor ama artık tablo — karo sistemi burada da işliyor.</span><span class="th">Açık</span></div>
+    <div class="screen-body mid"><div class="app t-light"><div class="app-in" style="padding-top:20px;padding-bottom:26px">
+      <div class="kunye" style="border-bottom-width:2px">
+        <div class="txt"><div class="eyebrow">Yasal</div><h1>Arma kaynakları ve lisanslar</h1><p class="task">Sitede gösterilen her armanın kaynağı, yazarı ve lisansı.</p></div>
+        <div class="tab"><div class="cell"><div class="k">Armalı kulüp</div><div class="v c-acc">396</div></div><div class="cell"><div class="k">Toplam</div><div class="v">906</div></div></div>
+      </div>
+      <div class="note-strip" style="margin-top:14px"><svg class="ic" width="12" height="12"><use href="#ic-note"/></svg><div>Kulüplerin <b>%56,3</b>'ünde arma gösterilmiyor: Vikipedi'deki armaların büyük çoğunluğu adil kullanım lisanslı ve yeniden yayımlanamıyor. O kulüpler <b>baş harf karosuyla</b> temsil edilir.</div></div>
+      <div style="overflow-x:auto"><table class="srctab">
+        <thead><tr><th>Kulüp</th><th>Dosya</th><th>Yazar</th><th>Lisans</th></tr></thead>
+        <tbody>
+          <tr><td><span class="c1"><span class="mark s crest"><svg viewBox="0 0 20 20" width="14" height="14"><use href="#cr-d"/></svg></span>A.C. Milan</span></td><td>Logo_of_AC_Milan.svg</td><td>ACM S.p.A.</td><td><span class="badge">CC BY-SA 4.0</span></td></tr>
+          <tr><td><span class="c1"><span class="mark s crest"><svg viewBox="0 0 20 20" width="14" height="14"><use href="#cr-b"/></svg></span>ACF Fiorentina</span></td><td>ACF_Fiorentina.svg</td><td>Vikipedi katkıcıları</td><td><span class="badge">CC BY-SA 3.0</span></td></tr>
+          <tr><td><span class="c1"><span class="mark s crest"><svg viewBox="0 0 20 20" width="14" height="14"><use href="#cr-c"/></svg></span>AFC Ajax</span></td><td>Ajax_Amsterdam.svg</td><td>AFC Ajax NV</td><td><span class="badge">Kamu malı</span></td></tr>
+          <tr><td><span class="c1"><span class="mark s">SAV</span>A.C. Savoia</span></td><td>—</td><td>—</td><td><span class="badge nt">arma yok</span></td></tr>
+          <tr><td><span class="c1"><span class="mark s">PAS</span>ASKÖ Pasching</span></td><td>—</td><td>—</td><td><span class="badge nt">arma yok</span></td></tr>
+        </tbody>
+      </table></div>
+    </div></div></div>
+  </div>
+
+  <!-- G-4 -->
+  <div class="screen">
+    <div class="screen-bar"><span class="n">G-4</span><span class="t">404</span><span class="d">Kesişimi boş bir Venn: modun kendi dili hatayı da anlatıyor. Gezinme çalışıyor.</span><span class="th">Koyu</span></div>
+    <div class="screen-body mid"><div class="app t-dark">
+      <div class="hdr">
+        <div class="brand"><svg width="19" height="19" style="color:var(--accent)"><use href="#g-ortak"/></svg><span class="wm">Futbol Quiz</span></div>
+        <nav class="nav">
+          <a href="#"><svg class="g" width="16" height="16"><use href="#g-ortak"/></svg>Ortak Oyuncu</a>
+          <a href="#"><svg class="g" width="16" height="16"><use href="#g-izgara"/></svg>3×3 Izgara</a>
+          <a href="#"><svg class="g" width="16" height="16"><use href="#g-istat"/></svg>İstatistik</a>
+          <a href="#"><svg class="g" width="16" height="16"><use href="#g-hangi"/></svg>Hangisi Daha</a>
+        </nav>
+      </div>
+      <div class="app-in"><div class="nf">
+        <svg width="58" height="58" style="color:var(--line-strong)"><use href="#g-ortak"/></svg>
+        <div class="code">404</div>
+        <h2 style="font-size:22px;font-weight:800">Bu sayfa kesişimde değil</h2>
+        <p style="font-family:var(--f-text);font-size:15px;color:var(--muted);max-width:44ch;line-height:1.6">Aradığın adres yok ya da taşınmış. Yukarıdaki dört moddan biriyle devam edebilirsin.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:4px">
+          <button class="btn pri">Ortak Oyuncu</button><button class="btn">Günün ızgarası</button><button class="btn">Günün oyuncusu</button>
+        </div>
+      </div></div>
+    </div></div>
+  </div>
+
+  </div>
+</section>
+
+<!-- ================= 11. MOBIL ================= -->
+<section>
+  <div class="sec-head"><span class="sec-num">11</span><h2>Mobil — 390px</h2></div>
+  <p class="sec-sub">Bugün uygulamanın tamamında 15 duyarlılık sınıfı var ve 16 bileşenin 10'unda hiç yok — gezinme çubuğu, iki seçici ve istatistik modu dâhil. Aşağıdakiler ölçülmüş kararlar, "sığdı" değil.</p>
+
+  <div class="tblwrap"><table class="dt">
+    <thead><tr><th>Bileşen</th><th>1440px</th><th>390px</th></tr></thead>
+    <tbody>
+      <tr><td>Gezinme</td><td>Marka + dört yatay sekme, tek satır</td><td>Marka üstte; sekmeler <b>dört eşit hücreye</b> iner, simge üstte etiket altta. 4 × 97px sığar.</td></tr>
+      <tr><td>Künye + tabela</td><td>Yan yana, tabela sağa yaslı</td><td>Alt alta; tabela <b>tam genişlik</b>, hücreler eşit bölünür ve sola hizalanır.</td></tr>
+      <tr><td>Kulüp seçici (çift)</td><td>İki sütun, ortada <code>∩</code></td><td>Alt alta; <code>∩</code> <b>90° döner</b> ve iki kutunun arasındaki dikey bağa dönüşür.</td></tr>
+      <tr><td>Defter satırı</td><td>3 sütun: oyuncu / A / B</td><td>Tek sütun. Her kulüp bloğu kendi <b>başlığını taşır</b> (<code>::before</code> ile kulüp adı) — sabit sütun başlığı olmadığı için bağlam satırda kalır.</td></tr>
+      <tr><td>Izgara</td><td>132px + 3 eşit sütun</td><td>78px + 3 × 74px = 300px + boşluk. Hücre yüksekliği 92 → 74. Yatay kaydırma <b>yok</b>.</td></tr>
+      <tr><td>Sayı doğrusu</td><td>etiket / eksen / sonuç yan yana</td><td>Alt alta; eksen tam genişlik, sonuç <b>tek satırda</b> ad + yüzde.</td></tr>
+      <tr><td>Düello</td><td>İki panel yan yana, dikey dikiş</td><td>Alt alta; dikiş <b>yataya döner</b>, seri halkası iki panelin arasında kalır.</td></tr>
+      <tr><td>Lig etiketleri</td><td>24 etiket sarar</td><td>Aynı, daha sıkı boşlukla sarar — kesilmez, kaydırılmaz.</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="frames">
+  <div style="display:flex; gap:20px; flex-wrap:wrap">
+
+    <div class="screen" style="flex:1 1 300px; min-width:280px">
+      <div class="screen-bar"><span class="n">M-1</span><span class="t">Ortak Oyuncu · boş</span><span class="th">390</span></div>
+      <div class="screen-body narrow"><div class="app t-dark m">
+        <div class="hdr">
+          <div class="brand"><svg width="17" height="17" style="color:var(--accent)"><use href="#g-ortak"/></svg><span class="wm">Futbol Quiz</span></div>
+          <nav class="nav">
+            <a href="#" class="on"><svg class="g" width="17" height="17"><use href="#g-ortak"/></svg>Ortak</a>
+            <a href="#"><svg class="g" width="17" height="17"><use href="#g-izgara"/></svg>Izgara</a>
+            <a href="#"><svg class="g" width="17" height="17"><use href="#g-istat"/></svg>İstatistik</a>
+            <a href="#"><svg class="g" width="17" height="17"><use href="#g-hangi"/></svg>Hangisi</a>
+          </nav>
+        </div>
+        <div class="app-in">
+          <div class="kunye">
+            <div class="idg"><svg width="19" height="19"><use href="#g-ortak"/></svg></div>
+            <div class="txt"><div class="eyebrow">Mod 1 · Kesişim</div><h1>Ortak Oyuncu</h1><p class="task" style="font-size:13.5px">İki kulüp seç; <b>ikisinde de</b> forma giymiş oyuncuları gör.</p></div>
+            <div class="tab"><div class="cell"><div class="k">Kulüp</div><div class="v c-acc">906</div></div><div class="cell"><div class="k">Lig</div><div class="v">24</div></div><div class="cell"><div class="k">Oyuncu</div><div class="v sm">132.263</div></div></div>
+          </div>
+          <div class="scope"><span class="s-lbl">Kapsam</span><p class="s-txt">Yirmi dört üst ligin <b>tarihsel</b> kadroları. Bu liglerin dışındaki kariyerler yer almaz.</p></div>
+          <div class="ligs"><span class="lig">EN</span><span class="lig">ES</span><span class="lig">IT</span><span class="lig">DE</span><span class="lig">FR</span><span class="lig">TR</span><span class="lig">NL</span><span class="lig">PT</span><span class="lig">SC</span><span class="lig">BE</span><span class="lig">GR</span><span class="lig">CH</span><span class="lig">RU</span><span class="lig">PL</span><span class="lig">CZ</span><span class="lig">HR</span><span class="lig">UA</span><span class="lig">DK</span><span class="lig">NO</span><span class="lig">SE</span><span class="lig">AT</span><span class="lig">RO</span><span class="lig">US</span><span class="lig">SA</span></div>
+          <div class="pair">
+            <div class="picker"><div class="pick-lbl">Birinci kulüp</div><div class="pick-in"><svg width="14" height="14" style="color:var(--muted)"><use href="#ic-search"/></svg>Kulüp arayın…</div></div>
+            <div class="seam">∩</div>
+            <div class="picker"><div class="pick-lbl">İkinci kulüp</div><div class="pick-in"><svg width="14" height="14" style="color:var(--muted)"><use href="#ic-search"/></svg>Kulüp arayın…</div></div>
+          </div>
+          <div style="padding-top:12px"><div class="pick-lbl">Hazır başlangıçlar</div><div class="suggest">
+            <button class="sg"><span class="mark s">FEN</span>FB<span class="x">∩</span><span class="mark s">BEŞ</span>BJK</button>
+            <button class="sg"><span class="mark s">GAL</span>GS<span class="x">∩</span><span class="mark s">IM</span>Inter</button>
+          </div></div>
+          <div style="height:16px"></div>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="screen" style="flex:1 1 300px; min-width:280px">
+      <div class="screen-bar"><span class="n">M-2</span><span class="t">Ortak Oyuncu · sonuç</span><span class="th">390</span></div>
+      <div class="screen-body narrow"><div class="app t-dark m"><div class="app-in" style="padding-top:14px;padding-bottom:18px">
+        <div class="kunye" style="padding-top:0;border-bottom:0">
+          <div class="txt"><div class="eyebrow">Mod 1 · Kesişim</div><h1>Ortak Oyuncu</h1></div>
+          <div class="tab lit"><div class="cell"><div class="k">Ortak oyuncu</div><div class="v c-acc">55</div></div><div class="cell"><div class="k">Dönem</div><div class="v">147</div></div></div>
+        </div>
+        <div class="pair">
+          <div class="picker"><div class="pick-in filled"><span class="mark s">FEN</span>Fenerbahçe<button class="lnk" style="margin-left:auto">Değiştir</button></div></div>
+          <div class="seam">∩</div>
+          <div class="picker"><div class="pick-in filled"><span class="mark s">BEŞ</span>Beşiktaş<button class="lnk" style="margin-left:auto">Değiştir</button></div></div>
+        </div>
+        <div class="ledger" style="margin-top:12px">
+          <div class="lg-head"><div><span class="h">Oyuncu</span></div><div></div><div></div></div>
+          <div class="lg-row">
+            <div class="lg-p"><div class="pn">Rüştü Reçber</div><div class="pm">Kaleci · TR</div></div>
+            <div class="lg-c" data-club="Fenerbahçe"><div class="spells"><span class="spell"><span class="yr">1993 – 2002</span><span class="mc">240 maç</span></span><span class="spell"><span class="yr">2004 – 2005</span><span class="mc">54 maç</span></span><span class="spell"><span class="yr">2006</span><span class="mc">8 maç</span></span></div></div>
+            <div class="lg-c" data-club="Beşiktaş"><div class="spells"><span class="spell"><span class="yr">2007 – 2011</span><span class="mc">103 maç</span></span></div></div>
+          </div>
+          <div class="lg-row">
+            <div class="lg-p"><div class="pn">Sergen Yalçın</div><div class="pm">Orta saha · TR</div></div>
+            <div class="lg-c" data-club="Fenerbahçe"><div class="spells"><span class="spell loan"><span class="yr">1999</span><span class="lb">kiralık</span><span class="mc">24 maç</span></span></div></div>
+            <div class="lg-c" data-club="Beşiktaş"><div class="spells"><span class="spell"><span class="yr">1991 – 1996</span><span class="mc">138 maç</span></span><span class="spell"><span class="yr">2002 – 2005</span><span class="mc">91 maç</span></span></div></div>
+          </div>
+          <div class="lg-row">
+            <div class="lg-p"><div class="pn">Ertuğrul Sağlam</div><div class="pm">Forvet · TR</div></div>
+            <div class="lg-c" data-club="Fenerbahçe"><div class="spells"><span class="spell unk">kaynakta ayrıntı yok</span></div></div>
+            <div class="lg-c" data-club="Beşiktaş"><div class="spells"><span class="spell"><span class="yr">1994 – 1999</span><span class="mc">167 maç</span></span></div></div>
+          </div>
+        </div>
+      </div></div></div>
+    </div>
+
+    <div class="screen" style="flex:1 1 300px; min-width:280px">
+      <div class="screen-bar"><span class="n">M-3</span><span class="t">Izgara · kaydırmasız</span><span class="th">390</span></div>
+      <div class="screen-body narrow"><div class="app t-dark m"><div class="app-in" style="padding-top:14px;padding-bottom:18px">
+        <div class="kunye" style="padding-top:0;border-bottom:0">
+          <div class="txt"><div class="eyebrow">Mod 2 · 9 Ağustos</div><h1>Günün Izgarası</h1></div>
+        </div>
+        <div class="gridwrap" style="margin-top:12px"><div class="gr">
+          <div class="gr-corner"><div class="k">Doğru</div><div class="v">1<span style="font-size:13px;color:var(--muted)">/9</span></div><div class="s">7 hak</div></div>
+          <div class="gh"><span class="mark s">ÇR</span><span style="min-width:0"><span class="nm">Rizespor</span><span class="kd">Kulüp</span></span></div>
+          <div class="gh"><span class="mark s">NAN</span><span style="min-width:0"><span class="nm">Nantes</span><span class="kd">Kulüp</span></span></div>
+          <div class="gh"><span class="mark s">IM</span><span style="min-width:0"><span class="nm">Inter</span><span class="kd">Kulüp</span></span></div>
+          <div class="gh"><span class="mark s nat">PL</span><span style="min-width:0"><span class="nm">Polonya</span><span class="kd">Uyruk</span></span></div>
+          <button class="cellbtn"><span class="plus">+</span></button>
+          <button class="cellbtn"><span class="plus">+</span></button>
+          <button class="cellbtn"><span class="plus">+</span></button>
+          <div class="gh"><span class="mark s">GAL</span><span style="min-width:0"><span class="nm">Galatasaray</span><span class="kd">Kulüp</span></span></div>
+          <div class="cell-f no"><span class="st"><svg width="10" height="10"><use href="#ic-x"/></svg>yanlış</span><span class="pn">Yunus Akgün</span></div>
+          <button class="cellbtn"><span class="plus">+</span></button>
+          <div class="cell-f ok"><span class="st"><svg width="10" height="10"><use href="#ic-check"/></svg>doğru</span><span class="pn">Mauro Icardi</span></div>
+          <div class="gh"><span class="mark s nat">BR</span><span style="min-width:0"><span class="nm">Brezilya</span><span class="kd">Uyruk</span></span></div>
+          <button class="cellbtn"><span class="plus">+</span></button>
+          <button class="cellbtn"><span class="plus">+</span></button>
+          <button class="cellbtn"><span class="plus">+</span></button>
+        </div></div>
+      </div></div></div>
+    </div>
+
+    <div class="screen" style="flex:1 1 300px; min-width:280px">
+      <div class="screen-bar"><span class="n">M-4</span><span class="t">İstatistik · sayı doğrusu</span><span class="th">390</span></div>
+      <div class="screen-body narrow"><div class="app t-dark m"><div class="app-in" style="padding-top:14px;padding-bottom:18px">
+        <div class="pcard" style="margin-top:0">
+          <span class="mark l p">RP</span>
+          <div><div class="nm" style="font-size:16px">Robin van Persie</div><div class="nat">Hollanda · Forvet</div></div>
+          <p class="rule" style="font-size:13px">Her satır için, değeri ona <span class="hi">en yakın</span> olan <b>başka</b> bir futbolcuyu seç.</p>
+        </div>
+        <div style="margin-top:12px">
+          <div class="strow">
+            <div class="lab"><div class="k">Kulüp maçı *</div><div class="v">435</div><div class="dom">ölçek 0 – 800</div></div>
+            <div class="axis"><div class="track"></div><div class="gap mid" style="left:47.6%;width:6.8%"></div><div class="tick" style="left:54.4%"></div><div class="tl" style="left:54.4%">435</div><div class="pin" style="left:47.6%"><span class="dot mid"></span><span class="pv">381</span></div></div>
+            <div class="res"><div class="who">Mauro Icardi</div><div class="pct mid">%76</div></div>
+          </div>
+          <div class="strow wait">
+            <div class="lab"><div class="k">Kulüp golü *</div><div class="v">205</div><div class="dom">ölçek 0 – 400</div></div>
+            <div class="axis"><div class="track"></div><div class="tick" style="left:51.3%"></div><div class="tl" style="left:51.3%">205</div><div class="qm" style="left:24%">?</div></div>
+            <div class="res"><button class="btn">Oyuncu seç</button></div>
+          </div>
+        </div>
+      </div></div></div>
+    </div>
+
+  </div>
+  </div>
+</section>
+
+<!-- ================= 12. HAREKET ================= -->
+<section>
+  <div class="sec-head"><span class="sec-num">12</span><h2>Hareket</h2></div>
+  <p class="sec-sub">Kural: hareket <b>yalnızca bir şeyin değiştiğini</b> söyler. Ambiyans yok, dekoratif geçiş yok. Sonuç anı dışında her şey 140 ms'nin altında ve fark edilmez.</p>
+  <div class="tblwrap"><table class="dt">
+    <thead><tr><th>Nerede</th><th>Ne</th><th>Süre</th><th>Amaç</th><th>reduced-motion</th></tr></thead>
+    <tbody>
+      <tr><td>Düğme, sekme, satır</td><td>Zemin ve kenar rengi</td><td class="num">140 ms</td><td>Tıklanabilirliği doğrular</td><td>Yok — durum anında</td></tr>
+      <tr><td>Açılır liste</td><td>4px yukarıdan iner, opaklık</td><td class="num">120 ms</td><td>Nereden çıktığını gösterir</td><td>Anında görünür</td></tr>
+      <tr><td>Izgara hücresi dolunca</td><td>Kenar rengi + 1,04 ölçek darbesi</td><td class="num">200 ms</td><td>Hakkın harcandığını duyurur</td><td>Yalnızca renk</td></tr>
+      <tr><td>Sonuç sayısı (55, %62, 2/9)</td><td>Sayarak yerine oturur</td><td class="num">240 ms</td><td>Sonucu <b>olay</b> yapar</td><td>Doğrudan son değer</td></tr>
+      <tr><td>Düello kapağı</td><td>Yukarı kayarak açılır</td><td class="num">180 ms</td><td>Açılış hissi</td><td>Kapak anında kalkar</td></tr>
+      <tr><td>Seri halkası</td><td>Bir kez 1,06 ölçek</td><td class="num">160 ms</td><td>Serinin uzadığını söyler</td><td>Yalnızca sayı değişir</td></tr>
+      <tr><td>Elenen panel</td><td>Sağa kayıp yerini bırakır</td><td class="num">160 ms</td><td>Yerine yenisinin geldiğini anlatır</td><td>Panel yer değiştirmez</td></tr>
+      <tr><td>Sayı doğrusu iğnesi</td><td>Hedefe doğru kayar</td><td class="num">220 ms</td><td>Mesafeyi hissettirir</td><td>Doğrudan konumda</td></tr>
+    </tbody>
+  </table></div>
+  <p class="prose" style="margin-top:14px">Uygulamada tek bir blok yeter — bu mockup'ta da var ve çalışıyor:</p>
+  <div class="tokenblock"><pre><span class="p">@media (prefers-reduced-motion: reduce)</span> {
+  *, *::before, *::after {
+    animation-duration:.001ms !important; animation-iteration-count:1 !important;
+    transition-duration:.001ms !important; scroll-behavior:auto !important;
+  }
+}</pre></div>
+</section>
+
+<!-- ================= 13. TAMAMLANANLAR VE DENETIM ================= -->
+<section>
+  <div class="sec-head"><span class="sec-num">13</span><h2>Tamamlanan eksikler ve kural denetimi</h2></div>
+  <p class="sec-sub">Ekran görüntülerinde bulunmayan yedi durumu ürünün kendi mantığına göre tamamladım. Her biri bir varsayım taşıyor — hepsi burada açık yazılı, çünkü yanlışsa <b>tasarım değil varsayım</b> değişecek.</p>
+
+  <div class="tblwrap"><table class="dt">
+    <thead><tr><th>Eksik durum</th><th>Ekran</th><th>Ne varsaydım</th></tr></thead>
+    <tbody>
+      <tr><td><b>Kesme uyarısı</b></td><td>O-3</td><td>Uyarı listenin dibine yapışık duruyor ve kaydırmayla geçilemiyor. Metin brifteki cümlenin aynısı: "83 kulüpten 50 tanesi gösteriliyor — daraltmak için yazın."</td></tr>
+      <tr><td><b>İkiz kulüp uyarısı</b></td><td>O-7</td><td>Ölçüt olarak kadro örtüşme yüzdesi gösterdim (%97, 312/321). Gerçek eşik kodda neyse o yazılacak. Liste kırpılmıyor, sıralaması değişmiyor — yalnızca üstüne uyarı geliyor.</td></tr>
+      <tr><td><b>Hangisi Daha · doğru cevap sonrası</b></td><td>H-3</td><td>Kazanan panelde kalır ("kalıyor"), kaybeden solar ("eleniyor"), seri artar, altta sıradaki rakip duyurulur ve <b>Devam</b> ile geçilir. Otomatik geçiş koymadım: kullanıcı sayıyı okumadan ekran kaymasın.</td></tr>
+      <tr><td><b>Senin seçimin işareti</b></td><td>H-3, H-4</td><td>Bugün ekranda yoktu. İki seçenekli oyunda bile "neyi seçtiğimi" görmek koşu bittiğinde gerekiyor.</td></tr>
+      <tr><td><b>İstatistik · kısmi durum</b></td><td>S-3</td><td>Cevaplanan satır dolu ve renkli, bekleyen satır kesik çizgili. Tabelada "şu ana kadar" ortalaması yürüyor.</td></tr>
+      <tr><td><b>Izgara · paylaşım</b></td><td>I-4</td><td>Yalnızca desen + tarih + skor kopyalanır; <b>oyuncu adları kopyalanmaz</b>, yoksa paylaşım başkasının ızgarasını bozar.</td></tr>
+      <tr><td><b>Açık tema</b></td><td>G-1, G-2, G-3</td><td>Bugünkü açık temayı hiç görmedim, o yüzden sıfırdan kurdum. Eldeki açık tema korunacaksa palet yeniden ölçülür.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3 class="sub">§5 denetimi</h3>
+  <div class="tblwrap"><table class="dt">
+    <thead><tr><th>Kural</th><th>Nasıl karşılandı</th></tr></thead>
+    <tbody>
+      <tr><td><b>5.1</b> Boş yuva yok</td><td>Her kulüp adının yanında sabit 26px karo. Arma varsa arma, yoksa baş harf. Türetme kuralı yenilendi, <code>AC</code> çakışması çözüldü. Uyruk ölçütü <b>formla</b> ayrışıyor (kesik daire).</td></tr>
+      <tr><td><b>5.2</b> Kesme ve belirsizlik sessiz değil</td><td>Kapsam ana sayfada baştan (bir satır + 24 lig etiketi, dipnot değil). Kesme uyarısı listeye yapışık. "Kaynakta ayrıntı yok" silinmiyor, kesik çizgili hücre olarak duruyor. İkiz kulüp uyarısı listeyi değiştirmiyor. <code>*</code> dipnotu her iki modda da yerinde.</td></tr>
+      <tr><td><b>5.3</b> WCAG 2.1 AA</td><td>Dokuz zorunlu çift + 22 ek çift ölçüldü, hepsi geçti. Odak her yerde <code>outline</code>. Doğru/yanlış hem renk hem simge hem yazı; kiralık hem amber hem "kiralık". <code>prefers-reduced-motion</code> bloğu mockup'ta çalışıyor.</td></tr>
+      <tr><td><b>5.4</b> Rol tabanlı belirteçler</td><td>Bütün roller korundu, ikisi eklendi (<code>--note</code>, <code>--surface-2</code>). Hiçbir bileşende <code>dark:</code> yok; açık ve koyu ekranlar <b>birebir aynı işaretlemeyi</b> paylaşıyor (O-5 ile G-1 karşılaştırılabilir).</td></tr>
+      <tr><td><b>5.5</b> Teknik sınırlar</td><td>Tek dosya, dış bağlantı sıfır, betik yok, ikon satır içi SVG. Yazı tipi sistem yığını; hedef aileler adıyla bildirildi. Arma dışında görsel yok. Dil Türkçe. 390px kararları ayrı verildi.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3 class="sub">Açık bıraktıklarım</h3>
+  <ul class="prose">
+    <li><b>Archivo'nun <code>tnum</code> desteği</b> entegrasyonda doğrulanacak. Tabular rakam bu tasarımın taşıyıcı öğesi; tutmazsa çare aileyi değiştirmek değil, rakam varyantını sabitlemek.</li>
+    <li><b>İkiz kulüp eşiği</b> — %97'yi örnek olarak yazdım; koddaki gerçek eşik neyse metin ona göre güncellenir.</li>
+    <li><b>Izgara paylaşım metni</b> ürün kararı içeriyor (tarih biçimi, satır sayısı). Kopyalanacak tam metin onaylanmalı.</li>
+    <li><b>"En zor hücre / bugün %9 bildi"</b> gibi ifadeler günlük toplu istatistik gerektirir. Bu veri toplanmıyorsa o satır düşer, tasarımda yeri boş kalmaz — yerine kalan hak özeti geçer.</li>
+    <li><b>Hazır başlangıç çiftleri</b> (O-1) elle seçilmiş bir liste ister. Veri gerektirmiyor ama küratörlük gerektiriyor.</li>
+  </ul>
+
+  <div class="decide">
+    <div class="lbl">Sıradaki adım</div>
+    <p>Bu belge §9.2'nin iki adımını birleştirdi çünkü ekranların da bu turda istendiğini söyledin. <b>Yön reddedilirse</b> — özellikle mürekkep mavisi accent kararı — ekranların tamamı yeniden renklendirilir ama yapı (künye/tabela/gövde, dört imza, karo sistemi, sayı doğrusu) ayakta kalır; ikisi birbirine bağlı değil.</p>
+    <p>Onaylanırsa uygulama sırası şu: belirteçler → karo bileşeni ve türetme kuralı → seçici (iki modda ortak) → künye + tabela → mod gövdeleri → mobil kırılma noktaları.</p>
+  </div>
+</section>
+
+</main>
+
+<footer class="wrap" style="padding-top:34px;padding-bottom:56px">
+  <p class="prose" style="font-size:14px">Futbol Quiz arayüz tasarımı · Veri kümesi 7 Ağustos 2026 · Belge 10 Ağustos 2026. Tek dosya, dış bağlantısız HTML; yazı tipi sistem yığınıyla temsil edilmiştir.</p>
+</footer>
+
+</body>
+</html>

@@ -1922,41 +1922,68 @@ gerekmiyor.
 
 | Rol               | Ne için                                | Açık                  | Koyu                  |
 | ----------------- | -------------------------------------- | --------------------- | --------------------- |
-| `background`      | Sayfa zemini                           | `#f5f7f6`             | `#0b100e`             |
-| `surface`         | Kart, panel, açılır liste              | `#ffffff`             | `#151b19`             |
-| `foreground`      | Ana metin                              | `#0f1513`             | `#e9eeec`             |
-| `muted`           | İkincil metin, etiket                  | `#59635f`             | `#9ba5a1`             |
-| `line`            | Ayırıcı (süsleme — kontrast şartı yok) | `#e0e5e3`             | `#272f2d`             |
-| `line-strong`     | Arayüz bileşeni sınırı (girdi, hücre)  | `#79837f`             | `#6b7672`             |
-| `accent`          | Marka, odak konturu, birincil düğme    | `#15803d`             | `#4ade80`             |
-| `accent-fg`       | Vurgu dolgusu üzerindeki metin         | `#ffffff`             | `#04120a`             |
-| `accent-soft`     | Vurgulu zemin (seçili kulüp, seçenek)  | `#edf7f0`             | `#12241a`             |
-| `correct`/`-soft` | Doğru hücre                            | `#15803d` / `#edf7f0` | `#4ade80` / `#12241a` |
-| `wrong`/`-soft`   | Yanlış hücre, hata kutusu              | `#b4232a` / `#fdecea` | `#fb8a8a` / `#2a1517` |
-| `warn`/`-soft`    | Kiralık rozeti, orta puan bandı        | `#8a5a00` / `#fdf4e3` | `#e5b567` / `#251d0d` |
+| `background`      | Sayfa zemini                           | `#f2f4f8`             | `#0d1117`             |
+| `surface`         | Kart, panel, açılır liste              | `#ffffff`             | `#151b24`             |
+| `surface-2`       | Kart içi ikinci kat (hücre, satır)     | `#e7ebf2`             | `#1d2530`             |
+| `foreground`      | Ana metin                              | `#111823`             | `#e7ecf3`             |
+| `muted`           | İkincil metin, etiket                  | `#5a6575`             | `#98a3b3`             |
+| `line`            | Ayırıcı (süsleme — kontrast şartı yok) | `#d9e0ea`             | `#232c38`             |
+| `line-strong`     | Arayüz bileşeni sınırı (girdi, hücre)  | `#7a8595`             | `#6a7788`             |
+| `accent`          | Marka, odak konturu, birincil düğme    | `#2b41c4`             | `#7b93ff`             |
+| `accent-fg`       | Vurgu dolgusu üzerindeki metin         | `#ffffff`             | `#0a0e15`             |
+| `accent-soft`     | Vurgulu zemin (seçili kulüp, seçenek)  | `#e3e8ff`             | `#1a2242`             |
+| `correct`/`-soft` | Doğru hücre                            | `#0b6e3f` / `#d9f2e3` | `#4fd98c` / `#0e2a1d` |
+| `wrong`/`-soft`   | Yanlış hücre, hata kutusu              | `#b3242f` / `#fbe2e4` | `#ff7a82` / `#301418` |
+| `warn`/`-soft`    | Kiralık rozeti, orta puan bandı        | `#7a5200` / `#faedcf` | `#f2b950` / `#2c2011` |
+| `note`/`-soft`    | Kesme uyarısı, "kaynakta ayrıntı yok"  | `#6a6153` / `#efebe3` | `#b3a794` / `#23201a` |
 
 **İki ayrı kenarlık rolü, bilinçli.** `line` bir ayırıcıdır ve WCAG 1.4.11 süsleme sınırlarını kapsamaz. `line-strong` bir arayüz bileşeninin sınırıdır ve 3:1'i karşılamak **zorundadır**. Tek değişkende toplansaydı ya ayırıcılar gereksiz koyu olurdu ya da girdi kenarlıkları ölçüsüz kalırdı.
 
-**Marka tonu ölçüyle seçildi.** Favicon'daki `#16a34a` sekme çubuğunda iyi çalışıyor ama beyaz üzerine metin olarak 3,58:1 veriyor ve AA'yı karşılamıyor. Metin rolü için `#15803d` kullanılıyor (5,02:1); simge dosyası kendi rengini koruyor, çünkü tarayıcı sekmesi sayfanın temasını devralmaz.
+#### Vurgu rengi yeşilden mürekkep mavisine taşındı (10 Ağustos 2026)
+
+**Kusur: `accent` ile `correct` BİREBİR aynı tondu.** İlk palette ikisi de açık modda `#15803d`, koyu modda `#4ade80` idi. Yani ızgarada "doğru bilinmiş hücre" ile "birincil düğme" ayırt edilemiyordu; aynı yeşil aynı anda beş iş yapıyordu — marka, etkin sekme, metin içi sayı vurgusu, birincil eylem ve doğru cevap. Beş işi olan bir renk hiçbirini işaretlemez.
+
+Kusur ölçüm dışıydı: kontrast kapısı her çifti eşiğe karşı denetliyor, ama **iki farklı rolün aynı değeri taşımasını** görmüyordu. Kapı bu yüzden genişletildi (aşağıda).
+
+**Ayrım rol sınırından geçiyor.** `correct`, `wrong` ve `warn` yeşil–kırmızı–amber üçlüsünü zaten sahipleniyor; bunlar **sonucun** dili. `accent` ise **kaydın** dili: seçiciler, gezinme, birincil eylem, odak konturu. Sonuç dilinden çıkmak zorundaydı. Mürekkep mavisi seçildi (`#2b41c4` / `#7b93ff`): üründeki arşiv fikrine bağlanıyor, futbol yeşiliyle çarpışmıyor ve iki temada da eşikleri geniş payla taşıyor.
+
+**Marka tonu ayrı bir dosyadır.** Favicon `#16a34a` yeşilini koruyor; tarayıcı sekmesi sayfanın temasını devralmaz ve simge dosyası kontrast kapısına girmez. Arayüzün vurgu rengi ile sekme simgesinin aynı ton olması bir zorunluluk değildi.
+
+**İki yeni rol eklendi.** `surface-2` kart içindeki ikinci katı taşıyor (`surface` üzerinde `line` ile ayrılan hücreler, saydamlık kullanmadan). `note`, §5.2'nin gerektirdiği dürüstlük metinlerini — kesme uyarısı, "kaynakta ayrıntı yok", kapsam cümlesi — `warn`'dan ayırıyor: bunlar bir uyarı değil, kaynağın sustuğu yere düşülmüş bir kenar notudur ve amber alarm tonuyla söylenmesi olduğundan acil gösteriyordu.
 
 #### Ölçüm
 
-**Yirmi beş çiftin tamamı hesaplandı, ikisi geçemedi ve düzeltildi.** İlk denemede `line-strong` her iki modda da 3:1'in altındaydı (2,44 / 2,26) ve `accent` kendi yumuşak zemininde 4,42 ile eşiğin hemen altında kalıyordu. Tonlar oran tutana kadar koyulaştırıldı/açıldı.
+**Otuz bir çiftin tamamı hesaplandı, biri geçemedi ve düzeltildi.** Tasarımın önerdiği koyu mod `line-strong` tonu (`#5a6879`) en açık koyu yüzeyde — `surface-2` — 2,71 veriyordu; arayüz sınırı için 3:1 zorunlu. Ton üç zeminin en darına göre yeniden seçildi (`#6a7788`). Kalan en dar yer açık modda `line-strong` / `surface-2` (3,13).
 
-| Çift                                | Eşik | Açık  | Koyu  |
-| ----------------------------------- | ---- | ----- | ----- |
-| `foreground` / `background`         | 4,5  | 17,17 | 16,36 |
-| `foreground` / `surface`            | 4,5  | 18,47 | 14,89 |
-| `muted` / `background`              | 4,5  | 5,78  | 7,57  |
-| `muted` / `surface`                 | 4,5  | 6,22  | 6,89  |
-| `accent` / `surface`                | 4,5  | 5,02  | 10,02 |
-| `accent-fg` / `accent`              | 4,5  | 5,02  | 11,00 |
-| `accent` / `accent-soft`            | 4,5  | 4,58  | 9,32  |
-| `wrong` / `wrong-soft`              | 4,5  | 5,71  | 7,47  |
-| `warn` / `warn-soft`                | 4,5  | 5,43  | 8,84  |
-| `line-strong` / `surface`           | 3,0  | 3,91  | 3,71  |
-| `line-strong` / `background`        | 3,0  | 3,64  | 4,07  |
-| `accent` (odak konturu) / `surface` | 3,0  | 5,02  | 10,02 |
+| Çift                          | Eşik | Açık  | Koyu  |
+| ----------------------------- | ---- | ----- | ----- |
+| `foreground` / `background`   | 4,5  | 16,18 | 15,94 |
+| `foreground` / `surface`      | 4,5  | 17,82 | 14,57 |
+| `foreground` / `surface-2`    | 4,5  | 14,90 | 13,01 |
+| `foreground` / `accent-soft`  | 4,5  | 14,64 | 13,09 |
+| `foreground` / `correct-soft` | 4,5  | 15,07 | 12,94 |
+| `foreground` / `wrong-soft`   | 4,5  | 14,51 | 14,28 |
+| `muted` / `background`        | 4,5  | 5,37  | 7,41  |
+| `muted` / `surface`           | 4,5  | 5,91  | 6,77  |
+| `muted` / `surface-2`         | 4,5  | 4,94  | 6,05  |
+| `muted` / `accent-soft`       | 4,5  | 4,86  | 6,09  |
+| `accent` / `background`       | 4,5  | 7,18  | 6,72  |
+| `accent` / `surface`          | 4,5  | 7,91  | 6,14  |
+| `accent-fg` / `accent`        | 4,5  | 7,91  | 6,87  |
+| `accent` / `accent-soft`      | 4,5  | 6,50  | 5,52  |
+| `correct` / `correct-soft`    | 4,5  | 5,36  | 8,51  |
+| `wrong` / `wrong-soft`        | 4,5  | 5,33  | 6,75  |
+| `wrong` / `surface`           | 4,5  | 6,54  | 6,88  |
+| `warn` / `warn-soft`          | 4,5  | 5,96  | 8,95  |
+| `note` / `note-soft`          | 4,5  | 5,12  | 6,86  |
+| `note` / `background`         | 4,5  | 5,53  | 8,00  |
+| `note` / `surface`            | 4,5  | 6,09  | 7,31  |
+| `line-strong` / `background`  | 3,0  | 3,40  | 4,15  |
+| `line-strong` / `surface`     | 3,0  | 3,74  | 3,79  |
+| `line-strong` / `surface-2`   | 3,0  | 3,13  | 3,39  |
+| `correct` / `surface`         | 3,0  | 6,33  | 9,58  |
+
+**Kapı bir AYRIKLIK denetimi de yapıyor artık.** Eski hâli yalnızca oranlara bakıyordu ve `accent` ile `correct`'in aynı hex olmasını görmedi (yukarıdaki kusur). Test şimdi ayrıca **anlamı çakışan rol çiftlerinin farklı değer taşıdığını** doğruluyor: bir rol başka bir rolün tonunu aynen alırsa, o iki rolü ayırmak için yazılmış bütün arayüz sessizce tek renge düşer ve oran denetimi bunu hiçbir zaman yakalamaz.
 
 **Ölçüm bir KAPIDIR, bir kerelik denetim değil** — `tests/unit/app/contrast.test.ts`. Test `globals.css`'i okuyup belirteçleri ayrıştırıyor ve yukarıdaki çiftlerin tamamını her iki modda hesaplıyor. Değerler testin içine kopyalanmadı ve bu bilinçli: iki kaynak olsaydı asıl kaçırmak istediğimiz durumu — CSS'te değişip testte değişmeyen bir ton — hiç yakalayamazdı.
 
@@ -1984,10 +2011,10 @@ Geçişler (`transition-colors`) süslemedir. `prefers-reduced-motion: reduce` s
 
 Kulüp adının yanındaki işaret **sabit ölçülü bir yuvadır** ve hep doludur:
 
-| Durum                     | İçerik                           |
-| ------------------------- | -------------------------------- |
-| Lisanslı arma var (%43,7) | Arma                             |
-| Arma yok (%56,3)          | Kulüp adından türetilen iki harf |
+| Durum                     | İçerik                          |
+| ------------------------- | ------------------------------- |
+| Lisanslı arma var (%43,7) | Arma                            |
+| Arma yok (%56,3)          | Kulüp adından türetilen üç harf |
 
 Önceki davranış "arma yoksa boş kare" idi. Hizalama doğruydu ama sonucu, listelerin yaklaşık yarısının delik görünmesiydi — ve delikler rastgele dağılmıyor: Manchester United, Arsenal, Everton boş kalırken küçük kulüpler dolu görünüyordu (§4.3.1). **Tutarsızlık, yokluktan kötü görünür.**
 
@@ -2019,7 +2046,36 @@ Sonuç: kulüp rengi için güvenilir bir kaynak YOK. Baş harf, uydurulmuş bir
 
 #### Baş harfler
 
-Addan türetilir, saklanmaz. Kural: kulüp türü kısaltmaları (`FC`, `SK`, `AC`…) ve parantezli ekler atılır, kalan ilk iki sözcüğün baş harfi alınır; tek sözcük kalırsa ilk iki harfi kullanılır.
+Addan türetilir, saklanmaz. Kural: kulüp türü kısaltmaları (`FC`, `SK`, `AC`…), sıra numaraları ve parantezli ekler atılır; kalandan **üç harf** üretilir.
+
+##### İki harften üç harfe (10 Ağustos 2026)
+
+**Ölçüm önce yapıldı.** İşaret yalnızca armasız 510 kulüpte basılıyor — armalı kulüpte karo yerine arma çizilir, yani orada çakışma görünmez. O 510 kulüp iki harfle şöyle dağılıyordu:
+
+```
+BR  8  Brentford, Blackburn Rovers, Brescia, SC Braga, Brøndby IF, Brommapojkarna …
+AC  7  A.C. Carpi, A.C. Savoia, Academica Clinceni, Angoulême Charente …
+HA  7  Hatayspor, Hamilton Academical, Halmstads, Hammarby IF, Haugesund …
+```
+
+**Armasız kulüplerin %68,6'sı (350'si) işaretini en az bir başka kulüple paylaşıyordu.** İşaret bir ayırt edici değil, bir doku hâline gelmişti: kulüp seçicide art arda gelen üç `BR` karosu hangisinin Braga hangisinin Brescia olduğunu söylemiyor.
+
+**Neden önce iki harfti ve neden dayanağı düştü.** Gerekçe ölçüydü: işaret 20 px basılıyordu ve üç harf o boyutta okunmuyordu. Yeni tasarımda karo **26 px**; dayanak geçerliliğini yitirdi, kural da onunla birlikte değişti. Karo küçültülürse bu kararın yeniden ölçülmesi gerekir — üç harf 20 px'te hâlâ okunmaz.
+
+**Dört varyant ölçüldü, en az çakışan seçildi:**
+
+| Varyant                                               | Çakışan kulüp |       Pay |
+| ----------------------------------------------------- | ------------: | --------: |
+| Bugünkü — iki harf                                    |           350 |     %68,6 |
+| Üç harf, çok sözcüklüde her sözcükten bir             |           139 |     %27,3 |
+| Üstüne noktalı kısaltma birleştirme (`A.C.` → `AC`)   |           144 |     %28,2 |
+| **Hep üç karakter: iki sözcüklüde ilk sözcükten iki** |        **74** | **%14,5** |
+
+Seçilen varyant çakışmayı **%68,6'dan %14,5'e** düşürüyor. İki sözcüklü adlarda her sözcükten bir harf almak (`Athletic Bilbao` → `AB`) sorunun büyük kısmını çözmüyordu; `Swansea City` ve `Stoke City` ikisi de `SC` kalıyordu. İlk sözcükten iki harf almak ikisini `SWC` / `STC` yapıyor.
+
+**Noktalı kısaltmalar birleştiriliyor.** `A.C. Carpi` ayrıştırıcıda `A` + `C` + `Carpi` olarak üç sözcüğe bölünüyordu; ne `A` ne `C` tür listesinde olduğu için ikisi de ayırt edici sayılıyor ve sonuç `ACC` çıkıyordu. Nokta dizileri artık ayrıştırmadan önce birleştiriliyor (`A.C.` → `AC`), böylece tür listesi işini görüyor: `A.C. Carpi` → `CAR`, `A.C. Savoia` → `SAV`. Toplam çakışmayı 5 kulüp artırıyor ama **ürettiği işaret doğru**; toplamı iyileştirmek için yanlış işaret üretmek takas değil, gerileme.
+
+**Küresel çakışma çözümü BİLEREK yapılmadı.** Tasarım "aynı karo iki kulübe düşerse harf sayısını artır" öneriyordu. Bu, saf bir fonksiyonun bilemeyeceği bir şey ister: bütün kulüp listesi. Uygulanabilmesi için işaretin ya ETL'de veriye yazılması (yeni alan, göç ve tazeleme yükümlülüğü — §7.13'ün baştaki "veri değil türetme" kararının tersi) ya da her render'da listenin tamamının dolaşılması gerekirdi. Kalan %14,5 için ikisi de ağır. İşaret zaten `aria-hidden` ve **kulüp adı her zaman yanında yazılı** — karo bir ayırt edici yardımcıdır, tek tanıtıcı değil.
 
 Büyük harfe çevirme kuralı **kulübün ülkesine bağlıdır** ve bu, ölçümle bulunmuş bir tuzaktır.
 

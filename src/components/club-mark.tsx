@@ -35,22 +35,34 @@ export interface ClubMarkProps {
   readonly size?: number;
 }
 
-export function ClubMark({ club, size = 20 }: ClubMarkProps) {
+/**
+ * Varsayılan kenar uzunluğu.
+ *
+ * 20 px'ten 26 px'e çıktı ve bu, üç harfli işaretin ÖNKOŞULUDUR (§7.13):
+ * üç harf 20 px'lik yuvada okunmuyordu. İkisi birlikte değişir; karo
+ * küçültülecekse harf sayısı da yeniden ölçülmelidir.
+ */
+const DEFAULT_SIZE = 26;
+
+export function ClubMark({ club, size = DEFAULT_SIZE }: ClubMarkProps) {
   if (club.crestUrl === null) {
+    const initials = clubInitials(club.shortName, club.country);
+
     return (
       <span
         aria-hidden="true"
-        className="inline-flex shrink-0 items-center justify-center rounded-[4px] bg-line font-semibold text-muted select-none"
+        className="inline-flex shrink-0 items-center justify-center rounded-[5px] bg-accent-soft font-semibold tracking-tight text-accent select-none"
         style={{
           width: size,
           height: size,
-          // Yazı boyu yuvayla ölçekleniyor: iki harf 20 px'te de 28 px'te de
-          // aynı oranda oturmalı. Sabit bir `text-xs` küçük yuvada taşardı.
-          fontSize: Math.round(size * 0.42),
+          // Yazı boyu hem yuvayla hem HARF SAYISIYLA ölçekleniyor: üç harf,
+          // iki harfin oranında yazıldığında yuvadan taşıyor. Sabit bir
+          // `text-xs` ikisinde de yanlış olurdu.
+          fontSize: Math.round(size * (initials.length >= 3 ? 0.34 : 0.42)),
           lineHeight: 1,
         }}
       >
-        {clubInitials(club.shortName, club.country)}
+        {initials}
       </span>
     );
   }
