@@ -1168,6 +1168,7 @@ Bunlar `domain/services/` içinde saf fonksiyon olarak yaşar ve birim testi ile
 - **BR-7 — Kapsam: erkek ligleri.** Veri kümesi hedeflenen altı erkek ligiyle sınırlıdır. Wikidata kadın takımı dönemlerini çoğu zaman **aynı kulüp varlığına** bağladığı için ayrım kulüp düzeyinde yapılamıyor; `P21` (cinsiyet) alanı yalnızca bu kapsamı uygulamak üzere okunur, veritabanına yazılmaz ve arayüzde gösterilmez. `P21` kaydı olmayan oyuncular **kapsamda kalır** — eksik meta veri dışlama gerekçesi değildir. Kadın futbolu ileride kendi lig kümesiyle ayrı bir kapsam olarak eklenebilir (§10.2).
 - **BR-33 — Arma yalnızca ÖZGÜR lisanslı dosyadan gelir.** `NonFree` işaretli (adil kullanım) hiçbir dosya alınmaz; alınırsa site telif ihlaline girer. Ölçüldü (§4.3.1): Vikipedi bilgi kutularındaki armaların %84'ü bu sınıfta ve reddedilir. Kural bir tercih değil sınırdır — "arma boş kalsın" sonucu, kullanılamayacak bir dosyayı göstermekten iyidir (§2.7 ile aynı yön).
 - **BR-34 — Atıf gerektiren arma, atıf verisi OLMADAN gösterilmez.** CC BY / CC BY-SA dosyalarında yazar, lisans adı ve dosya sayfası birlikte saklanır; üçünden biri eksikse arma `null` sayılır. Eksik atıfla göstermek, lisansın koşulunu çiğnemek demektir; `db:verify` bunu ölçer (§8.2).
+- **BR-35 — Her kulüp bir işaret taşır; hiçbir yuva boş kalmaz.** Kulüp adının yanındaki işaret sabit ölçüdedir ve iki içerikten birini taşır: lisanslı arma varsa arma, yoksa kulüp adından türetilen baş harfler. "Bazı kulüpte arma, bazısında boşluk" durumu yasaktır — armanın kapsamı %43,7 olduğu için bu, listelerin yarısının delik görünmesi demekti. Baş harfler bir VERİ DEĞİL, addan türetilir; ek bir kaynak, ETL adımı veya lisans yüzeyi getirmez (§7.13).
 - **BR-8 — Kanıt düzeyi.** Bir `Spell`, `startYear`, `endYear`, `appearances` ve `goals` alanlarının **dördü de** boşsa **kanıtsızdır**; en az biri doluysa kanıtlıdır. Kanıtsız dönemler BR-1 kapsamında **sayılır** (elenmez), fakat API yanıtında ve arayüzde açıkça işaretlenir. Gerekçe ve ölçüm §1.4'tedir; özeti: eleme, uydurma kayıtlarla birlikte doğru kayıtları da siliyor ve Wikidata ikisini ayıracak bir sinyal taşımıyor. BR-5'in sıralaması bu dönemleri kendiliğinden en sona koyar (ne maç sayısı ne yıl bilgisi vardır), dolayısıyla ayrı bir sıralama kuralı gerekmez.
 
 ---
@@ -1884,6 +1885,62 @@ Geçişler (`transition-colors`) süslemedir. `prefers-reduced-motion: reduce` s
 `SiteHeader` `layout.tsx`'e taşındı: aynı gezinme üç sayfada birebir tekrarlanıyordu ve her sayfa bulunduğu modu elle bildiriyordu. Artık yol adresinden türetiliyor ve 404 ile hata ekranı da gezinmeye kavuşuyor.
 
 `SiteFooter` **taşınmadı ve bu bilinçli.** Altbilgi veri kümesinin tarihini gösteriyor, yani veritabanına gidiyor. Düzene konsaydı hata sayfası da o sorguya bağımlı olurdu ve veritabanı bozulduğunda hata ekranının kendisi çökerdi — kullanıcıya gösterilecek son sayfa tam da o an kaybolurdu.
+
+### 7.13 Kulüp İşareti (BR-35)
+
+Kulüp adının yanındaki işaret **sabit ölçülü bir yuvadır** ve hep doludur:
+
+| Durum                     | İçerik                           |
+| ------------------------- | -------------------------------- |
+| Lisanslı arma var (%43,7) | Arma                             |
+| Arma yok (%56,3)          | Kulüp adından türetilen iki harf |
+
+Önceki davranış "arma yoksa boş kare" idi. Hizalama doğruydu ama sonucu, listelerin yaklaşık yarısının delik görünmesiydi — ve delikler rastgele dağılmıyor: Manchester United, Arsenal, Everton boş kalırken küçük kulüpler dolu görünüyordu (§4.3.1). **Tutarsızlık, yokluktan kötü görünür.**
+
+#### Forma rengi denendi ve ÖLÇÜMLE ELENDİ
+
+Doğal fikir, kulüp renklerini kullanmaktı: bilgi kutuları forma renklerini onaltılık kod olarak taşıyor, renk bir olgudur ve telif yüzeyi yoktur. Ham kapsam da armadan çok yüksek çıktı (%93,0). **Fikir yine de kullanılamaz** — ölçüm (2026-08-09, önbellekteki 791 kulüp makalesi):
+
+| Bulgu                                    |    Sayı |       Pay |
+| ---------------------------------------- | ------: | --------: |
+| `body1` onaltılık olan                   |     674 |         — |
+| bunların **desen katmanı olan**          | **598** | **%88,7** |
+| desenli **ve** beyaz tabanlı (şüpheli)   |     160 |     %23,7 |
+| desensiz — düz okumanın güvenilir olduğu |      76 |     %11,3 |
+
+`pattern_b1`, formanın üzerine çizilen ayrı bir görselin adıdır (`_galatasaray2627h`) ve renkleri okunamaz. Bu durumda `body1` tasarımın **tabanıdır**, kimliği değil. Doğrulandı:
+
+```
+Galatasaray  body1 = 270e8b   (lacivert)  — kulüp sarı-kırmızı
+Genoa        body1 = FFFFFF   (beyaz)     — kulüp kırmızı-lacivert
+Barcelona    body1 = 05003B   (koyu mavi) — kulüp blaugrana
+Juventus     body1 = YOK                  — kimlik tamamen desende
+```
+
+Arıza yönü ters: **makale ne kadar iyi bakımlıysa forma o kadar özel desenle çizilir**, yani en tanınmış kulüplerde en çok yanılır. Beyaz taban süzgeci Genoa'yı yakalar, Galatasaray'ı ve Barcelona'yı yakalamaz; ayırt edici başka bir işaret yok.
+
+Wikidata'nın renk ifadesi (`P462`) alternatif olarak ölçüldü: 906 seçilebilir kulübün **13'ünde** var (%1,4). Yol değil.
+
+Sonuç: kulüp rengi için güvenilir bir kaynak YOK. Baş harf, uydurulmuş bir renkten iyidir — yanlış renk, yanlış arma ile aynı sınıfta bir hatadır (§2.7).
+
+#### Baş harfler
+
+Addan türetilir, saklanmaz. Kural: kulüp türü kısaltmaları (`FC`, `SK`, `AC`…) ve parantezli ekler atılır, kalan ilk iki sözcüğün baş harfi alınır; tek sözcük kalırsa ilk iki harfi kullanılır.
+
+Büyük harfe çevirme kuralı **kulübün ülkesine bağlıdır** ve bu, ölçümle bulunmuş bir tuzaktır.
+
+`"i".toUpperCase()` JavaScript'te `"I"` verir, `"İ"` değil — Türkçe için yanlış. İlk yazımda düzeltme topyekûn uygulandı (`toLocaleUpperCase("tr")`) ve test bunu anında çürüttü: **`AC Milan` işareti `Mİ` çıktı.** Kural, düzeltmeyi hak eden 41 Türk kulübü için doğruyken kalan 865 kulübü bozuyordu.
+
+Ayrım `country` alanına bakılarak yapılır — doğru cevabı taşıyan tek alan o:
+
+```
+Sivasspor   (TR) → Sİ      AC Milan  (IT) → MI
+İstanbulspor(TR) → İS      Everton   (GB) → EV
+```
+
+`İstanbulspor`'un ilk harfi kaynakta zaten `İ` olduğu için tek başına sorun çıkarmıyordu; kural asıl **tek sözcüklü adların ikinci harfinde** iş görüyor.
+
+İşaret `aria-hidden`: yanındaki kulüp adının görsel tekrarıdır, yeni bilgi taşımaz (WCAG 1.1.1, arma ile aynı gerekçe).
 
 ---
 

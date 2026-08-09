@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import type { ClubDto } from "@/application/dto/club-dto";
-import { ClubCrest } from "./club-crest";
+import { ClubMark } from "./club-mark";
 
 /**
  * Kulüp seçici — WAI-ARIA "combobox with listbox popup" deseni.
@@ -248,7 +248,7 @@ export function ClubPicker({
                     }}
                   >
                     <span className="flex items-center gap-2">
-                      <ClubCrest club={club} />
+                      <ClubMark club={club} />
                       <span className="font-medium">{club.shortName}</span>
                       {club.country !== null && (
                         <span className="text-muted">{club.country}</span>
@@ -265,7 +265,7 @@ export function ClubPicker({
         // kullanıcı seçimin tamamlandığını görsel olarak ayırt edemezdi.
         <div className="flex items-center justify-between gap-3 rounded-lg border border-accent bg-accent-soft px-3 py-2.5">
           <span className="flex min-w-0 items-center gap-2.5">
-            <ClubCrest club={selected} size={28} />
+            <ClubMark club={selected} size={28} />
             <span className="truncate font-semibold">{selected.shortName}</span>
           </span>
           <button

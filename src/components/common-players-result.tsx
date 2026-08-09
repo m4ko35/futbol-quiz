@@ -3,7 +3,7 @@ import type {
   CommonPlayersResultDto,
   SpellDto,
 } from "@/application/dto/common-players-dto";
-import { ClubCrest } from "./club-crest";
+import { ClubMark } from "./club-mark";
 
 /**
  * Ortak oyuncu listesi — PROJECT.md §6.2 yanıtının görünümü.
@@ -173,12 +173,12 @@ export function CommonPlayersResult({ result }: CommonPlayersResultProps) {
         className="flex flex-wrap items-center gap-x-3 gap-y-2 text-lg font-semibold"
       >
         <span className="inline-flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-1.5 shadow-card">
-          <ClubCrest club={clubA} size={24} />
+          <ClubMark club={clubA} size={24} />
           {clubA.shortName}
         </span>
         <span className="text-muted">∩</span>
         <span className="inline-flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-1.5 shadow-card">
-          <ClubCrest club={clubB} size={24} />
+          <ClubMark club={clubB} size={24} />
           {clubB.shortName}
         </span>
         <span className="rounded-full bg-accent px-3 py-1 text-sm font-semibold text-accent-fg">
