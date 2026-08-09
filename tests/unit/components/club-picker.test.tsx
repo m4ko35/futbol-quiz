@@ -454,3 +454,140 @@ describe("ClubPicker — lige göre gözat", () => {
     expect(within(list).getByText("Galatasaray")).toBeInTheDocument();
   });
 });
+
+/**
+ * §7.14 — listeden çıkış yolları.
+ *
+ * KULLANILIRKEN BULUNAN KUSUR: liste yalnızca `Escape` ile ya da seçim
+ * yapılarak kapanıyordu; dışarı tıklamak işe yaramıyor, arayüz kilitlenmiş
+ * gibi görünüyordu. Bu testler üç çıkış yolunun da çalıştığını ve
+ * anlamlarının AYRIŞTIĞINI kilitliyor.
+ */
+describe("ClubPicker — listeden çıkış", () => {
+  it("dışarı tıklamak listeyi kapatır", async () => {
+    const { user } = setup();
+    const input = screen.getByRole("combobox");
+
+    await user.click(input);
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+
+    await user.click(document.body);
+
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(input).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("dışarı tıklamak YAZILANI KORUR", async () => {
+    // Yanlışlıkla dışarı tıklayan kullanıcı yazdığını kaybetmemeli.
+    const { user } = setup();
+    const input = screen.getByRole("combobox");
+
+    await user.click(input);
+    await user.type(input, "gala");
+    await user.click(document.body);
+
+    expect(input).toHaveValue("gala");
+  });
+
+  it("dışarı tıklamak seçim YAPMAZ", async () => {
+    const { user, onSelect } = setup();
+
+    await user.click(screen.getByRole("combobox"));
+    await user.click(document.body);
+
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it("liste içindeki boşluğa tıklamak listeyi kapatmaz", async () => {
+    // Kaydırma çubuğuna ya da boşluğa tıklayan kullanıcı gezinmeyi amaçlıyor.
+    const { user } = setup();
+
+    await user.click(screen.getByRole("combobox"));
+    const list = screen.getByRole("listbox");
+    await user.click(list);
+
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+  });
+
+  it("Vazgeç kapatır ve yazılanı SİLER", async () => {
+    const { user, onSelect } = setup();
+    const input = screen.getByRole("combobox");
+
+    await user.click(input);
+    await user.type(input, "gala");
+    await user.click(screen.getByRole("button", { name: "Vazgeç" }));
+
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(input).toHaveValue("");
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it("Vazgeç lig seçimini de sıfırlar", async () => {
+    const { user } = setup({
+      leagues: [
+        {
+          wikidataId: "Q485568",
+          name: "Süper Lig",
+          country: "TR",
+          clubCount: 41,
+        },
+      ],
+    });
+
+    await user.click(screen.getByRole("combobox"));
+    await user.click(screen.getByText("Süper Lig"));
+    await user.click(screen.getByRole("button", { name: "Vazgeç" }));
+
+    // Yeniden açıldığında kademe 1'de olmalı.
+    await user.click(screen.getByRole("combobox"));
+    expect(screen.getByText("Süper Lig")).toBeInTheDocument();
+  });
+
+  it("Vazgeç dokunmatikte de erişilebilir — odak kutudan çıkmaz", async () => {
+    // `tabIndex={-1}` ve `onMouseDown`: odak kutudan çıkarsa `blur` tetiklenir
+    // ve düğme kendi tıklamasından ÖNCE listeyi kapatırdı.
+    const { user } = setup();
+    const input = screen.getByRole("combobox");
+
+    await user.click(input);
+    const cancelButton = screen.getByRole("button", { name: "Vazgeç" });
+    expect(cancelButton).toHaveAttribute("tabindex", "-1");
+
+    await user.click(cancelButton);
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Kapandıktan sonra yeniden açılabilmeli — testle bulunan kusur.
+ *
+ * `Escape` ve "Vazgeç" listeyi kapatırken odak kutuda KALIR. Açma yalnızca
+ * `onFocus`'a bağlı olsaydı aynı kutuya tekrar tıklamak hiçbir şey yapmazdı:
+ * odak zaten oradaydı, yeni bir `focus` olayı doğmuyor.
+ */
+describe("ClubPicker — kapandıktan sonra yeniden açılır", () => {
+  it("Vazgeç'ten sonra tıklamak listeyi yeniden açar", async () => {
+    const { user } = setup();
+    const input = screen.getByRole("combobox");
+
+    await user.click(input);
+    await user.click(screen.getByRole("button", { name: "Vazgeç" }));
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+
+    await user.click(input);
+
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+  });
+
+  it("Escape'ten sonra tıklamak listeyi yeniden açar", async () => {
+    const { user } = setup();
+    const input = screen.getByRole("combobox");
+
+    await user.click(input);
+    await user.keyboard("{Escape}");
+
+    await user.click(input);
+
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+  });
+});

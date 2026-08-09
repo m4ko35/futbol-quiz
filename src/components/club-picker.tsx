@@ -200,6 +200,21 @@ export function ClubPicker({
     setActiveIndex(0);
   }
 
+  /**
+   * Aramadan tümüyle vazgeç — §7.14.
+   *
+   * DIŞARI TIKLAMADAN FARKLI: yanlışlıkla dışarı tıklayan kullanıcı yazdığını
+   * kaybetmemeli, "Vazgeç" diyen kullanıcı ise açıkça baştan başlamak istiyor.
+   * İkisine aynı davranışı vermek, birinde veri kaybı öteki tarafta yarım
+   * kalmış bir durum üretirdi.
+   */
+  function cancel(): void {
+    setIsOpen(false);
+    setTerm("");
+    setLeague(null);
+    setActiveIndex(-1);
+  }
+
   /** Satır ne olursa olsun tek giriş noktası: Enter, tıklama, dokunma. */
   function activate(row: Row): void {
     if (row.kind === "league") enterLeague(row.league);
@@ -218,8 +233,7 @@ export function ClubPicker({
         leaveLeague();
         return;
       }
-      setIsOpen(false);
-      setActiveIndex(-1);
+      cancel();
       return;
     }
 
@@ -302,11 +316,45 @@ export function ClubPicker({
             onFocus={() => {
               setIsOpen(true);
             }}
+            /**
+             * TIKLAMA DA AÇAR, yalnızca odaklanma değil.
+             *
+             * Testle bulundu: `Escape` ya da "Vazgeç" listeyi kapatırken odak
+             * kutuda KALIYOR. Açma yalnızca `onFocus`'a bağlı olsaydı,
+             * kullanıcı aynı kutuya tekrar tıkladığında hiçbir şey olmazdı —
+             * odak zaten oradaydı, yeni bir `focus` olayı doğmuyor.
+             */
+            onClick={() => {
+              setIsOpen(true);
+            }}
+            /**
+             * DIŞARI TIKLAMA LİSTEYİ KAPATIR — §7.14.
+             *
+             * Kullanılırken bulunan kusur: liste yalnızca Escape ile ya da
+             * seçim yapılarak kapanıyordu, dışarı tıklamak işe yaramıyordu ve
+             * arayüz kilitlenmiş gibi görünüyordu.
+             *
+             * Liste İÇİNDEKİ tıklamalar burayı tetiklemez: hem seçenekler hem
+             * düğmeler `mousedown`'da `preventDefault` uyguluyor, yani odak
+             * kutudan hiç çıkmıyor. Yazılan metin KORUNUR (bkz. `cancel`).
+             */
+            onBlur={() => {
+              setIsOpen(false);
+              setActiveIndex(-1);
+            }}
             onKeyDown={handleKeyDown}
           />
 
           {isOpen && (
-            <div className="absolute z-20 mt-1.5 max-h-72 w-full overflow-auto rounded-xl border border-line bg-surface p-1 shadow-pop">
+            <div
+              className="absolute z-20 mt-1.5 max-h-72 w-full overflow-auto rounded-xl border border-line bg-surface p-1 shadow-pop"
+              // Kaydırma çubuğuna ya da boşluğa tıklamak listeyi KAPATMAMALI:
+              // kullanıcı orada bir şeyi kapatmayı değil, gezinmeyi amaçlıyor.
+              // Odak kutudan çıkmadığı sürece `onBlur` de tetiklenmez.
+              onMouseDown={(event) => {
+                event.preventDefault();
+              }}
+            >
               {/*
                 KADEME 2 BAŞLIĞI. Kullanıcı hangi ligin içinde olduğunu
                 görmeli; "geri" için de tıklanabilir bir hedef gerekiyor.
@@ -422,6 +470,26 @@ export function ClubPicker({
                   gösteriliyor — daraltmak için yazın.
                 </p>
               )}
+
+              {/*
+                VAZGEÇ — §7.14. Dokunmatik cihazda `Escape` tuşu yok ve
+                dışarı tıklamak her zaman kolay değil; görünür bir çıkış
+                gerekiyor. `tabIndex={-1}`: odak kutudan çıkarsa `blur`
+                tetiklenir ve düğme kendi tıklamasından ÖNCE listeyi kapatırdı.
+              */}
+              <div className="border-t border-line pt-1">
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  className="w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-muted hover:bg-accent-soft hover:text-foreground"
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    cancel();
+                  }}
+                >
+                  Vazgeç
+                </button>
+              </div>
             </div>
           )}
         </div>

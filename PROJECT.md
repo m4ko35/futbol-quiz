@@ -2050,6 +2050,24 @@ Ad yazarak arama 906 kulübün adını **bilen** kullanıcı için çalışır. 
 
 **Kademe değişimi DUYURULUR.** Görsel olarak liste değişiyor ama ekran okuyucu için bu sessiz bir olaydır; `aria-live="polite"` bir durum satırı hangi kademede olunduğunu ve kaç sonuç bulunduğunu söyler.
 
+#### Listeden ÇIKIŞ yolu birden fazladır
+
+İlk sürümde liste yalnızca `Escape` ile ya da bir kulüp seçilerek kapanıyordu; **dışarı tıklamak kapatmıyordu**. Kullanılırken bulundu ve bu bir kusurdur: açılır listenin dışına tıklamak, her açılır listede "vazgeçtim" demektir ve karşılık vermeyen arayüz kilitlenmiş gibi görünür.
+
+Üç çıkış yolu vardır ve **anlamları farklıdır**:
+
+| Yol                   | Ne yapar                                    | Kime lazım                     |
+| --------------------- | ------------------------------------------- | ------------------------------ |
+| Dışarı tıklama (blur) | Listeyi kapatır, **yazılanı korur**         | Fare kullanıcısı               |
+| `Escape`              | Kademe 2'de geri, kademe 1'de kapatır       | Klavye kullanıcısı             |
+| **Vazgeç** düğmesi    | Kapatır, yazılanı **ve** lig seçimini siler | Dokunmatik — `Escape` tuşu yok |
+
+**Yazılanın korunup korunmaması bilinçli bir ayrımdır.** Yanlışlıkla dışarı tıklayan kullanıcı yazdığını kaybetmemeli; "Vazgeç" diyen kullanıcı ise açıkça baştan başlamak istiyor. Aynı davranışı ikisine de vermek, birinde veri kaybı öteki tarafta ise yarım kalmış bir durum üretirdi.
+
+**Vazgeç düğmesi odağı ALMAZ.** Diğer açılır liste öğeleriyle aynı kural: `tabIndex={-1}` ve `onMouseDown` + `preventDefault`, çünkü odak metin kutusundan çıkarsa `blur` tetiklenir ve düğme kendi tıklamasından önce listeyi kapatırdı.
+
+Açılır listenin kendisi de `mousedown`'da `preventDefault` uygular: kaydırma çubuğuna ya da boşluğa tıklamak listeyi kapatmamalı — kullanıcı orada bir şeyi kapatmayı değil, listede gezinmeyi amaçlıyor.
+
 #### Kesme SESSİZ olamaz
 
 Üst sınır `MAX_CLUB_RESULTS = 50` (§7.1) ve **bu sınır lig süzgecinde de korunur**. Ama ölçüldü: Serie A'da 83, Bundesliga'da 59, La Liga'da 58 seçilebilir kulüp var. Yani büyük liglerde liste **kesilir**.
