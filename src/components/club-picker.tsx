@@ -98,6 +98,22 @@ export function ClubPicker({
   const showLeagues =
     league === null && term.trim() === "" && leagues.length > 0;
 
+  /**
+   * Başlık şeridindeki kapsam sayıları.
+   *
+   * Bir kulüp tek bir lige bağlı olduğu için lig sayılarının toplamı
+   * seçilebilir kulüp sayısını verir; ayrı bir sorgu gerekmiyor.
+   *
+   * `largestLeague` oran çubuğunun paydası. Sabit bir ölçek (ör. 100) kısa
+   * kalırdı: en büyük lig 83 kulüple çubuğun dörtte üçünü doldurup üst sınırı
+   * olduğundan büyük gösterirdi.
+   */
+  const totalClubCount = leagues.reduce((sum, item) => sum + item.clubCount, 0);
+  const largestLeague = leagues.reduce(
+    (max, item) => Math.max(max, item.clubCount),
+    1,
+  );
+
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -303,7 +319,16 @@ export function ClubPicker({
             aria-autocomplete="list"
             aria-activedescendant={activeOptionId}
             autoComplete="off"
-            placeholder="Kulüp arayın…"
+            // İPUCU KADEMEYİ SÖYLER. Sabit "Kulüp arayın…" metni, kutu lig
+            // listesi gösterirken yalan söylüyordu: kullanıcı kulüp adı
+            // yazmasının beklendiğini sanıp lig satırlarını atlıyordu.
+            placeholder={
+              league !== null
+                ? `${league.name} içinde arayın…`
+                : showLeagues
+                  ? "Lig seçin ya da yazın…"
+                  : "Kulüp arayın…"
+            }
             // Kenarlık ve odak göstergesi ÖLÇÜLEREK seçildi (WCAG 1.4.11:
             // arayüz bileşeni sınırı ve odak göstergesi için 3:1). `line-strong`
             // 3,91:1 (açık) / 3,71:1 (koyu); odak konturu `accent` 5,02:1 /
@@ -347,7 +372,15 @@ export function ClubPicker({
 
           {isOpen && (
             <div
-              className="absolute z-20 mt-1.5 max-h-72 w-full overflow-auto rounded-xl border border-line bg-surface p-1 shadow-pop"
+              /*
+                ÜÇ BÖLGE: sabit başlık, KAYAN liste, sabit dip.
+                Önceki hâlde kutunun tamamı tek bir `overflow-auto` idi ve
+                kesme uyarısı elli satırın ALTINDA kalıyordu — yani BR-37'nin
+                "açıkça yazılır" koşulu kâğıt üzerinde sağlanıyor, ekranda
+                sağlanmıyordu. Uyarıyı görmek için tam da onu okumadan önce
+                listenin sonuna kadar kaydırmak gerekiyordu.
+              */
+              className="absolute z-20 mt-1.5 flex max-h-80 w-full flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-pop"
               // Kaydırma çubuğuna ya da boşluğa tıklamak listeyi KAPATMAMALI:
               // kullanıcı orada bir şeyi kapatmayı değil, gezinmeyi amaçlıyor.
               // Odak kutudan çıkmadığı sürece `onBlur` de tetiklenmez.
@@ -356,132 +389,56 @@ export function ClubPicker({
               }}
             >
               {/*
-                KADEME 2 BAŞLIĞI. Kullanıcı hangi ligin içinde olduğunu
-                görmeli; "geri" için de tıklanabilir bir hedef gerekiyor.
-                `tabIndex={-1}` ve `onMouseDown`: odak kuralı gereği düğme
+                SABİT BAŞLIK ŞERİDİ — nerede olduğun ve çıkış yolu.
+
+                Kademe 2'de geri dönüş için tıklanabilir bir hedef taşır;
+                `tabIndex={-1}` ve `onMouseDown` odak kuralı gereğidir: düğme
                 odağı arama kutusundan ALMAZ (§7.14).
-              */}
-              {league !== null && (
-                <button
-                  type="button"
-                  tabIndex={-1}
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold hover:bg-accent-soft"
-                  onMouseDown={(event) => {
-                    event.preventDefault();
-                    leaveLeague();
-                  }}
-                >
-                  <span aria-hidden="true" className="text-muted">
-                    ‹
-                  </span>
-                  <span className="truncate">{league.name}</span>
-                  <span className="ml-auto text-xs font-normal text-muted">
-                    tüm ligler
-                  </span>
-                </button>
-              )}
 
-              {/*
-                DURUM METNİ LİSTENİN DIŞINDA.
-                `role="listbox"` yalnızca `option` çocuğu barındırabilir
-                (WAI-ARIA "required owned elements"). "Sonuç yok" bir seçenek
-                değildir; listenin içine konduğunda `aria-required-children`
-                ihlali oluşur ve ekran okuyucu boş listede gezinmeye çalışır.
+                Vazgeç buraya taşındı. Eskiden listenin dibindeydi ve orası
+                artık kesme uyarısının yeri; ikisi alt alta dizilseydi asıl
+                söylenmesi gereken şey bir düğmenin altında kalırdı.
               */}
-              {rows.length === 0 && (
-                <p className="px-3 py-2.5 text-sm text-muted">
-                  {isLoading
-                    ? "Aranıyor…"
-                    : failed
-                      ? "Arama başarısız oldu."
-                      : "Sonuç yok."}
-                </p>
-              )}
-
-              <ul
-                id={listboxId}
-                role="listbox"
-                aria-label={
-                  showLeagues
-                    ? `${label}: lig listesi`
-                    : league === null
-                      ? `${label} sonuçları`
-                      : `${label}: ${league.name} kulüpleri`
-                }
-              >
-                {rows.map((row, index) => (
-                  <li
-                    key={
-                      row.kind === "league"
-                        ? row.league.wikidataId
-                        : row.club.id
-                    }
-                    id={`${listboxId}-${String(index)}`}
-                    role="option"
-                    aria-selected={index === highlighted}
-                    className={`cursor-pointer rounded-lg px-3 py-2 text-sm ${
-                      index === highlighted ? "bg-accent-soft" : ""
-                    }`}
-                    // `onMouseDown`, `onClick` değil: `onClick` girdi alanının
-                    // blur olayından sonra gelir ve o sırada liste kapanmış olur.
+              <div className="flex shrink-0 items-center gap-2 border-b border-line px-1 py-1">
+                {league === null ? (
+                  <span className="min-w-0 flex-1 truncate px-2 py-1 text-xs text-muted">
+                    {showLeagues
+                      ? `${String(leagues.length)} lig · ${String(totalClubCount)} kulüp`
+                      : "Bütün kulüplerde arama"}
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    className="flex min-w-0 flex-1 items-center gap-1.5 rounded-lg px-2 py-1 text-left text-sm font-semibold hover:bg-accent-soft"
                     onMouseDown={(event) => {
                       event.preventDefault();
-                      activate(row);
-                    }}
-                    onMouseEnter={() => {
-                      setActiveIndex(index);
+                      leaveLeague();
                     }}
                   >
-                    {row.kind === "league" ? (
-                      <span className="flex items-center gap-2">
-                        <span className="font-medium">{row.league.name}</span>
-                        <span className="text-muted">{row.league.country}</span>
-                        <span className="ml-auto tabular-nums text-muted">
-                          {row.league.clubCount}
-                        </span>
-                        <span aria-hidden="true" className="text-muted">
-                          ›
-                        </span>
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-2">
-                        <ClubMark club={row.club} />
-                        <span className="font-medium">
-                          {row.club.shortName}
-                        </span>
-                        {row.club.country !== null && (
-                          <span className="text-muted">{row.club.country}</span>
-                        )}
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
+                    <span aria-hidden="true" className="text-muted">
+                      ‹
+                    </span>
+                    <span className="text-xs font-normal text-muted">
+                      Bütün ligler
+                    </span>
+                    <span aria-hidden="true" className="text-muted">
+                      /
+                    </span>
+                    <span className="truncate">{league.name}</span>
+                  </button>
+                )}
 
-              {/*
-                KESME SESSİZ OLAMAZ (BR-37). Üst sınır bir kaynak koruması,
-                bu satır bir dürüstlük koşulu — ikisi çelişmiyor. Söylenmezse
-                kullanıcı ligin tamamını gördüğünü sanar ve aradığı kulübü
-                "veri kümesinde yok" diye okur.
-              */}
-              {truncated && league !== null && (
-                <p className="border-t border-line px-3 py-2 text-xs text-muted">
-                  {league.clubCount} kulüpten {options.length} tanesi
-                  gösteriliyor — daraltmak için yazın.
-                </p>
-              )}
-
-              {/*
-                VAZGEÇ — §7.14. Dokunmatik cihazda `Escape` tuşu yok ve
-                dışarı tıklamak her zaman kolay değil; görünür bir çıkış
-                gerekiyor. `tabIndex={-1}`: odak kutudan çıkarsa `blur`
-                tetiklenir ve düğme kendi tıklamasından ÖNCE listeyi kapatırdı.
-              */}
-              <div className="border-t border-line pt-1">
+                {/*
+                  VAZGEÇ — §7.14. Dokunmatik cihazda `Escape` tuşu yok ve
+                  dışarı tıklamak her zaman kolay değil; görünür bir çıkış
+                  gerekiyor. `tabIndex={-1}`: odak kutudan çıkarsa `blur`
+                  tetiklenir ve düğme kendi tıklamasından ÖNCE listeyi kapatırdı.
+                */}
                 <button
                   type="button"
                   tabIndex={-1}
-                  className="w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-muted hover:bg-accent-soft hover:text-foreground"
+                  className="shrink-0 rounded-lg px-2 py-1 text-sm font-medium text-muted hover:bg-accent-soft hover:text-foreground"
                   onMouseDown={(event) => {
                     event.preventDefault();
                     cancel();
@@ -490,6 +447,134 @@ export function ClubPicker({
                   Vazgeç
                 </button>
               </div>
+
+              <div className="min-h-0 flex-1 overflow-auto p-1">
+                {/*
+                DURUM METNİ LİSTENİN DIŞINDA.
+                `role="listbox"` yalnızca `option` çocuğu barındırabilir
+                (WAI-ARIA "required owned elements"). "Sonuç yok" bir seçenek
+                değildir; listenin içine konduğunda `aria-required-children`
+                ihlali oluşur ve ekran okuyucu boş listede gezinmeye çalışır.
+              */}
+                {rows.length === 0 && (
+                  <p className="px-3 py-2.5 text-sm text-muted">
+                    {isLoading
+                      ? "Aranıyor…"
+                      : failed
+                        ? "Arama başarısız oldu."
+                        : "Sonuç yok."}
+                  </p>
+                )}
+
+                <ul
+                  id={listboxId}
+                  role="listbox"
+                  aria-label={
+                    showLeagues
+                      ? `${label}: lig listesi`
+                      : league === null
+                        ? `${label} sonuçları`
+                        : `${label}: ${league.name} kulüpleri`
+                  }
+                >
+                  {rows.map((row, index) => (
+                    <li
+                      key={
+                        row.kind === "league"
+                          ? row.league.wikidataId
+                          : row.club.id
+                      }
+                      id={`${listboxId}-${String(index)}`}
+                      role="option"
+                      aria-selected={index === highlighted}
+                      className={`cursor-pointer rounded-lg px-3 py-2 text-sm ${
+                        index === highlighted ? "bg-accent-soft" : ""
+                      }`}
+                      // `onMouseDown`, `onClick` değil: `onClick` girdi alanının
+                      // blur olayından sonra gelir ve o sırada liste kapanmış olur.
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        activate(row);
+                      }}
+                      onMouseEnter={() => {
+                        setActiveIndex(index);
+                      }}
+                    >
+                      {row.kind === "league" ? (
+                        <span className="flex items-center gap-2">
+                          <span className="min-w-0 truncate font-medium">
+                            {row.league.name}
+                          </span>
+                          <span className="shrink-0 text-muted">
+                            {row.league.country}
+                          </span>
+                          {/*
+                          ORAN ÇUBUĞU — sayının yanında, YERİNE DEĞİL.
+                          Yirmi dört lig arasında 21 ile 83 arasındaki farkı
+                          çıplak sayı sırası taratmıyor; çubuk ligin
+                          büyüklüğünü bir bakışta veriyor. `aria-hidden`:
+                          bilgi zaten yanındaki sayıda yazılı, ekran
+                          okuyucuya ikinci kez söylemek gürültü olur.
+                        */}
+                          <span
+                            aria-hidden="true"
+                            className="ml-auto h-1 w-10 shrink-0 overflow-hidden rounded-full bg-line"
+                          >
+                            <span
+                              className="block h-full rounded-full bg-accent"
+                              style={{
+                                width: `${String(Math.round((row.league.clubCount / largestLeague) * 100))}%`,
+                              }}
+                            />
+                          </span>
+                          <span className="w-7 shrink-0 text-right tabular-nums text-muted">
+                            {row.league.clubCount}
+                          </span>
+                          <span aria-hidden="true" className="text-muted">
+                            ›
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-2">
+                          <ClubMark club={row.club} />
+                          <span className="font-medium">
+                            {row.club.shortName}
+                          </span>
+                          {row.club.country !== null && (
+                            <span className="text-muted">
+                              {row.club.country}
+                            </span>
+                          )}
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/*
+                KESME SESSİZ OLAMAZ (BR-37). Üst sınır bir kaynak koruması,
+                bu satır bir dürüstlük koşulu — ikisi çelişmiyor. Söylenmezse
+                kullanıcı ligin tamamını gördüğünü sanar ve aradığı kulübü
+                "veri kümesinde yok" diye okur.
+
+                KAYAN ALANIN DIŞINDA. Uyarı listenin içindeyken elli satırın
+                altında kalıyordu: onu görmek için, tam da eksik olduğunu
+                bilmeden listenin sonuna kadar kaydırmak gerekiyordu. Artık
+                dibe çivili ve `note` rolüyle yazılı — alarm değil kenar notu.
+              */}
+              {truncated && league !== null && (
+                <p className="shrink-0 border-t border-line bg-note-soft px-3 py-2 text-xs text-note">
+                  <span className="font-semibold tabular-nums">
+                    {league.clubCount}
+                  </span>{" "}
+                  kulüpten{" "}
+                  <span className="font-semibold tabular-nums">
+                    {options.length}
+                  </span>{" "}
+                  tanesi gösteriliyor — daraltmak için yazın.
+                </p>
+              )}
             </div>
           )}
         </div>

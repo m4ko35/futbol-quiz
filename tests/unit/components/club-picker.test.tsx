@@ -303,7 +303,7 @@ describe("ClubPicker — lige göre gözat", () => {
   ) {
     const onSelect = vi.fn();
     const search = vi.fn().mockResolvedValue(CLUBS);
-    render(
+    const { container } = render(
       <ClubPicker
         label="Birinci kulüp"
         selected={null}
@@ -314,7 +314,17 @@ describe("ClubPicker — lige göre gözat", () => {
         {...overrides}
       />,
     );
-    return { onSelect, search, user: userEvent.setup() };
+    return { onSelect, search, container, user: userEvent.setup() };
+  }
+
+  /**
+   * Kesme uyarısının GÖRÜNEN metni.
+   *
+   * Sayılar ayrı `span`'lerde vurgulandığı için tek bir metin düğümüne bakan
+   * eşleştirici satırı bulamaz; paragrafın tamamı okunmalı.
+   */
+  function uyariMetni(): string {
+    return screen.getByText(/tanesi gösteriliyor/u).textContent ?? "";
   }
 
   it("boş kutuda lig listesini gösterir", async () => {
@@ -425,9 +435,35 @@ describe("ClubPicker — lige göre gözat", () => {
     await user.click(screen.getByRole("combobox"));
     await user.click(screen.getByText("Serie A"));
 
+    // Sayılar ayrı `span`'lerde vurgulanıyor; eşleştirme paragrafın TAMAMINA
+    // bakmalı, tek bir metin düğümüne değil.
     await waitFor(() => {
-      expect(screen.getByText(/83 kulüpten 3 tanesi/u)).toBeInTheDocument();
+      expect(uyariMetni()).toMatch(/83 kulüpten 3 tanesi gösteriliyor/u);
     });
+  });
+
+  /**
+   * UYARI KAYAN ALANIN DIŞINDA — bu değişikliğin bütün amacı.
+   *
+   * Önceki hâlde kutunun tamamı tek bir kaydırma alanıydı ve uyarı elli
+   * satırın altında kalıyordu: görmek için, tam da listenin eksik olduğunu
+   * bilmeden sonuna kadar kaydırmak gerekiyordu. BR-37'nin "açıkça yazılır"
+   * koşulu kâğıt üzerinde sağlanıyor, ekranda sağlanmıyordu.
+   */
+  it("kesme uyarısı kaydırılıp geçilemez — kayan alanın DIŞINDA durur", async () => {
+    const { user, container } = setupLeagues();
+    await user.click(screen.getByRole("combobox"));
+    await user.click(screen.getByText("Serie A"));
+
+    await waitFor(() => {
+      expect(uyariMetni()).toMatch(/gösteriliyor/u);
+    });
+
+    const kayanAlan = container.querySelector(".overflow-auto");
+    const uyari = screen.getByText(/tanesi gösteriliyor/u);
+
+    expect(kayanAlan).not.toBeNull();
+    expect(kayanAlan?.contains(uyari)).toBe(false);
   });
 
   it("liste kesilmediyse uyarı GÖSTERİLMEZ", async () => {

@@ -53,11 +53,15 @@ function SpellBadges({ spells }: { spells: readonly SpellDto[] }) {
           className={
             "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs whitespace-nowrap " +
             (spell.hasEvidence
-              ? "border border-line bg-background font-medium tabular-nums"
+              ? "border border-line bg-surface-2 font-medium tabular-nums"
               : // BR-8: kanıtsız dönem GÖRSEL OLARAK da ayrılır. Kesik çizgi
                 // tek başına yeterli değildir (renk/biçim tek gösterge
                 // olamaz — WCAG 1.4.1); asıl bilgi metnin kendisindedir.
-                "border border-dashed border-line-strong text-muted")
+                //
+                // `note` rolü, `muted` DEĞİL: ikisi de gri görünüyordu ve
+                // kanıtsız dönem sıradan ikincil metinden ayırt edilemiyordu.
+                // `note` kaynağın sustuğu yeri işaretleyen ayrı bir sestir.
+                "border border-dashed border-line-strong bg-note-soft text-note")
           }
         >
           {spell.hasEvidence ? (
@@ -241,8 +245,8 @@ export function CommonPlayersResult({ result }: CommonPlayersResultProps) {
         // kayıtlarla birlikte doğru olanları da siliyor (ölçüldü). Elenmiyorsa
         // da söylenmesi gerekir: kullanıcı hangi satıra ne kadar
         // güvenebileceğini bilmelidir.
-        <p className="rounded-xl border border-line bg-surface p-4 text-sm text-muted">
-          <span className="mr-1.5 inline-block rounded-md border border-dashed border-line-strong px-1.5 py-0.5 text-xs">
+        <p className="rounded-xl border border-line bg-surface p-4 text-sm text-note">
+          <span className="mr-1.5 inline-block rounded-md border border-dashed border-line-strong bg-note-soft px-1.5 py-0.5 text-xs">
             kaynakta ayrıntı yok
           </span>
           işaretli kayıtlarda transfer yılı ve maç bilgisi bulunmuyor. Bu
