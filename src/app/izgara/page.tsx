@@ -3,6 +3,7 @@ import { CURATED_CLUB_QIDS } from "@/application/curated-clubs";
 import { toClubDto } from "@/application/dto/club-dto";
 import { getDailyGrid } from "@/application/use-cases/daily-grid";
 import { GridQuiz } from "@/components/grid-quiz";
+import { ModeHeader } from "@/components/mode-header";
 import { SiteFooter } from "@/components/site-footer";
 import { datasets, repositories } from "@/infrastructure/db/repositories";
 
@@ -47,18 +48,17 @@ export default async function GridPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 px-5 py-10 sm:px-6 sm:py-14">
-      <header>
-        <h1 className="text-3xl font-bold tracking-tight text-balance sm:text-4xl">
-          3×3 Izgara
-        </h1>
-        <p className="mt-3 text-lg text-muted">
-          Günün ızgarası —{" "}
-          <time dateTime={grid.date} className="font-medium text-foreground">
-            {formatGridDate(grid.date)}
-          </time>
-          . Herkes aynı ızgarayı görür.
-        </p>
-      </header>
+      <ModeHeader
+        eyebrow={`Mod 2 · Matris · ${formatGridDate(grid.date)}`}
+        title="Günün Izgarası"
+        task={
+          <>
+            Her hücre için, satır <strong className="font-semibold">ve</strong>{" "}
+            sütun ölçütünü birlikte sağlayan bir futbolcu bul. Herkes aynı
+            ızgarayı görür.
+          </>
+        }
+      />
 
       <GridQuiz grid={grid} curatedClubs={curatedClubs} />
 

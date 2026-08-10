@@ -2134,6 +2134,50 @@ Kesildiğini söylememek bir kusur olurdu: kullanıcı ligin tamamını gördü�
 
 Sınırı yükseltmek yerine bunun seçilmesi bilinçlidir: sınır bir kaynak koruması, kesme bildirimi ise bir dürüstlük koşuludur; ikisi çelişmiyor.
 
+#### Kesme uyarısı KAYAN ALANIN DIŞINDA (10 Ağustos 2026)
+
+İlk uygulamada açılır kutunun tamamı tek bir `overflow-auto` alanıydı ve uyarı listenin son düğümüydü. Sonuç: Serie A'da uyarıyı görmek için **elli satır kaydırmak** gerekiyordu — yani tam da listenin eksik olduğunu bilmeden sonuna kadar inmek. Kural kâğıt üzerinde sağlanıyor, ekranda sağlanmıyordu.
+
+Kutu üç bölgeye ayrıldı: **sabit başlık** (nerede olunduğu + çıkış), **kayan liste**, **sabit dip** (kesme uyarısı). Uyarı `note` rolünü taşıyor — alarm değil, kaynağın sınırına düşülmüş bir not (§7.12).
+
+Başlık şeridi ayrıca kademeyi yazıyor: kademe 1'de kapsam (`24 lig · 906 kulüp`), kademe 2'de kırıntı yolu (`Bütün ligler / Serie A`) ve geri dönüş hedefi. **"Vazgeç" da buraya taşındı**; dip artık uyarının yeri ve ikisi alt alta dizilseydi asıl söylenmesi gereken şey bir düğmenin altında kalırdı.
+
+Arama ipucu da kademeye bağlandı. Sabit `Kulüp arayın…` metni, kutu lig listesi gösterirken yanlış bilgi veriyordu: kullanıcı kulüp adı yazmasının beklendiğini sanıp lig satırlarını atlıyordu. İpucu artık `Lig seçin ya da yazın…` / `Serie A içinde arayın…` biçiminde değişiyor.
+
+Değişiklik bir testle tutuluyor: uyarının kayan alanın **dışında** olduğu doğrulanıyor. Yalnızca metnin varlığını sınayan bir test bu kusuru hiç görmezdi — metin zaten vardı.
+
+---
+
+### 7.15 Mod Künyesi ve Skor Tabelası
+
+Dört mod dört ayrı `<header>` yazıyordu ve üçü birbirinin kopyasıydı: aynı `text-3xl` başlık, aynı `mt-3 text-lg text-muted` açıklama. Kopya olduğu için de **ayrışmıştı** — biri `max-w-prose` taşıyor, diğeri taşımıyordu.
+
+`ModeHeader` bu bandı tek yerde topluyor: üst etiket (`Mod 1 · Kesişim`), modun adı (sayfanın tek `h1`'i), görev cümlesi ve isteğe bağlı tabela.
+
+#### Başlık küçüldü, sayı büyüdü
+
+Önceki düzende en büyük tipografi sayfa başlığındaydı — yani **gezinme çubuğunda zaten yazan sözcüğün tekrarında.** Oysa bu üründe her ekran bir sayıya bakıyor: `55 ortak oyuncu`, `2/9`, `%62`, `Seri 7`, `1993–2002`, `240 maç`. Ölçek onlara verildi: başlık 26 pt, tabeladaki canlı sayı 30 pt.
+
+#### Tabela CANLI, statik bir künye değil
+
+Ortak oyuncu modunda tabela boş durumda veri kümesinin büyüklüğünü taşıyor (`Kulüp 906 · Lig 24 · Oyuncu 132.263`), sonuç geldiğinde sonucun kendisine geçiyor (`Ortak oyuncu 55 · Dönem 147`) ve **vurgulanıyor**. Aynı yer, aynı bileşen: kullanıcı sayının nereye yazılacağını bir kez öğreniyor.
+
+Vurgu (`lit`) bir süsleme değil: bugünkü arayüzün en çok eleştirilen yanı, sonucun sessizce belirmesiydi. Boş tabela ile dolu tabela aynı görünemez.
+
+Bu yüzden künye **sunucu sayfasında değil, mod bileşeninin içinde** duruyor. Sunucuda render edilen sabit bir başlık canlı sayıyı taşıyamazdı; ikinci bir sayaç eklemek ise aynı sayıyı iki yerde göstermek olurdu.
+
+**Gösterecek gerçek sayısı olmayan mod tabela taşımaz.** Boş ya da uydurma bir sayaç, sayacın kendisini anlamsızlaştırır — ızgara, istatistik ve düello modlarının tabelaları kendi canlı sayılarına bağlanana kadar künye tek başına duruyor.
+
+#### `countPlayers` — künye port'una eklendi
+
+Tabeladaki oyuncu sayısı `DatasetRepository.countPlayers()`'tan geliyor; `countSelectableClubs` ile aynı cinsten bir olgu ve aynı gerekçeyle veriden okunuyor: elle yazılan bir kapsam sayısı, kapsam genişlediği anda sessizce yalan söylemeye başlar ve bunu kimse fark etmez (§5.2'de bir kez ölçülmüştü: sayfada `345 kulüp` yazıyordu).
+
+**Süzgeç yok, bilinçli.** Kulüplerde `isSelectable` var çünkü kullanıcı onları bir listeden **seçiyor**; oyuncuda böyle bir kavram yok — her oyuncu bir sonuçta görünebilir. Buraya bir süzgeç eklemek, tabeladaki sayı ile sonuçlarda karşılaşılabilecek oyuncu kümesini ayırırdı.
+
+#### Kapsam bandı artık VERİDEN geliyor
+
+Kapsam bildirimi (§1.3) yirmi dört ligin adını **düzyazı içinde elle sayıyordu** — kapsam genişlediği gün sessizce eskiyecek bir liste, yani `345 kulüp` ile aynı sınıftan bir kusur. Metin kısaltıldı ve lig listesi, seçicinin zaten kullandığı `listLeagues()` çıktısından üretilen ülke kodu etiketlerine dönüştü. Tek kaynak veri.
+
 ---
 
 ## 8. Kalite Güvencesi

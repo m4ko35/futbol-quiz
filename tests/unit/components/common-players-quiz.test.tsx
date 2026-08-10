@@ -104,9 +104,30 @@ async function selectBothClubs(user: ReturnType<typeof userEvent.setup>) {
   await user.keyboard("{ArrowDown}{Enter}");
 }
 
+/**
+ * Ortak kurulum.
+ *
+ * Kunye tabelasi (§7.15) sayilari disaridan aliyor; testlerin ilgilendigi sey
+ * o sayilar degil, kulup secme akisi. Tek yerde toplanmasi, ileride eklenecek
+ * bir prop icin dokuz cagriyi tek tek duzeltmeyi de onluyor.
+ */
+function renderQuiz(
+  overrides: Partial<Parameters<typeof CommonPlayersQuiz>[0]> = {},
+) {
+  return render(
+    <CommonPlayersQuiz
+      initialClubs={CLUBS}
+      leagues={[]}
+      clubCount={906}
+      playerCount={132263}
+      {...overrides}
+    />,
+  );
+}
+
 describe("CommonPlayersQuiz", () => {
   it("başlangıçta iki kulüp seçilmesini ister", () => {
-    render(<CommonPlayersQuiz initialClubs={CLUBS} leagues={[]} />);
+    renderQuiz();
 
     expect(screen.getByText(/iki kulüp seçin/iu)).toBeInTheDocument();
     expect(screen.getAllByRole("combobox")).toHaveLength(2);
@@ -114,7 +135,7 @@ describe("CommonPlayersQuiz", () => {
 
   it("tek kulüp seçiliyken istek ATMAZ", async () => {
     const user = userEvent.setup();
-    render(<CommonPlayersQuiz initialClubs={CLUBS} leagues={[]} />);
+    renderQuiz();
 
     await user.click(screen.getAllByRole("combobox")[0] as HTMLElement);
     await user.keyboard("{Enter}");
@@ -125,7 +146,7 @@ describe("CommonPlayersQuiz", () => {
 
   it("iki kulüp seçilince sonucu getirir ve gösterir", async () => {
     const user = userEvent.setup();
-    render(<CommonPlayersQuiz initialClubs={CLUBS} leagues={[]} />);
+    renderQuiz();
 
     await selectBothClubs(user);
 
@@ -147,7 +168,7 @@ describe("CommonPlayersQuiz", () => {
     });
 
     const user = userEvent.setup();
-    render(<CommonPlayersQuiz initialClubs={CLUBS} leagues={[]} />);
+    renderQuiz();
     await selectBothClubs(user);
 
     const live = await screen.findByText(/aranıyor/iu);
@@ -179,7 +200,7 @@ describe("CommonPlayersQuiz", () => {
     });
 
     const user = userEvent.setup();
-    render(<CommonPlayersQuiz initialClubs={CLUBS} leagues={[]} />);
+    renderQuiz();
     await selectBothClubs(user);
 
     const alert = await screen.findByRole("alert");
@@ -196,7 +217,7 @@ describe("CommonPlayersQuiz", () => {
     });
 
     const user = userEvent.setup();
-    render(<CommonPlayersQuiz initialClubs={CLUBS} leagues={[]} />);
+    renderQuiz();
     await selectBothClubs(user);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -214,7 +235,7 @@ describe("CommonPlayersQuiz", () => {
     });
 
     const user = userEvent.setup();
-    render(<CommonPlayersQuiz initialClubs={CLUBS} leagues={[]} />);
+    renderQuiz();
     await selectBothClubs(user);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -224,7 +245,7 @@ describe("CommonPlayersQuiz", () => {
 
   it("kulüp değişince eski sonucu göstermeye devam ETMEZ", async () => {
     const user = userEvent.setup();
-    render(<CommonPlayersQuiz initialClubs={CLUBS} leagues={[]} />);
+    renderQuiz();
     await selectBothClubs(user);
     await screen.findByText("Emmanuel Eboué");
 
@@ -242,7 +263,7 @@ describe("CommonPlayersQuiz", () => {
 
   it("seçilen kulüp diğer listede görünmez (BR-4'e düşmeyi önler)", async () => {
     const user = userEvent.setup();
-    render(<CommonPlayersQuiz initialClubs={CLUBS} leagues={[]} />);
+    renderQuiz();
 
     await user.click(screen.getAllByRole("combobox")[0] as HTMLElement);
     await user.keyboard("{Enter}"); // Galatasaray seçildi

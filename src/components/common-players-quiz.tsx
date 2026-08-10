@@ -7,6 +7,7 @@ import type { LeagueSummary } from "@/application/ports/club-repository";
 import { MAX_CLUB_RESULTS } from "@/application/use-cases/search-clubs";
 import { ClubPicker } from "./club-picker";
 import { CommonPlayersResult } from "./common-players-result";
+import { ModeHeader, Scoreboard } from "./mode-header";
 
 /**
  * Ekranın durum makinesi — iki kulüp seç, ortak oyuncuları getir.
@@ -47,6 +48,24 @@ export interface CommonPlayersQuizProps {
   readonly initialClubs: readonly ClubDto[];
   /** BR-37 — gözatılabilir ligler; sunucuda hazırlanır (§6.1). */
   readonly leagues: readonly LeagueSummary[];
+  /** Seçilebilir kulüp sayısı — künye tabelası ve kapsam bildirimi (§7.15). */
+  readonly clubCount: number;
+  /** Veri kümesindeki oyuncu sayısı — künye tabelası. */
+  readonly playerCount: number;
+}
+
+/**
+ * Listedeki dönem kaydı sayısı.
+ *
+ * Tabeladaki ikinci hücre. Oyuncu sayısı "kaç kişi", dönem sayısı "kaç kayıt"
+ * demek ve ikisi ayrışıyor: bir oyuncu iki kulüpte de birden çok kez oynamış
+ * olabilir. Sunucudan ayrıca istenmiyor — elimizdeki DTO'dan sayılıyor.
+ */
+function countSpells(result: CommonPlayersResultDto): number {
+  return result.players.reduce(
+    (sum, player) => sum + player.spellsAtA.length + player.spellsAtB.length,
+    0,
+  );
 }
 
 /** API hata gövdesinden kullanıcıya gösterilebilir mesajı çıkarır (§6.3). */
@@ -71,6 +90,8 @@ async function readErrorMessage(response: Response): Promise<string> {
 export function CommonPlayersQuiz({
   initialClubs,
   leagues,
+  clubCount,
+  playerCount,
 }: CommonPlayersQuizProps) {
   const [clubA, setClubA] = useState<ClubDto | null>(null);
   const [clubB, setClubB] = useState<ClubDto | null>(null);
@@ -166,8 +187,102 @@ export function CommonPlayersQuiz({
     };
   }, [clubA, clubB, pairKey]);
 
+  /*
+    TABELA SONUCA GÖRE DEĞİŞİR — §7.15.
+
+    Boş durumda veri kümesinin büyüklüğünü, sonuç geldiğinde sonucun kendisini
+    taşır. Aynı yerde, aynı bileşende: kullanıcı sayının nereye yazılacağını
+    bir kez öğreniyor. Sonuç geldiğinde tabela ayrıca VURGULANIYOR (`lit`);
+    bugünkü arayüzün en çok eleştirilen yanı sonucun sessizce belirmesiydi.
+  */
+  const found = state.status === "success" ? state.result : undefined;
+  const scoreboard =
+    found === undefined ? (
+      <Scoreboard
+        label="Veri kümesi"
+        cells={[
+          {
+            label: "Kulüp",
+            value: clubCount.toLocaleString("tr-TR"),
+            tone: "accent",
+          },
+          { label: "Lig", value: leagues.length.toLocaleString("tr-TR") },
+          {
+            label: "Oyuncu",
+            value: playerCount.toLocaleString("tr-TR"),
+            small: true,
+          },
+        ]}
+      />
+    ) : (
+      <Scoreboard
+        label="Sonuç"
+        lit={found.count > 0}
+        cells={[
+          {
+            label: "Ortak oyuncu",
+            value: found.count.toLocaleString("tr-TR"),
+            tone: found.count > 0 ? "accent" : undefined,
+          },
+          {
+            label: "Dönem",
+            value: countSpells(found).toLocaleString("tr-TR"),
+          },
+        ]}
+      />
+    );
+
   return (
     <div className="flex flex-col gap-8">
+      <ModeHeader
+        eyebrow="Mod 1 · Kesişim"
+        title="Ortak Oyuncu"
+        task={
+          <>
+            İki kulüp seç;{" "}
+            <strong className="font-semibold">ikisinde de</strong> forma giymiş
+            oyuncuları gör.
+          </>
+        }
+        scoreboard={scoreboard}
+      />
+
+      {/*
+        KAPSAM BAŞTA SÖYLENİR (§1.3, §5.2). Ajax veya Porto arayan kullanıcı
+        hiçbir şey bulamayacak; bunu keşfetmek için başarısız aramalar yapmak
+        zorunda kalırsa siteyi bozuk sanar.
+
+        LİG LİSTESİ ARTIK VERİDEN GELİYOR. Önceki metin yirmi dört ligin adını
+        düzyazı içinde ELLE sayıyordu — kapsam genişlediği gün sessizce
+        yalan söyleyecek bir liste. Aynı sınıftaki kusur ("345 kulüp") §5.2'de
+        zaten bir kez ölçülmüştü; ikinci kez oluşmasın diye tek kaynak veri.
+      */}
+      <section aria-label="Veri kapsamı" className="flex flex-col gap-2.5">
+        <p className="text-sm text-note">
+          <span className="mr-2 text-[0.6rem] font-extrabold tracking-[0.13em] uppercase">
+            Kapsam
+          </span>
+          Yirmi dört üst ligin{" "}
+          <strong className="font-semibold text-foreground">tarihsel</strong>{" "}
+          kadroları —{" "}
+          <strong className="font-semibold tabular-nums text-foreground">
+            {clubCount.toLocaleString("tr-TR")}
+          </strong>{" "}
+          kulüp. Bu liglerin dışındaki kariyerler yer almaz.
+        </p>
+        <ul className="flex flex-wrap gap-1">
+          {leagues.map((league) => (
+            <li
+              key={league.wikidataId}
+              className="rounded border border-line bg-surface px-1.5 py-0.5 text-[0.625rem] font-bold tracking-wide text-muted"
+              title={league.name}
+            >
+              {league.country}
+            </li>
+          ))}
+        </ul>
+      </section>
+
       {/* İki seçici arasındaki "∩", sorunun ne olduğunu bir bakışta söyler:
           birleşim değil KESİŞİM. Yalnızca geniş ekranda görünür; dar ekranda
           seçiciler alt alta gelince aradaki işaret anlamını yitirirdi. */}

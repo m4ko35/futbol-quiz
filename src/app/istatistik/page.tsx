@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getDailyStatMatch } from "@/application/use-cases/daily-stat-match";
+import { ModeHeader } from "@/components/mode-header";
 import { SiteFooter } from "@/components/site-footer";
 import { StatMatchQuiz } from "@/components/stat-match-quiz";
 import { datasets, repositories } from "@/infrastructure/db/repositories";
@@ -26,18 +27,18 @@ export default async function StatMatchPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-5 py-10 sm:px-6 sm:py-14">
-      <header>
-        <h1 className="text-3xl font-bold tracking-tight text-balance sm:text-4xl">
-          İstatistik Eşleştirme
-        </h1>
-        <p className="mt-3 text-lg text-muted">
-          Günün oyuncusu —{" "}
-          <time dateTime={daily.date} className="font-medium text-foreground">
-            {formatDate(daily.date)}
-          </time>
-          . Herkes aynı oyuncuyu görür.
-        </p>
-      </header>
+      <ModeHeader
+        eyebrow={`Mod 3 · Ölçek · ${formatDate(daily.date)}`}
+        title="Günün Oyuncusu"
+        task={
+          <>
+            Altı istatistiğin her biri için, değeri ona{" "}
+            <strong className="font-semibold">en yakın</strong> olan{" "}
+            <strong className="font-semibold">başka</strong> bir futbolcuyu bul.
+            Herkes aynı oyuncuyu görür.
+          </>
+        }
+      />
 
       <StatMatchQuiz daily={daily} />
 

@@ -12,12 +12,13 @@ import { datasets, repositories } from "@/infrastructure/db/repositories";
  * kısıtlaması demek olurdu.
  */
 export default async function Home() {
-  // İkisi birbirinden bağımsız; sırayla beklemek boşuna gecikme olurdu.
-  const [initialClubs, dataGeneratedAt, selectableClubs, leagues] =
+  // Hepsi birbirinden bağımsız; sırayla beklemek boşuna gecikme olurdu.
+  const [initialClubs, dataGeneratedAt, selectableClubs, playerCount, leagues] =
     await Promise.all([
       searchClubs({}, { clubs: repositories.clubs }),
       datasets.getGeneratedAt(),
       datasets.countSelectableClubs(),
+      datasets.countPlayers(),
       // BR-37 — lig listesi sunucuda hazırlanır; ayrı bir API ucu açmak yeni
       // bir hız sınırı yüzeyi ve ilk açılışta fazladan bir istek demekti (§6.1).
       listLeagues({ clubs: repositories.clubs }),
@@ -25,38 +26,18 @@ export default async function Home() {
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 px-5 py-10 sm:px-6 sm:py-14">
-      <header>
-        {/*
-          Başlık artık "Futbol Quiz" DEĞİL: marka adı site başlığında duruyor
-          ve burada tekrarlanması, sayfanın hangi mod olduğunu söyleyen tek
-          yeri harcıyordu. Diğer iki sayfayla da aynı kalıba giriyor.
-        */}
-        <h1 className="text-3xl font-bold tracking-tight text-balance sm:text-4xl">
-          Ortak Oyuncular
-        </h1>
-        <p className="mt-3 max-w-prose text-lg text-muted">
-          İki kulüp seçin, ikisinde de forma giymiş oyuncuları görün.
-        </p>
-        {/*
-          Kapsam BAŞTA söylenir (§1.3). Ajax veya Porto arayan kullanıcı hiçbir
-          şey bulamayacak; bunu keşfetmek için başarısız aramalar yapmak zorunda
-          kalırsa siteyi bozuk sanar. Altbilgiye gömülü bir not bu işi görmez.
-        */}
-        <p className="mt-5 rounded-xl border border-line bg-surface p-4 text-sm text-muted shadow-card">
-          <span className="font-semibold text-foreground">Kapsam:</span> Yirmi
-          dört üst ligde — Avrupa&apos;nın yirmi iki ligi (İngiltere, İspanya,
-          İtalya, Almanya, Fransa, Türkiye, Hollanda, Portekiz, İskoçya,
-          Belçika, Yunanistan, İsviçre, Rusya, Polonya, Çekya, Hırvatistan,
-          Danimarka, İsveç, Norveç, Avusturya, Ukrayna, Romanya) ile MLS ve
-          Suudi Pro Lig — oynamış{" "}
-          <strong className="font-semibold text-accent">
-            {selectableClubs} kulüp
-          </strong>{" "}
-          — bu liglerin bugünkü takımları ve geçmişteki takımları dâhil.
-        </p>
-      </header>
-
-      <CommonPlayersQuiz initialClubs={initialClubs} leagues={leagues} />
+      {/*
+        KÜNYE VE KAPSAM BANDI BİLEŞENİN İÇİNDE (§7.15). Tabela, sonuç
+        geldiğinde veri kümesi sayılarından sonucun kendisine geçiyor; yani
+        canlı. Sunucuda render edilen sabit bir başlık bunu yapamazdı ve
+        ikinci bir sayaç eklemek aynı sayıyı iki yerde göstermek olurdu.
+      */}
+      <CommonPlayersQuiz
+        initialClubs={initialClubs}
+        leagues={leagues}
+        clubCount={selectableClubs}
+        playerCount={playerCount}
+      />
 
       <SiteFooter dataGeneratedAt={dataGeneratedAt} />
     </main>

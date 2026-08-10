@@ -22,4 +22,9 @@ export class PrismaDatasetRepository implements DatasetRepository {
     // `isSelectable` indekslidir (§5.2); sayım kulüp tablosunu taramıyor.
     return this.#prisma.club.count({ where: { isSelectable: true } });
   }
+
+  async countPlayers(): Promise<number> {
+    // Koşulsuz sayım; SQLite bunu tablo taramadan karşılıyor.
+    return this.#prisma.player.count();
+  }
 }

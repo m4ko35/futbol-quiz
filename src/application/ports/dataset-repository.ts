@@ -28,4 +28,18 @@ export interface DatasetRepository {
    * hakkında bir olgu — `getGeneratedAt` ile aynı cinsten.
    */
   countSelectableClubs(): Promise<number>;
+
+  /**
+   * Veri kümesindeki oyuncu sayısı — mod künyesindeki tabela için (§7.15).
+   *
+   * `countSelectableClubs` ile AYNI CİNSTEN bir olgu ve aynı gerekçeyle
+   * veriden okunuyor: elle yazılan bir kapsam sayısı, kapsam genişlediği anda
+   * sessizce yalan söylemeye başlar ve bunu kimse fark etmez.
+   *
+   * SÜZGEÇ YOK, bilinçli. Kulüplerde `isSelectable` var çünkü kullanıcı onları
+   * bir listeden SEÇİYOR; oyuncuda böyle bir kavram yok — her oyuncu bir
+   * sonuçta görünebilir. Buraya bir süzgeç eklemek, tabeladaki sayı ile
+   * sonuçlarda karşılaşılabilecek oyuncu kümesini ayırırdı.
+   */
+  countPlayers(): Promise<number>;
 }

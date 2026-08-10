@@ -42,11 +42,24 @@ beforeAll(async () => {
       club("Q3", "SC Fives", false, league.id),
     ],
   });
+
+  await db.prisma.player.createMany({
+    data: [
+      player("Q10", "Thierry Henry"),
+      player("Q11", "Dennis Bergkamp"),
+      player("Q12", "Didier Drogba"),
+      player("Q13", "Frank Lampard"),
+    ],
+  });
 });
 
 afterAll(async () => {
   await db.destroy();
 });
+
+function player(wikidataId: string, name: string) {
+  return { wikidataId, name, searchKey: name.toLowerCase() };
+}
 
 function club(
   wikidataId: string,
@@ -69,6 +82,17 @@ describe("PrismaDatasetRepository", () => {
   it("yalnızca seçilebilir kulüpleri sayar", async () => {
     // 3 kulüp var, 2'si seçilebilir. Süzgeç kalkarsa bu 3 olurdu.
     await expect(repository.countSelectableClubs()).resolves.toBe(2);
+  });
+
+  it("oyuncuları SÜZGEÇSİZ sayar", async () => {
+    /*
+     * Kulüplerdeki `isSelectable` karşılığı oyuncuda YOK ve olmamalı: kullanıcı
+     * oyuncuyu bir listeden seçmiyor, oyuncu bir sonuçta karşısına çıkıyor.
+     * Buraya bir süzgeç eklenirse künye tabelasındaki sayı ile sonuçlarda
+     * görülebilecek oyuncu kümesi ayrışır — sayı sessizce yalan söylemeye
+     * başlar ve hiçbir tip hatası vermez.
+     */
+    await expect(repository.countPlayers()).resolves.toBe(4);
   });
 
   it("künye yazılmamışsa tarih UYDURMAZ", async () => {
