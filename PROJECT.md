@@ -2203,6 +2203,32 @@ Tabeladaki oyuncu sayısı `DatasetRepository.countPlayers()`'tan geliyor; `coun
 
 Kapsam bildirimi (§1.3) yirmi dört ligin adını **düzyazı içinde elle sayıyordu** — kapsam genişlediği gün sessizce eskiyecek bir liste, yani `345 kulüp` ile aynı sınıftan bir kusur. Metin kısaltıldı ve lig listesi, seçicinin zaten kullandığı `listLeagues()` çıktısından üretilen ülke kodu etiketlerine dönüştü. Tek kaynak veri.
 
+### 7.16 Sonuç Defteri
+
+Ortak oyuncu sonucu bir arama çıktısı gibi görünüyordu; oysa gösterdiği şey bir **kayıt dökümü**. Düzen buna göre değişti: sabit sütun başlığı, cetvelli satırlar, dönem hücreleri.
+
+#### Kulüp adı 110 kez basılıyordu
+
+Önceki düzende her oyuncu satırı iki kulübün adını kendi içinde tekrarlıyordu. 55 oyunculuk bir sonuçta bu, aynı iki adın **110 kez** basılması demek — ve o tekrar hiçbir bilgi taşımıyor, çünkü sütun boyunca değişmiyor. Adlar defterin başlığına çıktı, sütun başına bir kez.
+
+**Ama ad SİLİNMEDİ, GİZLENDİ — ve gizleme yolu `display:none` DEĞİL.** Hücre etiketi geniş ekranda `sr-only` oluyor. Fark can alıcı: `display:none` yardımcı teknolojiden de gizler ve ekran okuyucu kullanıcısı "1993 – 2002, 240 maç" satırını hangi kulübe ait olduğunu bilmeden okurdu. Izgara başlığı ile hücre arasında **programatik bir bağ yok** — CSS ızgarası bir tablo değildir, `scope` taşımaz. Başlığın kendisi bu yüzden `aria-hidden`: adlar zaten her hücrede yazılı, gizlenmeseydi ekran okuyucu ikisini de iki kez duyururdu.
+
+Bir test bu bağı koruyor: satırın içinde iki kulübün adı da **okunabilir** olmalı. `sm:hidden`'a dönen bir "sadeleştirme" orada kırmızıya döner.
+
+#### Dar ekranda başlık yok, etiket var
+
+Üç sütun 390 px'e sığmıyor ve satırlar zaten alt alta yığılıyor; başlık orada basılmıyor (`hidden sm:grid`) ve kulüp adı her hücrenin kendi etiketinde görünür kalıyor. Bilgi iki düzende de tam — değişen yalnızca yeri.
+
+#### Dönem rozeti üç durumu SOL KENARDA ayırıyor
+
+| Durum    | Kenar                    | Zemin       | Metin                  |
+| -------- | ------------------------ | ----------- | ---------------------- |
+| Normal   | `line-strong` (sol 2 px) | `surface-2` | yıl aralığı + maç      |
+| Kiralık  | `warn` (sol 2 px)        | `warn-soft` | + "kiralık" sözcüğü    |
+| Kanıtsız | `note`, kesik            | `note-soft` | "kaynakta ayrıntı yok" |
+
+Renk hiçbirinde tek gösterge değil (WCAG 1.4.1): kiralıkta sözcük, kanıtsızda hem metin hem kesik çizgi var. BR-3 ve BR-8'in metin koşulları olduğu gibi duruyor.
+
 ---
 
 ## 8. Kalite Güvencesi

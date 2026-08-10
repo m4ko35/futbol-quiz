@@ -50,36 +50,49 @@ function SpellBadges({ spells }: { spells: readonly SpellDto[] }) {
       {spells.map((spell, index) => (
         <li
           key={index}
+          /*
+            SOL KENAR ÇİZGİSİ DÖNEMİN TÜRÜNÜ TAŞIR. Rozet artık bir "etiket"
+            değil, defterdeki bir kayıt: soldaki kalın kenar mürekkep izi gibi
+            duruyor ve üç durumu birbirinden ayırıyor — normal, kiralık, kanıtsız.
+            Renk hiçbirinde TEK gösterge değil; kiralıkta "kiralık" sözcüğü,
+            kanıtsızda "kaynakta ayrıntı yok" metni ve kesik çizgi de var
+            (WCAG 1.4.1).
+          */
           className={
-            "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs whitespace-nowrap " +
-            (spell.hasEvidence
-              ? "border border-line bg-surface-2 font-medium tabular-nums"
-              : // BR-8: kanıtsız dönem GÖRSEL OLARAK da ayrılır. Kesik çizgi
-                // tek başına yeterli değildir (renk/biçim tek gösterge
-                // olamaz — WCAG 1.4.1); asıl bilgi metnin kendisindedir.
-                //
-                // `note` rolü, `muted` DEĞİL: ikisi de gri görünüyordu ve
-                // kanıtsız dönem sıradan ikincil metinden ayırt edilemiyordu.
-                // `note` kaynağın sustuğu yeri işaretleyen ayrı bir sestir.
-                "border border-dashed border-line-strong bg-note-soft text-note")
+            "inline-flex items-baseline gap-2 rounded-sm border border-l-2 px-2 py-1 text-xs whitespace-nowrap " +
+            (!spell.hasEvidence
+              ? // BR-8: kanıtsız dönem `note` rolünde. `muted` DEĞİL: ikisi de
+                // gri görünüyordu ve kanıtsız dönem sıradan ikincil metinden
+                // ayırt edilemiyordu. `note` kaynağın sustuğu yeri işaretler.
+                "border-dashed border-note bg-note-soft text-note italic"
+              : spell.isLoan
+                ? "border-line border-l-warn bg-warn-soft"
+                : "border-line border-l-line-strong bg-surface-2")
           }
         >
           {spell.hasEvidence ? (
-            <span>{formatSpell(spell)}</span>
+            <span
+              className={
+                "font-bold tabular-nums " + (spell.isLoan ? "text-warn" : "")
+              }
+            >
+              {formatSpell(spell)}
+            </span>
           ) : (
             <span>kaynakta ayrıntı yok</span>
           )}
 
           {spell.isLoan && (
-            // BR-3: kiralık dönemler sayılır ama açıkça işaretlenir. Renk
-            // yalnızca destekleyici; "kiralık" sözcüğü rozette yazılı.
-            <span className="rounded bg-warn-soft px-1.5 py-0.5 font-semibold text-warn">
+            // BR-3: kiralık dönemler sayılır ama açıkça işaretlenir.
+            <span className="text-[0.625rem] font-extrabold tracking-wide text-warn uppercase">
               kiralık
             </span>
           )}
 
           {spell.appearances !== null && (
-            <span className="text-muted">{spell.appearances} maç</span>
+            <span className="tabular-nums text-muted">
+              {spell.appearances} maç
+            </span>
           )}
         </li>
       ))}
@@ -106,31 +119,89 @@ function PlayerRow({
   clubBName: string;
 }) {
   return (
-    <li className="grid gap-3 border-b border-line px-4 py-4 transition-colors last:border-b-0 hover:bg-background sm:grid-cols-[minmax(0,14rem)_1fr] sm:px-5">
-      <div className="min-w-0">
-        <p className="font-semibold">{player.name}</p>
-        <p className="text-sm text-muted">
+    <li className="grid border-b border-line transition-colors last:border-b-0 hover:bg-surface-2 sm:grid-cols-[1.05fr_1fr_1fr]">
+      <div className="min-w-0 px-4 py-3 sm:border-r sm:border-line">
+        <p className="font-bold tracking-tight">{player.name}</p>
+        <p className="text-xs text-muted">
           {[player.position, player.nationality]
             .filter((value) => value !== null)
             .join(" · ") || "bilgi yok"}
         </p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div>
-          <p className="mb-1.5 text-xs font-semibold tracking-wide text-muted uppercase">
-            {clubAName}
-          </p>
-          <SpellBadges spells={player.spellsAtA} />
-        </div>
-        <div>
-          <p className="mb-1.5 text-xs font-semibold tracking-wide text-muted uppercase">
-            {clubBName}
-          </p>
-          <SpellBadges spells={player.spellsAtB} />
-        </div>
-      </div>
+      <ClubCell club={clubAName} spells={player.spellsAtA} bordered />
+      <ClubCell club={clubBName} spells={player.spellsAtB} />
     </li>
+  );
+}
+
+/**
+ * Bir kulübün hücresi.
+ *
+ * KULÜP ADI GENİŞ EKRANDA GİZLENİR AMA SİLİNMEZ — `sm:sr-only`, `sm:hidden`
+ * DEĞİL. Ad, geniş ekranda defterin sabit başlığında bir kez yazılı; her
+ * satırda tekrarlanması 55 oyunculuk bir sonuçta aynı iki adı 110 kez basmak
+ * demekti. Ama `display:none` yardımcı teknolojiden de gizler ve o kullanıcı
+ * "1993 – 2002, 240 maç" satırını hangi kulübe ait olduğunu bilmeden okurdu:
+ * ızgara başlığı ile hücre arasında programatik bir bağ yok. `sr-only` ikisini
+ * birden çözüyor — gözden kalkıyor, ekran okuyucuda kalıyor.
+ */
+function ClubCell({
+  club,
+  spells,
+  bordered = false,
+}: {
+  club: string;
+  spells: readonly SpellDto[];
+  bordered?: boolean;
+}) {
+  return (
+    <div
+      className={"px-4 py-3 " + (bordered ? "sm:border-r sm:border-line" : "")}
+    >
+      <p className="mb-1.5 text-[0.625rem] font-extrabold tracking-[0.11em] text-muted uppercase sm:sr-only sm:mb-0">
+        {club}
+      </p>
+      <SpellBadges spells={spells} />
+    </div>
+  );
+}
+
+/**
+ * Defterin sabit sütun başlığı.
+ *
+ * DAR EKRANDA YOK (`hidden sm:grid`): üç sütun 390 px'e sığmıyor ve satırlar
+ * zaten alt alta yığılıyor. Orada kulüp adı her hücrenin kendi etiketinde
+ * duruyor — yani bilgi iki düzende de var, yalnızca yeri değişiyor.
+ */
+function LedgerHead({
+  clubA,
+  clubB,
+}: {
+  clubA: CommonPlayersResultDto["clubA"];
+  clubB: CommonPlayersResultDto["clubB"];
+}) {
+  return (
+    <div
+      aria-hidden="true"
+      className="hidden border-b-2 border-foreground bg-surface-2 sm:grid sm:grid-cols-[1.05fr_1fr_1fr]"
+    >
+      <div className="border-r border-line px-4 py-2 text-[0.6875rem] font-extrabold tracking-[0.1em] text-muted uppercase">
+        Oyuncu
+      </div>
+      {[clubA, clubB].map((club, index) => (
+        <div
+          key={club.id}
+          className={
+            "flex items-center gap-2 px-4 py-2 text-sm font-extrabold " +
+            (index === 0 ? "border-r border-line" : "")
+          }
+        >
+          <ClubMark club={club} size={22} />
+          <span className="truncate">{club.shortName}</span>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -229,16 +300,25 @@ export function CommonPlayersResult({ result }: CommonPlayersResultProps) {
       */}
       {degenerate ? <DegenerateNote pair={degenerate} /> : null}
 
-      <ul className="overflow-hidden rounded-xl border border-line bg-surface shadow-card">
-        {players.map((player) => (
-          <PlayerRow
-            key={player.id}
-            player={player}
-            clubAName={clubA.shortName}
-            clubBName={clubB.shortName}
-          />
-        ))}
-      </ul>
+      {/*
+        DEFTER. Sonuç bir arama çıktısı gibi değil, bir kayıt dökümü gibi
+        okunmalı: sabit sütun başlığı, cetvelli satırlar, dönem hücreleri.
+        Başlık `ul`'un DIŞINDA duruyor — `ul` yalnızca `li` barındırabilir ve
+        bir başlık satırı bir liste öğesi değildir.
+      */}
+      <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-card">
+        <LedgerHead clubA={clubA} clubB={clubB} />
+        <ul>
+          {players.map((player) => (
+            <PlayerRow
+              key={player.id}
+              player={player}
+              clubAName={clubA.shortName}
+              clubBName={clubB.shortName}
+            />
+          ))}
+        </ul>
+      </div>
 
       {hasUnevidencedSpell(players) && (
         // BR-8 — §1.4. Kanıtsız kayıtlar ELENMİYOR çünkü eleme, uydurma

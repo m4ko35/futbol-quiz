@@ -186,6 +186,40 @@ describe("CommonPlayersResult", () => {
   });
 });
 
+describe("defter düzeni", () => {
+  /**
+   * KULÜP ADI HER SATIRDA KALIR — geniş ekranda gözden kalksa bile.
+   *
+   * Ad, defterin sabit başlığında bir kez yazılı ve her satırda tekrarlanması
+   * 55 oyunculuk bir sonuçta aynı iki adı 110 kez basmak demekti. Ama
+   * gizlemenin yolu `display:none` OLAMAZ: o, yardımcı teknolojiden de gizler
+   * ve ekran okuyucu kullanıcısı "1993 – 2002, 240 maç" satırını hangi kulübe
+   * ait olduğunu bilmeden okurdu — ızgara başlığı ile hücre arasında
+   * programatik bir bağ yok.
+   *
+   * Bu test o bağı koruyor: satırın içinde iki kulübün adı da OKUNABİLİR
+   * olmalı. `sm:hidden`'a dönen bir "sadeleştirme" burada kırmızıya döner.
+   */
+  it("kulüp adı satırın içinde okunabilir kalır", () => {
+    render(<CommonPlayersResult result={result()} />);
+
+    const row = screen.getByText("Emmanuel Eboué").closest("li");
+    if (row === null) throw new Error("oyuncu satırı basılmadı");
+
+    expect(within(row).getByText("Galatasaray")).toBeInTheDocument();
+    expect(within(row).getByText("Arsenal")).toBeInTheDocument();
+  });
+
+  it("sabit başlık ekran okuyucuda TEKRARLANMAZ", () => {
+    // Başlık görsel bir yardımcı: adlar zaten her hücrede yazılı. Gizlenmeseydi
+    // ekran okuyucu iki kulüp adını da iki kez duyururdu.
+    render(<CommonPlayersResult result={result()} />);
+
+    const head = screen.getByText("Oyuncu");
+    expect(head.closest('[aria-hidden="true"]')).not.toBeNull();
+  });
+});
+
 describe("BR-8 — kanıtsız dönem işareti", () => {
   const withUnevidenced = () =>
     result({
@@ -293,7 +327,9 @@ describe("BR-36 — dejenere çift uyarısı", () => {
     const { container } = render(<CommonPlayersResult result={degenerate()} />);
 
     const note = container.querySelector("aside");
-    const list = container.querySelector("ul.overflow-hidden");
+    // Oyuncu listesi: sayfadaki tek `li`'li `ul` — dönem rozetleri kendi
+    // `ul`'larında ve onlar satırların İÇİNDE.
+    const list = screen.getByText("Emmanuel Eboué").closest("ul");
     if (note === null || list === null) {
       throw new Error("uyarı ya da oyuncu listesi basılmadı");
     }
