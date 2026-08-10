@@ -8,6 +8,8 @@ import type {
 } from "@/application/use-cases/daily-stat-match";
 import {
   isRoundComplete,
+  SCORE_TOLERANCE_FACTOR,
+  STAT_DEVIATIONS,
   STAT_KEYS,
   totalScore,
   type StatKey,
@@ -400,6 +402,103 @@ interface StatRowProps {
   onOpen(): void;
 }
 
+/**
+ * Sayı doğrusu — BR-18'in puanlama penceresini GÖRÜNÜR kılar.
+ *
+ * NEDEN VAR. Bu modun ölçülen zayıflığı, kuralının anlaşılmaması: kullanıcı
+ * "435 maç" sayısını görüyor ama ne kadar yaklaşmanın yeteceğini bilmiyor,
+ * deneyerek çözüyor. Doğru cevap bir NOKTA değil bir ARALIK ve o aralık
+ * istatistikten istatistiğe değişiyor — kulüp sayısında ±2,4, kulüp maçında
+ * ±222,8.
+ *
+ * ÖLÇEK UYDURULMADI, KURALDAN TÜRETİLDİ. Pencere `SCORE_TOLERANCE_FACTOR ×
+ * STAT_DEVIATIONS[key]`, yani puanın sıfıra düştüğü uzaklık. Sabit bir ölçek
+ * (ör. "0 – 800") aynı görüntüyü verirdi ama hiçbir şey anlatmazdı; bu ölçek
+ * doğrudan oyunun kuralıdır. Uçlar bu yüzden SAYIYLA değil ANLAMLA
+ * etiketleniyor: uçta durmak "puan yok" demek.
+ *
+ * Ekran okuyucuya gitmiyor (`aria-hidden`): hedef, seçilen değer ve puan
+ * satırın metninde zaten yazılı. Aynı bilgiyi ikinci kez, üstelik konum
+ * olarak anlatmak gürültü olurdu.
+ */
+export function NumberLine({
+  statKey,
+  target,
+  chosen,
+  score,
+}: {
+  statKey: StatKey;
+  target: number;
+  chosen?: number;
+  score?: number;
+}) {
+  const tolerance = SCORE_TOLERANCE_FACTOR * STAT_DEVIATIONS[statKey];
+
+  /** Değer → pencere içindeki yüzde konumu; pencere dışı uçta durur. */
+  const position = (value: number): number => {
+    // YUVARLANIYOR: kayan nokta aritmetiği tam uçta `99.99999999999999`
+    // üretiyor ve o dize doğrudan `style`'a yazılıyordu. İki ondalık, alt
+    // piksel hassasiyeti için fazlasıyla yeterli.
+    const raw = ((value - target + tolerance) / (2 * tolerance)) * 100;
+    return Math.round(Math.min(100, Math.max(0, raw)) * 100) / 100;
+  };
+
+  const chosenAt = chosen === undefined ? null : position(chosen);
+
+  return (
+    <div aria-hidden="true" className="relative mt-2 h-9 w-full">
+      <span className="absolute top-4 right-0 left-0 h-0.5 rounded bg-line" />
+
+      {/* Hedefle seçim arasındaki açıklık; rengi puan bandından gelir. */}
+      {chosenAt !== null && score !== undefined && (
+        <span
+          className={
+            "absolute top-[0.875rem] h-1.5 rounded-sm opacity-70 " +
+            (score >= 80 ? "bg-correct" : score >= 50 ? "bg-warn" : "bg-wrong")
+          }
+          style={{
+            left: `${String(Math.min(50, chosenAt))}%`,
+            width: `${String(Math.abs(chosenAt - 50))}%`,
+          }}
+        />
+      )}
+
+      {/*
+        İşaretler SAYI TAŞIMAZ, ad taşır. Hedef değeri hemen üstte 3xl puntoda,
+        seçilen değer de rozette zaten yazılı; doğrunun üzerinde üçüncü kez
+        basmak bilgi eklemez, yalnızca kalabalık yapar. Doğrunun anlattığı şey
+        sayı değil KONUM.
+      */}
+      <span className="absolute top-2.5 left-1/2 h-4 w-0.5 -translate-x-1/2 bg-foreground" />
+      <span className="absolute top-0 left-1/2 -translate-x-1/2 text-[0.5625rem] font-extrabold tracking-wide uppercase">
+        hedef
+      </span>
+
+      {chosenAt !== null && (
+        <>
+          <span
+            className="absolute top-2.5 h-4 w-0.5 -translate-x-1/2 bg-accent"
+            style={{ left: `${String(chosenAt)}%` }}
+          />
+          <span
+            className="absolute top-0 -translate-x-1/2 text-[0.5625rem] font-extrabold tracking-wide text-accent uppercase"
+            style={{ left: `${String(chosenAt)}%` }}
+          >
+            senin
+          </span>
+        </>
+      )}
+
+      <span className="absolute top-5 left-0 text-[0.5625rem] font-semibold tracking-wide text-muted uppercase">
+        puan yok
+      </span>
+      <span className="absolute top-5 right-0 text-[0.5625rem] font-semibold tracking-wide text-muted uppercase">
+        puan yok
+      </span>
+    </div>
+  );
+}
+
 function StatRow({ stat, answer, disabled, isOpen, onOpen }: StatRowProps) {
   return (
     <li className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-surface px-4 py-3.5 shadow-card">
@@ -449,6 +548,21 @@ function StatRow({ stat, answer, disabled, isOpen, onOpen }: StatRowProps) {
           </span>
         </span>
       )}
+
+      {/*
+        Sayı doğrusu satırın TAMAMINI kaplar (`basis-full`): hedefin ve
+        seçimin konumu ancak tam genişlikte okunur. Cevaptan önce de duruyor —
+        asıl işi zaten o an görüyor, yani "ne kadar yaklaşmam gerekiyor"
+        sorusunu seçim yapılmadan ÖNCE yanıtlıyor.
+      */}
+      <span className="basis-full">
+        <NumberLine
+          statKey={stat.key}
+          target={stat.value}
+          chosen={answer?.value}
+          score={answer?.score}
+        />
+      </span>
     </li>
   );
 }

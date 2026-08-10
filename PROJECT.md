@@ -2724,6 +2724,18 @@ Günün oyuncusunun **altı istatistiği de** dolu olmalı; yoksa o gün bir sor
 
 Küçük hedeflerde oransal formül oyunu bozuyor. Kural bu yüzden istatistiğin **kendi yayılımına** göre normalize eder.
 
+#### Sayı doğrusu: kural görünür oldu (10 Ağustos 2026)
+
+Bu modun ölçülen zayıflığı kuralının anlaşılmamasıydı: kullanıcı "435 maç" hedefini görüyor ama **ne kadar yaklaşmanın yeteceğini** bilmiyor, deneyerek çözüyordu. Oysa doğru cevap bir nokta değil bir **aralık** ve o aralık istatistikten istatistiğe değişiyor — kulüp sayısında ±2,4 iken kulüp maçında ±222,8.
+
+Her istatistik satırı artık bir sayı doğrusu taşıyor: ortada hedef, üzerinde seçilen değer, ikisi arasında puan bandının rengini taşıyan bir açıklık.
+
+**Ölçek uydurulmadı, kuraldan türetildi.** Pencere `SCORE_TOLERANCE_FACTOR × STAT_DEVIATIONS[key]`, yani puanın **sıfıra düştüğü** uzaklık. Sabit bir ölçek (ör. "0 – 800") aynı görüntüyü verirdi ama hiçbir şey anlatmazdı — üstelik yalan söylerdi: kullanıcı uca yakın bir işaret görüp hâlâ puan alabileceğini sanırdı. Uçlar bu yüzden sayıyla değil **anlamla** etiketleniyor: uçta durmak "puan yok" demek.
+
+Bu eşitlik testle tutuluyor. Hedefe eşit tahmin `%50`'ye, tam `±tolerans` uzaklıktaki tahmin `%0` ve `%100`'e düşüyor; aynı mutlak sapmanın dar ve geniş istatistikte **farklı** yere düştüğü ayrıca doğrulanıyor. Sabit ölçeğe dönen bir değişiklik dördünü birden kırar.
+
+Doğru işaretleri **sayı taşımaz, ad taşır** ("hedef", "senin"): hedef değeri hemen üstte 3xl puntoda, seçilen değer rozette zaten yazılı. Üçüncü kez basmak bilgi eklemez. Doğrunun tamamı `aria-hidden` — anlattığı şey konum, ve o bilgi satırın metninde zaten var.
+
 #### Ölçüm: kapsam bildirimi kodla çelişiyordu (2026-08-07)
 
 Arayüz yıldızlı sayılar için _"yalnızca kapsanan yirmi dört ligdeki kariyeri
