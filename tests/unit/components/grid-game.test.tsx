@@ -117,6 +117,44 @@ describe("GridGame — yapı ve erişilebilirlik", () => {
     expect(within(rowHeaders[2]!).getByText("uyruk")).toBeInTheDocument();
   });
 
+  /**
+   * SEÇİCİ HEDEF HÜCRENİN İÇİNDE DURUR.
+   *
+   * Önceki yerleşimde seçici tablonun TAMAMINDAN sonra basılıyordu: sol üst
+   * hücreye tıklayan kullanıcı, doldurduğu hücreyi göremeyecek kadar aşağıda
+   * bir girdiyle karşılaşıyordu ve hangi hücreyi doldurduğu yalnızca
+   * seçicinin etiketindeki metinden anlaşılıyordu.
+   *
+   * Test KONUMU denetliyor, sınıf adını değil: seçici, tıklanan hücrenin
+   * `td`'sinin içinde mi? Sayfa dibine geri taşıyan bir değişiklik burada
+   * kırmızıya döner.
+   */
+  it("seçici tıklanan hücrenin İÇİNDE açılır", async () => {
+    const { user } = setup();
+
+    const cellButton = screen.getByRole("button", {
+      name: "Barcelona ve Arsenal için oyuncu seçin",
+    });
+    await user.click(cellButton);
+
+    const cell = cellButton.closest("td");
+    const combobox = screen.getByRole("combobox");
+
+    expect(cell).not.toBeNull();
+    expect(cell?.contains(combobox)).toBe(true);
+  });
+
+  /**
+   * Sol üst köşe bir BAŞLIK değildir: satır ya da sütun tanımlamıyor. Kalan
+   * hak işaretleri oraya konduğunda `th`'ye dönüşseydi ekran okuyucu ızgarada
+   * dört sütun başlığı sayardı.
+   */
+  it("sol üst köşe başlık SAYILMAZ", () => {
+    setup();
+
+    expect(screen.getAllByRole("columnheader")).toHaveLength(3);
+  });
+
   it("dokuz boş hücre sunar", () => {
     setup();
 

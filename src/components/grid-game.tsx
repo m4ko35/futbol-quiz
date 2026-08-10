@@ -255,7 +255,14 @@ export function GridGame({
         Brezilya" diye okur; `div`'lerden kurulmuş bir ızgarada bu bağ kurulamaz
         ve kullanıcı hangi soruyu cevapladığını bilemezdi.
       */}
-      <div className="overflow-x-auto rounded-2xl border border-line bg-surface p-2 shadow-card sm:p-3">
+      {/*
+        `overflow-x-auto` KALDIRILDI ve bu bir gerileme değil. Sütun
+        genişlikleri yüzde, ölçüt etiketleri sarıyor (`text-balance`); tablo
+        yatayda zaten taşmıyordu. Buna karşılık CSS'te bir eksen `visible`
+        olmaktan çıkınca diğeri de `auto`ya döner — yani o sınıf DİKEYDE bir
+        kırpma bağlamı yaratıyordu ve hücreye kenetlenen seçiciyi kesiyordu.
+      */}
+      <div className="rounded-2xl border border-line bg-surface p-2 shadow-card sm:p-3">
         <table className="w-full border-separate border-spacing-1.5">
           <caption className="sr-only">
             {date === undefined
@@ -266,8 +273,35 @@ export function GridGame({
           </caption>
           <thead>
             <tr>
-              {/* Sol üst köşe boş; bir başlık değil. */}
-              <td />
+              {/*
+                SOL ÜST KÖŞE ARTIK ÖLÜ ALAN DEĞİL.
+
+                Bir başlık DEĞİL (`td`, `th` değil): satır ya da sütun
+                tanımlamıyor, o yüzden `scope` da almıyor.
+
+                Kalan hak burada SAYIYLA DEĞİL İŞARETLERLE duruyor. Sayı zaten
+                künye tabelasında yazılı; onu ikinci kez basmak bilgi eklemez.
+                İşaret sırası ise sayının vermediğini veriyor: harcanan ve
+                kalan hak, bakmadan sayılabilecek bir biçimde. Kendisi süsleme
+                olduğu için `aria-hidden` — bilgi tabeladaki sayıda ve
+                aşağıdaki metinde zaten var.
+              */}
+              <td className="p-0 align-bottom">
+                <span
+                  aria-hidden="true"
+                  className="flex flex-wrap gap-1 px-2 pb-2"
+                >
+                  {Array.from({ length: guesses }, (_, index) => (
+                    <span
+                      key={index}
+                      className={
+                        "block h-2 w-2 rounded-[1px] border border-line-strong " +
+                        (index < state.guessesUsed ? "bg-line-strong" : "")
+                      }
+                    />
+                  ))}
+                </span>
+              </td>
               {grid.columns.map((column, index) => (
                 <th
                   key={`col-${String(index)}`}
@@ -296,7 +330,10 @@ export function GridGame({
                     openCell.column === columnIndex;
 
                   return (
-                    <td key={`cell-${String(columnIndex)}`} className="p-0">
+                    <td
+                      key={`cell-${String(columnIndex)}`}
+                      className="relative p-0"
+                    >
                       <Cell
                         answer={answer}
                         isOpen={isOpen}
@@ -308,6 +345,40 @@ export function GridGame({
                           setOpenCell(cell);
                         }}
                       />
+
+                      {/*
+                        SEÇİCİ HEDEF HÜCREYE KENETLİ — sayfanın dibine değil.
+
+                        Önceki yerleşimde seçici tablonun TAMAMINDAN sonra
+                        basılıyordu: sol üst hücreye tıklayan kullanıcı,
+                        doldurduğu hücreyi göremeyecek kadar aşağıda bir
+                        girdiyle karşılaşıyordu. Hangi hücrenin doldurulduğu
+                        yalnızca seçicinin etiketindeki metinden anlaşılıyordu;
+                        artık KONUMDAN da belli.
+
+                        Son sütunda sağa yaslanır, yoksa panel görünür alanın
+                        dışına taşardı.
+                      */}
+                      {isOpen && !finished && (
+                        <div
+                          className={
+                            "absolute top-full z-20 mt-2 w-[min(20rem,calc(100vw-2.5rem))] " +
+                            (columnIndex >= size - 1 ? "right-0" : "left-0")
+                          }
+                        >
+                          <PlayerPicker
+                            label={`${row.label} ve ${column.label} için oyuncu seçin`}
+                            usedPlayerIds={usedPlayerIds}
+                            search={searchPlayers}
+                            onSelect={(player) => {
+                              void submit(cell, player);
+                            }}
+                            onCancel={() => {
+                              setOpenCell(null);
+                            }}
+                          />
+                        </div>
+                      )}
                     </td>
                   );
                 })}
@@ -330,22 +401,6 @@ export function GridGame({
         >
           {failure}
         </p>
-      )}
-
-      {openCell !== null && !finished && (
-        <PlayerPicker
-          label={`${grid.rows[openCell.row]?.label ?? ""} ve ${
-            grid.columns[openCell.column]?.label ?? ""
-          } için oyuncu seçin`}
-          usedPlayerIds={usedPlayerIds}
-          search={searchPlayers}
-          onSelect={(player) => {
-            void submit(openCell, player);
-          }}
-          onCancel={() => {
-            setOpenCell(null);
-          }}
-        />
       )}
 
       {finished && (

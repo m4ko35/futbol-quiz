@@ -2612,6 +2612,20 @@ için yapıldı.
 - **BR-26 — Kullanıcı ızgarasında ölçütler istemciden gelir.** Sunucu ölçütleri yeniden ÜRETMEZ, yalnızca **var olduklarını** doğrular (kulüp seçilebilir mi, ülke kodu tanınıyor mu) ve cevabı kimlikle denetler (BR-12). Bu kabul günlük ızgara için GEÇERSİZDİR: orada ızgara herkes için aynıdır ve tohumdan yeniden üretilir (BR-11).
 - **BR-27 — Kullanıcı ızgarasının boyutu seçilebilir.** "Sen kur" turunda boyut **2×2, 3×3, 4×4, 5×5** arasından seçilir; günlük ızgara **3×3 kalır** (BR-11 gereği herkes aynı ızgarayı görmeli). Diğer bütün kurallar boyuttan bağımsızdır: BR-9 bandı aynen uygulanır, BR-13'ün hak sayısı hücre sayısından türer, BR-25'in süzgeci seçilen **her** sütuna karşı çalışır.
 
+#### Seçici hedef hücreye kenetli (10 Ağustos 2026)
+
+Oyuncu seçici tablonun **tamamından sonra** basılıyordu. Sol üst hücreye tıklayan kullanıcı, doldurduğu hücreyi göremeyecek kadar aşağıda bir girdiyle karşılaşıyordu; hangi hücreyi doldurduğu yalnızca seçicinin etiketindeki metinden anlaşılıyordu. Artık **konumdan** da belli: panel hücrenin `td`'si içinde, altına açılıyor. Son sütunda sağa yaslanıyor, yoksa görünür alanın dışına taşardı.
+
+**`overflow-x-auto` kaldırıldı ve bu bir gerileme değil.** Sütun genişlikleri yüzde, ölçüt etiketleri sarıyor (`text-balance`) — tablo yatayda zaten taşmıyordu. Buna karşılık CSS'te bir eksen `visible` olmaktan çıkınca diğeri de `auto`ya döner: o sınıf **dikeyde** bir kırpma bağlamı yaratıyordu ve kenetlenen paneli kesecekti.
+
+Konum bir testle tutuluyor — seçici, tıklanan hücrenin `td`'sinin içinde mi? Sınıf adına değil **yapıya** bakıyor; sayfa dibine geri taşıyan bir değişiklik kırmızıya döner.
+
+#### Sol üst köşe artık ölü alan değil
+
+Köşe hücresi boştu. Şimdi kalan hakkı **sayıyla değil işaretlerle** taşıyor: her hak bir kare, harcanan kareler dolu. Sayı zaten künye tabelasında yazılı (§7.15) ve ikinci kez basmak bilgi eklemezdi; işaret sırası ise sayının vermediğini veriyor — harcanan ve kalan hak, okumadan sayılabilecek bir biçimde.
+
+Köşe **başlık değildir** (`td`, `th` değil): satır ya da sütun tanımlamıyor, `scope` almıyor. İşaretler `aria-hidden`, çünkü aynı bilgi tabelada ve alttaki metinde zaten var. Bir test köşenin başlık sayılmadığını doğruluyor — `th`'ye dönerse ekran okuyucu ızgarada dört sütun başlığı sayardı.
+
 #### BR-10 şu an yalnızca istemcide zorlanıyor
 
 Sunucu, bir ızgarada hangi oyuncuların kullanıldığını **bilmez**: oturum yok, sunucu tarafı oyun durumu yok. Kullanılmış oyuncular seçici listesinden gizlenir, ama bunu aşmak mümkündür.
