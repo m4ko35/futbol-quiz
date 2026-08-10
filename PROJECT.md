@@ -2166,7 +2166,32 @@ Vurgu (`lit`) bir süsleme değil: bugünkü arayüzün en çok eleştirilen yan
 
 Bu yüzden künye **sunucu sayfasında değil, mod bileşeninin içinde** duruyor. Sunucuda render edilen sabit bir başlık canlı sayıyı taşıyamazdı; ikinci bir sayaç eklemek ise aynı sayıyı iki yerde göstermek olurdu.
 
-**Gösterecek gerçek sayısı olmayan mod tabela taşımaz.** Boş ya da uydurma bir sayaç, sayacın kendisini anlamsızlaştırır — ızgara, istatistik ve düello modlarının tabelaları kendi canlı sayılarına bağlanana kadar künye tek başına duruyor.
+**Gösterecek gerçek sayısı olmayan mod tabela taşımaz.** Boş ya da uydurma bir sayaç, sayacın kendisini anlamsızlaştırır. Düello modunun kurulum evresinde tabela basılmıyor: henüz sayılacak bir şey yok.
+
+#### Dört modun tabelası
+
+| Mod            | Boş durum                     | Canlı                          | Vurgu (`lit`)         |
+| -------------- | ----------------------------- | ------------------------------ | --------------------- |
+| Ortak Oyuncu   | `Kulüp · Lig · Oyuncu`        | `Ortak oyuncu · Dönem`         | Sonuç boş değilse     |
+| Günün Izgarası | `Doğru 0/9 · Hak 9`           | aynı hücreler, sayılar akar    | Oyun bittiğinde       |
+| Günün Oyuncusu | `Cevaplanan 0/6 · Ortalama —` | `Cevaplanan n/6 · Ortalama %n` | Tur tamamlanınca      |
+| Hangisi Daha   | tabela yok (kurulum)          | `Seri n`                       | Seri sıfırdan büyükse |
+
+Renk **sonuç dilinden** geliyor (§7.12): ızgarada doğru hücre sayısı `correct`, kalan hak azaldıkça `warn` ve bittiğinde `wrong`; istatistikte ortalama BR-18'in puan bandına göre. Hepsinde renk yalnızca destekleyici — sayı zaten yazılı (WCAG 1.4.1).
+
+**Sayaçlar `aria-live` içinde kaldı.** Künyeye taşınmak, sayının değişmesini yalnızca görsel bir olaya çevirmemeli; her modda tabelayı saran bir `aria-live="polite"` var.
+
+#### Künye oyun bileşeninin İÇİNDE, sayfada değil
+
+Dört modun üçünde sayaçlar istemci bileşeninin durumundan geliyor (ızgara ilerlemesi, cevaplanan istatistik sayısı, seri). Künyeyi sunucu sayfasında bırakıp sayıyı yukarı taşımak, **aynı sayının iki yerde yaşaması** demekti — ve senkronu bozulduğunda hiçbir test bunu yakalamazdı.
+
+Bunun bir yan koşulu var: ızgara ve istatistik modlarında **aynı oyun bileşeni iki kez** kullanılıyor (günlük tur + "Sen kur" / "Sen seç"). Künye bu yüzden isteğe bağlı bir `header` prop'una bağlı; ikinci örnek onu almaz, çünkü sayfada ikinci bir `h1` olamaz. O turlar kendi satır içi sayaçlarını koruyor.
+
+#### Tarih biçimlendirici tek kaynağa indi
+
+Aynı `Intl.DateTimeFormat` üç yerde ayrı ayrı yazılmıştı (altbilgi, ızgara sayfası, istatistik sayfası) ve üçü de aynı gerekçeyi yorum olarak tekrarlıyordu. Künye tarihleri istemci bileşenlerine taşınınca dördüncü bir kopya gerekecekti; bunun yerine `src/lib/format-date.ts` açıldı.
+
+Zaman dilimi **UTC'ye sabit** ve bu bir tercih değil doğruluk koşulu: `new Date("2026-07-31")` UTC gece yarısı olarak ayrıştırılır, biçimlendirme sabitlenmezse gün hassasiyetindeki bir tarih kullanıcıya **bir gün öncesi** olarak görünebilir. Günlük ızgara ve günün oyuncusu tam olarak bu hassasiyette çalışıyor. Üç kopya, üçünün ayrışması demekti — birinde `timeZone` unutulsa kimse fark etmezdi.
 
 #### `countPlayers` — künye port'una eklendi
 

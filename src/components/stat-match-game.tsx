@@ -21,6 +21,7 @@ import {
   writeStatMatch,
   type StatMatchState,
 } from "@/lib/stat-match-storage";
+import { ModeHeader, Scoreboard } from "./mode-header";
 import { PlayerPicker } from "./player-picker";
 
 /**
@@ -46,6 +47,11 @@ export interface StatMatchGameProps {
    * tur devam ediyor" sorusunu doğururdu.
    */
   readonly date?: string;
+  /**
+   * Verilirse sayfanın mod künyesi buradan basılır ve sayaçlar tabelaya
+   * taşınır (§7.15). "Sen seç" turu vermez: ikinci bir `h1` olamaz.
+   */
+  readonly header?: { readonly eyebrow: string; readonly title: string };
   /** Tur bitince yeni hedef seçmek için — yalnızca "Sen seç" turunda. */
   onRestart?: () => void;
   /** Cevap gönderimi; testlerde sahte bir uygulama verilir. */
@@ -97,6 +103,7 @@ function scoreTone(score: number): string {
 }
 
 export function StatMatchGame({
+  header,
   round,
   date,
   onRestart,
@@ -208,6 +215,61 @@ export function StatMatchGame({
 
   return (
     <div className="flex flex-col gap-6">
+      {/*
+        KÜNYE VE TABELA (§7.15). Sayaçlar bu bileşenin durumundan geliyor;
+        künyeyi sunucu sayfasında bırakmak aynı sayının iki yerde yaşaması
+        demekti. "Sen seç" turu `header` ALMAZ — sayfada ikinci bir `h1`
+        olamaz — ve kendi satır içi sayacını korur.
+
+        Ortalama yüzde BR-18'in puan bandına göre renkleniyor: 80 ve üstü
+        `correct`, 50–79 `warn`, altı renksiz. Renk tek gösterge değil, sayı
+        zaten yazılı (WCAG 1.4.1).
+      */}
+      {header !== undefined && (
+        <div aria-live="polite">
+          <ModeHeader
+            eyebrow={header.eyebrow}
+            title={header.title}
+            task={
+              <>
+                Altı istatistiğin her biri için, değeri günün oyuncusuna{" "}
+                <strong className="font-semibold text-foreground">
+                  en yakın
+                </strong>{" "}
+                olan{" "}
+                <strong className="font-semibold text-foreground">başka</strong>{" "}
+                bir futbolcu bul.
+              </>
+            }
+            scoreboard={
+              <Scoreboard
+                label="Tur durumu"
+                lit={finished}
+                cells={[
+                  {
+                    label: "Cevaplanan",
+                    value: `${String(answers.length)}/${String(STAT_KEYS.length)}`,
+                    tone: answers.length > 0 ? "accent" : undefined,
+                  },
+                  {
+                    label: "Ortalama",
+                    value: answers.length === 0 ? "—" : `%${String(total)}`,
+                    tone:
+                      answers.length === 0
+                        ? undefined
+                        : total >= 80
+                          ? "correct"
+                          : total >= 50
+                            ? "warn"
+                            : undefined,
+                  },
+                ]}
+              />
+            }
+          />
+        </div>
+      )}
+
       <section className="flex items-start gap-4 rounded-2xl border border-line bg-surface p-5 shadow-card">
         {/* Baş harfler: günün oyuncusu ekranın ÖZNESİ ama tek satır metin
             olarak duruyordu. Fotoğraf yok (veri kümesi taşımıyor); baş harf
@@ -237,13 +299,15 @@ export function StatMatchGame({
         </div>
       </section>
 
-      <p
-        className="w-fit rounded-full border border-line bg-surface px-3 py-1.5 text-sm font-semibold tabular-nums shadow-card"
-        aria-live="polite"
-      >
-        {String(answers.length)}/{String(STAT_KEYS.length)} cevaplandı
-        {answers.length > 0 && ` · ortalama %${String(total)}`}
-      </p>
+      {header === undefined && (
+        <p
+          className="w-fit rounded-full border border-line bg-surface px-3 py-1.5 text-sm font-semibold tabular-nums shadow-card"
+          aria-live="polite"
+        >
+          {String(answers.length)}/{String(STAT_KEYS.length)} cevaplandı
+          {answers.length > 0 && ` · ortalama %${String(total)}`}
+        </p>
+      )}
 
       <ul className="flex flex-col gap-3">
         {round.stats.map((stat) => (

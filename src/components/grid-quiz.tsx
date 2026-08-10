@@ -6,6 +6,7 @@ import type { PlayerDto } from "@/application/dto/player-dto";
 import type { GridCriterionRefDto } from "@/application/use-cases/custom-grid";
 import type { DailyGridDto } from "@/application/use-cases/daily-grid";
 import type { CellRef } from "@/domain/services/grid";
+import { formatTurkishIsoDate } from "@/lib/format-date";
 import { GridBuilder, type BuiltGrid } from "./grid-builder";
 import { GridGame } from "./grid-game";
 
@@ -175,9 +176,18 @@ export function GridQuiz({ grid, curatedClubs }: GridQuizProps) {
 
   return (
     <div className="flex flex-col gap-10">
+      {/*
+        KÜNYE GÜNLÜK IZGARANIN İÇİNDE (§7.15): tabeladaki sayaçlar oyunun
+        durumundan geliyor. "Sen kur" turu `header` ALMAZ — sayfada ikinci bir
+        `h1` olamaz ve o tur kendi satır içi sayacını korur.
+      */}
       <GridGame
         grid={grid}
         date={grid.date}
+        header={{
+          eyebrow: `Mod 2 · Matris · ${formatTurkishIsoDate(grid.date)}`,
+          title: "Günün Izgarası",
+        }}
         checkAnswer={checkAnswer}
         searchPlayers={searchPlayers}
       />

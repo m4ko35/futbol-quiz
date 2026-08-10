@@ -7,6 +7,7 @@ import type {
   WhichMorePlayerDto,
   WhichMoreRoundDto,
 } from "@/application/use-cases/which-more";
+import { ModeHeader, Scoreboard } from "./mode-header";
 import { STAT_KEYS, type StatKey } from "@/domain/services/stat-match";
 import type { Direction } from "@/domain/services/which-more";
 
@@ -215,28 +216,70 @@ export function WhichMoreQuiz({
     setSeen([]);
   }
 
+  /*
+    KÜNYE HER İKİ EVREDE DE BASILIR (§7.15).
+
+    Bileşen kurulum evresinde erken dönüyor; künye tek bir dalda kalsaydı
+    kullanıcı istatistik seçerken sayfanın hangi mod olduğunu söyleyen bant
+    kaybolurdu. Seri sayacı buradan geliyor — sunucu sayfası onu bilemezdi.
+
+    Kurulumda tabela YOK: henüz sayılacak bir şey yok ve sıfır gösteren bir
+    sayaç, sayacın kendisini anlamsızlaştırır.
+  */
+  const modeHeader = (
+    <ModeHeader
+      eyebrow="Mod 4 · Düello"
+      title="Hangisi Daha"
+      task={
+        <>
+          Bir istatistik seç, iki futbolcudan hangisinin önde olduğunu bul.
+          Doğru bildiğin sürece seçtiğin oyuncu kalır;{" "}
+          <strong className="font-semibold text-foreground">
+            bir yanlış koşuyu bitirir
+          </strong>
+          .
+        </>
+      }
+      scoreboard={
+        phase.kind === "setup" ? undefined : (
+          <Scoreboard
+            label="Koşu durumu"
+            lit={streak > 0}
+            cells={[
+              {
+                label: "Seri",
+                value: String(streak),
+                tone: streak > 0 ? "accent" : undefined,
+              },
+            ]}
+          />
+        )
+      }
+    />
+  );
+
   if (phase.kind === "setup") {
     return (
-      <StatPicker
-        statKey={statKey}
-        direction={direction}
-        onStatKey={setStatKey}
-        onDirection={setDirection}
-        onStart={start}
-      />
+      <div className="flex flex-col gap-6">
+        {modeHeader}
+        <StatPicker
+          statKey={statKey}
+          direction={direction}
+          onStatKey={setStatKey}
+          onDirection={setDirection}
+          onStart={start}
+        />
+      </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <h2 className="text-xl font-semibold tracking-tight">
-          Hangisi {direction === "more" ? question.more : question.less}?
-        </h2>
-        <p className="text-sm text-muted">
-          Seri: <span className="font-semibold text-foreground">{streak}</span>
-        </p>
-      </div>
+      <div aria-live="polite">{modeHeader}</div>
+
+      <h2 className="text-xl font-semibold tracking-tight">
+        Hangisi {direction === "more" ? question.more : question.less}?
+      </h2>
 
       {question.scoped && (
         <p className="text-sm text-muted">

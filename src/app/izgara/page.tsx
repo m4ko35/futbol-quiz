@@ -3,7 +3,6 @@ import { CURATED_CLUB_QIDS } from "@/application/curated-clubs";
 import { toClubDto } from "@/application/dto/club-dto";
 import { getDailyGrid } from "@/application/use-cases/daily-grid";
 import { GridQuiz } from "@/components/grid-quiz";
-import { ModeHeader } from "@/components/mode-header";
 import { SiteFooter } from "@/components/site-footer";
 import { datasets, repositories } from "@/infrastructure/db/repositories";
 
@@ -48,37 +47,9 @@ export default async function GridPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 px-5 py-10 sm:px-6 sm:py-14">
-      <ModeHeader
-        eyebrow={`Mod 2 · Matris · ${formatGridDate(grid.date)}`}
-        title="Günün Izgarası"
-        task={
-          <>
-            Her hücre için, satır <strong className="font-semibold">ve</strong>{" "}
-            sütun ölçütünü birlikte sağlayan bir futbolcu bul. Herkes aynı
-            ızgarayı görür.
-          </>
-        }
-      />
-
       <GridQuiz grid={grid} curatedClubs={curatedClubs} />
 
       <SiteFooter dataGeneratedAt={dataGeneratedAt} />
     </main>
   );
-}
-
-/**
- * `YYYY-MM-DD` metnini Türkçe tarihe çevirir.
- *
- * `new Date("2026-07-31")` UTC gece yarısı olarak ayrıştırılır; biçimlendirme
- * de UTC'ye sabitlenmezse sunucunun yerel dilimi tarihi bir gün geriye
- * kaydırabilir (§ `site-footer.tsx` ile aynı gerekçe).
- */
-function formatGridDate(isoDate: string): string {
-  return new Intl.DateTimeFormat("tr-TR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(isoDate));
 }

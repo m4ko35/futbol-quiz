@@ -129,7 +129,11 @@ describe("BR-28 — zincir", () => {
 
     const body = fetchRound.mock.calls[1]?.[0] as { stayingId?: string };
     expect(body.stayingId).toBe("sag");
-    expect(screen.getByText(/Seri:/u)).toHaveTextContent("1");
+    // Seri sayacı künye tabelasına taşındı (§7.15): etiket ve değer ayrı
+    // düğümlerde, o yüzden tabelanın tamamına bakılıyor.
+    expect(
+      screen.getByRole("group", { name: "Koşu durumu" }),
+    ).toHaveTextContent("Seri1");
   });
 
   it("görülen oyuncular dışlama listesine yazılır", async () => {

@@ -7,6 +7,8 @@
  * göstermek aynı durumu bir beklentiye çevirir.
  */
 
+import { formatTurkishDate } from "@/lib/format-date";
+
 export interface SiteFooterProps {
   /** ETL koşusunun bittiği an; bilinmiyorsa `null` (§5.2). */
   readonly dataGeneratedAt: Date | null;
@@ -15,18 +17,12 @@ export interface SiteFooterProps {
 /**
  * Tarihi Türkçe ve UTC'ye sabitlenmiş biçimde yazar.
  *
- * Zaman dilimi bilerek UTC: sunucu bileşeni olarak burası sunucunun saatinde
- * render edilir ve sunucunun yerel dilimi bir ürün kararı değil, bir dağıtım
- * tesadüfüdür. Gün hassasiyetinde gösterilen bir tarihte dilim kayması,
- * kullanıcıya bir gün önceki tarihi gösterebilirdi.
+ * Gövde `@/lib/format-date`'e taşındı: aynı biçimlendirici üç yerde ayrı ayrı
+ * yazılmıştı. Ad burada KORUNUYOR çünkü altbilginin sözleşmesi ve testi bu
+ * adı kullanıyor; gerekçenin tamamı ortak dosyada.
  */
 export function formatDataDate(date: Date): string {
-  return new Intl.DateTimeFormat("tr-TR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(date);
+  return formatTurkishDate(date);
 }
 
 export function SiteFooter({ dataGeneratedAt }: SiteFooterProps) {

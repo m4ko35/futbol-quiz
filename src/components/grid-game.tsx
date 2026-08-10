@@ -21,6 +21,7 @@ import {
   type CellState,
   type GameState,
 } from "@/lib/grid-storage";
+import { ModeHeader, Scoreboard } from "./mode-header";
 import { PlayerPicker } from "./player-picker";
 
 /**
@@ -59,6 +60,17 @@ export interface GridGameProps {
    * istediği kadar ızgara kurabilir.
    */
   readonly date?: string;
+  /**
+   * Verilirse sayfanın mod künyesi buradan basılır ve sayaçlar tabelaya
+   * taşınır (§7.15).
+   *
+   * NEDEN BURADA. Sayaçlar bu bileşenin durumundan geliyor; künyeyi sunucu
+   * sayfasında bırakıp sayıyı yukarı taşımak, aynı sayının iki yerde
+   * yaşaması demekti. Prop İSTEĞE BAĞLI çünkü "Sen kur" ızgarası aynı
+   * bileşeni kullanıyor ve sayfada ikinci bir `h1` OLAMAZ; o tur kendi
+   * satır içi sayacını korur.
+   */
+  readonly header?: { readonly eyebrow: string; readonly title: string };
   /** Oyun bitince yeni ızgara kurmak için — yalnızca "Sen kur" turunda. */
   onRestart?: () => void;
   /** Cevap doğrulama; testlerde sahte bir uygulama verilir. */
@@ -85,6 +97,7 @@ function emptyGame(date: string): GameState {
 }
 
 export function GridGame({
+  header,
   grid,
   date,
   onRestart,
@@ -176,26 +189,64 @@ export function GridGame({
     [checkAnswer, date],
   );
 
+  const task = (
+    <>
+      Her hücreye, satır ve sütun ölçütlerinin{" "}
+      <strong className="font-semibold text-foreground">ikisini birden</strong>{" "}
+      sağlayan bir oyuncu yazın.
+    </>
+  );
+
+  /*
+    SAYAÇLAR EKRAN OKUYUCUYA DA BİLDİRİLİR. Sayıların değişmesi yalnızca görsel
+    bir olay olamaz; `aria-live` sarmalayıcı iki dalda da korunuyor.
+
+    "Doğru" hücre sayısı SONUÇ dilinde (`correct`), kalan hak ise azaldıkça
+    uyarıya dönüyor: son iki hakta `warn`, hak bittiğinde `wrong`. Renk tek
+    gösterge değil — sayı zaten yazılı (WCAG 1.4.1).
+  */
+  const scoreboard = (
+    <Scoreboard
+      label="Izgara durumu"
+      lit={finished}
+      cells={[
+        {
+          label: "Doğru",
+          value: `${String(solvedCells)}/${String(size * size)}`,
+          tone: solvedCells > 0 ? "correct" : undefined,
+        },
+        {
+          label: "Hak",
+          value: String(remaining),
+          tone: remaining === 0 ? "wrong" : remaining <= 2 ? "warn" : undefined,
+        },
+      ]}
+    />
+  );
+
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-        <p className="max-w-prose text-sm text-muted">
-          Her hücreye, satır ve sütun ölçütlerinin{" "}
-          <strong className="font-semibold text-foreground">
-            ikisini birden
-          </strong>{" "}
-          sağlayan bir oyuncu yazın.
-        </p>
-        {/* Sayaçlar ekran okuyucuya da bildirilir; sayıların değişmesi
-            yalnızca görsel bir olay olamaz. */}
-        <p
-          className="rounded-full border border-line bg-surface px-3 py-1.5 text-sm font-semibold tabular-nums shadow-card"
-          aria-live="polite"
-        >
-          {String(solvedCells)}/{String(guesses)} doğru · {String(remaining)}{" "}
-          hak kaldı
-        </p>
-      </div>
+      {header === undefined ? (
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+          <p className="max-w-prose text-sm text-muted">{task}</p>
+          <p
+            className="rounded-full border border-line bg-surface px-3 py-1.5 text-sm font-semibold tabular-nums shadow-card"
+            aria-live="polite"
+          >
+            {String(solvedCells)}/{String(guesses)} doğru · {String(remaining)}{" "}
+            hak kaldı
+          </p>
+        </div>
+      ) : (
+        <div aria-live="polite">
+          <ModeHeader
+            eyebrow={header.eyebrow}
+            title={header.title}
+            task={task}
+            scoreboard={scoreboard}
+          />
+        </div>
+      )}
 
       {/*
         NEDEN GERÇEK BİR TABLO. Izgara semantik olarak bir tablodur: bir hücrenin

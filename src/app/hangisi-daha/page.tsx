@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { ModeHeader } from "@/components/mode-header";
 import { SiteFooter } from "@/components/site-footer";
 import { WhichMoreQuiz } from "@/components/which-more-quiz";
 import { datasets } from "@/infrastructure/db/repositories";
@@ -27,19 +26,6 @@ export default async function WhichMorePage() {
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-5 py-10 sm:px-6 sm:py-14">
-      <ModeHeader
-        eyebrow="Mod 4 · Düello"
-        title="Hangisi Daha"
-        task={
-          <>
-            Bir istatistik seç, iki futbolcudan hangisinin önde olduğunu bul.
-            Doğru bildiğin sürece seçtiğin oyuncu kalır;{" "}
-            <strong className="font-semibold">bir yanlış koşuyu bitirir</strong>
-            .
-          </>
-        }
-      />
-
       <WhichMoreQuiz />
 
       <SiteFooter dataGeneratedAt={dataGeneratedAt} />

@@ -8,6 +8,7 @@ import type {
 } from "@/application/use-cases/daily-stat-match";
 import type { StatKey } from "@/domain/services/stat-match";
 import { PlayerPicker } from "./player-picker";
+import { formatTurkishIsoDate } from "@/lib/format-date";
 import { StatMatchGame } from "./stat-match-game";
 
 /**
@@ -151,6 +152,10 @@ export function StatMatchQuiz({ daily }: StatMatchQuizProps) {
       <StatMatchGame
         round={daily}
         date={daily.date}
+        header={{
+          eyebrow: `Mod 3 · Ölçek · ${formatTurkishIsoDate(daily.date)}`,
+          title: "Günün Oyuncusu",
+        }}
         submitAnswer={submitDaily}
         searchPlayers={searchPlayers}
       />
