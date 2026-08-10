@@ -110,6 +110,46 @@
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   HAREKET — PROJECT.md §9.3'ün düello sahnesi.
+
+   Dördü de TEK YÖNLÜ ve TEK SEFERLİK: bir öğe belirir, açılır ya da büyür;
+   döngü yoktur. Süregiden hareket dikkat çekmez, dikkat dağıtır.
+
+   `both` dolgusu bilinçli. `duel-bar` yalnızca `from` karesi taşıyor; bitiş
+   karesi öğenin KENDİ dönüşümüdür (satır içi `scaleX(oran)`). Böylece
+   çubuğun hedef boyu CSS'te değil bileşende kalıyor ve animasyon sıfırdan
+   o boya kadar büyüyor — genişlik yerine dönüşüm, çünkü dönüşüm yerleşimi
+   yeniden hesaplatmaz.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+@keyframes duel-enter {
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem) scale(0.985);
+  }
+}
+
+@keyframes duel-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(-0.35rem) scale(0.9);
+  }
+}
+
+@keyframes duel-bar {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes duel-verdict {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+}
+
 /* `inline`, belirteçleri `var()` olarak bırakır. Yukarıdaki medya sorgusu bu
    sayede tek başına yeterli: Tailwind sınıfı değişkeni çalışma zamanında
    çözer, ayrı bir karanlık mod varyantı üretmeye gerek kalmaz. */
@@ -136,6 +176,11 @@
   --shadow-card: var(--shadow-card);
   --shadow-pop: var(--shadow-pop);
 
+  --animate-duel-enter: duel-enter 0.36s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+  --animate-duel-reveal: duel-reveal 0.34s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+  --animate-duel-bar: duel-bar 0.6s cubic-bezier(0.16, 0.9, 0.3, 1) both;
+  --animate-duel-verdict: duel-verdict 0.3s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -151,14 +196,21 @@ body {
 
 /* Hareket duyarlılığı (WCAG 2.3.3). Tasarımdaki geçişler süslemedir; sistemde
    "azaltılmış hareket" seçen kullanıcı için tamamen kapatılır. Karar tek tek
-   bileşenlere bırakılsaydı eklenen ilk yeni geçişte unutulurdu. */
+   bileşenlere bırakılsaydı eklenen ilk yeni geçişte unutulurdu.
+
+   GECİKME DE SIFIRLANIYOR. Kural uzun süre yalnızca SÜREYİ sıfırlıyordu ve
+   §9.3'ün sıralı açılışı deliği gösterdi: süresi sıfırlanmış ama gecikmesi
+   duran bir animasyon hareketi kaldırır, BEKLEMEYİ bırakır. Kullanıcı,
+   göremediği bir animasyonun 160 ms'ini yine de beklerdi. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
     scroll-behavior: auto !important;
   }
 }

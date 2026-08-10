@@ -21,6 +21,12 @@ import type { Direction } from "@/domain/services/which-more";
  * CEVAPTAN SONRA OTOMATİK GEÇİŞ YOK. Zamanlayıcıyla ilerleyen bir oyun,
  * WCAG 2.1'in "Timing Adjustable" ölçütüne takılırdı (§7.10) ve sonucu okumaya
  * fırsat bırakmazdı. Kullanıcı "Devam" diyerek ilerler.
+ *
+ * SAHNE CSS'TE, ZAMANLAYICIDA DEĞİL. Kartların sırayla belirmesi ve değerlerin
+ * yenilenden kazanana doğru açılması yalnızca `animation-delay` ile kuruluyor:
+ * bilginin tamamı ilk karede DOM'a giriyor, geciken yalnızca görüntü. Bir
+ * `setTimeout` kurgusu aynı görüntüyü verirdi ama sonucu ekran okuyucudan da
+ * geciktirirdi ve `prefers-reduced-motion` onu kaldıramazdı (§7.10).
  */
 
 interface StatQuestion {
@@ -163,6 +169,15 @@ export function WhichMoreQuiz({
   const [streak, setStreak] = useState(0);
   /** BR-28 — aynı oyuncu ikinci kez sunulmaz. */
   const [seen, setSeen] = useState<readonly string[]>([]);
+  /**
+   * Bir önceki turdan KALAN oyuncu; ilk turda `null`.
+   *
+   * Sunucu bunu geri söylemiyor ve söylemesi de gerekmiyor — biz sorduk, biz
+   * biliyoruz. Ama arayüzde gerekli: BR-28'in "kazanan kalır" kuralı bugüne
+   * dek yalnızca giriş metninde yazıyordu, turun kendisinde hangi kartın
+   * kaldığı hiçbir yerde görünmüyordu.
+   */
+  const [keptId, setKeptId] = useState<string | null>(null);
 
   const question = questionFor(statKey);
 
@@ -185,6 +200,7 @@ export function WhichMoreQuiz({
           return;
         }
         setSeen([...exclude, round.pair.left.id, round.pair.right.id]);
+        setKeptId(stayingId);
         setPhase({ kind: "asking", pair: round.pair });
       } catch (error: unknown) {
         setPhase({ kind: "error", message: describe(error) });
@@ -216,6 +232,7 @@ export function WhichMoreQuiz({
   function start(): void {
     setStreak(0);
     setSeen([]);
+    setKeptId(null);
     void loadRound(statKey, null, []);
   }
 
@@ -223,6 +240,7 @@ export function WhichMoreQuiz({
     setPhase({ kind: "setup" });
     setStreak(0);
     setSeen([]);
+    setKeptId(null);
   }
 
   /*
@@ -286,15 +304,25 @@ export function WhichMoreQuiz({
     <div className="flex flex-col gap-6">
       <div aria-live="polite">{modeHeader}</div>
 
-      <h2 className="text-xl font-semibold tracking-tight">
-        Hangisi {direction === "more" ? question.more : question.less}?
-      </h2>
+      {/*
+        SORU SAHNENİN BAŞLIĞIDIR. Önceki ölçüsü (`text-xl`) künyedeki mod
+        adından küçüktü; oysa kullanıcının her turda okuduğu tek cümle bu.
 
-      {question.scoped && (
-        <p className="text-sm text-muted">
-          Bu sayı yalnızca kapsamdaki 24 ligi sayar.
-        </p>
-      )}
+        Kapsam notu `note` rolünde, `muted` değil (§7.12): bu bir ikincil
+        açıklama değil, kaynağın nereye kadar saydığını söyleyen bir kenar
+        notu — §5.2'nin dürüstlük metinleriyle aynı sınıf.
+      */}
+      <div className="flex flex-col gap-1.5">
+        <h2 className="text-2xl font-extrabold tracking-tight text-balance sm:text-3xl">
+          Hangisi {direction === "more" ? question.more : question.less}?
+        </h2>
+
+        {question.scoped && (
+          <p className="text-sm text-note">
+            Bu sayı yalnızca kapsamdaki 24 ligi sayar.
+          </p>
+        )}
+      </div>
 
       {phase.kind === "loading" && (
         <p className="text-muted" role="status">
@@ -311,24 +339,53 @@ export function WhichMoreQuiz({
           title="Havuz tükendi"
           detail="Bu istatistikte sunulabilecek yeni bir eşleşme kalmadı."
           streak={streak}
+          tone="note"
           onRestart={restart}
         />
       )}
 
       {(phase.kind === "asking" || phase.kind === "revealed") && (
         <>
-          <ul className="grid gap-4 sm:grid-cols-2">
-            {(["left", "right"] as const).map((side) => {
+          <ul className="grid gap-6 sm:grid-cols-2 sm:gap-8">
+            {(["left", "right"] as const).map((side, index) => {
               const player = phase.pair[side];
               const revealed =
                 phase.kind === "revealed" ? phase.answer[side].value : null;
 
+              // Zincirdeki yer yalnızca SORULURKEN gösteriliyor: cevap
+              // açıldığında kartlar zaten "senin seçimin" / "kalıyor" /
+              // "eleniyor" taşıyor ve dördüncü bir rozet gürültü olurdu.
+              const chain: ChainRole =
+                phase.kind === "asking" && keptId !== null
+                  ? player.id === keptId
+                    ? "kept"
+                    : "new"
+                  : null;
+
               return (
-                <li key={player.id}>
+                <li
+                  key={player.id}
+                  className="animate-duel-enter relative"
+                  // Kalan kart ÖNCE, yeni rakip sonra beliriyor; sıralamanın
+                  // kendisi BR-28'i anlatıyor. İlk turda zincir yok, iki kart
+                  // soldan sağa hafif kaydırmayla giriyor.
+                  style={{
+                    animationDelay: `${String(
+                      chain === null ? index * 70 : chain === "new" ? 110 : 0,
+                    )}ms`,
+                  }}
+                >
+                  {side === "right" && <VersusChip />}
+
                   <PlayerCard
                     player={player}
                     unit={question.unit}
                     value={revealed}
+                    share={
+                      phase.kind === "revealed"
+                        ? shareOf(phase.answer, player.id)
+                        : 0
+                    }
                     outcome={
                       phase.kind === "revealed"
                         ? outcomeFor(phase.answer, player.id)
@@ -346,6 +403,15 @@ export function WhichMoreQuiz({
                           : "out"
                         : null
                     }
+                    chain={chain}
+                    // Yenilen kart önce, kazanan sonra açılıyor: cevabın
+                    // vurgusu en sonda düşsün.
+                    revealDelayMs={
+                      phase.kind === "revealed" &&
+                      phase.answer.winnerId === player.id
+                        ? REVEAL_STAGGER_MS
+                        : 0
+                    }
                     disabled={phase.kind !== "asking"}
                     onChoose={() => void choose(player.id)}
                   />
@@ -361,23 +427,18 @@ export function WhichMoreQuiz({
           <div aria-live="polite">
             {phase.kind === "revealed" &&
               (phase.answer.correct ? (
-                <div className="flex flex-wrap items-center gap-3">
-                  <p className="font-semibold text-correct">Doğru!</p>
-                  <button
-                    type="button"
-                    className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                    onClick={() => {
-                      void loadRound(statKey, phase.answer.winnerId, seen);
-                    }}
-                  >
-                    Devam
-                  </button>
-                </div>
+                <VerdictBar
+                  streak={streak}
+                  onContinue={() => {
+                    void loadRound(statKey, phase.answer.winnerId, seen);
+                  }}
+                />
               ) : (
                 <OverPanel
                   title="Yanlış"
                   detail="Koşu burada bitti."
                   streak={streak}
+                  tone="wrong"
                   onRestart={restart}
                 />
               ))}
@@ -397,22 +458,74 @@ export function WhichMoreQuiz({
  */
 type Outcome = "none" | "correct" | "wrong";
 
+/** Kartın zincirdeki yeri (BR-28); yalnızca soru sorulurken anlamlı. */
+type ChainRole = "kept" | "new" | null;
+
+/** Kazanan kartın kaç ms sonra açılacağı — yenilen kart 0'da açılır. */
+const REVEAL_STAGGER_MS = 160;
+
 function outcomeFor(answer: WhichMoreAnswerDto, playerId: string): Outcome {
   if (answer.winnerId === playerId) return "correct";
   return answer.correct ? "none" : "wrong";
 }
 
+/**
+ * Değerin, İKİ değerin büyüğüne oranı (0–1) — karşılaştırma çubuğunun boyu.
+ *
+ * Ölçek paylaşıldığı için aradaki açıklık bir bakışta okunuyor; her kart kendi
+ * ölçeğine göre çizilseydi iki çubuk da dolu görünür ve hiçbir şey anlatmazdı.
+ * Dört ondalık: değer doğrudan `style`'a yazılıyor ve kayan nokta artığı
+ * DOM'da `0.5714285714285714` gibi bir dize bırakıyordu (§9.2'de aynı kusur).
+ */
+export function shareOf(answer: WhichMoreAnswerDto, playerId: string): number {
+  const own =
+    answer.left.id === playerId ? answer.left.value : answer.right.value;
+  const largest = Math.max(answer.left.value, answer.right.value);
+  // Gol sayısında iki değer de sıfır olabilir; bölme oradan korunuyor.
+  if (largest <= 0) return 0;
+  return Math.round((own / largest) * 10000) / 10000;
+}
+
 const OUTCOME_CLASS: Readonly<Record<Outcome, string>> = {
-  none: "border-line-strong bg-background",
-  correct: "border-correct bg-correct-soft",
-  wrong: "border-wrong bg-wrong-soft",
+  none: "border-line-strong bg-surface",
+  correct: "border-correct bg-correct-soft shadow-card",
+  wrong: "border-wrong bg-wrong-soft shadow-card",
 };
+
+/** Karşılaştırma çubuğunun rengi — kartın sonucuyla aynı dili konuşur. */
+const BAR_CLASS: Readonly<Record<Outcome, string>> = {
+  none: "bg-line-strong",
+  correct: "bg-correct",
+  wrong: "bg-wrong",
+};
+
+/**
+ * İki kartın arasındaki `VS` işareti.
+ *
+ * İKİNCİ KARTIN İÇİNDE duruyor, `<ul>`'un içinde ayrı bir düğüm olarak değil:
+ * `ul` yalnızca `li` taşıyabilir ve araya bir `div` koymak liste anlamını
+ * bozardı. Konum boşluğa göre veriliyor — dar ekranda üst kenara, `sm` ve
+ * üstünde sol kenara — böylece tek düğüm iki düzende de boşluğun tam ortasına
+ * düşüyor. `aria-hidden`: neyin neyle karşılaştırıldığını soru zaten söylüyor.
+ */
+function VersusChip() {
+  return (
+    <span
+      aria-hidden="true"
+      className="absolute -top-8 left-1/2 z-10 flex h-10 w-10 -translate-x-1/2 items-center justify-center rounded-full border-2 border-line-strong bg-surface text-[0.7rem] font-black tracking-tight ring-4 ring-background sm:top-1/2 sm:-left-9 sm:translate-x-0 sm:-translate-y-1/2"
+    >
+      VS
+    </span>
+  );
+}
 
 interface PlayerCardProps {
   readonly player: WhichMorePlayerDto;
   readonly unit: string;
   /** `null` = değer henüz açılmadı (BR-32). */
   readonly value: number | null;
+  /** Karşılaştırma çubuğunun oranı (0–1); değer kapalıyken kullanılmaz. */
+  readonly share: number;
   readonly outcome: Outcome;
   /** Kullanıcı bu paneli mi tıkladı? Yalnızca değerler açıldıktan sonra. */
   readonly chosen: boolean;
@@ -423,6 +536,10 @@ interface PlayerCardProps {
    * olurdu, çünkü kimse kalmıyor.
    */
   readonly fate: "stays" | "out" | null;
+  /** Zincirdeki yer — kalan mı, yeni rakip mi (BR-28). */
+  readonly chain: ChainRole;
+  /** Değerin kaç ms sonra açılacağı; sahnenin sıralaması buradan gelir. */
+  readonly revealDelayMs: number;
   readonly disabled: boolean;
   onChoose(): void;
 }
@@ -431,9 +548,12 @@ function PlayerCard({
   player,
   unit,
   value,
+  share,
   outcome,
   chosen,
   fate,
+  chain,
+  revealDelayMs,
   disabled,
   onChoose,
 }: PlayerCardProps) {
@@ -442,19 +562,88 @@ function PlayerCard({
       type="button"
       disabled={disabled}
       onClick={onChoose}
-      className={`flex w-full flex-col items-start gap-2 rounded-xl border-2 px-4 py-4 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-default ${
+      /*
+        SEÇİLEBİLİR OLDUĞU HİSSEDİLİYOR. Kart tıklanabilirken üstüne gelince
+        yükseliyor ve gölgesi büyüyor, basılınca yerine oturuyor. Yalnızca
+        renk değiştiren bir düğme, bu modda ekrandaki TEK eylem olmasına
+        rağmen tıklanabilir görünmüyordu.
+      */
+      className={`flex w-full flex-col items-start gap-3 rounded-2xl border-2 px-4 py-4 text-left transition-[transform,box-shadow,background-color,border-color] duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-default ${
         value === null
-          ? "border-line-strong bg-background enabled:hover:border-accent enabled:hover:bg-accent-soft"
+          ? "border-line-strong bg-surface shadow-card enabled:hover:-translate-y-0.5 enabled:hover:border-accent enabled:hover:bg-accent-soft enabled:hover:shadow-pop enabled:active:translate-y-0"
           : OUTCOME_CLASS[outcome]
       }`}
     >
-      <span className="text-lg font-semibold">{player.name}</span>
+      <span className="flex w-full items-start justify-between gap-2">
+        <span className="text-lg leading-tight font-bold">{player.name}</span>
+
+        {chain !== null && (
+          <span
+            className={
+              "shrink-0 rounded-full border px-2 py-0.5 text-[0.6rem] font-extrabold tracking-[0.1em] uppercase " +
+              (chain === "kept"
+                ? "border-accent bg-accent-soft text-accent"
+                : "border-line-strong text-muted")
+            }
+          >
+            {chain === "kept" ? "kalan" : "yeni"}
+          </span>
+        )}
+      </span>
+
       <span className="text-sm text-muted">{player.clubs.join(" · ")}</span>
-      <span className="text-2xl font-bold tabular-nums">
+
+      {/*
+        DEĞER PLAKASININ YÜKSEKLİĞİ SABİT. Kapalı ve açık hâl aynı yeri
+        kaplıyor; kart açılırken büyüseydi, sayfa cevabın tam okunacağı anda
+        kayardı. Sabit yükseklik açılışı bir YENİDEN YERLEŞİM değil, bir
+        ÇEVİRME hâline getiriyor.
+      */}
+      <span className="flex h-16 w-full flex-col justify-center">
         {value === null ? (
-          <span aria-label="değer gizli">—</span>
+          /*
+            Tire "burada bir şey yok" der; kapalı plaka "burada kapalı bir şey
+            var" der (BR-32). Ekran okuyucuya giden ad değişmedi.
+          */
+          <span
+            aria-label="değer gizli"
+            className="flex h-full w-full items-center justify-center rounded-lg border-2 border-dashed border-line-strong bg-surface-2 text-3xl font-black text-muted"
+          >
+            ?
+          </span>
         ) : (
-          `${String(value)} ${unit}`
+          <span
+            className="animate-duel-reveal flex flex-col gap-2"
+            style={{ animationDelay: `${String(revealDelayMs)}ms` }}
+          >
+            <span className="text-4xl leading-none font-black tabular-nums">
+              {String(value)}{" "}
+              <span className="text-sm font-bold tracking-wide text-muted uppercase">
+                {unit}
+              </span>
+            </span>
+
+            {/*
+              KARŞILAŞTIRMA ÇUBUĞU. Açılan sayının cevaplamadığı soruyu
+              cevaplıyor: "yakın mıydı?". `aria-hidden`, çünkü sayı hemen
+              üstünde yazılı — çubuk onun ikinci kez söylenmesi.
+            */}
+            <span
+              aria-hidden="true"
+              className="block h-1.5 w-full overflow-hidden rounded-full bg-surface-2"
+            >
+              <span
+                className={
+                  "animate-duel-bar block h-full origin-left rounded-full " +
+                  BAR_CLASS[outcome]
+                }
+                style={{
+                  transform: `scaleX(${String(share)})`,
+                  animationDelay: `${String(revealDelayMs + 80)}ms`,
+                }}
+              />
+            </span>
+          </span>
         )}
       </span>
 
@@ -493,22 +682,107 @@ function PlayerCard({
   );
 }
 
+/**
+ * Serinin ÖLÇÜLMÜŞ bandı — §9.3'ün BR-30 tablosundan.
+ *
+ * Dengeli rakiple bilgisiz oynayan bir koşunun p90'ı 3, p99'u 6 ölçüldü. Yani
+ * 4. doğru "on koşuda bir", 7. doğru "yüz koşuda bir" görülen yerdir. Eşikler
+ * bir tasarım hevesi değil, şartnamenin kendi ölçümü; ölçüm değişirse bu iki
+ * sayı da değişmek zorunda. Uydurulmuş bir "5 seri = süper!" eşiği, ölçüm
+ * kültürü olan bir üründe yalan söylerdi.
+ */
+function streakBand(streak: number): string | null {
+  if (streak >= 7) return "Rastgele oynayan yüz koşuda bir kez buraya gelir.";
+  if (streak >= 4) return "Rastgele oynayan on koşuda bir kez buraya gelir.";
+  return null;
+}
+
+/**
+ * Doğru cevabın sonuç şeridi.
+ *
+ * NEDEN ŞERİT. Önceki hâl `text-correct` bir "Doğru!" sözcüğüydü — ekrandaki
+ * en küçük yazılardan biri, tam da en büyük olması gereken anda. İşaret renge
+ * EK bir göstergedir (WCAG 1.4.1): rengi ayırt edemeyen kullanıcı `✓` görür,
+ * ekran okuyucu kullanıcısı canlı bölgeden "Doğru!" duyar.
+ */
+function VerdictBar({
+  streak,
+  onContinue,
+}: {
+  readonly streak: number;
+  onContinue(): void;
+}) {
+  const band = streakBand(streak);
+
+  return (
+    <div className="animate-duel-verdict flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border-2 border-correct bg-correct-soft px-4 py-3">
+      <span
+        aria-hidden="true"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-correct text-xl font-black text-background"
+      >
+        ✓
+      </span>
+
+      <div className="min-w-0 flex-1 basis-40">
+        <p className="text-lg font-extrabold text-correct">Doğru!</p>
+        {band !== null && <p className="text-sm text-muted">{band}</p>}
+      </div>
+
+      <button
+        type="button"
+        className="rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        onClick={onContinue}
+      >
+        Devam
+      </button>
+    </div>
+  );
+}
+
 interface OverPanelProps {
   readonly title: string;
   readonly detail: string;
   readonly streak: number;
+  /**
+   * Koşunun NASIL bittiği. Yanlış cevap bir hatadır ve öyle görünür; havuzun
+   * tükenmesi bir hata değil, kaynağın sınırıdır (§6.6) — kırmızıya boyamak
+   * kullanıcıya yanlış yaptığını söylerdi.
+   */
+  readonly tone: "wrong" | "note";
   onRestart(): void;
 }
 
-function OverPanel({ title, detail, streak, onRestart }: OverPanelProps) {
+function OverPanel({ title, detail, streak, tone, onRestart }: OverPanelProps) {
+  const band = streakBand(streak);
+
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-line bg-surface px-4 py-4">
-      <p className="text-lg font-semibold">{title}</p>
+    <div
+      className={
+        "animate-duel-verdict flex flex-col gap-3 rounded-xl border-2 px-4 py-4 " +
+        (tone === "wrong"
+          ? "border-wrong bg-wrong-soft"
+          : "border-line bg-surface")
+      }
+    >
+      <div className="flex items-center gap-3">
+        {tone === "wrong" && (
+          <span
+            aria-hidden="true"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-wrong text-xl font-black text-background"
+          >
+            ✗
+          </span>
+        )}
+        <p className="text-lg font-extrabold">{title}</p>
+      </div>
+
       <p className="text-muted">{detail}</p>
       <p>
         Skorun:{" "}
-        <span className="text-2xl font-bold tabular-nums">{streak}</span> doğru
+        <span className="text-3xl font-black tabular-nums">{streak}</span> doğru
       </p>
+      {band !== null && <p className="text-sm text-muted">{band}</p>}
+
       <div>
         <button
           type="button"
@@ -569,12 +843,17 @@ function StatPicker({
             const one = questionFor(key);
             const isCurrent = key === statKey;
             return (
+              /*
+                SEÇİLİ OLAN YALNIZCA RENKLE AYRILMIYOR (WCAG 1.4.1): yazı
+                kalınlığı da değişiyor. Kenarlık iki durumda da `border-2`,
+                yoksa seçim ızgarayı bir piksel oynatırdı.
+              */
               <label
                 key={key}
-                className={`cursor-pointer rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent ${
+                className={`cursor-pointer rounded-xl border-2 px-3 py-3 text-sm transition-[transform,box-shadow,background-color,border-color] duration-150 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent ${
                   isCurrent
-                    ? "border-accent bg-accent-soft"
-                    : "border-line-strong bg-background hover:border-accent"
+                    ? "border-accent bg-accent-soft font-bold text-accent shadow-card"
+                    : "border-line-strong bg-surface font-medium hover:-translate-y-0.5 hover:border-accent hover:shadow-card"
                 }`}
               >
                 <input
@@ -602,10 +881,10 @@ function StatPicker({
           return (
             <label
               key={option}
-              className={`cursor-pointer rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent ${
+              className={`cursor-pointer rounded-lg border-2 px-3 py-1.5 text-sm transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent ${
                 isCurrent
-                  ? "border-accent bg-accent-soft"
-                  : "border-line-strong bg-background hover:border-accent"
+                  ? "border-accent bg-accent-soft font-bold text-accent"
+                  : "border-line-strong bg-surface font-medium hover:border-accent"
               }`}
             >
               <input
@@ -624,10 +903,15 @@ function StatPicker({
         })}
       </fieldset>
 
+      {/*
+        Kurulum ekranının TEK eylemi bu; ölçüsü de onu söylüyor. Diğer
+        modlardaki "Devam" düğmesiyle aynı puntoda durması, koşuyu başlatan
+        kararı sıradan bir ilerleme adımı gibi gösteriyordu.
+      */}
       <div>
         <button
           type="button"
-          className="rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="rounded-xl bg-accent px-7 py-3 text-base font-bold text-accent-fg shadow-card transition-[transform,box-shadow,opacity] duration-150 hover:-translate-y-0.5 hover:opacity-95 hover:shadow-pop focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:translate-y-0"
           onClick={onStart}
         >
           Başla

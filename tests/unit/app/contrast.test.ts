@@ -50,7 +50,17 @@ const PAIRS: readonly [string, string, number, string][] = [
   ["foreground", "surface-2", TEXT, "kart içi ikinci kattaki ana metin"],
   ["muted", "surface-2", TEXT, "kart içi ikinci kattaki ikincil metin"],
 
+  // §9.3'ün sonuç şeridi: DOLU disk üzerindeki ✓/✗ işareti ve şeridin
+  // ikincil metni. İşaret rengin YANINDA duran ikinci göstergedir
+  // (WCAG 1.4.1) — okunamazsa o rolü hiç oynamaz.
+  ["background", "correct", TEXT, "sonuç şeridindeki ✓ işareti"],
+  ["background", "wrong", TEXT, "koşu sonu şeridindeki ✗ işareti"],
+  ["muted", "correct-soft", TEXT, "sonuç şeridindeki seri bandı cümlesi"],
+  ["muted", "wrong-soft", TEXT, "koşu sonu şeridindeki ikincil metin"],
+
   ["line-strong", "surface-2", UI, "ikinci kat üzerindeki hücre kenarlığı"],
+  ["correct", "surface-2", UI, "karşılaştırma çubuğu, izi üzerinde"],
+  ["wrong", "surface-2", UI, "karşılaştırma çubuğu, izi üzerinde"],
 
   ["line-strong", "background", UI, "girdi kenarlığı, boş ızgara hücresi"],
   ["line-strong", "surface", UI, "kart içindeki girdi kenarlığı"],

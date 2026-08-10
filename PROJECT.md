@@ -1953,7 +1953,9 @@ Kusur ölçüm dışıydı: kontrast kapısı her çifti eşiğe karşı denetli
 
 #### Ölçüm
 
-**Otuz bir çiftin tamamı hesaplandı, biri geçemedi ve düzeltildi.** Tasarımın önerdiği koyu mod `line-strong` tonu (`#5a6879`) en açık koyu yüzeyde — `surface-2` — 2,71 veriyordu; arayüz sınırı için 3:1 zorunlu. Ton üç zeminin en darına göre yeniden seçildi (`#6a7788`). Kalan en dar yer açık modda `line-strong` / `surface-2` (3,13).
+**Çiftlerin tamamı hesaplandı, biri geçemedi ve düzeltildi.** Tasarımın önerdiği koyu mod `line-strong` tonu (`#5a6879`) en açık koyu yüzeyde — `surface-2` — 2,71 veriyordu; arayüz sınırı için 3:1 zorunlu. Ton üç zeminin en darına göre yeniden seçildi (`#6a7788`). Kalan en dar yer açık modda `line-strong` / `surface-2` (3,13); metin eşiğinde ise `muted` / `wrong-soft` (4,81).
+
+Tablonun son altı satırı §9.3'ün düello sahnesiyle geldi (10 Ağustos 2026): dolu `correct`/`wrong` diskinin üzerindeki `✓`/`✗` işareti, sonuç şeridindeki ikincil metin ve karşılaştırma çubuğunun izi. Hepsi eklendikleri anda ölçüldü — yeni bir renk kullanımı, kapıya yeni bir satır demektir.
 
 | Çift                          | Eşik | Açık  | Koyu  |
 | ----------------------------- | ---- | ----- | ----- |
@@ -1982,6 +1984,12 @@ Kusur ölçüm dışıydı: kontrast kapısı her çifti eşiğe karşı denetli
 | `line-strong` / `surface`     | 3,0  | 3,74  | 3,79  |
 | `line-strong` / `surface-2`   | 3,0  | 3,13  | 3,39  |
 | `correct` / `surface`         | 3,0  | 6,33  | 9,58  |
+| `background` / `correct`      | 4,5  | 5,75  | 10,49 |
+| `background` / `wrong`        | 4,5  | 5,94  | 7,53  |
+| `muted` / `correct-soft`      | 4,5  | 5,00  | 6,01  |
+| `muted` / `wrong-soft`        | 4,5  | 4,81  | 6,64  |
+| `correct` / `surface-2`       | 3,0  | 5,30  | 8,56  |
+| `wrong` / `surface-2`         | 3,0  | 5,47  | 6,15  |
 
 **Kapı bir AYRIKLIK denetimi de yapıyor artık.** Eski hâli yalnızca oranlara bakıyordu ve `accent` ile `correct`'in aynı hex olmasını görmedi (yukarıdaki kusur). Test şimdi ayrıca **anlamı çakışan rol çiftlerinin farklı değer taşıdığını** doğruluyor: bir rol başka bir rolün tonunu aynen alırsa, o iki rolü ayırmak için yazılmış bütün arayüz sessizce tek renge düşer ve oran denetimi bunu hiçbir zaman yakalamaz.
 
@@ -2000,6 +2008,8 @@ Düğme ve bağlantılarda `focus-visible`, girdi kutularında `focus` kullanıl
 #### Hareket
 
 Geçişler (`transition-colors`) süslemedir. `prefers-reduced-motion: reduce` seçen kullanıcı için `globals.css`'te **genel olarak** kapatılıyor; karar tek tek bileşenlere bırakılsaydı eklenen ilk yeni geçişte unutulurdu (WCAG 2.3.3).
+
+**Genel kuralın bir deliği vardı ve §9.3'ün sahnesi onu açığa çıkardı** (10 Ağustos 2026). Kural yalnızca `animation-duration` ile `transition-duration`'ı sıfırlıyordu; **gecikmeye** (`animation-delay`, `transition-delay`) dokunmuyordu. Süresi sıfırlanmış ama gecikmesi duran bir animasyon, hareketi kaldırır ama **beklemeyi bırakır**: hareket duyarlılığı olan kullanıcı, kimsenin göremediği bir animasyonun 160 ms'ini yine de bekler. Sahnedeki sıralama (yenilenin önce, kazananın sonra açılması) tam olarak gecikmeyle kurulduğu için delik ancak burada görünür oldu. İki bildirim daha eklendi; kural yine tek yerde.
 
 #### Başlık düzende, altbilgi sayfalarda
 
@@ -3076,6 +3086,30 @@ Seçilen panel artık `senin seçimin` etiketi taşıyor. Bilgi sunucudan gelmiy
 Doğru cevapta ayrıca **akıbet** yazılıyor: kazanan `kalıyor`, diğeri `eleniyor`. BR-28'in zincir kuralı bugüne kadar yalnızca giriş metninde duruyordu; gerçekleştiği anda gösterilmiyordu. Yanlış cevapta bu etiketler **basılmıyor** — orada koşu bitiyor ve kimse kalmıyor; "kalıyor" demek düpedüz yanlış olurdu. Üç test bunları tutuyor, sonuncusu tam da bu son durumu.
 
 Tasarım teslimatının önerdiği **"sırada" önizlemesi yapılmadı**: bir sonraki rakibi kullanıcı "Devam" demeden göstermek, turu istenmeden yüklemek ve henüz sorulmamış bir soruyu ekrana koymak demek. Teslimat da bunu bir varsayım olarak işaretlemişti.
+
+#### Düello sahnesi (10 Ağustos 2026)
+
+Mod kurallarını doğru anlatıyordu ama **oynanmıyordu**. İki kart yan yana duruyordu; ekranda hiçbir şey bunların birbirinin rakibi olduğunu söylemiyordu. Oyunun tek dramatik anı — değerlerin açılması — bir tirenin yerini bir sayının almasıyla geçiyordu. Sonuç ise `text-correct` bir "Doğru!" sözcüğüydü: ekrandaki en küçük yazılardan biri, tam da en büyük olması gereken anda.
+
+Aşağıdakiler **yalnızca sunumdur**. BR-28…BR-32 değişmedi, sunucu sözleşmesi değişmedi, tek bir yeni istek yolu açılmadı.
+
+**Düellonun bir merkezi oldu.** İki kartın arasına `VS` işareti kondu. İşaret ikinci kartın içinde duruyor ve boşluğa göre konumlanıyor: dar ekranda üstteki kenara, `sm` ve üstünde soldaki kenara. Böylece tek bir düğüm iki düzende de tam boşluğun ortasına düşüyor ve `<ul>` yalnızca `<li>` taşımaya devam ediyor — araya bir `<div>` koymak liste anlamını bozardı. Süsleme olduğu için `aria-hidden`: neyin neyle karşılaştırıldığını sorunun kendisi zaten söylüyor.
+
+**Gizli değerin bir yüzü oldu.** Tire yerine kesik çerçeveli bir plaka ve içinde `?` var. Tire "burada bir şey yok" der; plaka "burada kapalı bir şey var" der — oyunun sorduğu şey tam olarak budur. Ekran okuyucuya giden ad değişmedi (`değer gizli`).
+
+**Açılış sıralı.** Değerler geldiğinde önce yenilen kart, 160 ms sonra kazanan kart açılıyor. Sıralama CSS gecikmesiyle kuruluyor, zamanlayıcıyla değil: **bilginin kendisi DOM'a ilk karede giriyor**, geciken yalnızca görüntü. Ekran okuyucu, canlı bölgeden sonucu her zamanki anda duyuyor ve `prefers-reduced-motion` sahneyi tümüyle kaldırıyor (§7.10'daki gecikme deliği bu yüzden kapatıldı).
+
+**Sayının yanına karşılaştırma çubuğu geldi.** Çubuk, değerin **iki değerin büyüğüne oranı** kadar dolu; ölçek paylaşıldığı için aradaki açıklık bir bakışta okunuyor. Bu, açılan sayının cevaplamadığı soruyu cevaplıyor: "yakın mıydı?". `scaleX(0)`'dan başlayan bir kare dizisiyle büyüyor — genişlik değil dönüşüm animasyonu, çünkü yerleşimi yeniden hesaplatmıyor. `aria-hidden`: sayı zaten yanında yazılı, çubuk onun ikinci kez söylenmesi.
+
+**Sonuç bir şerit oldu.** Doğru cevapta ekranın altına `✓` işareti, "Doğru!", ölçülmüş seri bandı ve "Devam" düğmesini taşıyan bir şerit çıkıyor. Yanlışta aynı şerit `✗` ile ve `wrong` zemininde. İşaret renge ek bir göstergedir (WCAG 1.4.1); iki yeni renk çifti kontrast kapısına eklendi.
+
+**Zincir görünür oldu.** BR-28'in "kazanan kalır" kuralı bugüne dek yalnızca söyleniyordu; hangi oyuncunun bir önceki turdan kaldığı ekranda yazmıyordu. Artık kalan kart `kalan`, rakibi `yeni` rozeti taşıyor ve tura girerken kalan kart önce, yeni rakip 110 ms sonra beliriyor — sıralama kuralın kendisini anlatıyor.
+
+**Seri bandı ölçümden geliyor, uydurulmadı.** Yukarıdaki BR-30 tablosunda dengeli rakiple bilgisiz oynayan koşunun **p90'ı 3, p99'u 6**. Yani 4. doğru "on koşuda bir", 7. doğru "yüz koşuda bir" görülen bir yer. Şerit tam olarak bunu yazıyor. Eşikler bir tasarım hevesi değil, şartnamenin kendi ölçümü; ölçüm değişirse eşik de değişmeli.
+
+**Kurulum ekranı da elden geçti.** İstatistik ve yön seçenekleri artık `surface` üzerinde duruyor (sayfa zemininde değil), üstlerine gelince yükseliyor ve **seçili olan yalnızca renkle ayrılmıyor** — yazı kalınlığı da değişiyor (WCAG 1.4.1). Kenarlık iki durumda da `border-2`, yoksa seçim ızgarayı bir piksel oynatırdı. "Başla" düğmesi büyütüldü: kurulum ekranının tek eylemi o ve "Devam" ile aynı puntoda durması, koşuyu başlatan kararı sıradan bir ilerleme adımı gibi gösteriyordu.
+
+**Yapılmayanlar.** _Otomatik geçiş_ yok — süreli ilerleyen bir oyun WCAG 2.2.1'e takılır ve sonucu okumaya fırsat bırakmaz; kullanıcı "Devam" der. _Sayının sıfırdan sayılarak açılması_ yok: rakamlar düğmenin erişilebilir adının içinde ve saniyede altmış kez değişen bir ad, ekran okuyucuyu boğar; aynı dramayı çubuk, adı hiç kıpırdatmadan veriyor. _Ses_ yok.
 
 #### Kurallar
 

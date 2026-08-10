@@ -8,7 +8,7 @@ import type {
   WhichMoreAnswerDto,
   WhichMoreRoundDto,
 } from "@/application/use-cases/which-more";
-import { WhichMoreQuiz } from "@/components/which-more-quiz";
+import { shareOf, WhichMoreQuiz } from "@/components/which-more-quiz";
 
 /**
  * §9.3 — "Hangisi daha" arayüzü.
@@ -110,8 +110,14 @@ describe("BR-32 — değerler cevaptan önce görünmez", () => {
 
     await user.click(screen.getByRole("button", { name: /Drogba/u }));
 
-    expect(await screen.findByText(/164 maç/u)).toBeInTheDocument();
-    expect(screen.getByText(/175 maç/u)).toBeInTheDocument();
+    // Sayı ile birim ayrı düğümlerde (birim küçük puntoda, §9.3'ün düello
+    // sahnesi); iddia bu yüzden kartın tamamının metnine bakıyor. Zaten
+    // sorulan şey de bu: KART değeri gösteriyor mu?
+    const sol = await screen.findByRole("button", { name: /Drogba/u });
+    expect(sol).toHaveTextContent("164 maç");
+    expect(screen.getByRole("button", { name: /Henry/u })).toHaveTextContent(
+      "175 maç",
+    );
   });
 });
 
@@ -264,6 +270,118 @@ describe("koşunun diğer sonları", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Sunucuya ulaşılamadı.",
     );
+  });
+});
+
+/**
+ * §9.3 — düello sahnesi.
+ *
+ * Buradaki testler GÖRÜNÜMÜ değil, görünümün taşıdığı BİLGİYİ tutuyor: hangi
+ * kartın zincirde kaldığı, serinin ölçülmüş bandı, sonucun renkten bağımsız
+ * okunabilmesi. Animasyonun kendisi (gecikme, süre, eğri) bir tasarım kararı
+ * ve testin işi değil — jsdom'da zaten çalışmaz.
+ */
+describe("düello sahnesi", () => {
+  /** Turu bitirip bir sonraki soruya geçer; iki değer de yeniden kapanır. */
+  async function nextRound(user: UserEvent): Promise<void> {
+    await user.click(await screen.findByRole("button", { name: "Devam" }));
+    await waitFor(() => {
+      expect(screen.getAllByLabelText("değer gizli")).toHaveLength(2);
+    });
+  }
+
+  it("sonuç RENKTEN bağımsız da okunuyor", async () => {
+    // İşaret (✓) renge EK bir göstergedir, yerine geçen değil (WCAG 1.4.1);
+    // sözcüğün kendisi her koşulda ekranda olmalı.
+    const { user } = setup();
+    await start(user);
+
+    await user.click(screen.getByRole("button", { name: /Henry/u }));
+
+    expect(await screen.findByText("Doğru!")).toBeInTheDocument();
+  });
+
+  it("zincirde KALAN kart işaretlenir, rakibi 'yeni' olur", async () => {
+    const { user } = setup();
+    await start(user);
+
+    // İlk turda zincir yok: iki oyuncu da havuzdan yeni geldi.
+    expect(screen.queryByText("kalan")).not.toBeInTheDocument();
+    expect(screen.queryByText("yeni")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Henry/u }));
+    await nextRound(user);
+
+    expect(screen.getByRole("button", { name: /Henry/u })).toHaveTextContent(
+      "kalan",
+    );
+    expect(screen.getByRole("button", { name: /Drogba/u })).toHaveTextContent(
+      "yeni",
+    );
+  });
+
+  /**
+   * Bandın eşiği ÖLÇÜMDEN geliyor: §9.3'ün BR-30 tablosunda dengeli rakiple
+   * bilgisiz oynayan koşunun p90'ı 3. Dolayısıyla 4. doğru "on koşuda bir"
+   * görülen yerdir. Ölçüm değişirse bu test de değişmek zorunda — uydurulmuş
+   * bir eşik burada sessizce kalıcı olurdu.
+   */
+  it("seri bandı ancak DÖRDÜNCÜ doğruda çıkar", async () => {
+    const { user } = setup();
+    await start(user);
+
+    for (let round = 0; round < 3; round += 1) {
+      await user.click(screen.getByRole("button", { name: /Henry/u }));
+      expect(screen.queryByText(/on koşuda bir/u)).not.toBeInTheDocument();
+      await nextRound(user);
+    }
+
+    await user.click(screen.getByRole("button", { name: /Henry/u }));
+
+    expect(await screen.findByText(/on koşuda bir/u)).toBeInTheDocument();
+  });
+});
+
+/**
+ * Karşılaştırma çubuğunun oranı.
+ *
+ * Çubuk `aria-hidden` olduğu için DOM'dan okunamaz; hesabın kendisi burada
+ * doğrulanıyor. Asıl korunan şey ÖLÇEĞİN PAYLAŞILMASI: her kart kendi
+ * ölçeğine göre çizilseydi iki çubuk da dolu görünür ve aradaki açıklık —
+ * çubuğun var olma sebebi — kaybolurdu.
+ */
+describe("shareOf", () => {
+  const answer = (
+    leftValue: number,
+    rightValue: number,
+  ): WhichMoreAnswerDto => ({
+    correct: true,
+    left: { id: "sol", value: leftValue },
+    right: { id: "sag", value: rightValue },
+    winnerId: "sag",
+    scoped: true,
+  });
+
+  it("büyük değer tam dolu, küçüğü ona ORANLA çiziliyor", () => {
+    const a = answer(164, 175);
+
+    expect(shareOf(a, "sag")).toBe(1);
+    expect(shareOf(a, "sol")).toBeCloseTo(164 / 175, 3);
+  });
+
+  it("iki değer de sıfırken bölme yapılmıyor", () => {
+    // Kulüp golünde ölçülen en küçük değer 0; iki oyuncu da golsüz olabilir.
+    const a = answer(0, 0);
+
+    expect(shareOf(a, "sol")).toBe(0);
+    expect(shareOf(a, "sag")).toBe(0);
+  });
+
+  it("oran yuvarlanıyor — kayan nokta artığı style'a yazılmıyor", () => {
+    // Yuvarlanmasaydı DOM'da `0.5714285714285714` gibi bir dize dururdu.
+    const value = shareOf(answer(4, 7), "sol");
+
+    expect(String(value).length).toBeLessThanOrEqual(6);
   });
 });
 
