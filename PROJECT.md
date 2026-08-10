@@ -2770,6 +2770,16 @@ Bu eşitlik testle tutuluyor. Hedefe eşit tahmin `%50`'ye, tam `±tolerans` uza
 
 Doğru işaretleri **sayı taşımaz, ad taşır** ("hedef", "senin"): hedef değeri hemen üstte 3xl puntoda, seçilen değer rozette zaten yazılı. Üçüncü kez basmak bilgi eklemez. Doğrunun tamamı `aria-hidden` — anlattığı şey konum, ve o bilgi satırın metninde zaten var.
 
+##### İki işaret doğrunun iki yanına ayrıldı (10 Ağustos 2026)
+
+İlk düzende iki işaret de doğrunun **üstündeydi** ve etiketleri birbirine giriyordu. Kusurun en kötü yanı nerede ortaya çıktığıdır: **iyi cevapta**. Kullanıcı hedefe ne kadar yaklaşırsa doğru o kadar okunmaz hâle geliyor, `%100`'lük bir tahminde "hedef" ile "senin" tam olarak çakışıyordu — yani doğru, yalnızca söyleyecek iyi bir şeyi olmadığında düzgün çalışıyordu.
+
+Çözüm eşiğe bakan bir kaçınma değil, **geometrik**: hedefin sapı doğruya yukarıdan iner ve etiketi üst sırada durur; seçimin sapı aşağıya uzanır, etiketi alt sırada. İki etiket artık aynı satırda hiç bulunmadığı için çakışma **imkânsız** — "yeterince uzaklarsa sorun yok" diyen bir eşik ise kaçınılmaz olarak bir gün yanlış tarafta kalırdı. Saplar ayrıca kalınlıkla da ayrışıyor (hedef ince, seçim kalın ve yuvarlak uçlu), böylece iki işaret aynı noktada bile ayrı okunuyor.
+
+Üst sıra doğrunun künyesi oldu: solda ve sağda "puan yok", tam ortada "hedef". Üçü de **sabit** konumlu; birbirlerine hiçbir genişlikte değmiyorlar. Uca dayanan "senin" etiketi ise ortalanmak yerine işarete hizalanıyor, yoksa yarısı kabın dışında kalıp komşu içeriğe giriyordu.
+
+> **Testin göremediği şey — dürüstçe:** jsdom'un yerleşim motoru yok, dolayısıyla iki kutunun gerçekten üst üste binip binmediği ölçülemez. Test, iki etiketin **ayrı satırlarda** durduğunu ve uçtaki etiketin hizasının değiştiğini tutuyor; asıl çakışmayı ancak gerçek tarayıcıda bir denetim yakalar (Faz 4.5) — §7.12'deki kontrast kapısının kapsam sınırıyla aynı sınıf.
+
 #### Ölçüm: kapsam bildirimi kodla çelişiyordu (2026-08-07)
 
 Arayüz yıldızlı sayılar için _"yalnızca kapsanan yirmi dört ligdeki kariyeri

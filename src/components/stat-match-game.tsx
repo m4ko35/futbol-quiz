@@ -420,7 +420,28 @@ interface StatRowProps {
  * Ekran okuyucuya gitmiyor (`aria-hidden`): hedef, seçilen değer ve puan
  * satırın metninde zaten yazılı. Aynı bilgiyi ikinci kez, üstelik konum
  * olarak anlatmak gürültü olurdu.
+ *
+ * İKİ İŞARET DOĞRUNUN İKİ YANINDA — ve bu bir düzenleme tercihi değil, bir
+ * kusurun onarımı. İkisi de doğrunun ÜSTÜNDEYKEN "hedef" ile "senin"
+ * etiketleri, tahmin hedefe yaklaştıkça üst üste biniyordu. Kusurun en kötü
+ * yanı nerede ortaya çıktığıydı: İYİ CEVAPTA. Kullanıcı ne kadar yaklaşırsa
+ * doğru o kadar okunmaz hâle geliyor, %100'lük bir tahminde iki etiket tam
+ * olarak çakışıyordu. Hedef artık doğrunun üstünde, seçim altında; çakışma
+ * geometrik olarak imkânsız.
  */
+/**
+ * Uçtaki etiketin kaptan taşmaması için hizası konuma göre değişir.
+ *
+ * Ortadaki işaret kendi ekseninde ortalanır; uca dayanan işaret ortalandığında
+ * etiketin yarısı kabın dışında kalıyor ve komşu içeriğe giriyordu. Uçta
+ * etiket işareti hizalanarak takip ediyor.
+ */
+function labelAnchor(at: number): string {
+  if (at <= 6) return "translate-x-0";
+  if (at >= 94) return "-translate-x-full";
+  return "-translate-x-1/2";
+}
+
 export function NumberLine({
   statKey,
   target,
@@ -446,14 +467,32 @@ export function NumberLine({
   const chosenAt = chosen === undefined ? null : position(chosen);
 
   return (
-    <div aria-hidden="true" className="relative mt-2 h-9 w-full">
-      <span className="absolute top-4 right-0 left-0 h-0.5 rounded bg-line" />
+    <div aria-hidden="true" className="relative mt-2 h-12 w-full">
+      {/*
+        ÜST SIRA — doğrunun künyesi: iki uç ve orta. "hedef" her zaman tam
+        ortada, uç etiketleri kenarlarda; üçü sabit konumlu olduğu için
+        birbirlerine hiçbir genişlikte değmiyorlar.
+      */}
+      <span className="absolute top-0 left-0 text-[0.5625rem] font-semibold tracking-wide text-muted uppercase">
+        puan yok
+      </span>
+      <span className="absolute top-0 left-1/2 -translate-x-1/2 text-[0.5625rem] font-extrabold tracking-wide uppercase">
+        hedef
+      </span>
+      <span className="absolute top-0 right-0 text-[0.5625rem] font-semibold tracking-wide text-muted uppercase">
+        puan yok
+      </span>
+
+      {/* Hedefin sapı doğruya YUKARIDAN iner. */}
+      <span className="absolute top-3 left-1/2 h-2.5 w-0.5 -translate-x-1/2 bg-foreground" />
+
+      <span className="absolute top-[1.375rem] right-0 left-0 h-0.5 rounded bg-line" />
 
       {/* Hedefle seçim arasındaki açıklık; rengi puan bandından gelir. */}
       {chosenAt !== null && score !== undefined && (
         <span
           className={
-            "absolute top-[0.875rem] h-1.5 rounded-sm opacity-70 " +
+            "absolute top-5 h-1.5 rounded-sm opacity-70 " +
             (score >= 80 ? "bg-correct" : score >= 50 ? "bg-warn" : "bg-wrong")
           }
           style={{
@@ -468,33 +507,27 @@ export function NumberLine({
         seçilen değer de rozette zaten yazılı; doğrunun üzerinde üçüncü kez
         basmak bilgi eklemez, yalnızca kalabalık yapar. Doğrunun anlattığı şey
         sayı değil KONUM.
-      */}
-      <span className="absolute top-2.5 left-1/2 h-4 w-0.5 -translate-x-1/2 bg-foreground" />
-      <span className="absolute top-0 left-1/2 -translate-x-1/2 text-[0.5625rem] font-extrabold tracking-wide uppercase">
-        hedef
-      </span>
 
+        Seçimin sapı doğrudan AŞAĞIYA uzanıyor ve hedefinkinden kalın: iki
+        işaret aynı noktada bile ayrı okunuyor — biri yukarıda, biri aşağıda.
+      */}
       {chosenAt !== null && (
         <>
           <span
-            className="absolute top-2.5 h-4 w-0.5 -translate-x-1/2 bg-accent"
+            className="absolute top-6 h-2.5 w-1 -translate-x-1/2 rounded-b-full bg-accent"
             style={{ left: `${String(chosenAt)}%` }}
           />
           <span
-            className="absolute top-0 -translate-x-1/2 text-[0.5625rem] font-extrabold tracking-wide text-accent uppercase"
+            className={
+              "absolute top-9 text-[0.5625rem] font-extrabold tracking-wide text-accent uppercase " +
+              labelAnchor(chosenAt)
+            }
             style={{ left: `${String(chosenAt)}%` }}
           >
             senin
           </span>
         </>
       )}
-
-      <span className="absolute top-5 left-0 text-[0.5625rem] font-semibold tracking-wide text-muted uppercase">
-        puan yok
-      </span>
-      <span className="absolute top-5 right-0 text-[0.5625rem] font-semibold tracking-wide text-muted uppercase">
-        puan yok
-      </span>
     </div>
   );
 }

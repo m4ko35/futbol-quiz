@@ -108,6 +108,76 @@ describe("NumberLine", () => {
     expect(dar).not.toBe(genis);
   });
 
+  /**
+   * ÇAKIŞMA KUSURU — iyi cevapta ortaya çıkıyordu.
+   *
+   * İki işaret de doğrunun üstündeyken "hedef" ile "senin" etiketleri, tahmin
+   * hedefe yaklaştıkça birbirine giriyor, %100'lük bir tahminde tam olarak
+   * çakışıyordu: doğru yalnızca söyleyecek iyi bir şeyi olmadığında düzgün
+   * çalışıyordu. Çözüm eşiğe bakan bir kaçınma değil, geometrik ayrım —
+   * hedef doğrunun üstünde, seçim altında.
+   *
+   * BU TESTİN GÖREMEDİĞİ ŞEY: jsdom'un yerleşim motoru yok, iki kutunun
+   * gerçekten üst üste binip binmediği ölçülemez. Tutulan şey, iki etiketin
+   * AYRI SATIRLARDA durduğu — çakışmayı imkânsız kılan yapı.
+   */
+  it("hedefe TAM eşit tahminde bile iki etiket ayrı satırlarda durur", () => {
+    render(
+      <NumberLine
+        statKey="appearances"
+        target={TARGET}
+        chosen={TARGET}
+        score={100}
+      />,
+    );
+
+    const satir = (element: HTMLElement): string =>
+      [...element.classList].find((one) => one.startsWith("top-")) ?? "";
+
+    const hedef = screen.getByText("hedef");
+    const senin = screen.getByText("senin");
+
+    expect(satir(hedef)).not.toBe("");
+    expect(satir(senin)).not.toBe("");
+    expect(satir(hedef)).not.toBe(satir(senin));
+  });
+
+  it("uçtaki etiket ortalanmaz — kaptan taşmasın diye işarete hizalanır", () => {
+    const { unmount } = render(
+      <NumberLine
+        statKey="appearances"
+        target={TARGET}
+        chosen={TARGET - TOLERANCE}
+        score={0}
+      />,
+    );
+    expect(screen.getByText("senin")).toHaveClass("translate-x-0");
+    unmount();
+
+    render(
+      <NumberLine
+        statKey="appearances"
+        target={TARGET}
+        chosen={TARGET + TOLERANCE}
+        score={0}
+      />,
+    );
+    expect(screen.getByText("senin")).toHaveClass("-translate-x-full");
+  });
+
+  it("ortadaki etiket kendi ekseninde ORTALANIR", () => {
+    render(
+      <NumberLine
+        statKey="appearances"
+        target={TARGET}
+        chosen={TARGET}
+        score={100}
+      />,
+    );
+
+    expect(screen.getByText("senin")).toHaveClass("-translate-x-1/2");
+  });
+
   it("ekran okuyucuya GİTMEZ — aynı bilgi satırın metninde yazılı", () => {
     const { container } = render(
       <NumberLine statKey="appearances" target={TARGET} />,
