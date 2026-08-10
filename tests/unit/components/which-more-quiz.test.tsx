@@ -9,6 +9,7 @@ import type {
   WhichMoreRoundDto,
 } from "@/application/use-cases/which-more";
 import { shareOf, WhichMoreQuiz } from "@/components/which-more-quiz";
+import { MIN_GAP } from "@/domain/services/which-more";
 
 /**
  * §9.3 — "Hangisi daha" arayüzü.
@@ -60,12 +61,12 @@ describe("kurulum ekranı", () => {
     setup();
 
     for (const name of [
-      "Kulüp maçı",
-      "Kulüp golü",
-      "Oynadığı kulüp",
-      "A millî maç",
-      "Boy",
-      "Kilo",
+      /Kulüp maçı/u,
+      /Kulüp golü/u,
+      /Oynadığı kulüp/u,
+      /A millî maç/u,
+      /Boy/u,
+      /Kilo/u,
     ]) {
       expect(screen.getByRole("radio", { name })).toBeInTheDocument();
     }
@@ -79,7 +80,7 @@ describe("kurulum ekranı", () => {
       screen.getByRole("radio", { name: "daha çok kulüp maçı yaptı" }),
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole("radio", { name: "Boy" }));
+    await user.click(screen.getByRole("radio", { name: /Boy/u }));
 
     expect(
       screen.getByRole("radio", { name: "daha uzun" }),
@@ -87,6 +88,72 @@ describe("kurulum ekranı", () => {
     expect(
       screen.getByRole("radio", { name: "daha kısa" }),
     ).toBeInTheDocument();
+  });
+
+  /**
+   * BR-29'un bandı seçim ANINDA okunabilmeli.
+   *
+   * Oyunun zorluğunu ayarlayan tek sayı budur ve arayüzün hiçbir yerinde
+   * görünmüyordu: kullanıcı "kulüp sayısı" ile "kulüp maçı"nın neden bambaşka
+   * zorlukta olduğunu bilemiyordu. Sayı `MIN_GAP`'ten okunuyor — testin içine
+   * kopyalansaydı kural değiştiğinde arayüz sessizce yanlış söylerdi.
+   *
+   * ADIN TAMAMI DEĞİL PARÇASI aranıyor. Erişilebilir ad, kardeş düğümlerin
+   * metinlerini birleştirerek kurulur ve aradaki boşluk YERLEŞİMDEN türetilir
+   * (blok kutular boşlukla ayrılır, satır içi olanlar ayrılmaz). jsdom'un
+   * yerleşim motoru olmadığı için burada ad "Kulüp maçıen az …" diye
+   * birleşiyor; tarayıcıda boşlukla. Bu bir işaretleme kusuru değil, ortam
+   * kısıtı — testin iddiası bu yüzden bandın adın İÇİNDE geçmesi.
+   */
+  it("her istatistik BR-29 bandını erişilebilir adında taşır", () => {
+    setup();
+
+    expect(
+      screen.getByRole("radio", { name: /Kulüp maçı/u }),
+    ).toHaveAccessibleName(
+      new RegExp(`en az ${String(MIN_GAP.appearances)} maç fark`, "u"),
+    );
+    expect(
+      screen.getByRole("radio", { name: /Oynadığı kulüp/u }),
+    ).toHaveAccessibleName(
+      new RegExp(`en az ${String(MIN_GAP.clubs)} kulüp fark`, "u"),
+    );
+  });
+
+  it("sorulacak soru seçimlerle birlikte kurulur", async () => {
+    // Kurulumun çıktısı bir CÜMLEDİR ve o cümle hiçbir yerde bir bütün olarak
+    // görünmüyordu; kullanıcı ne soracağını ancak oyun başladıktan sonra
+    // okuyordu.
+    const { user } = setup();
+
+    expect(
+      screen.getByText("Hangisi daha çok kulüp maçı yaptı?"),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("radio", { name: /Boy/u }));
+    await user.click(screen.getByRole("radio", { name: "daha kısa" }));
+
+    expect(screen.getByText("Hangisi daha kısa?")).toBeInTheDocument();
+  });
+
+  /**
+   * WCAG 2.5.3 (Label in Name): erişilebilir ad GÖRÜNEN metni içermeli.
+   * Yön düğmesinde görünen metin kısaldı (cümlenin tamamı önizlemede duruyor)
+   * ama ad tam cümle kaldı; sesle komut veren kullanıcı gördüğü sözcüğü söyler.
+   */
+  it("yön düğmesinde görünen metin, erişilebilir adın İÇİNDE geçer", () => {
+    setup();
+
+    for (const name of [
+      "daha çok kulüp maçı yaptı",
+      "daha az kulüp maçı yaptı",
+    ]) {
+      const label = screen.getByRole("radio", { name }).closest("label");
+      const visible = label?.querySelector('[aria-hidden="true"]');
+
+      expect(visible?.textContent).toBeTruthy();
+      expect(name).toContain(visible?.textContent ?? "");
+    }
   });
 });
 
@@ -400,7 +467,7 @@ describe("kapsam bildirimi", () => {
       round: { statKey: "heightCm", pair: PAIR },
     });
 
-    await user.click(screen.getByRole("radio", { name: "Boy" }));
+    await user.click(screen.getByRole("radio", { name: /Boy/u }));
     await start(user);
 
     // Boy ve kilo oyuncunun kendi kaydından gelir; lig kapsamıyla ilgisi yok.

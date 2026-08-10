@@ -9,7 +9,7 @@ import type {
 } from "@/application/use-cases/which-more";
 import { ModeHeader, Scoreboard } from "./mode-header";
 import { STAT_KEYS, type StatKey } from "@/domain/services/stat-match";
-import type { Direction } from "@/domain/services/which-more";
+import { MIN_GAP, type Direction } from "@/domain/services/which-more";
 
 /**
  * "Hangisi daha" oyunu — PROJECT.md §9.3.
@@ -36,6 +36,15 @@ interface StatQuestion {
   /** "Hangisi …?" cümlesini tamamlar. */
   readonly more: string;
   readonly less: string;
+  /**
+   * Yön düğmesinde GÖRÜNEN kısa biçim; erişilebilir ad tam cümle KALIR.
+   *
+   * Kurulum ekranında cümlenin tamamı zaten önizlemede duruyor; düğmede
+   * ikinci kez basmak seçimi bir cümle yığınına çeviriyordu. Kısa biçim tam
+   * cümlenin İÇİNDE geçtiği için WCAG 2.5.3 (Label in Name) sağlanıyor.
+   */
+  readonly moreShort: string;
+  readonly lessShort: string;
   /** Değerin yanına yazılan birim. */
   readonly unit: string;
   /** §9.2'nin kapsam bildirimi: yalnızca 24 ligi mi sayıyor? */
@@ -53,6 +62,8 @@ const QUESTIONS: readonly StatQuestion[] = [
     name: "Kulüp maçı",
     more: "daha çok kulüp maçı yaptı",
     less: "daha az kulüp maçı yaptı",
+    moreShort: "daha çok",
+    lessShort: "daha az",
     unit: "maç",
     scoped: true,
   },
@@ -61,6 +72,8 @@ const QUESTIONS: readonly StatQuestion[] = [
     name: "Kulüp golü",
     more: "daha çok kulüp golü attı",
     less: "daha az kulüp golü attı",
+    moreShort: "daha çok",
+    lessShort: "daha az",
     unit: "gol",
     scoped: true,
   },
@@ -69,6 +82,8 @@ const QUESTIONS: readonly StatQuestion[] = [
     name: "Oynadığı kulüp",
     more: "daha çok kulüpte oynadı",
     less: "daha az kulüpte oynadı",
+    moreShort: "daha çok",
+    lessShort: "daha az",
     unit: "kulüp",
     scoped: true,
   },
@@ -77,6 +92,8 @@ const QUESTIONS: readonly StatQuestion[] = [
     name: "A millî maç",
     more: "daha çok A millî maça çıktı",
     less: "daha az A millî maça çıktı",
+    moreShort: "daha çok",
+    lessShort: "daha az",
     unit: "millî maç",
     scoped: false,
   },
@@ -85,6 +102,8 @@ const QUESTIONS: readonly StatQuestion[] = [
     name: "Boy",
     more: "daha uzun",
     less: "daha kısa",
+    moreShort: "daha uzun",
+    lessShort: "daha kısa",
     unit: "cm",
     scoped: false,
   },
@@ -93,7 +112,38 @@ const QUESTIONS: readonly StatQuestion[] = [
     name: "Kilo",
     more: "daha ağır",
     less: "daha hafif",
+    moreShort: "daha ağır",
+    lessShort: "daha hafif",
     unit: "kg",
+    scoped: false,
+  },
+];
+
+/**
+ * İstatistikler İKİ ÖBEKTE sunuluyor ve ayrım uydurma değil: `scoped`.
+ *
+ * Kulüp maçı, gol ve kulüp sayısı §1.3'ün yirmi dört ligini sayar; millî maç,
+ * boy ve kilo oyuncunun kendi kaydından gelir. Bu fark oyuna doğrudan etki
+ * ediyor (aynı oyuncu için "gerçek" toplamdan farklı bir sayı görülebilir) ve
+ * bugüne dek yalnızca TUR ekranında, seçim yapıldıktan SONRA söyleniyordu.
+ * Öbek başlığına taşındığında kullanıcı onu seçerken okuyor.
+ *
+ * Öbek üyeliği burada elle listelenmiyor; `scoped` alanından türetiliyor ki
+ * yeni bir istatistik eklendiğinde iki yerde birden güncelleme gerekmesin.
+ */
+const STAT_GROUPS: readonly {
+  readonly caption: string;
+  readonly detail: string;
+  readonly scoped: boolean;
+}[] = [
+  {
+    caption: "Kulüp kariyeri",
+    detail: "yalnızca kapsamdaki 24 lig",
+    scoped: true,
+  },
+  {
+    caption: "Oyuncunun kendi kaydı",
+    detail: "lig kapsamından bağımsız",
     scoped: false,
   },
 ];
@@ -827,6 +877,40 @@ interface StatPickerProps {
   onStart(): void;
 }
 
+/** Kurulum ekranının parçaları sırayla beliriyor; adım başına gecikme. */
+const SETUP_STEP_MS = 70;
+
+/** Bölüm başlığı — kurulumun iki adımı numaralı, çünkü GERÇEKTEN sıralı. */
+function StepLegend({ step, children }: { step: number; children: string }) {
+  return (
+    <legend className="flex items-baseline gap-2 text-sm font-extrabold tracking-tight">
+      <span
+        aria-hidden="true"
+        className="flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-[0.65rem] font-black text-background"
+      >
+        {step}
+      </span>
+      {children}
+    </legend>
+  );
+}
+
+/**
+ * Kurulum ekranı — PROJECT.md §9.3.
+ *
+ * NEDEN ÖNİZLEME EN ÜSTTE. Kurulumun çıktısı bir CÜMLEDİR ve o cümle bugüne
+ * dek hiçbir yerde bir bütün olarak görünmüyordu: kullanıcı bir kutudan
+ * istatistiği, başka bir kutudan yönü seçiyor ve ne soracağını ancak oyun
+ * başladıktan sonra okuyordu. Cümle artık ekranın en büyük yazısı ve her
+ * seçimde yeniden basılıyor — React anahtarı değiştiği için açılış animasyonu
+ * her seferinde yeniden koşuyor. Kurulum böylece bir form doldurmak değil,
+ * bir soru KURMAK oluyor.
+ *
+ * NEDEN YÖN DÜĞMELERİ KISALDI. Cümlenin tamamı önizlemede duruyor; düğmede
+ * ikinci kez basmak seçimi bir cümle yığınına çeviriyordu. Görünen metin
+ * kısaldı, ERİŞİLEBİLİR AD tam cümle kaldı (§7.17'deki gezinme ile aynı
+ * karar) — kısa biçim tam cümlenin içinde geçtiği için WCAG 2.5.3 sağlanıyor.
+ */
 function StatPicker({
   statKey,
   direction,
@@ -834,73 +918,152 @@ function StatPicker({
   onDirection,
   onStart,
 }: StatPickerProps) {
+  const question = questionFor(statKey);
+
   return (
-    <div className="flex flex-col gap-6">
-      <fieldset className="flex flex-col gap-3">
-        <legend className="text-sm font-semibold">Hangi istatistik?</legend>
-        <div className="grid gap-2 sm:grid-cols-3">
-          {STAT_KEYS.map((key) => {
-            const one = questionFor(key);
-            const isCurrent = key === statKey;
+    <div className="flex flex-col gap-7">
+      {/*
+        SORULACAK SORU. Ekranın en büyük yazısı, çünkü kurulumun ürettiği tek
+        şey bu. `key` her seçimde değişiyor: React düğümü yeniden kuruyor ve
+        animasyon yeniden koşuyor.
+      */}
+      <div className="animate-duel-enter rounded-2xl border-2 border-line-strong bg-surface px-5 py-6 shadow-card sm:px-7">
+        <p className="text-[0.65rem] font-extrabold tracking-[0.15em] text-muted uppercase">
+          Sorulacak soru
+        </p>
+        <p
+          key={`${statKey}-${direction}`}
+          className="animate-duel-swap mt-2 text-2xl leading-tight font-black tracking-tight text-balance sm:text-4xl"
+        >
+          Hangisi {direction === "more" ? question.more : question.less}?
+        </p>
+      </div>
+
+      <fieldset className="flex flex-col gap-4">
+        <StepLegend step={1}>Hangi istatistik?</StepLegend>
+
+        {STAT_GROUPS.map((group, groupIndex) => (
+          <fieldset key={group.caption} className="flex flex-col gap-2">
+            <legend className="flex flex-wrap items-baseline gap-x-2">
+              <span className="text-sm font-bold">{group.caption}</span>
+              <span className="text-xs text-note">{group.detail}</span>
+            </legend>
+
+            <div className="grid gap-2 sm:grid-cols-3">
+              {STAT_KEYS.filter(
+                (key) => questionFor(key).scoped === group.scoped,
+              ).map((key, index) => {
+                const one = questionFor(key);
+                const isCurrent = key === statKey;
+                return (
+                  /*
+                    SEÇİLİ OLAN YALNIZCA RENKLE AYRILMIYOR (WCAG 1.4.1): yazı
+                    kalınlığı değişiyor ve üstteki şerit boydan boya doluyor.
+                    Kenarlık iki durumda da `border-2`, yoksa seçim ızgarayı
+                    bir piksel oynatırdı.
+                  */
+                  <label
+                    key={key}
+                    className={`animate-duel-enter flex cursor-pointer flex-col gap-1.5 rounded-2xl border-2 px-3.5 py-3 transition-[transform,box-shadow,background-color,border-color] duration-150 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent ${
+                      isCurrent
+                        ? "border-accent bg-accent-soft shadow-card"
+                        : "border-line-strong bg-surface hover:-translate-y-0.5 hover:border-accent hover:shadow-card"
+                    }`}
+                    style={{
+                      animationDelay: `${String(
+                        (groupIndex * 3 + index + 1) * SETUP_STEP_MS,
+                      )}ms`,
+                    }}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={`h-1 rounded-full transition-[width,background-color] duration-200 ${
+                        isCurrent ? "w-full bg-accent" : "w-6 bg-line"
+                      }`}
+                    />
+
+                    <input
+                      type="radio"
+                      name="which-more-stat"
+                      className="sr-only"
+                      value={key}
+                      checked={isCurrent}
+                      onChange={() => {
+                        onStatKey(key);
+                      }}
+                    />
+
+                    <span
+                      className={
+                        "text-sm " +
+                        (isCurrent ? "font-bold text-accent" : "font-semibold")
+                      }
+                    >
+                      {one.name}
+                    </span>
+
+                    {/*
+                      BR-29'un bandı seçim ANINDA okunuyor. Oyunun zorluğunu
+                      ayarlayan tek sayı budur ve bugüne dek arayüzün hiçbir
+                      yerinde görünmüyordu: kullanıcı "kulüp sayısı" ile "kulüp
+                      maçı"nın neden bambaşka zorlukta olduğunu bilemiyordu.
+                      Metin erişilebilir adın PARÇASI — gizlenseydi ekran
+                      okuyucu kullanıcısı bu farkı hiç öğrenemezdi.
+                    */}
+                    <span className="text-xs text-muted">
+                      en az {String(MIN_GAP[key])} {one.unit} fark
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+        ))}
+      </fieldset>
+
+      <fieldset
+        className="animate-duel-enter flex flex-col gap-2"
+        style={{ animationDelay: `${String(7 * SETUP_STEP_MS)}ms` }}
+      >
+        <StepLegend step={2}>Hangi yön?</StepLegend>
+
+        <div className="flex flex-wrap gap-2">
+          {(["more", "less"] as const).map((option) => {
+            const isCurrent = option === direction;
             return (
-              /*
-                SEÇİLİ OLAN YALNIZCA RENKLE AYRILMIYOR (WCAG 1.4.1): yazı
-                kalınlığı da değişiyor. Kenarlık iki durumda da `border-2`,
-                yoksa seçim ızgarayı bir piksel oynatırdı.
-              */
               <label
-                key={key}
-                className={`cursor-pointer rounded-xl border-2 px-3 py-3 text-sm transition-[transform,box-shadow,background-color,border-color] duration-150 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent ${
+                key={option}
+                className={`flex-1 cursor-pointer rounded-full border-2 px-5 py-2.5 text-center text-base transition-[transform,box-shadow,background-color,border-color] duration-150 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent sm:flex-none ${
                   isCurrent
-                    ? "border-accent bg-accent-soft font-bold text-accent shadow-card"
-                    : "border-line-strong bg-surface font-medium hover:-translate-y-0.5 hover:border-accent hover:shadow-card"
+                    ? "border-accent bg-accent font-bold text-accent-fg shadow-card"
+                    : "border-line-strong bg-surface font-semibold hover:-translate-y-0.5 hover:border-accent hover:shadow-card"
                 }`}
               >
                 <input
                   type="radio"
-                  name="which-more-stat"
+                  name="which-more-direction"
                   className="sr-only"
-                  value={key}
+                  value={option}
                   checked={isCurrent}
                   onChange={() => {
-                    onStatKey(key);
+                    onDirection(option);
                   }}
                 />
-                {one.name}
+
+                {/*
+                  GÖRÜNEN kısa, DUYULAN tam. Cümlenin tamamı önizlemede zaten
+                  yazılı; düğmede tekrarı seçimi okunmaz hâle getiriyordu.
+                */}
+                <span aria-hidden="true">
+                  {option === "more" ? question.moreShort : question.lessShort}
+                </span>
+                <span className="sr-only">
+                  {option === "more" ? question.more : question.less}
+                </span>
               </label>
             );
           })}
         </div>
-      </fieldset>
-
-      <fieldset className="flex flex-wrap items-center gap-2">
-        <legend className="mb-2 text-sm font-semibold">Hangi yön?</legend>
-        {(["more", "less"] as const).map((option) => {
-          const one = questionFor(statKey);
-          const isCurrent = option === direction;
-          return (
-            <label
-              key={option}
-              className={`cursor-pointer rounded-lg border-2 px-3 py-1.5 text-sm transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent ${
-                isCurrent
-                  ? "border-accent bg-accent-soft font-bold text-accent"
-                  : "border-line-strong bg-surface font-medium hover:border-accent"
-              }`}
-            >
-              <input
-                type="radio"
-                name="which-more-direction"
-                className="sr-only"
-                value={option}
-                checked={isCurrent}
-                onChange={() => {
-                  onDirection(option);
-                }}
-              />
-              {option === "more" ? one.more : one.less}
-            </label>
-          );
-        })}
       </fieldset>
 
       {/*
@@ -908,13 +1071,19 @@ function StatPicker({
         modlardaki "Devam" düğmesiyle aynı puntoda durması, koşuyu başlatan
         kararı sıradan bir ilerleme adımı gibi gösteriyordu.
       */}
-      <div>
+      <div
+        className="animate-duel-enter"
+        style={{ animationDelay: `${String(8 * SETUP_STEP_MS)}ms` }}
+      >
         <button
           type="button"
-          className="rounded-xl bg-accent px-7 py-3 text-base font-bold text-accent-fg shadow-card transition-[transform,box-shadow,opacity] duration-150 hover:-translate-y-0.5 hover:opacity-95 hover:shadow-pop focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:translate-y-0"
+          className="w-full rounded-xl bg-accent px-7 py-3.5 text-base font-bold text-accent-fg shadow-card transition-[transform,box-shadow,opacity] duration-150 hover:-translate-y-0.5 hover:opacity-95 hover:shadow-pop focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:translate-y-0 sm:w-auto"
           onClick={onStart}
         >
           Başla
+          <span aria-hidden="true" className="ml-2">
+            →
+          </span>
         </button>
       </div>
     </div>

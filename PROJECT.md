@@ -3107,7 +3107,21 @@ Aşağıdakiler **yalnızca sunumdur**. BR-28…BR-32 değişmedi, sunucu sözle
 
 **Seri bandı ölçümden geliyor, uydurulmadı.** Yukarıdaki BR-30 tablosunda dengeli rakiple bilgisiz oynayan koşunun **p90'ı 3, p99'u 6**. Yani 4. doğru "on koşuda bir", 7. doğru "yüz koşuda bir" görülen bir yer. Şerit tam olarak bunu yazıyor. Eşikler bir tasarım hevesi değil, şartnamenin kendi ölçümü; ölçüm değişirse eşik de değişmeli.
 
-**Kurulum ekranı da elden geçti.** İstatistik ve yön seçenekleri artık `surface` üzerinde duruyor (sayfa zemininde değil), üstlerine gelince yükseliyor ve **seçili olan yalnızca renkle ayrılmıyor** — yazı kalınlığı da değişiyor (WCAG 1.4.1). Kenarlık iki durumda da `border-2`, yoksa seçim ızgarayı bir piksel oynatırdı. "Başla" düğmesi büyütüldü: kurulum ekranının tek eylemi o ve "Devam" ile aynı puntoda durması, koşuyu başlatan kararı sıradan bir ilerleme adımı gibi gösteriyordu.
+#### Kurulum ekranı: bir form değil, kurulan bir soru (10 Ağustos 2026)
+
+Kurulum ekranı sekiz radyo düğmesi ve bir "Başla"dan ibaretti. Asıl kusuru sadeliği değil, **çıktısını göstermemesiydi**: kurulumun ürettiği şey bir cümledir ("Hangisi daha çok kulüp maçı yaptı?") ve o cümle hiçbir yerde bir bütün olarak görünmüyordu. Kullanıcı bir kutudan istatistiği, başka bir kutudan yönü seçiyor ve ne soracağını ancak oyun **başladıktan sonra** okuyordu.
+
+**Cümle artık ekranın en büyük yazısı** ve her seçimde yeniden basılıyor — React anahtarı değiştiği için açılış animasyonu her seferinde yeniden koşuyor. Kurulum böylece bir form doldurmak değil, bir soru **kurmak** oluyor: her tıklamanın karşılığı anında ve aynı yerde görünüyor.
+
+**Yön düğmeleri kısaldı, adları kısalmadı.** Cümlenin tamamı önizlemede durduğu için düğmede ikinci kez basmak seçimi bir cümle yığınına çeviriyordu ("daha çok kulüp maçı yaptı" / "daha az kulüp maçı yaptı" yan yana). Görünen metin artık "daha çok" / "daha az"; **erişilebilir ad tam cümle kaldı** — §7.17'deki gezinme kararının aynısı ve WCAG 2.5.3 kısa biçim tam cümlenin içinde geçtiği için sağlanıyor. Bir test bunu tutuyor.
+
+**İstatistikler iki öbeğe ayrıldı ve ayrım uydurma değil: `scoped`.** Kulüp maçı, gol ve kulüp sayısı §1.3'ün yirmi dört ligini sayar; millî maç, boy ve kilo oyuncunun kendi kaydından gelir. Bu fark oyuna doğrudan etki ediyor ve bugüne dek yalnızca **tur** ekranında, seçim yapıldıktan **sonra** söyleniyordu. Öbek başlığına taşındığında kullanıcı onu seçerken okuyor. Öbek üyeliği elle listelenmiyor, `scoped` alanından türetiliyor — yeni bir istatistik iki yerde birden güncelleme gerektirmesin diye.
+
+**Her kart artık BR-29'un bandını taşıyor** ("en az 25 maç fark"). Bu, oyunun zorluğunu ayarlayan **tek** sayıdır ve arayüzün hiçbir yerinde görünmüyordu: kullanıcı "kulüp sayısı" ile "kulüp maçı"nın neden bambaşka zorlukta olduğunu bilemiyordu. Sayı `MIN_GAP`'ten okunuyor, arayüze kopyalanmadı; metin **erişilebilir adın parçası** — gizlenseydi ekran okuyucu kullanıcısı bu farkı hiç öğrenemezdi.
+
+**Seçili olan yalnızca renkle ayrılmıyor** (WCAG 1.4.1): yazı kalınlığı değişiyor ve kartın üstündeki şerit boydan boya doluyor. Kenarlık iki durumda da `border-2`, yoksa seçim ızgarayı bir piksel oynatırdı. Kartlar açılışta sırayla beliriyor (adım başına 70 ms) ve "Başla" büyütülüp dar ekranda tam genişliğe çıktı: kurulum ekranının tek eylemi o ve "Devam" ile aynı puntoda durması, koşuyu başlatan kararı sıradan bir ilerleme adımı gibi gösteriyordu.
+
+> **Erişilebilir adın boşluğu yerleşimden gelir.** Ad, kardeş düğümlerin metinleri birleştirilerek kurulur ve aradaki boşluğu tarayıcı **kutu türünden** türetir — blok kutular boşlukla ayrılır, satır içi olanlar ayrılmaz. jsdom'un yerleşim motoru olmadığı için testte ad "Kulüp maçıen az …" diye birleşiyor, tarayıcıda boşlukla. Bu bir işaretleme kusuru değil ortam kısıtıdır; test bu yüzden adın tamamını değil, bandın adın **içinde** geçtiğini arıyor. Metne elle boşluk eklemek çözüm değil — ad hesabı her metin parçasını zaten kırpıyor.
 
 **Yapılmayanlar.** _Otomatik geçiş_ yok — süreli ilerleyen bir oyun WCAG 2.2.1'e takılır ve sonucu okumaya fırsat bırakmaz; kullanıcı "Devam" der. _Sayının sıfırdan sayılarak açılması_ yok: rakamlar düğmenin erişilebilir adının içinde ve saniyede altmış kez değişen bir ad, ekran okuyucuyu boğar; aynı dramayı çubuk, adı hiç kıpırdatmadan veriyor. _Ses_ yok.
 
