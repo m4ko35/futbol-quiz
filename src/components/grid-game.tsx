@@ -262,7 +262,7 @@ export function GridGame({
         olmaktan çıkınca diğeri de `auto`ya döner — yani o sınıf DİKEYDE bir
         kırpma bağlamı yaratıyordu ve hücreye kenetlenen seçiciyi kesiyordu.
       */}
-      <div className="rounded-2xl border border-line bg-surface p-2 shadow-card sm:p-3">
+      <div className="relative rounded-2xl border border-line bg-surface p-2 shadow-card sm:p-3">
         <table className="w-full border-separate border-spacing-1.5">
           <caption className="sr-only">
             {date === undefined
@@ -332,7 +332,22 @@ export function GridGame({
                   return (
                     <td
                       key={`cell-${String(columnIndex)}`}
-                      className="relative p-0"
+                      /*
+                        KONUMLANDIRMA GENİŞLİĞE GÖRE DEĞİŞİYOR.
+
+                        `sm:relative` — hücre yalnızca geniş ekranda bir
+                        konumlandırma bağlamı oluyor. Dar ekranda olmadığı
+                        için, içindeki mutlak panel bir üstteki kutuya
+                        (tablonun sarmalayıcısına) bağlanıyor ve tablonun
+                        ALTINA, tam genişlikte açılıyor.
+
+                        Gerekçe ölçüyle: 390 px'te ızgaranın tamamı ~350 px ve
+                        bir hücre ~87 px. Hücreye kenetlenen 320 px'lik bir
+                        panel orta sütunda görünür alanın dışına taşıyordu.
+                        Üstelik "seçici hücreden uzakta kalıyor" sorunu dar
+                        ekranda zaten yok: tablonun tamamı bir ekran boyu.
+                      */
+                      className="p-0 sm:relative"
                     >
                       <Cell
                         answer={answer}
@@ -362,8 +377,10 @@ export function GridGame({
                       {isOpen && !finished && (
                         <div
                           className={
-                            "absolute top-full z-20 mt-2 w-[min(20rem,calc(100vw-2.5rem))] " +
-                            (columnIndex >= size - 1 ? "right-0" : "left-0")
+                            "absolute top-full right-0 left-0 z-20 mt-2 sm:w-80 " +
+                            (columnIndex >= size - 1
+                              ? "sm:left-auto"
+                              : "sm:right-auto")
                           }
                         >
                           <PlayerPicker

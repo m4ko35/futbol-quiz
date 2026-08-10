@@ -26,11 +26,23 @@ const MODES: readonly {
   readonly id: ModeId;
   readonly href: string;
   readonly title: string;
+  /** Dar ekranda görünen kısa ad; erişilebilir ad `title` KALIR. */
+  readonly short: string;
 }[] = [
-  { id: "common-players", href: "/", title: "Ortak Oyuncu" },
-  { id: "grid", href: "/izgara", title: "3×3 Izgara" },
-  { id: "stat-match", href: "/istatistik", title: "İstatistik" },
-  { id: "which-more", href: "/hangisi-daha", title: "Hangisi Daha" },
+  { id: "common-players", href: "/", title: "Ortak Oyuncu", short: "Ortak" },
+  { id: "grid", href: "/izgara", title: "3×3 Izgara", short: "Izgara" },
+  {
+    id: "stat-match",
+    href: "/istatistik",
+    title: "İstatistik",
+    short: "İstatistik",
+  },
+  {
+    id: "which-more",
+    href: "/hangisi-daha",
+    title: "Hangisi Daha",
+    short: "Hangisi",
+  },
 ];
 
 export interface ModeNavProps {
@@ -55,13 +67,27 @@ export function ModeNav({ current }: ModeNavProps) {
             key={mode.id}
             href={mode.href}
             aria-current={isCurrent ? "page" : undefined}
-            className={`rounded-full px-3 py-1.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+            /*
+              ERİŞİLEBİLİR AD HER GENİŞLİKTE AYNI. Görünen metin dar ekranda
+              kısalıyor ama `aria-label` tam adı taşıyor: ekran okuyucu
+              kullanıcısı için gezinme, tarayıcı penceresinin genişliğine göre
+              değişmemeli. WCAG 2.5.3 de sağlanıyor — tam ad, görünen kısa adı
+              İÇERİYOR ("Ortak" ⊂ "Ortak Oyuncu").
+            */
+            aria-label={mode.title}
+            className={`rounded-full px-2.5 py-1.5 text-sm whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:px-3 ${
               isCurrent
                 ? "bg-accent font-semibold text-accent-fg shadow-card"
                 : "font-medium text-muted hover:bg-surface hover:text-foreground"
             }`}
           >
-            {mode.title}
+            {/*
+              Dört tam etiket 390 px'e sığmıyor ve şerit iki satıra sarıyordu:
+              yuvarlak bir kapsayıcının içinde sarılmış segmentler, segment
+              denetimi olmaktan çıkıp bağlantı yığınına dönüyor.
+            */}
+            <span className="sm:hidden">{mode.short}</span>
+            <span className="hidden sm:inline">{mode.title}</span>
           </Link>
         );
       })}

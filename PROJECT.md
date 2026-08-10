@@ -2229,6 +2229,30 @@ Bir test bu bağı koruyor: satırın içinde iki kulübün adı da **okunabilir
 
 Renk hiçbirinde tek gösterge değil (WCAG 1.4.1): kiralıkta sözcük, kanıtsızda hem metin hem kesik çizgi var. BR-3 ve BR-8'in metin koşulları olduğu gibi duruyor.
 
+### 7.17 Dar Ekran (390 px)
+
+Ölçüldü (10 Ağustos 2026): bütün uygulamada **15** duyarlılık sınıfı vardı ve 16 bileşenin **10'unda hiç yoktu**. Yeni mod gövdeleri de ilk yazıldıklarında yalnızca geniş ekrana göre ölçülmüştü. Bu bölüm o turun sonucudur; sayı 45'e çıktı ama asıl mesele sayı değil, **iki yapısal kusurdu**.
+
+#### Gezinme şeridi ikiye sarıyordu
+
+Dört tam etiket ("Ortak Oyuncu", "3×3 Izgara", "İstatistik", "Hangisi Daha") 390 px'e sığmıyor ve `flex-wrap` onları ikinci satıra atıyordu. Yuvarlak bir kapsayıcının içinde sarılmış segmentler, **segment denetimi olmaktan çıkıp bağlantı yığınına** dönüyor — yani modların birbirinin alternatifi olduğu bilgisi kayboluyordu (§7.12'de bu görünüm bilerek seçilmişti).
+
+Etiketler dar ekranda kısalıyor: `Ortak`, `Izgara`, `İstatistik`, `Hangisi`. **Erişilebilir ad kısalmıyor** — `aria-label` her genişlikte tam adı taşıyor. Ekran okuyucu kullanıcısı için gezinme, tarayıcı penceresinin genişliğine göre değişmemeli.
+
+WCAG 2.5.3 (Label in Name) de sağlanıyor: tam ad, görünen kısa adı **içeriyor** ("Ortak" ⊂ "Ortak Oyuncu"). Bir test bunu tutuyor — kısa adı bağımsız bir sözcüğe çeviren bir değişiklik sesle komut veren kullanıcıyı kilitlerdi.
+
+#### Kenetli seçici orta sütunda taşıyordu
+
+§9.1'de seçici hedef hücreye kenetlendi. 390 px'te ızgaranın tamamı ~350 px ve bir hücre ~87 px; hücreye kenetlenen 320 px'lik panel **orta sütunda görünür alanın dışına** çıkıyordu — yani sayfa yatayda kaydırılır hâle geliyordu.
+
+Çözüm konumlandırma bağlamını genişliğe bağlamak oldu: hücre yalnızca `sm` ve üstünde `relative`. Dar ekranda panel bir üstteki kutuya — tablonun sarmalayıcısına — bağlanıyor ve **tablonun altına, tam genişlikte** açılıyor. Tek bir DOM düğümü, iki davranış.
+
+Kenetlemenin çözdüğü sorun dar ekranda zaten yok: tablonun tamamı bir ekran boyu, seçici hiçbir zaman hedeften uzağa düşmüyor.
+
+#### Duyarlılık sınıfı taşımayan bileşenler
+
+Dokuz bileşende hâlâ yok ve **bu doğru**: `brand-mark` ile `club-mark` sabit ölçülü işaretler, üç seçici tam genişlikte akıyor, iki sarmalayıcı düzen taşımıyor, altbilgi düz metin. Ölçüden bağımsız bir bileşene kırılma noktası eklemek, sayıyı büyütür ama hiçbir şeyi düzeltmez.
+
 ---
 
 ## 8. Kalite Güvencesi

@@ -109,7 +109,9 @@ export function Scoreboard({ cells, lit = false, label }: ScoreboardProps) {
       {cells.map((cell) => (
         <div
           key={cell.label}
-          className="min-w-[4.75rem] border-r border-line px-4 py-2 text-right last:border-r-0"
+          // Dar ekranda üç hücre + dolgu 390 px'i zorluyor; ölçüler orada
+          // küçülüyor. Sayı KISALTILMIYOR (§2.7) — yalnızca punto iniyor.
+          className="min-w-[3.5rem] border-r border-line px-2.5 py-2 text-right last:border-r-0 sm:min-w-[4.75rem] sm:px-4"
         >
           <p className="text-[0.6rem] font-extrabold tracking-[0.13em] text-muted uppercase">
             {cell.label}
@@ -118,8 +120,8 @@ export function Scoreboard({ cells, lit = false, label }: ScoreboardProps) {
             className={
               "font-extrabold tabular-nums " +
               (cell.small
-                ? "pt-1.5 text-lg tracking-tight"
-                : "text-3xl leading-none tracking-[-0.035em]") +
+                ? "pt-1.5 text-base tracking-tight sm:text-lg"
+                : "text-2xl leading-none tracking-[-0.035em] sm:text-3xl") +
               (cell.tone === undefined ? "" : " " + TONE_CLASS[cell.tone])
             }
           >
