@@ -108,6 +108,15 @@ type Phase =
       readonly kind: "revealed";
       readonly pair: WhichMorePairDto;
       readonly answer: WhichMoreAnswerDto;
+      /**
+       * Kullanıcının TIKLADIĞI oyuncu.
+       *
+       * Sunucu cevabında yok ve olması da gerekmiyor — sunucu "hangisi
+       * kazandı"yı söylüyor, "sen ne seçtin"i değil. Ama arayüzde gerekli:
+       * yanlış cevapta iki panelde de sayı açılıyor ve kullanıcı hangisine
+       * tıkladığını yalnızca renkten ÇIKARSAMAK zorunda kalıyordu.
+       */
+      readonly chosenId: string;
     }
   /** Havuz tükendi (§6.6) — yanlış cevaptan farklı bir son. */
   | { readonly kind: "exhausted" }
@@ -198,7 +207,7 @@ export function WhichMoreQuiz({
       });
 
       if (answer.correct) setStreak((current) => current + 1);
-      setPhase({ kind: "revealed", pair, answer });
+      setPhase({ kind: "revealed", pair, answer, chosenId });
     } catch (error: unknown) {
       setPhase({ kind: "error", message: describe(error) });
     }
@@ -325,6 +334,18 @@ export function WhichMoreQuiz({
                         ? outcomeFor(phase.answer, player.id)
                         : "none"
                     }
+                    chosen={
+                      phase.kind === "revealed" && phase.chosenId === player.id
+                    }
+                    fate={
+                      // Yalnızca doğru cevapta: yanlışta koşu bitiyor ve
+                      // kimse "kalmıyor".
+                      phase.kind === "revealed" && phase.answer.correct
+                        ? phase.answer.winnerId === player.id
+                          ? "stays"
+                          : "out"
+                        : null
+                    }
                     disabled={phase.kind !== "asking"}
                     onChoose={() => void choose(player.id)}
                   />
@@ -393,6 +414,15 @@ interface PlayerCardProps {
   /** `null` = değer henüz açılmadı (BR-32). */
   readonly value: number | null;
   readonly outcome: Outcome;
+  /** Kullanıcı bu paneli mi tıkladı? Yalnızca değerler açıldıktan sonra. */
+  readonly chosen: boolean;
+  /**
+   * Zincirde ne olacağı — yalnızca DOĞRU cevapta anlamlı.
+   *
+   * Yanlış cevapta koşu bitiyor; "kalıyor"/"eleniyor" demek orada yanlış
+   * olurdu, çünkü kimse kalmıyor.
+   */
+  readonly fate: "stays" | "out" | null;
   readonly disabled: boolean;
   onChoose(): void;
 }
@@ -402,6 +432,8 @@ function PlayerCard({
   unit,
   value,
   outcome,
+  chosen,
+  fate,
   disabled,
   onChoose,
 }: PlayerCardProps) {
@@ -425,6 +457,38 @@ function PlayerCard({
           `${String(value)} ${unit}`
         )}
       </span>
+
+      {/*
+        SEÇİM VE AKIBET AÇIKÇA YAZILI.
+
+        Değerler açıldığında iki panelde de bir sayı duruyor ve kullanıcı hangi
+        panele tıkladığını yalnızca RENKTEN çıkarsamak zorundaydı — yanlış
+        cevapta "kırmızı olan benim seçimimdi" diye. Çıkarsama renk ayırt
+        edemeyen kullanıcıda hiç kurulmuyordu (WCAG 1.4.1) ve doğru cevapta
+        zaten hiç kurulmuyordu: orada iki panel de "yanlış" değil.
+
+        `fate` ise bir sonraki adımı söylüyor. Zincirin kuralı — kazanan kalır,
+        diğeri elenir — bugün yalnızca yardım metninde yazılıydı; olduğu anda
+        gösterilmiyordu.
+      */}
+      {(chosen || fate !== null) && (
+        <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold">
+          {chosen && (
+            <span className="rounded-full bg-accent px-2 py-0.5 text-accent-fg">
+              senin seçimin
+            </span>
+          )}
+          {fate !== null && (
+            <span
+              className={
+                fate === "stays" ? "text-correct" : "text-muted line-through"
+              }
+            >
+              {fate === "stays" ? "kalıyor" : "eleniyor"}
+            </span>
+          )}
+        </span>
+      )}
     </button>
   );
 }

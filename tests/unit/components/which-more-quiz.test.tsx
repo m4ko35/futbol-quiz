@@ -136,6 +136,69 @@ describe("BR-28 — zincir", () => {
     ).toHaveTextContent("Seri1");
   });
 
+  /**
+   * SEÇİM AÇIKÇA YAZILI — çıkarsamaya bırakılmıyor.
+   *
+   * Değerler açıldığında iki panelde de bir sayı duruyordu ve kullanıcı hangi
+   * panele tıkladığını yalnızca RENKTEN çıkarsamak zorundaydı. O çıkarsama
+   * renk ayırt edemeyen kullanıcıda hiç kurulmuyor (WCAG 1.4.1) ve doğru
+   * cevapta zaten kurulmuyordu: orada hiçbir panel "yanlış" değil.
+   */
+  it("yanlış cevapta hangi paneli seçtiğini SÖYLER", async () => {
+    const { user } = setup({
+      answer: {
+        correct: false,
+        left: { id: "sol", value: 164 },
+        right: { id: "sag", value: 175 },
+        winnerId: "sag",
+        scoped: true,
+      },
+    });
+    await start(user);
+
+    await user.click(screen.getByRole("button", { name: /Drogba/u }));
+
+    const chosen = await screen.findByRole("button", { name: /Drogba/u });
+    expect(chosen).toHaveTextContent("senin seçimin");
+    expect(
+      screen.getByRole("button", { name: /Henry/u }),
+    ).not.toHaveTextContent("senin seçimin");
+  });
+
+  it("doğru cevapta kimin KALDIĞINI ve kimin elendiğini söyler", async () => {
+    // Zincirin kuralı bugün yalnızca yardım metnindeydi; olduğu anda
+    // gösterilmiyordu.
+    const { user } = setup();
+    await start(user);
+
+    await user.click(screen.getByRole("button", { name: /Henry/u }));
+
+    const winner = await screen.findByRole("button", { name: /Henry/u });
+    expect(winner).toHaveTextContent("kalıyor");
+    expect(screen.getByRole("button", { name: /Drogba/u })).toHaveTextContent(
+      "eleniyor",
+    );
+  });
+
+  it("YANLIŞ cevapta 'kalıyor' DEMEZ — koşu bitti, kimse kalmıyor", async () => {
+    const { user } = setup({
+      answer: {
+        correct: false,
+        left: { id: "sol", value: 164 },
+        right: { id: "sag", value: 175 },
+        winnerId: "sag",
+        scoped: true,
+      },
+    });
+    await start(user);
+
+    await user.click(screen.getByRole("button", { name: /Drogba/u }));
+
+    await screen.findByText("Yanlış");
+    expect(screen.queryByText("kalıyor")).not.toBeInTheDocument();
+    expect(screen.queryByText("eleniyor")).not.toBeInTheDocument();
+  });
+
   it("görülen oyuncular dışlama listesine yazılır", async () => {
     const { user, fetchRound } = setup();
     await start(user);

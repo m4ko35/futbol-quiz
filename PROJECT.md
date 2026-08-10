@@ -3043,6 +3043,16 @@ Tanınırlık havuzu 405 bin dönemi tarıyor ve süreç başına **bir kez** ku
 
 Soğuk maliyet bir "başlangıç gideri" diye kenara konamaz: sunucusuz ortamda onu ilk isteği yapan kullanıcı öder. Sıcak bütçenin ölçülenin 14 katı olması bilinçli — 1,4 ms'lik bir kapı ölçüm gürültüsünde kalırdı ve kapının koruduğu şey zaten başka: seçimin bir gün bellekten SQL'e dönmesi (o regresyon 100 ms'in üstünde olurdu).
 
+#### Seçim ve akıbet açıkça yazılıyor (10 Ağustos 2026)
+
+Değerler açıldığında iki panelde de bir sayı duruyor. Kullanıcının hangi panele tıkladığı ise **hiçbir yerde yazmıyordu** — yalnızca renkten çıkarsanabiliyordu: "kırmızı olan benim seçimimdi". O çıkarsama iki durumda birden kurulmuyor: renk ayırt edemeyen kullanıcıda hiç (WCAG 1.4.1), ve **doğru cevapta hiç kimsede** — orada zaten hiçbir panel "yanlış" değil.
+
+Seçilen panel artık `senin seçimin` etiketi taşıyor. Bilgi sunucudan gelmiyor ve gelmesi de gerekmiyor: sunucu "hangisi kazandı"yı söylüyor, "sen ne seçtin"i değil. İstemci zaten biliyor, yalnızca saklamıyordu.
+
+Doğru cevapta ayrıca **akıbet** yazılıyor: kazanan `kalıyor`, diğeri `eleniyor`. BR-28'in zincir kuralı bugüne kadar yalnızca giriş metninde duruyordu; gerçekleştiği anda gösterilmiyordu. Yanlış cevapta bu etiketler **basılmıyor** — orada koşu bitiyor ve kimse kalmıyor; "kalıyor" demek düpedüz yanlış olurdu. Üç test bunları tutuyor, sonuncusu tam da bu son durumu.
+
+Tasarım teslimatının önerdiği **"sırada" önizlemesi yapılmadı**: bir sonraki rakibi kullanıcı "Devam" demeden göstermek, turu istenmeden yüklemek ve henüz sorulmamış bir soruyu ekrana koymak demek. Teslimat da bunu bir varsayım olarak işaretlemişti.
+
 #### Kurallar
 
 - **BR-28 — Zincir: kazanan kalır.** Doğru cevapta **seçilen** oyuncu bir sonraki tura geçer ve karşısına yeni bir rakip gelir; her turda yalnızca bir oyuncu değişir. Yanlış cevapta koşu biter, skor doğru cevap sayısıdır. Koşu boyunca aynı oyuncu ikinci kez rakip olarak sunulmaz.
