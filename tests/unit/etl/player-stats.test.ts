@@ -40,7 +40,7 @@ describe("nationalCapsFrom — BR-14", () => {
       isNationalTeam,
     );
 
-    expect(caps.get("Q68060")).toBe(176);
+    expect(caps.get("Q68060")?.caps).toBe(176);
   });
 
   /**
@@ -53,7 +53,7 @@ describe("nationalCapsFrom — BR-14", () => {
       isNationalTeam,
     );
 
-    expect(caps.get("Q215963")).toBe(126);
+    expect(caps.get("Q215963")?.caps).toBe(126);
   });
 
   it("kulüp dönemlerini saymaz", () => {
@@ -62,7 +62,7 @@ describe("nationalCapsFrom — BR-14", () => {
       isNationalTeam,
     );
 
-    expect(caps.get("Q68060")).toBe(176);
+    expect(caps.get("Q68060")?.caps).toBe(176);
   });
 
   it("hiç millî takım kaydı yoksa oyuncu haritaya girmez", () => {
@@ -81,8 +81,8 @@ describe("nationalCapsFrom — BR-14", () => {
       isNationalTeam,
     );
 
-    expect(artan.get("Q1")).toBe(176);
-    expect(azalan.get("Q1")).toBe(176);
+    expect(artan.get("Q1")?.caps).toBe(176);
+    expect(azalan.get("Q1")?.caps).toBe(176);
   });
 
   it("bozuk satırları atlar", () => {
@@ -99,7 +99,7 @@ describe("nationalCapsFrom — BR-14", () => {
       isNationalTeam,
     );
 
-    expect(caps.get("Q1")).toBe(50);
+    expect(caps.get("Q1")?.caps).toBe(50);
   });
 });
 
@@ -147,7 +147,9 @@ describe("applyPlayerStats", () => {
     name: "Gianluigi Buffon",
     searchKey: "gianluigi buffon",
     birthDate: null,
-    nationality: "IT",
+    nationality: null,
+    citizenships: ["IT"],
+    birthCountry: "IT",
     position: "Kaleci",
     genderQid: null,
     nationalCaps: null,
@@ -155,11 +157,14 @@ describe("applyPlayerStats", () => {
     weightKg: null,
   };
 
+  const ITALY = new Map([["Q1088902", "IT"]]);
+
   it("istatistikleri oyuncuya işler", () => {
     const [player] = applyPlayerStats(
       [base],
-      new Map([["Q68060", 176]]),
+      new Map([["Q68060", { caps: 176, teamQid: "Q1088902" }]]),
       new Map([["Q68060", { heightCm: 192, weightKg: 92 }]]),
+      ITALY,
     );
 
     expect(player).toMatchObject({
@@ -167,24 +172,59 @@ describe("applyPlayerStats", () => {
       heightCm: 192,
       weightKg: 92,
       name: "Gianluigi Buffon",
+      nationality: "IT",
     });
   });
 
   /** Eksik istatistik oyuncuyu DÜŞÜRMEZ; yalnızca o alanı boş bırakır. */
   it("istatistiği olmayan oyuncuyu korur", () => {
-    const [player] = applyPlayerStats([base], new Map(), new Map());
+    const [player] = applyPlayerStats([base], new Map(), new Map(), new Map());
 
     expect(player).toMatchObject({
       wikidataId: "Q68060",
       nationalCaps: null,
       heightCm: null,
       weightKg: null,
+      // Millî takım yok ama tek vatandaşlık var — BR-38'in ikinci kademesi.
+      nationality: "IT",
     });
   });
 
+  /**
+   * BR-38 — millî takım vatandaşlığı YENER.
+   *
+   * §5.3.1'in ölçümü: Thiago Motta Brezilya doğumlu ve Brezilya vatandaşı
+   * ama İtalya millî takımında oynadı. Vatandaşlık ya da doğum yeri
+   * seçilseydi Brezilyalı görünürdü.
+   */
+  it("uyruğu MİLLÎ TAKIMDAN seçer, vatandaşlıktan değil", () => {
+    const motta: NormalizedPlayer = {
+      ...base,
+      wikidataId: "Q191885",
+      name: "Thiago Motta",
+      citizenships: ["BR", "IT"],
+      birthCountry: "BR",
+    };
+
+    const [player] = applyPlayerStats(
+      [motta],
+      new Map([["Q191885", { caps: 30, teamQid: "Q1088902" }]]),
+      new Map(),
+      ITALY,
+    );
+
+    expect(player?.nationality).toBe("IT");
+  });
+
   it("girdiyi DEĞİŞTİRMEZ", () => {
-    applyPlayerStats([base], new Map([["Q68060", 176]]), new Map());
+    applyPlayerStats(
+      [base],
+      new Map([["Q68060", { caps: 176, teamQid: "Q1088902" }]]),
+      new Map(),
+      ITALY,
+    );
 
     expect(base.nationalCaps).toBeNull();
+    expect(base.nationality).toBeNull();
   });
 });

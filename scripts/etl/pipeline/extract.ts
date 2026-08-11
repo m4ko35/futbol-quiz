@@ -33,10 +33,12 @@ import {
   isInScope,
   looksLikeYouthOrReserve,
   nationalCapsFrom,
+  nationalTeamCountriesFrom,
   physicalFrom,
+  playersFrom,
   toClub,
-  toPlayer,
   toSpell,
+  type NationalTeamCaps,
   type NormalizedClub,
   type NormalizedPlayer,
   type NormalizedSpell,
@@ -331,6 +333,10 @@ export async function extractDataset(
     `\n[3/5] ${playerIds.length} oyuncunun bilgisi çekiliyor (${batches} grup)…`,
   );
 
+  // Bağlamalar OYUNCU BAŞINA TOPLANIR (§5.3.1). `playerDetails` çok değerli
+  // alanlar yüzünden oyuncu başına birden çok satır döndürüyor; eski kod her
+  // satırı ayrı kayıt yapıp diziye ekliyordu ve yükleyicide SONUNCUSU
+  // kazanıyordu — Messi bu yüzden İspanyol görünüyordu.
   const players: NormalizedPlayer[] = [];
   for (let i = 0; i < playerIds.length; i += PLAYER_BATCH_SIZE) {
     const batch = playerIds.slice(i, i + PLAYER_BATCH_SIZE);
@@ -339,10 +345,7 @@ export async function extractDataset(
       noCache,
     });
 
-    for (const binding of bindings) {
-      const player = toPlayer(binding);
-      if (player !== null) players.push(player);
-    }
+    players.push(...playersFrom(bindings));
   }
 
   // ─── 4. Oyuncu istatistikleri (§9.2) ──────────────────────────────────
@@ -365,9 +368,14 @@ export async function extractDataset(
       .map((binding) => qid(binding, "team"))
       .filter((id): id is string => id !== undefined),
   );
-  console.log(`      ${nationalTeamIds.size} erkek millî takım`);
+  // Takımın ülkesi BR-38'in birinci kademesi: uyruk buradan seçiliyor.
+  const nationalTeamCountries = nationalTeamCountriesFrom(teamBindings);
+  console.log(
+    `      ${nationalTeamIds.size} erkek millî takım · ` +
+      `${nationalTeamCountries.size} tanesinin ülke kodu var`,
+  );
 
-  const caps = new Map<string, number>();
+  const caps = new Map<string, NationalTeamCaps>();
   const physical = new Map<
     string,
     { heightCm: number | null; weightKg: number | null }
@@ -396,12 +404,26 @@ export async function extractDataset(
     }
   }
 
-  const playersWithStats = applyPlayerStats(players, caps, physical);
+  const playersWithStats = applyPlayerStats(
+    players,
+    caps,
+    physical,
+    nationalTeamCountries,
+  );
   const sizes = [...physical.values()];
   console.log(
     `      millî maç ${caps.size} · ` +
       `boy ${sizes.filter((p) => p.heightCm !== null).length} · ` +
       `kilo ${sizes.filter((p) => p.weightKg !== null).length}`,
+  );
+
+  // BR-38'in kademeleri ölçülüyor: hangi sinyalin kaç oyuncuyu kapsadığı,
+  // bir sonraki koşuda kuralın işe yarayıp yaramadığını söyleyen tek sayı.
+  const multi = playersWithStats.filter((p) => p.citizenships.length > 1);
+  const multiWithTeam = multi.filter((p) => caps.has(p.wikidataId));
+  console.log(
+    `      uyruk (BR-38): çok vatandaşlıklı ${multi.length} · ` +
+      `bunlardan millî takımı olan ${multiWithTeam.length}`,
   );
 
   // ─── Kapsam filtresi: erkek ligleri ───────────────────────────────────

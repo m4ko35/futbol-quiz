@@ -30,6 +30,8 @@ const player = (id: string): NormalizedPlayer => ({
   searchKey: `oyuncu ${id}`,
   birthDate: null,
   nationality: null,
+  citizenships: [],
+  birthCountry: null,
   position: null,
   genderQid: null,
   nationalCaps: null,

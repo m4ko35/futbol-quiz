@@ -220,16 +220,27 @@ SELECT ?st ?player ?start ?startPrecision ?end ?endPrecision ?apps ?goals ?acq W
  *
  * Etiket servisi pahalıdır, bu yüzden dönem sorgusundan ayrıldı ve QID'ler
  * gruplar hâlinde sorulur (bkz. `PLAYER_BATCH_SIZE`).
+ *
+ * OYUNCU BAŞINA BİRDEN ÇOK SATIR DÖNER ve bu normaldir: `P27` (vatandaşlık)
+ * ile `P413` (mevki) çok değerlidir. Çağıran taraf satırları KİMLİĞE GÖRE
+ * TOPLAMAK zorundadır — `playersFrom()` bunu yapar. Uzun süre yapmıyordu ve
+ * sonuç ölçüldü (§5.3.1): Messi'nin üç vatandaşlığından sonuncusu kazanıp
+ * onu İspanyol yapıyordu.
+ *
+ * `birthCountryCode` BR-38'in üçüncü kademesi: millî takımı olmayan çift
+ * vatandaşlıklıda doğum ülkesi belirleyici. Tek başına yeterli değil —
+ * Thiago Motta'yı Brezilyalı yapardı — o yüzden millî takımdan SONRA gelir.
  */
 export function playerDetails(playerQids: readonly string[]): string {
   const values = playerQids.map((id) => `wd:${assertQid(id)}`).join(" ");
 
   return `
-SELECT ?player ?playerLabel ?dob ?positionLabel ?countryCode ?gender WHERE {
+SELECT ?player ?playerLabel ?dob ?positionLabel ?countryCode ?birthCountryCode ?gender WHERE {
   VALUES ?player { ${values} }
   OPTIONAL { ?player wdt:P569 ?dob }
   OPTIONAL { ?player wdt:P413 ?position }
   OPTIONAL { ?player wdt:P27/wdt:P297 ?countryCode }
+  OPTIONAL { ?player wdt:P19/wdt:P17/wdt:P297 ?birthCountryCode }
   OPTIONAL { ?player wdt:P21 ?gender }
   SERVICE wikibase:label { bd:serviceParam wikibase:language "tr,en". }
 }`.trim();
@@ -251,11 +262,18 @@ SELECT ?player ?playerLabel ?dob ?positionLabel ?countryCode ?gender WHERE {
  *
  * Liste bir kez alınıp süzme bellekte yapılıyor. İki yöntemin aynı sonucu
  * verdiği sekiz oyuncuda birebir doğrulandı (8/8).
+ *
+ * ÜLKE KODU DA ALINIYOR — BR-38'in birinci kademesi. `P1532` (spor için ülke)
+ * seyrektir; ölçüldü, dört takımın yalnızca birinde vardı. `P17` (ülke)
+ * çalışıyor ve İngiltere millî takımını `GB`'ye eşliyor — bu, kulüp ve oyuncu
+ * kodlamasıyla tutarlı. Sıra: önce `P1532`, sonra `P17`.
  */
 export function mensNationalTeams(): string {
   return `
-SELECT ?team WHERE {
+SELECT ?team ?sportCountryCode ?adminCountryCode WHERE {
   ?team wdt:P31 wd:${assertQid(WD.CLASS_MENS_NATIONAL_TEAM)} .
+  OPTIONAL { ?team wdt:P1532/wdt:P297 ?sportCountryCode }
+  OPTIONAL { ?team wdt:P17/wdt:P297 ?adminCountryCode }
 }`.trim();
 }
 

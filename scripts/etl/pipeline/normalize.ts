@@ -29,7 +29,15 @@ export interface NormalizedPlayer {
   name: string;
   searchKey: string;
   birthDate: Date | null;
+  /**
+   * BR-38 ile SEÇİLMİŞ futbol uyruğu. `applyPlayerStats` doldurur — seçim
+   * millî takımı gerektirir ve o bilgi ayrı bir sorgudan gelir.
+   */
   nationality: string | null;
+  /** Ham vatandaşlıklar (`P27`) — BR-38'in girdisi; tekil ve sıralı. */
+  citizenships: readonly string[];
+  /** Doğum ülkesi (`P19` → `P17`) — BR-38'in üçüncü kademesi. */
+  birthCountry: string | null;
   position: string | null;
   /**
    * Wikidata `P21` QID'i, kayıt yoksa null. Yalnızca veri kümesini erkek
@@ -351,12 +359,18 @@ export function toPlayer(binding: SparqlBinding): NormalizedPlayer | null {
   const name = usableLabel(str(binding, "playerLabel"), id);
   if (name === null) return null;
 
+  const citizenship = normalizeCountryCode(str(binding, "countryCode"));
+
   return {
     wikidataId: id,
     name,
     searchKey: toSearchKey(name),
     birthDate: parseWikidataDate(str(binding, "dob")),
-    nationality: normalizeCountryCode(str(binding, "countryCode")),
+    // BR-38: seçim `applyPlayerStats`'ta yapılır, millî takım oraya kadar
+    // bilinmiyor. Burada yalnızca ham girdi toplanır.
+    nationality: null,
+    citizenships: citizenship === null ? [] : [citizenship],
+    birthCountry: normalizeCountryCode(str(binding, "birthCountryCode")),
     position: normalizePosition(str(binding, "positionLabel")),
     genderQid: qid(binding, "gender") ?? null,
     // Ayrı sorgulardan gelir; `applyPlayerStats` doldurur.
@@ -364,6 +378,82 @@ export function toPlayer(binding: SparqlBinding): NormalizedPlayer | null {
     heightCm: null,
     weightKg: null,
   };
+}
+
+/**
+ * Bağlamaları OYUNCU BAŞINA TEK kayda indirir — §5.3.1'in kusurunun onarımı.
+ *
+ * `playerDetails` oyuncu başına birden çok satır döndürür, çünkü `P27`
+ * (vatandaşlık) ve `P413` (mevki) çok değerlidir. Eski kod her satırı ayrı
+ * bir kayıt yapıp diziye ekliyordu; yükleyici `wikidataId`'ye göre upsert
+ * ettiği için SONUNCUSU kazanıyordu. Hangisinin kazanacağını hiçbir kural
+ * seçmiyordu — Messi'nin üç vatandaşlığından `ES` kalıp onu İspanyol yapıyordu.
+ *
+ * Şimdi vatandaşlıklar TOPLANIYOR ve seçim BR-38'e bırakılıyor. Diğer alanlar
+ * için ilk dolu değer korunur: aynı oyuncunun satırları arasında ad, doğum
+ * tarihi ve cinsiyet zaten aynıdır; mevkide ise seçim yapılmıyor (ayrı bir
+ * kusur sınıfı, §10.2'ye yazıldı).
+ */
+export function playersFrom(
+  bindings: readonly SparqlBinding[],
+): NormalizedPlayer[] {
+  const byId = new Map<string, NormalizedPlayer>();
+
+  for (const binding of bindings) {
+    const player = toPlayer(binding);
+    if (player === null) continue;
+
+    const existing = byId.get(player.wikidataId);
+    if (existing === undefined) {
+      byId.set(player.wikidataId, player);
+      continue;
+    }
+
+    byId.set(player.wikidataId, {
+      ...existing,
+      citizenships: [
+        ...new Set([...existing.citizenships, ...player.citizenships]),
+      ].sort(),
+      birthCountry: existing.birthCountry ?? player.birthCountry,
+      position: existing.position ?? player.position,
+      birthDate: existing.birthDate ?? player.birthDate,
+      genderQid: existing.genderQid ?? player.genderQid,
+    });
+  }
+
+  return [...byId.values()];
+}
+
+/**
+ * BR-38 — futbol uyruğu, hukuki vatandaşlık değil.
+ *
+ * SIRA KEYFÎ DEĞİL, ÖLÇÜLDÜ (§5.3.1). Üç sinyalin hiçbiri tek başına
+ * yetmiyor:
+ *
+ *   vatandaşlık  → Messi İspanyol, Icardi İtalyan   (keyfî: son satır kazanır)
+ *   doğum ülkesi → Thiago Motta Brezilyalı          (oysa İtalya'da oynadı)
+ *   MİLLÎ TAKIM  → ikisi de doğru
+ *
+ * Çünkü sorulan şey zaten futbol uyruğudur. Millî takımı olmayanlarda doğum
+ * ülkesi ikinci kademe; o da ayırmıyorsa alfabetik sıra ALINIR ama doğru
+ * olduğu İDDİA EDİLMEZ — amacı yalnızca sonucun her koşuda aynı çıkmasıdır.
+ */
+export function pickNationality(input: {
+  readonly citizenships: readonly string[];
+  readonly nationalTeamCountry: string | null;
+  readonly birthCountry: string | null;
+}): string | null {
+  if (input.nationalTeamCountry !== null) return input.nationalTeamCountry;
+
+  const unique = [...new Set(input.citizenships)].sort();
+  if (unique.length === 0) return null;
+  if (unique.length === 1) return unique[0] ?? null;
+
+  if (input.birthCountry !== null && unique.includes(input.birthCountry)) {
+    return input.birthCountry;
+  }
+
+  return unique[0] ?? null;
 }
 
 /**
@@ -385,12 +475,21 @@ export function toPlayer(binding: SparqlBinding): NormalizedPlayer | null {
  *
  * `teamFilter` dışarıdan verilir çünkü millî takım listesi AĞDAN gelir; bu
  * dosyanın saf kalması (§8.1) test edilebilirliğin ön koşulu.
+ *
+ * TAKIM KİMLİĞİ DE DÖNER — BR-38 uyruğu buradan seçiyor. Eskiden yalnızca
+ * sayı dönüyordu ve "en çok maç yapılan millî takım" bilgisi, hesaplandığı
+ * yerde atılıyordu.
  */
+export interface NationalTeamCaps {
+  readonly caps: number;
+  readonly teamQid: string;
+}
+
 export function nationalCapsFrom(
   bindings: readonly SparqlBinding[],
   isNationalTeam: (teamQid: string) => boolean,
-): Map<string, number> {
-  const best = new Map<string, number>();
+): Map<string, NationalTeamCaps> {
+  const best = new Map<string, NationalTeamCaps>();
 
   for (const binding of bindings) {
     const player = qid(binding, "player");
@@ -402,10 +501,43 @@ export function nationalCapsFrom(
     if (!isNationalTeam(team)) continue;
 
     const current = best.get(player);
-    if (current === undefined || caps > current) best.set(player, caps);
+    if (current === undefined || caps > current.caps) {
+      best.set(player, { caps, teamQid: team });
+    }
   }
 
   return best;
+}
+
+/**
+ * Millî takım → ülke kodu (BR-38'in birinci kademesi).
+ *
+ * `P1532` (spor için ülke) ÖNCELİKLİ ama seyrek; ölçüldü, dört takımın
+ * yalnızca birinde vardı. `P17` (ülke) yedek ve İngiltere millî takımını
+ * `GB`'ye eşliyor — kulüp/oyuncu kodlamasıyla tutarlı.
+ *
+ * Kodu olmayan takım haritaya GİRMEZ: `undefined` dönmesi, uyruk seçiminin
+ * bir sonraki kademeye düşmesi demektir.
+ */
+export function nationalTeamCountriesFrom(
+  bindings: readonly SparqlBinding[],
+): Map<string, string> {
+  const byTeam = new Map<string, string>();
+
+  for (const binding of bindings) {
+    const team = qid(binding, "team");
+    if (team === undefined) continue;
+
+    const sport = normalizeCountryCode(str(binding, "sportCountryCode"));
+    const admin = normalizeCountryCode(str(binding, "adminCountryCode"));
+    const code = sport ?? admin;
+    if (code === null) continue;
+
+    // Aynı takım birden çok satır döndürebilir; `P1532`'li satır kazanmalı.
+    if (sport !== null || !byTeam.has(team)) byTeam.set(team, code);
+  }
+
+  return byTeam;
 }
 
 /**
@@ -448,20 +580,36 @@ function inRange(
   return value >= range.min && value <= range.max ? value : null;
 }
 
-/** Ayrı sorgulardan gelen istatistikleri oyuncu kayıtlarına işler. */
+/**
+ * Ayrı sorgulardan gelen istatistikleri oyuncu kayıtlarına işler.
+ *
+ * UYRUK DA BURADA SEÇİLİR (BR-38) ve başka bir yerde seçilemezdi: seçimin
+ * birinci kademesi millî takımdır ve o bilgi ancak bu adımda elde olur.
+ */
 export function applyPlayerStats(
   players: readonly NormalizedPlayer[],
-  caps: ReadonlyMap<string, number>,
+  caps: ReadonlyMap<string, NationalTeamCaps>,
   physical: ReadonlyMap<
     string,
     { heightCm: number | null; weightKg: number | null }
   >,
+  nationalTeamCountries: ReadonlyMap<string, string>,
 ): NormalizedPlayer[] {
   return players.map((player) => {
     const size = physical.get(player.wikidataId);
+    const national = caps.get(player.wikidataId);
+
     return {
       ...player,
-      nationalCaps: caps.get(player.wikidataId) ?? null,
+      nationality: pickNationality({
+        citizenships: player.citizenships,
+        nationalTeamCountry:
+          national === undefined
+            ? null
+            : (nationalTeamCountries.get(national.teamQid) ?? null),
+        birthCountry: player.birthCountry,
+      }),
+      nationalCaps: national?.caps ?? null,
       heightCm: size?.heightCm ?? null,
       weightKg: size?.weightKg ?? null,
     };
