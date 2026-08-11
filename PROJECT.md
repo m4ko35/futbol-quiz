@@ -3587,6 +3587,34 @@ curl -s https://ALAN/ | grep -o '<meta name="robots"[^>]*>'
 - [ ] `GameMode` kayıt altyapısının devreye alınması
 - [ ] İkinci oyun modu (kariyer bilmecesi)
 - [ ] Lig/ülke kapsamının genişletilmesi
+- [ ] **İngilizce dil desteği** — aşağıda ölçüldü; yayın sonrasına bırakıldı
+
+#### Dil desteği: ölçüldü, YAYIN SONRASINA bırakıldı (11 Ağustos 2026)
+
+Ürün sahibi uluslararası trafik için dil desteği istedi. Kapsam ölçüldü ve iki karar verildi: **yalnızca İngilizce** ve **yayından sonra**.
+
+**Sıralamanın gerekçesi ölçülemezlikti.** Site henüz yayında değil; hangi dilin işe yaradığını gösterecek tek şey olan trafik verisi yok. Beş dil eklemek beş kat bakım demek ve hiçbiri ölçülmüş bir varsayıma dayanmaz. Önce Türkçe yayın, 4-6 hafta ölçüm, sonra tek dil.
+
+**Verinin çoğu zaten dilden bağımsız — asıl bulgu bu:**
+
+| Parça            | Durum                                             | Gereken iş                        |
+| ---------------- | ------------------------------------------------- | --------------------------------- |
+| Ülke adları      | `Intl.DisplayNames(["tr"])`, **render anında**    | Dil parametresi — 170 ülke bedava |
+| Oyuncu adları    | Latin alfabesi, dilden bağımsız                   | Yok                               |
+| Kulüp adları     | Tek etiket (`"tr,en"` tercihiyle çekilmiş)        | Birkaç istisna ("Bayern Münih")   |
+| Izgara ölçütleri | `club.shortName` + `countryName(code)`            | Yarısı bedava                     |
+| **Mevki**        | **ETL'de çevrilip veritabanına Türkçe yazılıyor** | **Şema + ETL + tam koşu**         |
+| Arayüz metinleri | 5.714 Türkçe harf (yorumlar HARİÇ), 8 dosyada     | Çeviri kataloğu                   |
+
+> **Arayüz metni sayısı ilk bakışta 13.362 görünüyor ve YANILTICI** — bu depoda yorumlar da Türkçe. Yorum satırları çıkarılınca gerçek yüzey 5.714'e iniyor ve `which-more-quiz`, `grid-game`, `club-picker`, `stat-match-game` başta olmak üzere sekiz dosyada toplanıyor.
+
+**TEK GERÇEK MİMARİ SORUN MEVKİ.** `normalize.ts` `goalkeeper` → `"Kaleci"` çevirisini ETL'de yapıp sonucu veritabanına yazıyor (§5.3). Beş değer var, yani çeviri tablosu önemsiz; sorun dile bağımlı bir değerin veri katmanına gömülmüş olması. Doğrusu nötr anahtar (`goalkeeper`) saklayıp render anında çevirmek — ülke adlarında zaten yapılan şey.
+
+> **BU DEĞİŞİKLİĞİN PENCERESİ DAR.** Maliyeti tam bir ETL koşusudur (~2 saat) ve yayın öncesi zaten bir koşu bekliyor (Faz 4.5 madde 3). Aynı koşuya bindirilirse ek maliyeti ~sıfır; koşudan sonraya kalırsa ikinci bir koşu artı veri göçü gerektirir.
+
+**Next 16 tarafı:** `app/[lang]/…` artı `src/proxy.ts`'de dil algılama (kılavuz: `node_modules/next/dist/docs/01-app/02-guides/internationalization.md`). Dikkat: proxy şu an CSP nonce üretip `NextResponse.next()` dönüyor; yönlendirme eklenirken CSP başlığının düşmemesi gerekir — düştüğünde site sessizce bozulur ve belirti sayfa hatası gibi görünür (§7.18 altındaki 11 Ağustos vakası).
+
+**Beklenti dürüstçe:** dil kapıyı açar, sıralamayı getirmez. İngilizce futbol bilmecesi alanında yerleşik rakipler var; buna karşılık İngilizce trafiğin RPM'i Türkçe'nin birkaç katıdır, yani az trafik bile daha çok kazandırır.
 
 ### 10.1 Şu Anki Odak
 
