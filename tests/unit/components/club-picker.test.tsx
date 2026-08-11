@@ -327,6 +327,63 @@ describe("ClubPicker — lige göre gözat", () => {
     return screen.getByText(/tanesi gösteriliyor/u).textContent ?? "";
   }
 
+  /**
+   * BR-39 — bayrak ADIN YANINA konur, yerine değil.
+   *
+   * Bilgi yalnızca görselde olamaz (WCAG 1.1.1): bayrak görünmeyen bir
+   * kullanıcı için ülke adı metin olarak da yazılı olmalı.
+   */
+  it("lig satırında bayrak VE ülke adı birlikte durur", async () => {
+    const { user } = setupLeagues();
+    await user.click(screen.getByRole("combobox"));
+
+    const list = screen.getByRole("listbox");
+    expect(within(list).getByText("Türkiye")).toBeInTheDocument();
+    expect(within(list).getByText("İtalya")).toBeInTheDocument();
+
+    const flags = list.querySelectorAll('img[src^="/flags/"]');
+    expect(flags.length).toBe(LEAGUES.length);
+  });
+
+  /**
+   * ÖLÇÜLMÜŞ KUSUR (§7.14): satır ham ISO kodu basıyordu — kullanıcı "GB",
+   * "SA", "CZ" görüyordu. `countryName` aynı depoda duruyordu ve kullanılmıyordu.
+   */
+  it("ham ISO kodunu GÖSTERMEZ", async () => {
+    const { user } = setupLeagues();
+    await user.click(screen.getByRole("combobox"));
+
+    const list = screen.getByRole("listbox");
+    expect(within(list).queryByText("TR")).not.toBeInTheDocument();
+    expect(within(list).queryByText("GB")).not.toBeInTheDocument();
+    expect(within(list).queryByText("IT")).not.toBeInTheDocument();
+  });
+
+  it("aynı ülke kodlu iki lig AYRI bayrak alır", async () => {
+    // Premier League veride `GB`; İskoçya Premier Ligi de öyle. Aynı bayrak
+    // basılsaydı bayrak ayırt etme işlevini yitirirdi (BR-39).
+    const { user } = setupLeagues({
+      leagues: [
+        ...LEAGUES,
+        {
+          wikidataId: "Q14377162",
+          name: "İskoçya Premier Ligi",
+          country: "GB",
+          clubCount: 17,
+        },
+      ],
+    });
+    await user.click(screen.getByRole("combobox"));
+
+    const list = screen.getByRole("listbox");
+    const sources = [...list.querySelectorAll('img[src^="/flags/"]')].map(
+      (img) => img.getAttribute("src"),
+    );
+
+    expect(sources).toContain("/flags/gb-eng.svg");
+    expect(sources).toContain("/flags/gb-sct.svg");
+  });
+
   it("boş kutuda lig listesini gösterir", async () => {
     const { user } = setupLeagues();
     await user.click(screen.getByRole("combobox"));

@@ -1274,6 +1274,7 @@ Bunlar `domain/services/` içinde saf fonksiyon olarak yaşar ve birim testi ile
 - **BR-36 — Dejenere kulüp çifti işaretlenir, birleştirilmez.** Ortak oyuncu sayısı, iki kulübün küçüğünün altyapı dışı tekil oyuncu sayısının **%75'ine** ulaşırsa sonuç _dejenere_ sayılır: liste bir keşif değil, küçük kulübün kadro dökümüdür. Sonuç **değişmez** — hiçbir kayıt gizlenmez, silinmez, birleştirilmez — yalnızca ölçülen olgu kullanıcıya bildirilir. Bildirimde kimlik iddiası **yasaktır** ("aynı kulüp" denmez): tetiklenen yedi çiftin ikisi gerçekten ayrı kulüptür (§5.3). Eşik ölçülen boş banda konmuştur (%69,4 ile %76,8 arasında hiçbir çift yok) ve kural yalnızca ortak oyuncu modunu kapsar; ızgarada zorluğu BR-9 yönetir.
 - **BR-37 — Kulüp seçimi ada YAZMAKLA sınırlı değildir; lige göre gözatılabilir.** Seçici iki kademelidir: arama kutusu boşken 24 ligin listesi (kulüp sayılarıyla), bir lig seçilince o ligin kulüpleri. Yazmak kademe 1'de bütün kulüplarda, kademe 2'de ligin içinde arar — yani ad araması hiçbir kademede kaybolmaz. Süzgeç değeri lig **QID'idir**, veritabanı kimliği değil: kimlikler her ETL koşusunda değişir, QID değişmez (§9.1 ile aynı gerekçe). Liste `MAX_CLUB_RESULTS` sınırında kesilirse kesildiği AÇIKÇA yazılır ("83 kulüpten 50'si gösteriliyor"); sessiz kesme, kullanıcıya eksik listeyi tam liste diye gösterir ve aradığı kulübü "veri kümesinde yok" sanmasına yol açar (§7.14).
 - **BR-38 — Uyruk VATANDAŞLIK değil, futbol uyruğudur.** Wikidata'nın `P27`'si çok değerlidir ve çift pasaportlu oyuncularda birden fazla ülke döndürür. Seçim şu sırayla yapılır: (1) oyuncunun **A millî takımı** varsa o takımın ülkesi, (2) yoksa ve **tek** vatandaşlık varsa o, (3) yoksa ve **doğum ülkesi** vatandaşlıklar arasındaysa o, (4) hiçbiri değilse vatandaşlıklar alfabetik sıralanıp ilki alınır — **belirlenimci** olsun diye, doğru olduğu iddia edilmeden. Sıra keyfî değil ölçülmüştür (§5.5): tek başına vatandaşlık Messi'yi İspanyol, Icardi'yi İtalyan yapıyor; tek başına doğum yeri ise Thiago Motta'yı Brezilyalı, Diego Costa'yı Brezilyalı yapıyor. Millî takım ikisini birden doğru veriyor. Uyruk yalnızca gösterilen bir alan değil, **ızgaranın ölçütüdür** (BR-25) — yanlış uyruk doğru cevabı yanlış saydırır.
+- **BR-39 — Lig bayrağı ülke kodundan gelir, iki lig için İSTİSNA taşır.** Kulüp seçicisinin birinci kademesinde her lig ülkesinin bayrağıyla görünür ve bayrak ülke adının **yanına** konur, yerine değil (WCAG 1.1.1). Eşleme `League.country` (ISO 3166-1 alpha-2) üzerinden yapılır; tek istisna `GB`'dir, çünkü Premier League (`Q9448`) ile İskoçya Premier Ligi (`Q14377162`) veride aynı kodu taşır ve aynı bayrağı basmak bayrağın ayırt etme işlevini yok eder. İstisna ülke koduna değil **lig QID'ine** bağlanır. Dosyalar yereldir (`public/flags/`, `flag-icons` MIT); emoji bayrak REDDEDİLDİ çünkü Windows'ta Chrome ve Edge glif taşımaz ve aynı kod tarayıcıya göre farklı sonuç verir. Bayrağı olmayan ülke arayüzde sessizce boş kalır, ama bu durum bir testle tutulur (§7.14).
 - **BR-8 — Kanıt düzeyi.** Bir `Spell`, `startYear`, `endYear`, `appearances` ve `goals` alanlarının **dördü de** boşsa **kanıtsızdır**; en az biri doluysa kanıtlıdır. Kanıtsız dönemler BR-1 kapsamında **sayılır** (elenmez), fakat API yanıtında ve arayüzde açıkça işaretlenir. Gerekçe ve ölçüm §1.4'tedir; özeti: eleme, uydurma kayıtlarla birlikte doğru kayıtları da siliyor ve Wikidata ikisini ayıracak bir sinyal taşımıyor. BR-5'in sıralaması bu dönemleri kendiliğinden en sona koyar (ne maç sayısı ne yıl bilgisi vardır), dolayısıyla ayrı bir sıralama kuralı gerekmez.
 
 ---
@@ -2232,6 +2233,33 @@ Başlık şeridi ayrıca kademeyi yazıyor: kademe 1'de kapsam (`24 lig · 906 k
 Arama ipucu da kademeye bağlandı. Sabit `Kulüp arayın…` metni, kutu lig listesi gösterirken yanlış bilgi veriyordu: kullanıcı kulüp adı yazmasının beklendiğini sanıp lig satırlarını atlıyordu. İpucu artık `Lig seçin ya da yazın…` / `Serie A içinde arayın…` biçiminde değişiyor.
 
 Değişiklik bir testle tutuluyor: uyarının kayan alanın **dışında** olduğu doğrulanıyor. Yalnızca metnin varlığını sınayan bir test bu kusuru hiç görmezdi — metin zaten vardı.
+
+#### Lig bayrağı (BR-39)
+
+Kademe 1'de her ligin yanında ülkesinin bayrağı durur. Gerekçe §7.13'ün gerekçesiyle aynı: yirmi dört satırlık bir listede ad okumak sıralı bir iş, bayrak ise bir bakışta ayırır.
+
+**YOL ÜSTÜNDE BULUNAN KUSUR: satırda ham ISO kodu yazıyordu.** Lig satırı `{league.country}` basıyordu, yani kullanıcı `GB`, `SA`, `CZ` görüyordu — oysa `countryName()` (§7.12) aynı depoda duruyor ve 170 kodun tamamını Türkçeye çeviriyor. Bayrakla birlikte bu da düzeltildi; bayrak **adın yerine değil yanına** kondu (WCAG 1.1.1: bilgi yalnızca görselde olamaz).
+
+**`GB` İKİ LİGE BİRDEN DÜŞÜYOR ve bu ölçüldü:** Premier League (`Q9448`) ve İskoçya Premier Ligi (`Q14377162`) veride aynı ülke kodunu taşıyor. İkisine aynı bayrağı basmak, bayrağın var olma sebebini yok ederdi — ayırt etmek için koyuluyor. Futbol da İngiltere ile İskoçya'yı ayrı uluslar sayar. ISO 3166-1 bu ayrımı yapamadığı için **lig QID'ine bakan bir istisna tablosu** var; `country-name.ts`'teki `OVERRIDES` ile aynı desen. İstisna ülke koduna değil **lige** bağlıdır: `GB` kodunun kendisi doğru, yanlış olan onu tek bir bayrağa eşlemek.
+
+**Dosyalar YERELDİR, emoji değil.** Emoji bayrak sıfır maliyetlidir ama Windows'ta Chrome ve Edge bayrak glifi taşımaz ve iki harf gösterir — yani aynı kod, aynı işletim sisteminde tarayıcıya göre farklı sonuç verir. Bir oyun arayüzünde "bazı kullanıcılarda bozuk" kabul edilebilir değil.
+
+Kaynak `flag-icons` 7.5.0 (MIT). **Paket bağımlılık olarak EKLENMEDİ**; gereken 25 dosya `public/flags/` altına alındı ve MIT künyesi `public/flags/LICENSE.txt` ile birlikte taşınıyor (§7.7: her bağımlılık bir bakım borcudur; burada gereken şey kod değil, varlık).
+
+**Boyut ölçüldü ve ham sayı yanıltıcı:**
+
+|                       |           Ham |         Gzip |
+| --------------------- | ------------: | -----------: |
+| İspanya (arma detayı) |      79.311 B |     14.779 B |
+| Hırvatistan           |      30.453 B |     13.244 B |
+| Türkiye               |         502 B |        305 B |
+| **25 bayrak toplam**  | **133.166 B** | **39.608 B** |
+
+Tel üzerinden giden şey gzip sütunudur: **39,6 KB**, bir kez inip önbelleğe giriyor. SVGO hem varsayılan ayarla hem `--precision=1` ile denendi ve ikisi de kazanç vermedi (%2'den az) — boyut koordinat hassasiyetinde değil, armanın eleman sayısında. Ulusal bayrakların çizimini sadeleştirmek **reddedildi**: bir bayrağı "hafifletmek" için değiştirmek, yanlış arma göstermekle aynı sınıfta bir hatadır (§7.13).
+
+Bileşen `ClubMark` sözleşmesini birebir izler: sabit `width`/`height` (resim inmeden yer ayrılır, liste zıplamaz), `alt=""` + `aria-hidden` (ülke adı yanında yazılı, ekran okuyucuya iki kez söylemek gürültüdür), `loading="lazy"`.
+
+**Bayrağı olmayan ülke sessizce boş kalır** ama bu durum bir testle tutuluyor: veritabanındaki her lig ülkesinin `public/flags/` altında karşılığı olduğu doğrulanıyor. Veri tazelendiğinde yeni bir ülke gelirse test kırılır — arayüzde delik olarak fark edilmesini beklemek yerine.
 
 ---
 

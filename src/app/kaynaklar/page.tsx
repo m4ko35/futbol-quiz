@@ -111,6 +111,35 @@ export default async function CreditsPage() {
         </section>
       )}
 
+      {/*
+        BAYRAK KÜNYESİ (BR-39). `flag-icons` MIT lisanslı ve MIT, telif
+        bildiriminin korunmasını ŞART koşar. Liste veriden gelmiyor çünkü
+        bayraklar depoya sabit olarak alındı — künye de sabit.
+      */}
+      <section className="flex flex-col gap-2">
+        <h2 className="text-sm font-semibold">Ülke bayrakları</h2>
+        <p className="max-w-prose text-sm text-muted">
+          Lig listesindeki bayraklar{" "}
+          <a
+            href="https://github.com/lipis/flag-icons"
+            rel="noreferrer noopener"
+            target="_blank"
+            className="text-accent underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            flag-icons
+          </a>{" "}
+          projesinden alınmıştır (MIT lisansı, © 2013 Panayiotis Lipiridis).
+          Lisans metni{" "}
+          <a
+            href="/flags/LICENSE.txt"
+            className="text-accent underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            /flags/LICENSE.txt
+          </a>{" "}
+          adresinde bayraklarla birlikte taşınır.
+        </p>
+      </section>
+
       <p>
         <Link
           href="/"

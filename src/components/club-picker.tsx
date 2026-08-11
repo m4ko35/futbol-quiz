@@ -3,7 +3,9 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { ClubDto } from "@/application/dto/club-dto";
 import type { LeagueSummary } from "@/application/ports/club-repository";
+import { countryName } from "@/lib/country-name";
 import { ClubMark } from "./club-mark";
+import { CountryFlag } from "./country-flag";
 
 /**
  * Kulüp seçici — WAI-ARIA "combobox with listbox popup" deseni.
@@ -502,11 +504,23 @@ export function ClubPicker({
                     >
                       {row.kind === "league" ? (
                         <span className="flex items-center gap-2">
+                          {/*
+                            BAYRAK ADIN YANINA, YERİNE DEĞİL (BR-39). Bilgi
+                            yalnızca görselde olamaz (WCAG 1.1.1); bayrak
+                            yirmi dört satırlık listede ayırt etmeyi
+                            hızlandıran bir TEKRAR.
+                          */}
+                          <CountryFlag league={row.league} />
                           <span className="min-w-0 truncate font-medium">
                             {row.league.name}
                           </span>
+                          {/*
+                            HAM ISO KODU YAZIYORDU ve kusurdu: kullanıcı "GB",
+                            "SA", "CZ" görüyordu. `countryName` aynı depoda
+                            duruyor ve 170 kodun tamamını çeviriyor (§7.12).
+                          */}
                           <span className="shrink-0 text-muted">
-                            {row.league.country}
+                            {countryName(row.league.country)}
                           </span>
                           {/*
                           ORAN ÇUBUĞU — sayının yanında, YERİNE DEĞİL.
