@@ -16,11 +16,24 @@ import type { ReactNode } from "react";
  *
  * TABELA İSTEĞE BAĞLI. Gösterecek gerçek bir sayısı olmayan mod tabela
  * taşımaz — boş ya da uydurma bir sayaç, sayacın kendisini anlamsızlaştırır.
+ *
+ * ÜST ETİKET DE İSTEĞE BAĞLI. Bir süre "Mod 1 · Kesişim", "Mod 2 · Matris"
+ * gibi numaralı adlar taşıdı ve bunlar hiçbir işe yaramıyordu: modun adı hem
+ * gezinme şeridinde hem hemen altındaki `h1`'de zaten yazılı, "Kesişim" gibi
+ * ikinci bir ad ise kullanıcının hiçbir yerde karşılaşmadığı iç terminoloji.
+ * Numaralandırma da yanlış bir şey söylüyordu: modlar SIRALI değil, birbirinin
+ * alternatifi. Alan yalnızca gerçekten bilgi taşıyan yerlerde doluyor — günlük
+ * modlarda turun TARİHİ orada duruyor ve başka hiçbir yerde yazmıyor (BR-11).
  */
 
 export interface ModeHeaderProps {
-  /** Üst etiket: "Mod 1 · Kesişim". */
-  readonly eyebrow: string;
+  /**
+   * Başlığın üstündeki küçük satır — yalnızca gerçek bilgi için.
+   *
+   * Modun adını buraya yazmayın: `title` zaten o. Günlük turlarda tarih için,
+   * başka bir şey için değil.
+   */
+  readonly eyebrow?: string;
   /** Modun adı — sayfanın tek `h1`'i. */
   readonly title: string;
   /** Ne yapılacağını söyleyen cümle. Süsleme değil, görev tarifi. */
@@ -38,10 +51,14 @@ export function ModeHeader({
   return (
     <header className="flex flex-wrap items-end gap-x-6 gap-y-4 border-b-2 border-foreground pb-4">
       <div className="min-w-0 flex-1 basis-72">
-        <p className="text-[0.65rem] font-extrabold tracking-[0.15em] text-muted uppercase">
-          {eyebrow}
-        </p>
-        <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-balance sm:text-[1.625rem]">
+        {/* Boşluk etiketin ÜZERİNDE değil ALTINDA: etiket yokken başlık
+            künyenin tepesine oturuyor, ölü bir aralık kalmıyor. */}
+        {eyebrow !== undefined && (
+          <p className="mb-1 text-[0.65rem] font-extrabold tracking-[0.15em] text-muted uppercase">
+            {eyebrow}
+          </p>
+        )}
+        <h1 className="text-2xl font-extrabold tracking-tight text-balance sm:text-[1.625rem]">
           {title}
         </h1>
         <p className="mt-1.5 max-w-prose text-sm text-muted">{task}</p>

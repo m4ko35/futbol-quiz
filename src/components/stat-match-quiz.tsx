@@ -153,7 +153,8 @@ export function StatMatchQuiz({ daily }: StatMatchQuizProps) {
         round={daily}
         date={daily.date}
         header={{
-          eyebrow: `Mod 3 · Ölçek · ${formatTurkishIsoDate(daily.date)}`,
+          // Yalnızca TARİH — gerekçe `grid-quiz.tsx`'teki ikiziyle aynı.
+          eyebrow: formatTurkishIsoDate(daily.date),
           title: "Günün Oyuncusu",
         }}
         submitAnswer={submitDaily}

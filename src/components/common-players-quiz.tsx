@@ -235,7 +235,6 @@ export function CommonPlayersQuiz({
   return (
     <div className="flex flex-col gap-8">
       <ModeHeader
-        eyebrow="Mod 1 · Kesişim"
         title="Ortak Oyuncu"
         task={
           <>

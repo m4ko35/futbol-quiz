@@ -185,7 +185,11 @@ export function GridQuiz({ grid, curatedClubs }: GridQuizProps) {
         grid={grid}
         date={grid.date}
         header={{
-          eyebrow: `Mod 2 · Matris · ${formatTurkishIsoDate(grid.date)}`,
+          // Yalnızca TARİH. "Mod 2 · Matris" kaldırıldı: modun adı gezinme
+          // şeridinde ve hemen altındaki `h1`'de zaten yazılı. Tarih ise
+          // sayfada başka hiçbir yerde yok ve gerçekten gerekli — kaydedilmiş
+          // oyun başka güne aitse atılıyor (BR-11).
+          eyebrow: formatTurkishIsoDate(grid.date),
           title: "Günün Izgarası",
         }}
         checkAnswer={checkAnswer}

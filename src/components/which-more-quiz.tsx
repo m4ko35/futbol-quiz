@@ -305,7 +305,6 @@ export function WhichMoreQuiz({
   */
   const modeHeader = (
     <ModeHeader
-      eyebrow="Mod 4 · Düello"
       title="Hangisi Daha"
       task={
         <>

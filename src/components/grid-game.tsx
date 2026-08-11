@@ -70,7 +70,7 @@ export interface GridGameProps {
    * bileşeni kullanıyor ve sayfada ikinci bir `h1` OLAMAZ; o tur kendi
    * satır içi sayacını korur.
    */
-  readonly header?: { readonly eyebrow: string; readonly title: string };
+  readonly header?: { readonly eyebrow?: string; readonly title: string };
   /** Oyun bitince yeni ızgara kurmak için — yalnızca "Sen kur" turunda. */
   onRestart?: () => void;
   /** Cevap doğrulama; testlerde sahte bir uygulama verilir. */

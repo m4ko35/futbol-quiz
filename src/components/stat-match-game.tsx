@@ -53,7 +53,7 @@ export interface StatMatchGameProps {
    * Verilirse sayfanın mod künyesi buradan basılır ve sayaçlar tabelaya
    * taşınır (§7.15). "Sen seç" turu vermez: ikinci bir `h1` olamaz.
    */
-  readonly header?: { readonly eyebrow: string; readonly title: string };
+  readonly header?: { readonly eyebrow?: string; readonly title: string };
   /** Tur bitince yeni hedef seçmek için — yalnızca "Sen seç" turunda. */
   onRestart?: () => void;
   /** Cevap gönderimi; testlerde sahte bir uygulama verilir. */

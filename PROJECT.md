@@ -2199,7 +2199,17 @@ Değişiklik bir testle tutuluyor: uyarının kayan alanın **dışında** oldu�
 
 Dört mod dört ayrı `<header>` yazıyordu ve üçü birbirinin kopyasıydı: aynı `text-3xl` başlık, aynı `mt-3 text-lg text-muted` açıklama. Kopya olduğu için de **ayrışmıştı** — biri `max-w-prose` taşıyor, diğeri taşımıyordu.
 
-`ModeHeader` bu bandı tek yerde topluyor: üst etiket (`Mod 1 · Kesişim`), modun adı (sayfanın tek `h1`'i), görev cümlesi ve isteğe bağlı tabela.
+`ModeHeader` bu bandı tek yerde topluyor: isteğe bağlı üst etiket, modun adı (sayfanın tek `h1`'i), görev cümlesi ve isteğe bağlı tabela.
+
+#### Numaralı mod adları kaldırıldı (10 Ağustos 2026)
+
+Üst etiket bir süre `Mod 1 · Kesişim`, `Mod 2 · Matris`, `Mod 3 · Ölçek`, `Mod 4 · Düello` yazıyordu. Üçü birden yanlıştı:
+
+- **Modun adı zaten iki yerde yazılı** — gezinme şeridinde ve hemen altındaki `h1`'de. Etiket üçüncü tekrardı.
+- **"Kesişim", "Matris", "Ölçek", "Düello" iç terminolojidir.** Kullanıcı bu sözcüklerle başka hiçbir yerde karşılaşmıyor; arayüzün onlara ad vermesi, olmayan bir kavram öğretmeye çalışmaktı.
+- **Numaralandırma yanlış bir şey söylüyordu.** Numara sıra bildirir; oysa modlar sıralı değil, **birbirinin alternatifi** — §7.12'de gezinmenin segment denetimi olarak kurulmasının sebebi tam olarak buydu. Numara o kararla çelişiyordu.
+
+Alan silinmedi, **isteğe bağlı** oldu ve yalnızca gerçek bilgi taşıdığı yerde doluyor: günlük modlarda **turun tarihi**. Tarih sayfada başka hiçbir yerde yazmıyor ve gerekli — kaydedilmiş oyun başka güne aitse atılıyor (BR-11). Bir test, etiket verilmediğinde künyenin boş bir satır basmadığını tutuyor.
 
 #### Başlık küçüldü, sayı büyüdü
 

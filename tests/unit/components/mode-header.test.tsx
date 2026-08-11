@@ -15,13 +15,7 @@ afterEach(cleanup);
 
 describe("ModeHeader", () => {
   it("modun adını sayfanın tek h1'i yapar", () => {
-    render(
-      <ModeHeader
-        eyebrow="Mod 1 · Kesişim"
-        title="Ortak Oyuncu"
-        task="İki kulüp seç."
-      />,
-    );
+    render(<ModeHeader title="Ortak Oyuncu" task="İki kulüp seç." />);
 
     expect(
       screen.getByRole("heading", { level: 1, name: "Ortak Oyuncu" }),
@@ -31,16 +25,34 @@ describe("ModeHeader", () => {
   it("üst etiketi ve görev cümlesini gösterir", () => {
     render(
       <ModeHeader
-        eyebrow="Mod 2 · Matris"
+        eyebrow="10 Ağustos 2026"
         title="Günün Izgarası"
         task="Her hücre için bir futbolcu bul."
       />,
     );
 
-    expect(screen.getByText("Mod 2 · Matris")).toBeInTheDocument();
+    expect(screen.getByText("10 Ağustos 2026")).toBeInTheDocument();
     expect(
       screen.getByText("Her hücre için bir futbolcu bul."),
     ).toBeInTheDocument();
+  });
+
+  /**
+   * ÜST ETİKET İSTEĞE BAĞLI — ve boş bir satır BASILMAMALI.
+   *
+   * Bir süre "Mod 1 · Kesişim" gibi numaralı adlar taşıdı; modun adı hem
+   * gezinme şeridinde hem `h1`'de zaten yazılı olduğu için kaldırıldı.
+   * Etiketsiz künyede geriye ölü bir aralık kalmamalı.
+   */
+  it("üst etiket verilmezse boş satır basmaz", () => {
+    const { container } = render(
+      <ModeHeader title="Hangisi Daha" task="Seç." />,
+    );
+
+    // Künyenin metin taşıyan tek paragrafı görev cümlesi olmalı.
+    const paragraphs = [...container.querySelectorAll("p")];
+    expect(paragraphs).toHaveLength(1);
+    expect(paragraphs[0]).toHaveTextContent("Seç.");
   });
 
   /**
@@ -48,9 +60,7 @@ describe("ModeHeader", () => {
    * modda boş ya da uydurma bir sayaç, sayacın kendisini anlamsızlaştırır.
    */
   it("tabela verilmezse hiç basılmaz", () => {
-    render(
-      <ModeHeader eyebrow="Mod 4 · Düello" title="Hangisi Daha" task="Seç." />,
-    );
+    render(<ModeHeader title="Hangisi Daha" task="Seç." />);
 
     expect(screen.queryByRole("group")).not.toBeInTheDocument();
   });
@@ -58,7 +68,6 @@ describe("ModeHeader", () => {
   it("tabela verilirse künyenin içinde durur", () => {
     render(
       <ModeHeader
-        eyebrow="Mod 1 · Kesişim"
         title="Ortak Oyuncu"
         task="İki kulüp seç."
         scoreboard={
