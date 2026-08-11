@@ -42,7 +42,7 @@ export function aPlayer(overrides: Partial<Player> = {}): Player {
     id: playerId(nextId("player")),
     name: "Test Oyuncu",
     nationality: "TR",
-    position: "Orta saha",
+    position: "midfielder",
     ...overrides,
   };
 }

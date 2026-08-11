@@ -20,9 +20,14 @@ const PLAYERS: PlayerDto[] = [
     id: "p1",
     name: "Esteban Cambiasso",
     nationality: "AR",
-    position: "Orta saha",
+    position: "midfielder",
   },
-  { id: "p2", name: "Andrea Cambiaso", nationality: "IT", position: "Defans" },
+  {
+    id: "p2",
+    name: "Andrea Cambiaso",
+    nationality: "IT",
+    position: "defender",
+  },
   { id: "p3", name: "Cesare Cambi", nationality: "IT", position: null },
 ];
 
@@ -141,6 +146,15 @@ describe("PlayerPicker — arama", () => {
 
     expect(screen.getByText(/Arjantin/u)).toBeInTheDocument();
     expect(screen.queryByText(/^AR$/u)).not.toBeInTheDocument();
+  });
+
+  /** BR-40 — mevki de ham ANAHTAR olarak gösterilmez, uyrukla aynı gerekçe. */
+  it("mevkiyi ham anahtar olarak değil Türkçe adla gösterir", async () => {
+    const { user } = setup();
+    await typeAndWait(user);
+
+    expect(screen.getByText(/Orta saha/u)).toBeInTheDocument();
+    expect(screen.queryByText(/midfielder/u)).not.toBeInTheDocument();
   });
 
   /**

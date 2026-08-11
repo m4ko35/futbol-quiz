@@ -29,7 +29,7 @@ const arsenal = aClub({
 const eboue = aPlayer({
   name: "Emmanuel Eboué",
   nationality: "CI",
-  position: "Defans",
+  position: "defender",
 });
 
 function deps(
@@ -74,7 +74,7 @@ describe("findCommonPlayers use-case", () => {
       id: eboue.id,
       name: "Emmanuel Eboué",
       nationality: "CI",
-      position: "Defans",
+      position: "defender",
       spellsAtA: [
         {
           startYear: 2011,

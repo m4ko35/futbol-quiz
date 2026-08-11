@@ -86,7 +86,7 @@ beforeAll(async () => {
       name: "Emmanuel Eboué",
       searchKey: toSearchKey("Emmanuel Eboué"),
       nationality: "CI",
-      position: "Defans",
+      position: "defender",
       spells: {
         create: [
           {
@@ -279,7 +279,7 @@ describe("GET /api/common-players — §6.2", () => {
     expect(body.data.players[0]).toMatchObject({
       name: "Emmanuel Eboué",
       nationality: "CI",
-      position: "Defans",
+      position: "defender",
     });
     expect(body.data.players[0].spellsAtA[0]).toEqual({
       startYear: 2011,

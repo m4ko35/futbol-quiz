@@ -150,7 +150,7 @@ describe("applyPlayerStats", () => {
     nationality: null,
     citizenships: ["IT"],
     birthCountry: "IT",
-    position: "Kaleci",
+    position: "goalkeeper",
     genderQid: null,
     nationalCaps: null,
     heightCm: null,

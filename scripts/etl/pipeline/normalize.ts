@@ -253,38 +253,44 @@ export function statementIdFromUri(uri: string | undefined): string | null {
  * kodda doğru olması yetmez — üretilen VERİNİN ona uyduğu ölçülmelidir (§8.2).
  */
 export const POSITIONS: readonly string[] = [
-  "Kaleci",
-  "Defans",
-  "Orta saha",
-  "Kanat",
-  "Forvet",
+  "goalkeeper",
+  "defender",
+  "midfielder",
+  "winger",
+  "forward",
 ];
 
 const POSITION_MAP: ReadonlyArray<readonly [RegExp, string]> = [
-  [/goalkeeper|kaleci|portero|goalie/i, "Kaleci"],
-  [/sweeper|libero/i, "Defans"],
+  [/goalkeeper|kaleci|portero|goalie/i, "goalkeeper"],
+  [/sweeper|libero/i, "defender"],
 
   // "centre half" ORTA SAHA DEĞİL. 2-3-5 dizilişinde half-back'ler orta hattı
   // kurardı; WM dizilişiyle birlikte merkezdeki oyuncu stopere çekildi ve
   // "centre half" bugünkü anlamıyla stoperi anlatır. Aşağıdaki "half" kuralının
   // ÖNÜNDE durmak zorunda, yoksa orta sahaya düşer.
-  [/(centre|center)[\s-]?half/i, "Defans"],
+  [/(centre|center)[\s-]?half/i, "defender"],
 
   // Kanattaki half-back'ler ise orta saha oyuncusuydu. 4.346 oyuncu bu
   // etiketi taşıyor ve ilk sürümde hiç eşlenmiyordu.
-  [/(wing|left|right)[\s-]?half|half[\s-]?back/i, "Orta saha"],
+  [/(wing|left|right)[\s-]?half|half[\s-]?back/i, "midfielder"],
 
   [
     /(centre|center|full|wing|left|right)[\s-]?back|(^|\s)back(\s|$)|defender|defans|savunma|defensa|bek|stoper|stopper/i,
-    "Defans",
+    "defender",
   ],
-  [/midfield|orta saha|orta oyuncu|oyun kurucu|playmaker|medio/i, "Orta saha"],
-  [/winger|kanat|(left|right)[\s-]?wing/i, "Kanat"],
-  [/striker|forward|attacker|forvet|santrfor|delantero/i, "Forvet"],
+  [/midfield|orta saha|orta oyuncu|oyun kurucu|playmaker|medio/i, "midfielder"],
+  [/winger|kanat|(left|right)[\s-]?wing/i, "winger"],
+  [/striker|forward|attacker|forvet|santrfor|delantero/i, "forward"],
 ];
 
 /**
- * Mevki etiketini sabit bir Türkçe kümeye eşler; TANINMAZSA `null`.
+ * Mevki etiketini sabit ve DİLDEN BAĞIMSIZ bir kümeye eşler; TANINMAZSA `null`.
+ *
+ * ÇIKTI BİR ANAHTARDIR, GÖSTERİLECEK METİN DEĞİL (BR-40). Eskiden burada
+ * Türkçe etiket üretiliyordu (`"Kaleci"`) ve o değer veritabanına yazılıyordu;
+ * bu bir katman hatasıydı. Dile bağlı bir değeri sonradan çevirmek tam bir ETL
+ * koşusu (~2 saat) artı veri göçü ister, oysa render anındaki çeviri bir
+ * satırdır. Türkçe karşılık `src/lib/position-name.ts` içinde.
  *
  * NEDEN HAM ETİKETE DÜŞÜLMÜYOR (davranış değişti). Eski sürüm tanımadığı
  * etiketi olduğu gibi geçiriyordu ve Wikidata'nın `P413` alanı yalnızca futbol
@@ -306,8 +312,8 @@ const POSITION_MAP: ReadonlyArray<readonly [RegExp, string]> = [
 export function normalizePosition(label: string | undefined): string | null {
   if (label === undefined || label.trim().length === 0) return null;
 
-  for (const [pattern, turkish] of POSITION_MAP) {
-    if (pattern.test(label)) return turkish;
+  for (const [pattern, key] of POSITION_MAP) {
+    if (pattern.test(label)) return key;
   }
   return null;
 }

@@ -46,7 +46,7 @@ const PLAYER: PlayerDto = {
   id: "p1",
   name: "Ronaldinho",
   nationality: "BR",
-  position: "Forvet",
+  position: "forward",
 };
 
 function setup(

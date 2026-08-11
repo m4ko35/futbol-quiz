@@ -35,7 +35,7 @@ const PLAYER: PlayerDto = {
   id: "p1",
   name: "Dennis Bergkamp",
   nationality: "NL",
-  position: "Forvet",
+  position: "forward",
 };
 
 function setup(
@@ -407,7 +407,7 @@ describe("StatMatchGame — saklanmayan tur", () => {
       id: `berg${String(i)}`,
       name: `Bergkamp ${String(i)}`,
       nationality: "NL",
-      position: "Forvet",
+      position: "forward",
     }));
 
     render(

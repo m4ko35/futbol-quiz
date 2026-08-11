@@ -96,7 +96,7 @@ beforeAll(async () => {
             // Havuzdaki ülke kodlarından biri DEĞİL: satırların kulüp olduğu
             // bir ızgara kurulsun ki beklenen sonuç tek anlamlı olsun.
             nationality: "ZW",
-            position: "Forvet",
+            position: "forward",
             spells: {
               create: [
                 {

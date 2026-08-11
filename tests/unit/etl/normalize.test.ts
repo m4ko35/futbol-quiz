@@ -151,17 +151,17 @@ describe("statementIdFromUri", () => {
 
 describe("normalizePosition", () => {
   it("bilinen mevkileri Türkçeye eşler", () => {
-    expect(normalizePosition("goalkeeper")).toBe("Kaleci");
-    expect(normalizePosition("centre-back")).toBe("Defans");
-    expect(normalizePosition("attacking midfielder")).toBe("Orta saha");
-    expect(normalizePosition("striker")).toBe("Forvet");
+    expect(normalizePosition("goalkeeper")).toBe("goalkeeper");
+    expect(normalizePosition("centre-back")).toBe("defender");
+    expect(normalizePosition("attacking midfielder")).toBe("midfielder");
+    expect(normalizePosition("striker")).toBe("forward");
   });
 
   it("Türkçe etiketleri de eşler", () => {
     // Türkçe Wikidata etiketi; 14.905 oyuncuda ham geçiyordu.
-    expect(normalizePosition("savunma")).toBe("Defans");
-    expect(normalizePosition("attacker")).toBe("Forvet");
-    expect(normalizePosition("libero özel")).toBe("Defans");
+    expect(normalizePosition("savunma")).toBe("defender");
+    expect(normalizePosition("attacker")).toBe("forward");
+    expect(normalizePosition("libero özel")).toBe("defender");
   });
 
   /**
@@ -170,15 +170,15 @@ describe("normalizePosition", () => {
    * "half" bu yüzden farklı yere gider ve kalıp sırası bunu belirler.
    */
   it("wing half orta saha, centre half defans olur", () => {
-    expect(normalizePosition("wing half")).toBe("Orta saha");
-    expect(normalizePosition("half-back")).toBe("Orta saha");
-    expect(normalizePosition("centre half")).toBe("Defans");
-    expect(normalizePosition("centerhalf")).toBe("Defans");
+    expect(normalizePosition("wing half")).toBe("midfielder");
+    expect(normalizePosition("half-back")).toBe("midfielder");
+    expect(normalizePosition("centre half")).toBe("defender");
+    expect(normalizePosition("centerhalf")).toBe("defender");
   });
 
   it("orta saha kalıbı forvet kalıbından ÖNCE eşleşir", () => {
     // İki kalıba da uyan etiketlerde sıra sonucu belirler.
-    expect(normalizePosition("attacking midfielder")).toBe("Orta saha");
+    expect(normalizePosition("attacking midfielder")).toBe("midfielder");
   });
 
   /**

@@ -118,7 +118,7 @@ beforeAll(async () => {
         name: seed.name,
         searchKey: toSearchKey(seed.name),
         nationality: "TR",
-        position: "Orta saha",
+        position: "midfielder",
         spells: {
           create: [
             {

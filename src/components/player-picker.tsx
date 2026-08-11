@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import type { PlayerDto } from "@/application/dto/player-dto";
 import { MIN_PLAYER_TERM_LENGTH } from "@/application/use-cases/search-players";
 import { countryName } from "@/lib/country-name";
+import { positionName } from "@/lib/position-name";
 
 /**
  * Oyuncu seçici — ızgarada bir hücreye cevap vermek için (BR-12).
@@ -237,7 +238,9 @@ export function PlayerPicker({
                   player.nationality === null
                     ? null
                     : countryName(player.nationality),
-                  player.position,
+                  // Mevki de ham anahtar tutar (BR-40); "goalkeeper" bir
+                  // Türkçe arayüzde uyruk koduyla aynı sınıfta bir kusurdur.
+                  positionName(player.position),
                 ]
                   .filter((part) => part !== null)
                   .join(" · ")}

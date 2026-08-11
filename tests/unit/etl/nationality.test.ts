@@ -110,7 +110,7 @@ describe("playersFrom — çok satırlı oyuncu tek kayda iner", () => {
       playerRow({ player: "Q1", countryCode: "DE" }),
     ]);
 
-    expect(players[0]?.position).toBe("Kaleci");
+    expect(players[0]?.position).toBe("goalkeeper");
   });
 });
 

@@ -46,7 +46,7 @@ const result = (
       id: "p1",
       name: "Emmanuel Eboué",
       nationality: "CI",
-      position: "Defans",
+      position: "defender",
       spellsAtA: [spell({ startYear: 2011, endYear: 2014, appearances: 64 })],
       spellsAtB: [spell({ startYear: 2005, endYear: 2011, appearances: 214 })],
     },
@@ -100,6 +100,25 @@ describe("CommonPlayersResult", () => {
     expect(screen.getByText("Emmanuel Eboué")).toBeInTheDocument();
     expect(screen.getByText(/2011 – 2014/u)).toBeInTheDocument();
     expect(screen.getByText(/2005 – 2011/u)).toBeInTheDocument();
+  });
+
+  /**
+   * BR-40 ve §7.12 — İKİ ALAN DA ÇEVRİLİR.
+   *
+   * Veritabanı ikisini de ham tutar: `position` dilden bağımsız anahtar
+   * (`defender`), `nationality` ISO kodu (`CI`). Bu satır bir zamanlar ikisini
+   * de ham basıyordu; kullanıcı "defender · CI" görürdü. Oyuncu seçicisi ise
+   * uyruğu çeviriyordu, yani aynı oyuncu iki ekranda iki farklı biçimde
+   * görünüyordu.
+   */
+  it("mevkiyi ve uyruğu ÇEVİRİR, ham değeri basmaz", () => {
+    render(<CommonPlayersResult result={result()} />);
+
+    expect(screen.getByText(/Defans/u)).toBeInTheDocument();
+    expect(screen.getByText(/Fildişi Sahili/u)).toBeInTheDocument();
+
+    expect(screen.queryByText(/defender/u)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\bCI\b/u)).not.toBeInTheDocument();
   });
 
   it("BR-3: kiralık dönemi açıkça işaretler", () => {

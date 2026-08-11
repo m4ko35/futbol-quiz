@@ -42,7 +42,7 @@ const SUCCESS_BODY = {
         id: "p1",
         name: "Emmanuel Eboué",
         nationality: "CI",
-        position: "Defans",
+        position: "defender",
         spellsAtA: [
           {
             startYear: 2011,

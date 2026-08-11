@@ -4,6 +4,8 @@ import type {
   SpellDto,
 } from "@/application/dto/common-players-dto";
 import type { DegeneratePair } from "@/domain/services/club-pair-quality";
+import { countryName } from "@/lib/country-name";
+import { positionName } from "@/lib/position-name";
 import { ClubMark } from "./club-mark";
 
 /**
@@ -122,8 +124,20 @@ function PlayerRow({
     <li className="grid border-b border-line transition-colors last:border-b-0 hover:bg-surface-2 sm:grid-cols-[1.05fr_1fr_1fr]">
       <div className="min-w-0 px-4 py-3 sm:border-r sm:border-line">
         <p className="font-bold tracking-tight">{player.name}</p>
+        {/*
+          İKİ ALAN DA ÇEVRİLİR. `position` veritabanında dilden bağımsız
+          anahtar tutar (BR-40), `nationality` ise ISO kodu — ikisi de ham
+          hâliyle kullanıcıya hiçbir şey söylemez. Uyruk burada ham KOD olarak
+          basılıyordu ve oyuncu seçicisi aynı değeri çeviriyordu; iki ekran
+          aynı oyuncuyu iki farklı biçimde gösteriyordu.
+        */}
         <p className="text-xs text-muted">
-          {[player.position, player.nationality]
+          {[
+            positionName(player.position),
+            player.nationality === null
+              ? null
+              : countryName(player.nationality),
+          ]
             .filter((value) => value !== null)
             .join(" · ") || "bilgi yok"}
         </p>
