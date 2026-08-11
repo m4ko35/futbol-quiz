@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BrandMark } from "./brand-mark";
 import { ModeNav, type ModeId } from "./mode-nav";
+import { ThemeToggle } from "./theme-toggle";
 
 /**
  * Site başlığı — marka işareti ve oyun modları (§7.12).
@@ -36,10 +37,21 @@ export function SiteHeader() {
 
   return (
     <header className="border-b border-line bg-surface">
-      <div className="mx-auto flex w-full max-w-4xl flex-wrap items-center justify-between gap-x-4 gap-y-3 px-5 py-3 sm:px-6">
+      {/*
+        SIRA GENİŞLİĞE GÖRE DEĞİŞİYOR, BİLEŞEN İKİ KEZ BASILMIYOR.
+
+        Dar ekranda dört mod etiketi tek başına bir satır dolduruyor; görünüm
+        seçicisi de aynı satıra sığmıyordu. Çözüm ikinci bir kopya BASMAK
+        değil (aynı adı taşıyan iki radyo grubu erişilebilirlik ağacında
+        kalabalık yapardı) — `order` ile yerleşim değişiyor:
+
+          dar : [marka] [görünüm] / [modlar — tam genişlik]
+          geniş: [marka] [modlar] [görünüm]
+      */}
+      <div className="mx-auto flex w-full max-w-4xl flex-wrap items-center gap-x-4 gap-y-3 px-5 py-3 sm:px-6">
         <Link
           href="/"
-          className="flex items-center gap-2 rounded-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
+          className="order-1 flex items-center gap-2 rounded-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
         >
           <BrandMark className="h-7 w-7 shrink-0 text-accent" />
           <span className="text-base font-semibold tracking-tight">
@@ -47,7 +59,12 @@ export function SiteHeader() {
           </span>
         </Link>
 
-        <ModeNav current={modeFromPath(pathname)} />
+        <ThemeToggle className="order-2 ms-auto sm:order-3 sm:ms-0" />
+
+        <ModeNav
+          current={modeFromPath(pathname)}
+          className="order-3 w-full justify-center sm:order-2 sm:ms-auto sm:w-auto"
+        />
       </div>
     </header>
   );

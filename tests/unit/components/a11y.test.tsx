@@ -14,6 +14,7 @@ import { GridGame } from "@/components/grid-game";
 import { ModeNav } from "@/components/mode-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { StatMatchGame } from "@/components/stat-match-game";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { WhichMoreQuiz } from "@/components/which-more-quiz";
 import { describeViolations, findA11yViolations } from "../../helpers/a11y";
 
@@ -363,6 +364,17 @@ describe("erişilebilirlik — WCAG 2.1 AA (§7.10)", () => {
 
   it("mod gezinmesinde ihlal yok", async () => {
     const { container } = render(<ModeNav current="grid" />);
+
+    await expectNoViolations(container);
+  });
+
+  /**
+   * Asıl risk burada: seçicinin GÖRÜNEN hiçbir metni yok, üç simgeden ibaret.
+   * Erişilebilir adları yalnızca `sr-only` etiketler ve grubun `legend`'i
+   * taşıyor; biri düşerse denetim bunu yakalamalı.
+   */
+  it("görünüm seçicisinde ihlal yok", async () => {
+    const { container } = render(<ThemeToggle />);
 
     await expectNoViolations(container);
   });

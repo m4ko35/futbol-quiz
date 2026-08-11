@@ -68,12 +68,30 @@
   --shadow-pop: 0 8px 24px rgb(17 24 35 / 0.14), 0 2px 6px rgb(17 24 35 / 0.08);
 }
 
-/* Karanlık mod, işletim sistemi tercihini izler. Ayrı bir düğme YOK: tercih
-   zaten sistemde bir kez veriliyor ve uygulamanın onu ikinci kez sorması
-   gereksiz. Belirteçler rol adlarını koruduğu için tek bir bileşen bile ayrı
-   karanlık mod sınıfı taşımıyor — değişen yalnızca burası. */
+/* ═══════════════════════════════════════════════════════════════════════
+   KARANLIK MOD — §7.12.
+
+   ÜÇ DURUM VAR, İKİ DEĞİL: seçim yapılmamışsa sistem tercihi, yapılmışsa
+   kullanıcının seçimi. İki durumlu bir anahtar, sistemi izleme davranışına
+   GERİ DÖNMEYİ imkânsız kılardı.
+
+   SIRA ÖNEMLİ. `:root:not([data-theme="light"])` ile `:root[data-theme="dark"]`
+   AYNI özgüllüktedir (`:not()` argümanının özgüllüğünü alır), dolayısıyla
+   hangisinin kazanacağını kaynak sırası belirler. Öznitelik bloğu medya
+   sorgusundan SONRA gelmek zorunda; yer değiştirirlerse koyu sistemde "açık"
+   seçimi çalışmaya devam eder ama açık sistemde "koyu" seçimi çalışmaz.
+
+   BEDELİ: koyu palet iki kez yazılıyor. Bu gerçek bir tehlike — biri düzeltilip
+   diğeri unutulursa iki tema sessizce ayrışır. Kontrast kapısı
+   (`tests/unit/app/contrast.test.ts`) iki bloğu ayrı ayrı ayrıştırıp BİREBİR
+   EŞİT olduklarını doğruluyor; tekrar artık denetlenen bir değişmez.
+
+   Belirteçler rol adlarını koruduğu için tek bir bileşen bile ayrı karanlık
+   mod sınıfı taşımıyor — değişen yalnızca burası.
+   ═══════════════════════════════════════════════════════════════════════ */
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --background: #0d1117;
     --surface: #151b24;
     --surface-2: #1d2530;
@@ -108,6 +126,37 @@
     --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 1px 3px rgb(0 0 0 / 0.3);
     --shadow-pop: 0 4px 12px rgb(0 0 0 / 0.5), 0 2px 4px rgb(0 0 0 / 0.4);
   }
+}
+
+/* Kullanıcının ELLE seçtiği koyu tema. Yukarıdaki blokla birebir aynı olmak
+   ZORUNDA; kontrast kapısı bunu doğruluyor. */
+:root[data-theme="dark"] {
+  --background: #0d1117;
+  --surface: #151b24;
+  --surface-2: #1d2530;
+
+  --foreground: #e7ecf3;
+  --muted: #98a3b3;
+
+  --line: #232c38;
+  --line-strong: #6a7788;
+
+  --accent: #7b93ff;
+  --accent-fg: #0a0e15;
+  --accent-soft: #1a2242;
+
+  --correct: #4fd98c;
+  --correct-soft: #0e2a1d;
+  --wrong: #ff7a82;
+  --wrong-soft: #301418;
+  --warn: #f2b950;
+  --warn-soft: #2c2011;
+
+  --note: #b3a794;
+  --note-soft: #23201a;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 1px 3px rgb(0 0 0 / 0.3);
+  --shadow-pop: 0 4px 12px rgb(0 0 0 / 0.5), 0 2px 4px rgb(0 0 0 / 0.4);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════

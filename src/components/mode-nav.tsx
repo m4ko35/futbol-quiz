@@ -52,13 +52,18 @@ export interface ModeNavProps {
    * göstermek kullanıcıya yanlış yer bildirmek olurdu.
    */
   readonly current: ModeId | null;
+  /** Başlıktaki yerleşim sınıfları; şeridin kendi görünümü buraya girmez. */
+  readonly className?: string;
 }
 
-export function ModeNav({ current }: ModeNavProps) {
+export function ModeNav({ current, className }: ModeNavProps) {
   return (
     <nav
       aria-label="Oyun modları"
-      className="flex flex-wrap items-center gap-1 rounded-full border border-line bg-background p-1"
+      className={
+        "flex flex-wrap items-center gap-1 rounded-full border border-line bg-background p-1 " +
+        (className ?? "")
+      }
     >
       {MODES.map((mode) => {
         const isCurrent = mode.id === current;

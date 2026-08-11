@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { headers } from "next/headers";
 import { connection } from "next/server";
 import { SiteHeader } from "@/components/site-header";
 import { serverEnv } from "@/infrastructure/config/env";
+import { THEME_BOOT_SCRIPT } from "@/lib/theme";
 
 import "./globals.css";
 
@@ -15,6 +17,9 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+/** Tek satırda kalması için ayrı: lint istisnası yalnızca o satırı kapsıyor. */
+const bootScript = { __html: THEME_BOOT_SCRIPT };
 
 const TITLE = "Futbol Quiz — Ortak Oyuncular";
 const DESCRIPTION =
@@ -70,11 +75,40 @@ export default async function RootLayout({
   // zaten her isteği veritabanından karşıladığı için kayıp önemsizdir (§10.2).
   await connection();
 
+  // Açılış script'i CSP'nin nonce'unu taşımak ZORUNDA (§7.3): `'strict-dynamic'`
+  // nonce'suz her script'i bloklar. Nonce'u `proxy.ts` istek başlığına yazıyor.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
   return (
+    /*
+      `suppressHydrationWarning`: `data-theme` özniteliğini React'ten ÖNCE,
+      aşağıdaki açılış script'i basıyor. Uyarı bastırılmasaydı React bunu bir
+      hidrasyon hatası sayar, en yakın sınırdan itibaren istemcide yeniden
+      render eder ve tam da kaçınmaya çalıştığımız yanıp sönme oluşurdu.
+    */
     <html
       lang="tr"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        {/*
+          YANIP SÖNMEYİ (FOUC) KAPATAN TEK YER — §7.12.
+
+          Script HTML ayrıştırılırken, İLK BOYAMADAN ÖNCE çalışır. `useEffect`
+          boyamadan sonra çalışır (kullanıcı yanlış temayı görür),
+          `useLayoutEffect` hidrasyondan sonra çalışır (yavaş bağlantıda
+          tarayıcı sunucu HTML'ini çoktan boyamıştır).
+
+          `dangerouslySetInnerHTML` bu projede kural olarak yasak (§7.2) ve
+          burada TEK istisnası var: içerik derleme zamanı bir SABİT
+          (`THEME_BOOT_SCRIPT`), hiçbir kullanıcı girdisi içermiyor ve script
+          depodan okuduğu değeri de körlemesine yazmıyor — yalnızca iki bilinen
+          dizeyi kabul ediyor. Kural genel olarak kapatılmadı; yalnızca bu satır.
+        */}
+        {/* eslint-disable-next-line react/no-danger -- Sabit içerik, kullanıcı girdisi yok (§7.2, §7.12). */}
+        <script nonce={nonce} dangerouslySetInnerHTML={bootScript} />
+      </head>
       <body className="flex min-h-full flex-col">
         {/* Başlık DÜZENDE: üç sayfada birebir tekrarlanıyordu ve her biri
             bulunduğu modu elle bildiriyordu. Burada yol adresinden türetiliyor

@@ -117,22 +117,51 @@ function contrastRatio(a: string, b: string): number {
 /**
  * `globals.css`'ten belirteçleri okur.
  *
- * Karanlık mod bildirimi `@media (prefers-color-scheme: dark)` içinde; dosya
- * o işaretten bölünüyor. `@theme inline` bloğu da bölmenin ikinci yarısına
- * düşüyor ama değerleri `var(...)` olduğu için altıgen desenine takılmıyor.
+ * DOSYA ÜÇ BÖLÜMDÜR (§7.12): açık palet, sistem tercihini izleyen koyu palet
+ * (`@media`), ve kullanıcının ELLE seçtiği koyu palet (`[data-theme="dark"]`).
+ * Koyu palet iki kez yazılmak zorunda — bir medya sorgusu seçiciye
+ * çevrilemez — ve bu tekrar gerçek bir tehlike: biri düzeltilip diğeri
+ * unutulursa iki tema sessizce ayrışır. O yüzden ikisi AYRI ayrıştırılıyor.
+ *
+ * `@theme inline` bloğu son bölüme düşüyor ama değerleri `var(...)` olduğu
+ * için altıgen desenine takılmıyor.
  */
 function readTokens(): {
   light: Record<string, string>;
-  dark: Record<string, string>;
+  darkFromSystem: Record<string, string>;
+  darkFromChoice: Record<string, string>;
 } {
-  const css = readFileSync(CSS_PATH, "utf8");
-  const marker = "@media (prefers-color-scheme: dark)";
-  const splitAt = css.indexOf(marker);
+  // AÇIKLAMALAR ÖNCE SİLİNİYOR. Bölümler metin arayarak bulunuyor ve bu
+  // dosyadaki açıklamalar seçicilerin KENDİSİNDEN söz ediyor — bir açıklama
+  // satırındaki `:root[data-theme="dark"]`, bloğun kendisinden önce bulunup
+  // sıra denetimini yanlış yere bağlıyordu. Aynı temizlik, açıklama içindeki
+  // altıgen renklerin de ölçüme karışmasını engelliyor.
+  const css = readFileSync(CSS_PATH, "utf8").replaceAll(
+    /\/\*[\s\S]*?\*\//gu,
+    "",
+  );
+  const mediaMarker = "@media (prefers-color-scheme: dark)";
+  const choiceMarker = ':root[data-theme="dark"]';
+
+  const mediaAt = css.indexOf(mediaMarker);
+  const choiceAt = css.indexOf(choiceMarker);
 
   expect(
-    splitAt,
-    `${marker} bulunamadı — karanlık mod bildirimi kaldırılmış olabilir`,
+    mediaAt,
+    `${mediaMarker} bulunamadı — sistem tercihini izleyen koyu mod kaldırılmış olabilir`,
   ).toBeGreaterThan(-1);
+  expect(
+    choiceAt,
+    `${choiceMarker} bulunamadı — elle seçilen koyu mod kaldırılmış olabilir`,
+  ).toBeGreaterThan(-1);
+
+  // SIRA DA BİR KURAL. İki koyu blok aynı özgüllükte olduğu için hangisinin
+  // kazanacağını KAYNAK SIRASI belirler; öznitelik bloğu medya sorgusundan
+  // önce gelirse açık sistemde "koyu" seçimi sessizce çalışmaz.
+  expect(
+    choiceAt,
+    "elle seçilen koyu blok, medya sorgusundan SONRA gelmeli (aynı özgüllük, sırayı kaynak belirler)",
+  ).toBeGreaterThan(mediaAt);
 
   const collect = (section: string): Record<string, string> => {
     const found: Record<string, string> = {};
@@ -148,13 +177,30 @@ function readTokens(): {
   };
 
   return {
-    light: collect(css.slice(0, splitAt)),
-    dark: collect(css.slice(splitAt)),
+    light: collect(css.slice(0, mediaAt)),
+    darkFromSystem: collect(css.slice(mediaAt, choiceAt)),
+    darkFromChoice: collect(css.slice(choiceAt)),
   };
 }
 
 describe("renk kontrastı — WCAG 2.1 AA (§7.12)", () => {
-  const { light, dark } = readTokens();
+  const { light, darkFromSystem, darkFromChoice } = readTokens();
+  const dark = darkFromSystem;
+
+  /**
+   * TEKRAR DENETLENEN BİR DEĞİŞMEZ.
+   *
+   * Koyu palet iki kez yazılıyor: biri sistem tercihini izleyen medya
+   * sorgusunda, biri kullanıcının elle seçtiği `[data-theme="dark"]` bloğunda.
+   * CSS'te bir medya koşulu seçiciye çevrilemediği için tekrar kaçınılmaz —
+   * ama denetimsiz bırakılırsa "sistemi koyu olan" ile "koyuyu elle seçen"
+   * kullanıcı bir gün farklı bir arayüz görür ve aşağıdaki oran ölçümlerinin
+   * hiçbiri bunu yakalayamaz: her ikisi de kendi içinde tutarlı kalır.
+   */
+  it("iki koyu blok BİREBİR aynı", () => {
+    expect(Object.keys(darkFromChoice).length).toBeGreaterThan(0);
+    expect(darkFromChoice).toEqual(darkFromSystem);
+  });
 
   it("ölçümün KENDİSİ çalışıyor — bilinen oranları doğru hesaplar", () => {
     // Hiç kırmızıya dönemeyen bir kapı kapı değildir (§7.10 ile aynı gerekçe).

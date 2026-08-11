@@ -1686,13 +1686,16 @@ Nonce her istekte 128 bit Web Crypto rastgeleliğiyle üretilir. **Sabitlenmesi 
 
 Denetim, CSP veya render moduna dokunan her değişiklikten sonra üretim derlemesi üzerinde tekrarlanır.
 
-| Ölçüm                               | Faz 0   | Faz 3 (arayüz ve API eklendikten sonra) |
-| ----------------------------------- | ------- | --------------------------------------- |
-| Nonce'lu script / toplam script     | 11 / 11 | **15 / 15** (Faz 4 ölçümü)              |
-| Üç istekte benzersiz nonce          | 3 / 3   | **3 / 3**                               |
-| Üretimde `unsafe-eval`              | yok     | **yok**                                 |
-| Üretimde `script-src unsafe-inline` | yok     | **yok**                                 |
-| İzinsiz kökenli `<img>`             | —       | **0** (12 arma, hepsi `upload.…`)       |
+| Ölçüm                               | Faz 0   | Faz 3   | 10 Ağu 2026 (tema script'i)      |
+| ----------------------------------- | ------- | ------- | -------------------------------- |
+| Nonce'lu script / toplam script     | 11 / 11 | 15 / 15 | **80 / 80** (dört sayfa)         |
+| Üç istekte benzersiz nonce          | 3 / 3   | 3 / 3   | **3 / 3**                        |
+| Üretimde `unsafe-eval`              | yok     | yok     | **yok**                          |
+| Üretimde `script-src unsafe-inline` | yok     | yok     | **yok**                          |
+| Tema açılış script'i nonce'lu       | —       | —       | **4 / 4 sayfa**                  |
+| İzinsiz kökenli `<img>`             | —       | 0       | — (arma ölçümü Faz 4'te yapıldı) |
+
+Son sütun §7.12'nin görünüm seçicisiyle geldi: `<head>`'e **elle yazılmış** ilk script eklendiği için denetim baştan koşuldu. Ölçüm, tema script'inin nonce'u gerçekten taşıdığını ayrıca doğruluyor — taşımasaydı `'strict-dynamic'` onu bloklardı ve tercih sessizce hiç uygulanmazdı.
 
 #### `style-src-attr` tavizinin durumu
 
@@ -1918,7 +1921,41 @@ gerekmiyor.
 1. **Durum bilgisi renksizdi.** Doğru hücre, yanlış hücre, kiralık dönem, puan bandı — hepsi aynı gri tondaydı. Üç oyun modu da tek renkte görünüyordu, yani oyunun geri bildirimi yalnızca metne kalmıştı.
 2. **Her saydamlık ayrı bir ölçüm borcuydu.** `/20`, `/50`, `/60`… her biri ayrı bir kontrast oranına karşılık geliyor ve yeni bir değer yazan herkesin tabloya bakması gerekiyordu (§7.10'daki beş ihlal tam olarak böyle oluştu).
 
-**Belirteçler role bağlıdır, tona değil.** `--accent` "yeşil" demek değil, "bu arayüzün vurgu rengi" demek. Bileşenler rolü kullanır; ton değiştiğinde düzeltilecek tek yer `globals.css`. Karanlık mod da bu sayede tek bir medya sorgusuna sığıyor — **hiçbir bileşen `dark:` varyantı taşımıyor.**
+**Belirteçler role bağlıdır, tona değil.** `--accent` "yeşil" demek değil, "bu arayüzün vurgu rengi" demek. Bileşenler rolü kullanır; ton değiştiğinde düzeltilecek tek yer `globals.css`. Karanlık mod da bu sayede tek bir yere sığıyor — **hiçbir bileşen `dark:` varyantı taşımıyor.**
+
+##### Görünüm seçicisi eklendi (10 Ağustos 2026)
+
+Karanlık mod uzun süre **yalnızca** işletim sistemi tercihini izledi ve bu bilinçliydi: "tercih zaten sistemde bir kez veriliyor, uygulamanın onu ikinci kez sorması gereksiz". Karar **geri alındı** — kullanıcı istedi, gerekçe de sağlam: sistemi koyuya almış biri tek bir siteyi açık okumak isteyebilir, tersi de geçerli. Ayrıca sistem ayarını değiştirmek bir siteyi denemekten çok daha pahalı bir iştir.
+
+**Üç durum var, iki değil:** `Sistem` (öntanımlı), `Açık`, `Koyu`. İki durumlu bir anahtar, sistemi izleme davranışına **geri dönmeyi imkânsız** kılardı — bir kez dokunan kullanıcı ömür boyu elle seçmek zorunda kalırdı.
+
+**CSS üç bloğa ayrıldı** ve ayrımın tamamı seçicide:
+
+```css
+:root {
+  /* açık  */
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    /* koyu  */
+  }
+}
+:root[data-theme="dark"] {
+  /* koyu  */
+}
+```
+
+İki koyu blok **aynı özgüllüktedir** (`:not()` argümanının özgüllüğünü alır), dolayısıyla sırayı kaynak belirler: `[data-theme="dark"]` medya sorgusundan **sonra** gelmek zorunda. Açık seçimi ise medya bloğunun `:not([data-theme="light"])` koşuluyla dışarıda bırakılıyor. Sonuç: seçim yapılmamışsa sistem kazanır, yapılmışsa kullanıcı.
+
+**Bedeli koyu paletin iki kez yazılması** ve bu gerçek bir tehlike — biri düzeltilip diğeri unutulursa iki tema sessizce ayrışır. Kontrast kapısı bu yüzden genişletildi: iki koyu bloğu **ayrı ayrı** ayrıştırıp **birebir eşit** olduklarını doğruluyor. Tekrar artık denetlenen bir değişmez.
+
+**Tercih `localStorage`'da, çerezde değil.** Çerez her isteğe eklenir ve sayfa HTML'ini isteğe göre değiştirirdi; §7.9'un "aynı URL herkese aynı cevabı verir" niteliği zedelenirdi. Tercih §9.1'in günlük oyun durumuyla aynı sınıftadır ve aynı yerde durur.
+
+**Yanıp sönme (FOUC) yok** — ve çözümü satır içi bir script: `<head>` içinde, HTML ayrıştırılırken **ilk boyamadan önce** çalışıp `<html>` üzerine `data-theme` basıyor. `useEffect` bunu yapamaz (boyamadan sonra çalışır), `useLayoutEffect` de yapamaz (hidrasyondan sonra çalışır; yavaş bağlantıda tarayıcı sunucu HTML'ini çoktan boyamış olur). Script CSP'nin **nonce**'unu taşıyor (§7.3) — nonce tam olarak bunun içindir. `<html>` bu yüzden `suppressHydrationWarning` taşıyor: özniteliği React'ten önce script koyuyor.
+
+**Script depodaki değeri körlemesine yazmaz.** Yalnızca `"light"` ve `"dark"` dizelerini kabul eder; kurcalanmış bir `localStorage` kaydı özniteliğe rastgele içerik sokamaz. `try/catch` ise deponun kapalı olduğu durumu (gizli mod, dolu kota) sessizce geçer — sayfa yine açılır, yalnızca tercih hatırlanmaz.
+
+**JavaScript kapalıyken de çalışır.** Medya sorgusu yerinde durduğu için script hiç koşmasa bile sistem tercihi uygulanır; kaybolan tek şey elle seçim olur.
 
 | Rol               | Ne için                                | Açık                  | Koyu                  |
 | ----------------- | -------------------------------------- | --------------------- | --------------------- |
