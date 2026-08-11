@@ -73,6 +73,20 @@ export function SiteFooter({ dataGeneratedAt }: SiteFooterProps) {
           tazelenir.
         </p>
       )}
+
+      {/*
+        GİZLİLİK BİLDİRİMİ HER SAYFADAN ULAŞILABİLİR OLMALI (§7.18). KVKK
+        aydınlatma yükümlülüğü metnin varlığıyla değil, ERİŞİLEBİLİRLİĞİYLE
+        yerine gelir; yalnızca ana sayfadan bağlanan bir metin bunu sağlamaz.
+      */}
+      <p>
+        <a
+          href="/gizlilik"
+          className="font-medium text-accent underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        >
+          Gizlilik bildirimi
+        </a>
+      </p>
     </footer>
   );
 }

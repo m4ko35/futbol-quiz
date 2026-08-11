@@ -58,4 +58,26 @@ describe("SiteFooter", () => {
     const link = screen.getByRole("link", { name: "Wikidata" });
     expect(link).toHaveAttribute("rel", expect.stringContaining("noopener"));
   });
+
+  /**
+   * §7.18 — KVKK aydınlatma yükümlülüğü metnin VARLIĞIYLA değil,
+   * ERİŞİLEBİLİRLİĞİYLE yerine gelir. Altbilgi her sayfada durduğu için
+   * bağlantının buradan verilmesi "her sayfadan ulaşılabilir" demektir.
+   */
+  it("gizlilik bildirimine her sayfadan bağlanır", () => {
+    render(<SiteFooter dataGeneratedAt={null} />);
+
+    expect(
+      screen.getByRole("link", { name: "Gizlilik bildirimi" }),
+    ).toHaveAttribute("href", "/gizlilik");
+  });
+
+  it("veri tarihi bilinmese bile gizlilik bağlantısı DÜŞMEZ", () => {
+    // Bağlantı koşullu bir bloğun içine kayarsa yükümlülük sessizce kaybolur.
+    render(<SiteFooter dataGeneratedAt={new Date("2026-07-30T00:00:00Z")} />);
+
+    expect(
+      screen.getByRole("link", { name: "Gizlilik bildirimi" }),
+    ).toBeInTheDocument();
+  });
 });

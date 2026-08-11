@@ -23,6 +23,10 @@ const BASE_ENV = {
   DATABASE_URL: "file:./dev.db",
   RATE_LIMIT_REQUESTS_PER_MINUTE: "60",
   RATE_LIMIT_BURST: "10",
+  // §7.18 — `SITE_INDEXABLE=true` bu adres olmadan doğrulamayı geçmez. Burada
+  // geçerli bir dağıtım yapılandırmasını temsil ediyor; kenetlemenin KENDİSİ
+  // `tests/unit/infrastructure/env.test.ts` içinde sınanır.
+  CONTACT_EMAIL: "iletisim@ornek.com",
 };
 
 async function loadRobots(overrides: Record<string, string>) {

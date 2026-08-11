@@ -2350,6 +2350,33 @@ Kenetlemenin çözdüğü sorun dar ekranda zaten yok: tablonun tamamı bir ekra
 
 Dokuz bileşende hâlâ yok ve **bu doğru**: `brand-mark` ile `club-mark` sabit ölçülü işaretler, üç seçici tam genişlikte akıyor, iki sarmalayıcı düzen taşımıyor, altbilgi düz metin. Ölçüden bağımsız bir bileşene kırılma noktası eklemek, sayıyı büyütür ama hiçbir şeyi düzeltmez.
 
+### 7.18 Gizlilik ve Veri İşleme
+
+**Metin koddan TÜRETİLİR, şablondan değil.** İnternetteki hazır gizlilik metinleri çerezlerden, analitikten ve reklam ortaklarından söz eder; bu sitede üçü de yok. Olmayan bir işlemeyi beyan etmek, olanı gizlemekle aynı kapıya çıkar: ikisi de metni gerçeğe uymayan bir belgeye dönüştürür. Bu yüzden aşağıdaki tablo **ölçülerek** dolduruldu ve sayfa bu tablodan yazıldı.
+
+**Ölçüm (11 Ağustos 2026) — sitenin işlediği her şey:**
+
+| Veri                   | Nerede                             | Nereye gider                    | Ne kadar kalır         |
+| ---------------------- | ---------------------------------- | ------------------------------- | ---------------------- |
+| Görünüm tercihi        | `localStorage:theme`               | **Hiçbir yere** — sunucu görmez | Kullanıcı silene kadar |
+| Günlük oyun ilerlemesi | `localStorage:grid`, `:stat-match` | **Hiçbir yere**                 | Ertesi gün geçersiz    |
+| IP adresi              | `X-Forwarded-For` başlığı          | Yalnızca **bellekteki** kova    | Kova dolunca atılır    |
+| İstek kaydı            | Sunucu logu                        | Barındırma sağlayıcısı          | Sağlayıcının süresi    |
+
+**Hesap yok, çerez yok, izleyici yok.** Ölçüldü: kod tabanında `document.cookie` ve `cookies()` **hiç geçmiyor**; `package.json`'da analitik paketi yok. Oturum olmadığı için §7.9'un önbellek politikası da güvenli — yanıtlar yalnızca sorgu parametrelerine bağlı.
+
+**IP adresi diske YAZILMAZ ve LOGLANMAZ.** `resolveClientKey` (§7.5) başlıktan bir dize çıkarır, 64 karaktere kırpar ve `TokenBucketRateLimiter`'ın `Map` anahtarı yapar. Bu anahtar hiçbir log satırına girmez: `api-handler.ts` yalnızca `traceId`, rota, durum kodu ve süre yazar. `traceId` her istekte yeniden üretilen rastgele bir değerdir — istekleri birbirine bağlamaz, kullanıcıyı tanımlamaz.
+
+> **Bu bir tercih değil, mimarinin sonucu.** Kova bellekte tutuluyor çünkü kalıcı depo eklemek §3.1'in "veri bir derleme çıktısıdır, üretimde yazılmaz" kararını bozardı. Gizlilik açısından iyi olan davranış, başka bir gerekçeyle zaten seçilmişti.
+
+**ARMALAR ÜÇÜNCÜ TARAFA BAĞLANTI AÇAR ve bu beyan edilmelidir.** `club-mark.tsx` armaları düz bir `<img src={crestUrl}>` ile gösteriyor; adres `upload.wikimedia.org`. Yani görseli **ziyaretçinin tarayıcısı** çekiyor ve Wikimedia sunucuları ziyaretçinin IP adresini ve tarayıcı bilgisini görüyor. Sunucumuz bu isteğe aracılık etmiyor.
+
+Bu, `next/image` kullanılmamasının ölçülmemiş bir yan etkisiydi (gerekçe `club-mark.tsx`'te: dosyalar ETL'de zaten küçültülüyor). Karar değiştirilmedi, **beyan edildi** — çünkü vekil eklemek bütün arma trafiğini sunucuya yıkar ve §7.9'un maliyet dengesini bozar. Zararı sınırlayan şey zaten yerinde: `Referrer-Policy: strict-origin-when-cross-origin` Wikimedia'ya yalnızca köken adresini verir, kullanıcının hangi sayfada olduğunu değil.
+
+**Yürürlükteki koruma başlıkları** (§7.3, next.config): `Permissions-Policy` kamera, mikrofon, konum ve ödeme API'lerini tamamen kapatır; `interest-cohort=()` tarayıcı tabanlı ilgi alanı gruplamasını reddeder; `X-DNS-Prefetch-Control: off` ziyaret edilen alan adlarının önceden çözülüp sızmasını engeller.
+
+**İletişim adresi `SITE_INDEXABLE` ile KENETLİDİR.** KVKK aydınlatma yükümlülüğü başvurulacak bir adres ister; adressiz bir metin eksiktir. Ortam doğrulaması bunu yapısal hâle getirir: `SITE_INDEXABLE=true` verilip `CONTACT_EMAIL` verilmezse **uygulama başlamaz** (§7.6). Gerekçe §7.11'in gerekçesiyle aynı — unutulan bir yapılandırma siteyi sessizce eksik hâlde yayına sokmamalı. Geliştirmede etki yok: `SITE_INDEXABLE` öntanımlı `false`.
+
 ---
 
 ## 8. Kalite Güvencesi
@@ -3516,6 +3543,17 @@ kapsamıyor.
 
 **Sonuç:** seçilebilir kulüplerde arma **%29,8 → %43,7**; künyesi eksik arma **0**.
 
+### Faz 4.12 — Gizlilik bildirimi
+
+Yayın öncesi eksik olduğu fark edildi: site KVKK aydınlatma metni olmadan yayına giremez ve ileride herhangi bir gelir modeli (reklam, sponsorluk, abonelik) bunu zaten ilk şart olarak ister.
+
+**Metin ölçümle yazıldı, şablondan alınmadı** (§7.18). Hazır şablonlar çerez ve analitik beyan eder; ölçüm ikisinin de bu sitede olmadığını gösterdi — `document.cookie` kod tabanında hiç geçmiyor, analitik paketi yok. Buna karşılık şablonların hiç sormadığı bir işleme **vardı**: armalar `upload.wikimedia.org`'dan doğrudan ziyaretçinin tarayıcısına iniyor, yani Wikimedia ziyaretçinin IP'sini görüyor.
+
+- [x] §7.18 ölçüm tablosu: işlenen dört veri türü, nereye gittiği, ne kadar kaldığı
+- [x] `/gizlilik` sayfası + altbilgiden her sayfaya bağlantı
+- [x] `CONTACT_EMAIL` ortam değişkeni; `SITE_INDEXABLE=true` ile **kenetli** (adressiz yayına çıkılamaz)
+- [x] Üçüncü taraf beyanı: Wikimedia (arma), barındırma sağlayıcısı (istek kaydı)
+
 ### Faz 4.5 — Yayın
 
 Kod tarafı hazır. Kalanlar hesap açmayı ve dağıtımda ölçüm yapmayı gerektirir.
@@ -3527,6 +3565,7 @@ Kod tarafı hazır. Kalanlar hesap açmayı ve dağıtımda ölçüm yapmayı ge
 3. [ ] Veri iş akışını **elle bir kez** çalıştır (~2 saat; GitHub'da yerel önbellek yok — Vikipedi katmanıyla birlikte, §4.3)
 4. [ ] Vercel projesi: derleme komutu `npm run vercel-build`, `DATASET_URL` ve hız sınırı değişkenleri
 5. [ ] Alan adı ve `SITE_URL`
+6. [ ] `CONTACT_EMAIL` — KVKK başvuru adresi (§7.18). Verilmezse `SITE_INDEXABLE=true` uygulamayı başlatmaz; yani bu adım atlanamaz, yalnızca ertelenebilir.
 
 **Dağıtımda ölçülecekler** — hiçbiri yerelde ölçülemez:
 
