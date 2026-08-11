@@ -105,9 +105,24 @@ export default async function RootLayout({
           (`THEME_BOOT_SCRIPT`), hiçbir kullanıcı girdisi içermiyor ve script
           depodan okuduğu değeri de körlemesine yazmıyor — yalnızca iki bilinen
           dizeyi kabul ediyor. Kural genel olarak kapatılmadı; yalnızca bu satır.
+
+          `suppressHydrationWarning` BURADA DA GEREKLİ ve sebebi `data-theme`
+          ile aynı değil: nonce'u TARAYICI siliyor. CSP'nin "nonce gizleme"
+          kuralı gereği, etiket ayrıştırıldıktan sonra `nonce` İÇERİK
+          ÖZNİTELİĞİ boşaltılır (değer yalnızca DOM özelliğinde kalır) — yoksa
+          bir saldırgan nonce'u öznitelik seçicisiyle sızdırabilirdi. React
+          hidrasyonda o boşaltılmış özniteliği okuyup uyuşmazlık bildiriyordu.
+
+          Ölçülerek doğrulandı: nonce hem sunulan HTML'de hem istemci yükünde
+          DOĞRU duruyor, script de çalışıyor (§7.3 denetimi 80/80). Bastırılan
+          şey gerçek bir kusur değil, tarayıcının kasıtlı davranışı.
         */}
-        {/* eslint-disable-next-line react/no-danger -- Sabit içerik, kullanıcı girdisi yok (§7.2, §7.12). */}
-        <script nonce={nonce} dangerouslySetInnerHTML={bootScript} />
+        <script
+          nonce={nonce}
+          suppressHydrationWarning
+          // eslint-disable-next-line react/no-danger -- Sabit içerik, kullanıcı girdisi yok (§7.2, §7.12).
+          dangerouslySetInnerHTML={bootScript}
+        />
       </head>
       <body className="flex min-h-full flex-col">
         {/* Başlık DÜZENDE: üç sayfada birebir tekrarlanıyordu ve her biri
