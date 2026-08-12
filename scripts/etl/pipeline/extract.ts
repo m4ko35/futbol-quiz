@@ -340,7 +340,7 @@ export async function extractDataset(
   const players: NormalizedPlayer[] = [];
   for (let i = 0; i < playerIds.length; i += PLAYER_BATCH_SIZE) {
     const batch = playerIds.slice(i, i + PLAYER_BATCH_SIZE);
-    const bindings = await client.query(playerDetails(batch), {
+    const bindings = await client.queryBatch(batch, playerDetails, {
       label: `players-${i / PLAYER_BATCH_SIZE}-${batch.length}`,
       noCache,
     });
@@ -385,7 +385,7 @@ export async function extractDataset(
     const batch = playerIds.slice(i, i + PLAYER_BATCH_SIZE);
     const group = i / PLAYER_BATCH_SIZE;
 
-    const capsBindings = await client.query(playerStats(batch), {
+    const capsBindings = await client.queryBatch(batch, playerStats, {
       label: `player-caps-${group}-${batch.length}`,
       noCache,
     });
@@ -395,7 +395,7 @@ export async function extractDataset(
       caps.set(player, value);
     }
 
-    const physicalBindings = await client.query(playerPhysical(batch), {
+    const physicalBindings = await client.queryBatch(batch, playerPhysical, {
       label: `player-physical-${group}-${batch.length}`,
       noCache,
     });

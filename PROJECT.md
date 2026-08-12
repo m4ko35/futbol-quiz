@@ -2526,6 +2526,30 @@ Kayıt her koşuda ve **başarısızlıkta da** yapılır (`if: always()`); önb
 
 > **Bu düzeltme kaybedilen 68 dakikayı geri getirmez.** Arıza anında kayıt adımı henüz yoktu, yani sürdürülecek bir önbellek de yok. Kazanç bir sonraki arızada başlar: ilk koşu önbelleği doldurur, sonraki her deneme dakikalar sürer.
 
+#### Düşen grup ikiye bölünür (2. ve 3. koşu, 12 Ağustos 2026)
+
+Genişletilmiş bütçe ve önbellek doğru çalıştı ama **yetmedi**. İkinci koşu 55. dakikada, üçüncü (sürdürme) koşusu 15. dakikada — **ikisi de aynı yerde**, 308. oyuncu grubunda — düştü.
+
+**Önbellek kazancı ölçüldü ve büyük:**
+
+| Koşu | Önbellek         |            Süre | Düştüğü grup |
+| ---- | ---------------- | --------------: | -----------: |
+| 1    | yok              |       1 sa 8 dk |          263 |
+| 2    | yok (dolduruldu) |           55 dk |          308 |
+| 3    | **sürdürme**     | **14 dk 45 sn** |          308 |
+
+Üçüncü koşuda 307 grup diskten okundu ve 40 dakikalık iş **90 saniyeye** indi.
+
+**Ama 308 tesadüf değildi.** İki koşuda, 45 dakika arayla, sekizer denemede baskın hata `HTTP 504` — ağ geçidi zaman aşımı. `504`'ün anlamı yük değil **süre**: sorgu Wikidata'nın kendi sınırını aşıyor. Önceki teşhis ("zehirli tek grup yok, uç nokta genel olarak dalgalı") 1. koşunun 263'te, 2. koşunun aynı grubu sorunsuz geçmesine dayanıyordu ve **eksikti**; 308 tekrarlanabilir biçimde düşüyor.
+
+**Çözüm: başarısız grubu İKİYE BÖLÜP yeniden denemek.** `WikidataClient.queryBatch()` bunu özyinelemeli yapar, `MIN_SPLIT_SIZE = 25` tabanında durur.
+
+**Neden grup boyutunu global küçültmek DEĞİL.** İki bedeli var. Birincisi her koşuda iki kat istek. İkincisi ve asıl olanı: **önbelleğin tamamı geçersiz olurdu**, çünkü anahtar sorgu metnidir — 40 dakikalık birikmiş iş çöpe giderdi. Bölme yalnızca düşen grubu etkiler; diğerlerinin sorgusu değişmediği için önbellekleri korunur.
+
+> **ÜST DÜZEY ETİKET DEĞİŞTİRİLEMEZ.** Önbellek dosya adı `${etiket}.${sorgu-özeti}.json` biçimindedir; etiketi değiştirmek var olan önbelleği görünmez kılar. `queryBatch` üst düzey çağrıda etiketi aynen geçirir, yalnızca bölünmüş alt gruplara `-a` / `-b` ekler — onlar zaten yeni sorgudur. Değişiklikte bu, çağrı yerlerinin etiketleri farkla karşılaştırılarak doğrulandı.
+
+**Yalnızca uç nokta kaynaklı hatada bölünür.** Karar `error.cause instanceof TransientError` ile verilir. Şema uyuşmazlığı gibi bir kusur bölünerek çözülmez; küçülen gruplarla aynı hatayı tekrarlamak gerçek sebebi gizlerdi.
+
 ---
 
 ## 9. Genişletilebilirlik: Oyun Modları
