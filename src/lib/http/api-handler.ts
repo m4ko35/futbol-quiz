@@ -54,17 +54,25 @@ const BASE_HEADERS: Readonly<Record<string, string>> = {
  * yanıt yalnızca sorgu parametrelerine bağlı (oturum/çerez/kullanıcı yok),
  * veri zaten herkese açık, ve dağıtımlar arasında sabit.
  *
- * `s-maxage` TEMKİNLİ tutuluyor. Vercel'in CDN önbellek anahtarının dağıtım
- * kimliğini içerdiği — yani yeni dağıtımın eski yanıtları geçersiz kıldığı —
- * varsayılıyor ama HENÜZ ÖLÇÜLMEDİ. Varsayım yanlışsa yeni veri eski
- * önbelleğin arkasında kalır ve bu, sessizce eski veri servis etmek demektir.
- * İlk dağıtımda ölçülür (§10 Faz 4.5), ölçüldükten sonra uzatılır.
+ * `s-maxage` ÖNCE 300 sn'ydi ve gerekçesi bir VARSAYIMDI: yeni dağıtımın eski
+ * yanıtları geçersiz kıldığı umuluyor ama ölçülmemişti. Varsayım yanlış olsa
+ * yeni veri eski önbelleğin arkasında kalırdı — sessizce eski veri servis
+ * etmek. 13 Ağustos 2026'da üretimde İKİ KEZ ölçüldü: elle `Redeploy` sonrası
+ * ve dağıtım kancasıyla tetiklenen dağıtım sonrası, dağıtımdan önce `HIT`
+ * dönen aynı adres `MISS` döndü. Varsayım doğrulandı, süre uzatıldı.
+ *
+ * NEDEN 1 GÜN, DAHA UZUN DEĞİL. Veri yılda iki kez değişiyor (`data-refresh`
+ * takvimi: 20 Şubat, 20 Eylül) ve her değişim bir dağıtımla geliyor, yani
+ * geçersizleştirme zaten süreyi bitiriyor — `s-maxage` pratikte hiç dolmuyor.
+ * Buradaki sayı, o mekanizma bir gün BOZULURSA hasarın tavanıdır. İki gözlem
+ * bir garanti değildir; bir gün, bayat veri yayınının en fazla ne kadar
+ * sürebileceğini sınırlar.
  *
  * `stale-while-revalidate` süresi bilerek uzun: veri iki güncelleme arasında
  * değişmediği için bayat bir yanıt sunmak zararsız, buna karşılık her
  * kullanıcının tazeleme maliyetini beklemesi gereksiz.
  */
-const CACHEABLE = "public, s-maxage=300, stale-while-revalidate=86400";
+const CACHEABLE = "public, s-maxage=86400, stale-while-revalidate=604800";
 
 /**
  * Hata yanıtları ASLA önbelleklenmez.

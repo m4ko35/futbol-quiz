@@ -3672,8 +3672,8 @@ Kod tarafı hazır. Kalanlar hesap açmayı ve dağıtımda ölçüm yapmayı ge
 2. [x] `ETL_USER_AGENT` depo değişkeni — Wikidata kimliksiz istemcileri engeller
 3. [x] Veri iş akışını **elle bir kez** çalıştır — 12 Ağustos 2026, koşu `31637172644`
 4. [x] Vercel projesi — 13 Ağustos 2026, `futbol-quiz-mu.vercel.app`. İlk deneme ortam değişkenleri girilmeden yapıldı ve **21 saniyede** düştü; süre teşhisin kendisiydi: 156 MB'lık indirme denenmiş olsa 21 saniye yetmezdi, yani `fetch-dataset.ts` ağa çıkmadan durmuştu — `DATASET_URL` tanımsızdı. Betiğin sessizce devam etmeyi reddetmesi burada işe yaradı.
-5. [ ] **`VERCEL_DEPLOY_HOOK_URL` depo değişkeni** — Vercel projesi kurulunca alınır. Yoksa iş akışının son adımı sessizce ATLANIR (`if: vars.… != ''`) ve site yeni veriyi hiç görmez; otomatik güncellemenin son halkası budur.
-6. [ ] Alan adı ve `SITE_URL` — şimdilik `SITE_URL` verilmedi, yani varsayılan `http://localhost:3000` yürürlükte. Paylaşım meta verisi (`og:url`) bu yüzden **yanlış**; alan adından önce bile üretim adresine çekilmesi gerekir (§7.11).
+5. [x] **`VERCEL_DEPLOY_HOOK_URL` depo değişkeni** — 13 Ağustos 2026. **Kurulmakla kalmadı, TETİKLENDİ:** kancaya `POST` atıldı (`HTTP 201`, `state=PENDING`), dört dakika sonra dağıtımdan önce `HIT` dönen adres `MISS` döndü, yani dağıtım gerçekten oluştu. Değişken **Variables** altında — `secrets.` değil `vars.` ile okunuyor; Secrets'a konsaydı iş akışı onu göremez ve son adım yine sessizce atlanırdı. Dünkü arma kusurunun dersi buydu: bağlanmış ama hiç çalıştırılmamış bir halka doğrulanmış sayılmaz.
+6. [x] `SITE_URL` üretim adresine çekildi — `https://futbol-quiz-mu.vercel.app`. Ölçüldü: `og:url` artık bu adresi gösteriyor ve sayfanın hiçbir yerinde `localhost` geçmiyor. **Alan adı hâlâ alınmadı**; alınınca bu değişken ve `og:*` etiketleri yeniden ölçülür.
 
 7. [ ] `CONTACT_EMAIL` — KVKK başvuru adresi (§7.18). Verilmezse `SITE_INDEXABLE=true` uygulamayı başlatmaz; yani bu adım atlanamaz, yalnızca ertelenebilir.
 
@@ -3700,17 +3700,25 @@ Kod tarafı hazır. Kalanlar hesap açmayı ve dağıtımda ölçüm yapmayı ge
 - [x] **`TRUSTED_PROXY_HOPS=1` DOĞRULANDI** — kara kutu ölçümüyle. Aynı uca, önbellek delinerek 20'şer istek: sahte `X-Forwarded-For` **olmadan** 13 × `200` / 7 × `429`, her istekte **farklı** sahte `X-Forwarded-For` ile yine **13 × `200` / 7 × `429`**. Uydurma başlık yeni kova açsaydı ikinci faz 20/20 geçerdi; sonuç birebir aynı çıktı, yani istemcinin yazdığı önek atılıyor ve Vercel'in eklediği giriş okunuyor. İlk deneme GEÇERSİZDİ ve bu kayda değer: önbellek delinmediği için istekler CDN'den dönmüş, fonksiyona hiç ulaşmamış, kontrol grubu bile `429` almamıştı — hız sınırı ölçümü, ölçülen yanıtın gerçekten kaynağa gittiğini kanıtlamayı gerektirir.
 - [x] Üretimde CSP nonce ölçümünün tekrarı — 20 `<script>` etiketinin **tamamı** başlıktaki nonce'u taşıyor, nonce'suz `<style>` yok, ve iki ardışık istek **farklı** nonce alıyor (tekrar kullanılan nonce koruma sağlamaz). Dokuz güvenlik başlığının dokuzu da beklenen değerde; `X-Powered-By` yok.
 - [x] `process.cwd()` yerleşimi ve `.db` yolu (§3.1) — dolaylı ama kesin: üretim `Fenerbahçe ∩ Beşiktaş → 55` ve `Galatasaray ∩ Arsenal → 4` döndürdü, yani `db:verify`'ın yereldeki sayılarıyla **birebir** aynı. Yol yanlış olsa uygulama açılmazdı.
-- [x] CDN önbelleği ÇALIŞIYOR, geçersizleştirme HENÜZ DEĞİL — kod `public, s-maxage=300, stale-while-revalidate=86400` gönderiyor; istemciye yalnızca `public` ulaşıyor çünkü Vercel `s-maxage`'ı kendi kenar önbelleği için tüketip başlıktan siliyor. `X-Vercel-Cache` `HIT`/`MISS` ayrımı doğrulandı. Ama §7.9'un asıl sorusu — **yeni dağıtımın eski yanıtları geçersiz kılıp kılmadığı** — ikinci bir dağıtım olmadan ölçülemez; `s-maxage` o zamana kadar temkinli kalır.
+- [x] **CDN önbellek geçersizleştirme DOĞRULANDI (§7.9) — `s-maxage` uzatıldı.** Kod `s-maxage` gönderiyor ama istemciye yalnızca `public` ulaşıyor: Vercel `s-maxage`'ı kendi kenar önbelleği için tüketip başlıktan siliyor; `X-Vercel-Cache` `HIT`/`MISS` ayrımı bunu doğruluyor. Asıl soru — **yeni dağıtımın eski yanıtları geçersiz kılıp kılmadığı** — İKİ BAĞIMSIZ dağıtımda ölçüldü (elle `Redeploy` ve kancayla tetiklenen dağıtım): her ikisinde de dağıtımdan önce `HIT` dönen adres sonrasında `MISS` döndü. Varsayım doğrulandığı için `s-maxage` **300 sn → 86.400 sn**, `stale-while-revalidate` **86.400 → 604.800** yapıldı. Tavan 1 gün, çünkü iki gözlem bir garanti değil: sayı, geçersizleştirme bir gün bozulursa bayat veri yayınının ne kadar sürebileceğini sınırlıyor.
 - [ ] Gerçek tarayıcıda erişilebilirlik: odak sırası, hedef boyutu, yeniden akış (§7.10)
 
-> **Ölçülmemiş bir şey ölçüldü: FONKSİYON BÖLGESİ YANLIŞ KITADA.** `X-Vercel-Id`
-> `fra1::iad1::…` diyor — kenar Frankfurt, kaynak **Washington**. Türkiye'den
-> ölçüldü: kenar önbelleğinden dönen yanıt medyan **87 ms**, önbellek delinince
-> medyan **235 ms** (en ağır çift, 55 oyuncu). Aradaki ~148 ms'nin büyük kısmı
-> Atlantik geçişi; uygulamanın kendi hesabı değil (yerel `bench` p95 6,6 ms).
-> Hedef kitle Türkçe konuşuyor, kaynak Amerika'da. Bölge `fra1`'e alınırsa her
-> önbelleksiz istek ~90 ms kısalır. Hobby planında tek bölge seçilebiliyor.
-> **Yayına açma anı:** `SITE_INDEXABLE=true` (§7.11). Tek değişken; `robots.txt` ve `noindex` birlikte döner ve bu ÖLÇÜLDÜ — tek derleme çıktısı üç ortam değerinin üçünü de doğru yansıtıyor, yeniden derleme gerekmiyor. Çevirdikten sonra ikisi de doğrulanır:
+> **Listede olmayan bir şey ölçüldü ve DÜZELTİLDİ: fonksiyon yanlış kıtadaydı.**
+> İlk dağıtımda `X-Vercel-Id` `fra1::iad1::…` diyordu — kenar Frankfurt, kaynak
+> **Washington**. Hedef kitle Türkçe konuşuyor. Bölge `fra1`'e alındı (Hobby'de
+> tek bölge seçilebiliyor, ücretsiz) ve kazanç Türkiye'den ölçüldü, en ağır
+> çiftte (55 oyuncu), önbellek delinerek:
+>
+> |                     |     medyan |   en düşük |
+> | ------------------- | ---------: | ---------: |
+> | `iad1` (Washington) |     235 ms |     209 ms |
+> | `fra1` (Frankfurt)  | **128 ms** | **120 ms** |
+>
+> Yarı yarıya. Kazanılan ~107 ms uygulamanın hesabı değildi — yerel `bench`
+> p95'i 6,6 ms — Atlantik geçişiydi. Bu, `bench`'in ölçemeyeceği türden bir
+> maliyet: kod aynı, coğrafya farklı.
+
+**Yayına açma anı:** `SITE_INDEXABLE=true` (§7.11). Tek değişken; `robots.txt` ve `noindex` birlikte döner ve bu ÖLÇÜLDÜ — hem yerelde, hem 13 Ağustos 2026'da üretimde: `robots.txt` `Disallow: /` ve sayfa `<meta name="robots" content="noindex, nofollow, nocache">` veriyor, yani tek anahtar üretimde de iki yeri birden doğru sürüyor. Çevirdikten sonra ikisi de yeniden doğrulanır:
 
 ```
 curl -s https://ALAN/robots.txt
