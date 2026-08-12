@@ -2550,6 +2550,27 @@ Genişletilmiş bütçe ve önbellek doğru çalıştı ama **yetmedi**. İkinci
 
 **Yalnızca uç nokta kaynaklı hatada bölünür.** Karar `error.cause instanceof TransientError` ile verilir. Şema uyuşmazlığı gibi bir kusur bölünerek çözülmez; küçülen gruplarla aynı hatayı tekrarlamak gerçek sebebi gizlerdi.
 
+#### Kapı işini yaptı: arma künyesi iş akışında yoktu (4. koşu)
+
+Dördüncü koşuda **ETL başarıyla bitti** (3 sa 38 dk) ve `db:verify` yayımlamayı durdurdu:
+
+```
+✓ ızgara havuzu · ✓ maç/gol akla yatkınlığı · ✓ oyuncu istatistikleri
+✓ günün oyuncusu · ✓ "hangisi daha" havuzu · ✓ ortak oyuncu çiftleri
+✗ künyesi eksik arma: 282/282 — ör. Liverpool
+ℹ seçilebilir kulüplerde arma: 268/904 (%29,6)
+```
+
+**Sebep bir iş akışı boşluğuydu.** `npm run etl` armanın ADRESİNİ Wikidata'dan doldurur; LİSANS KÜNYESİ ise ayrı bir geçişte, Commons'a sorularak toplanır (`npm run db:crests`, §4.3.1). Faz 4.11 boru hattını ve `db:verify` denetimini ekledi ama **zamanlanmış koşuya bağlamayı atladı**. Yerelde künye tamdı çünkü geçiş elle çalıştırılmıştı; iş akışı onu hiç çağırmıyordu.
+
+Arma oranı da bunu doğruluyor: **%29,6** — Faz 4.11 öncesindeki değer. Geçiş çalıştığında %43,7'ye çıkıyordu.
+
+**Bu, `VERCEL_DEPLOY_HOOK_URL` ile aynı sınıfta bir kusur:** bir yetenek yazıldı, denetimi kuruldu, ama otomatik akışa bağlanmadı. İkisi de yayın öncesi ilk gerçek koşuda ortaya çıktı — ve ikisini de ortaya çıkaran şey, koşuyu _gerçekten çalıştırmak_ oldu.
+
+> **KAPI DOĞRU DAVRANDI ve kayda değer olan bu.** Eksik künyeli 282 arma yayımlansaydı site CC BY / CC BY-SA lisanslarının atıf şartını ihlal ederdi (BR-34). `db:verify` bunu kullanıcıya ulaşmadan durdurdu; hiçbir sürüm oluşmadı, dağıtım tetiklenmedi.
+
+Adım `Arma künyesi` olarak ETL ile kabul kontrolü arasına eklendi. Önbelleği (`scripts/etl/.cache/crests`) zaten saklanan yolun altında olduğu için sürdürme koşularında o da yeniden kullanılır.
+
 ---
 
 ## 9. Genişletilebilirlik: Oyun Modları

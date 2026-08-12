@@ -106,6 +106,26 @@ jobs:
           # Wikidata'ya saniyede 1'den fazla istek atılmaz (§7.4).
           ETL_REQUESTS_PER_SECOND: "1"
 
+      # ─── ARMA KÜNYESİ ───────────────────────────────────────────────────
+      # `npm run etl` armanın ADRESİNİ doldurur ama LİSANS KÜNYESİNİ değil;
+      # künye ayrı bir geçişte, Commons'a sorularak toplanır (§4.3.1, BR-34).
+      #
+      # BU ADIM İŞ AKIŞINDA YOKTU ve kusur 4. koşuda kapı tarafından yakalandı:
+      # ETL başarıyla bitti, ardından `db:verify` "künyesi eksik arma: 282/282"
+      # diyerek yayımlamayı durdurdu. Faz 4.11 boru hattı ile denetimi ekledi,
+      # zamanlanmış koşuya bağlamayı atladı.
+      #
+      # Ayrı bir koşu olması bilinçli: var olan kulüpler üzerinde çalışır ve
+      # tekrar tekrar koşulabilir. Önbelleği `scripts/etl/.cache/crests`
+      # altında, yani aşağıdaki kayıt adımının kapsamında.
+      - name: Arma künyesi
+        run: npm run db:crests
+        env:
+          DATABASE_URL: file:./dev.db
+          ETL_USER_AGENT: ${{ vars.ETL_USER_AGENT }}
+          WIKIDATA_SPARQL_ENDPOINT: https://query.wikidata.org/sparql
+          ETL_REQUESTS_PER_SECOND: "1"
+
       # BAŞARISIZLIKTA DA KAYDEDİLİR (`always()`) — önbelleğin bütün değeri
       # zaten budur: başarısız bir koşunun yarım önbelleği, bir sonraki
       # `resume` koşusunun sermayesidir.
