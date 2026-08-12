@@ -18,6 +18,16 @@ on:
   # Elle tetikleme: pencere takvimi kaydığında veya bir veri hatası
   # düzeltildiğinde beklemek gerekmesin.
   workflow_dispatch:
+    inputs:
+      resume:
+        # SÜRDÜRME AÇIKÇA İSTENİR, olay türünden ÇIKARILMAZ (§8.3). Elle
+        # tetikleme çoğu zaman TAZE veri içindir; önbellekten okumak o
+        # durumda "tazeleme" diye eski yanıtları yeniden yazmak olurdu.
+        # Öntanımlı `false` bu yüzden: unutulan bir seçenek veriyi
+        # sessizce eskitmemeli (§7.11 ile aynı yön).
+        description: "Yarıda kalan koşuyu önbellekten sürdür (TAZE VERİ ÇEKMEZ)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write # sürüm (release) varlığı yüklemek için
@@ -70,6 +80,21 @@ jobs:
         env:
           DATABASE_URL: file:./dev.db
 
+      # ─── ÖNBELLEK ───────────────────────────────────────────────────────
+      # Yarıda kalan bir koşu sıfırdan başlamasın (§8.3). Ölçüldü: ilk elle
+      # koşu 68. dakikada düştü ve 262 başarılı grup çöpe gitti.
+      #
+      # GERİ YÜKLEME `resume` GİRDİSİNE BAĞLI, olay türüne değil. Zamanlanmış
+      # koşu ve öntanımlı elle koşu TAZE veri çeker; önbellek yalnızca
+      # açıkça istendiğinde okunur.
+      - name: ETL önbelleğini geri yükle
+        if: ${{ inputs.resume }}
+        uses: actions/cache/restore@v4
+        with:
+          path: scripts/etl/.cache
+          key: etl-cache-
+          restore-keys: etl-cache-
+
       - name: ETL
         run: npm run etl
         env:
@@ -80,6 +105,16 @@ jobs:
           WIKIDATA_SPARQL_ENDPOINT: https://query.wikidata.org/sparql
           # Wikidata'ya saniyede 1'den fazla istek atılmaz (§7.4).
           ETL_REQUESTS_PER_SECOND: "1"
+
+      # BAŞARISIZLIKTA DA KAYDEDİLİR (`always()`) — önbelleğin bütün değeri
+      # zaten budur: başarısız bir koşunun yarım önbelleği, bir sonraki
+      # `resume` koşusunun sermayesidir.
+      - name: ETL önbelleğini kaydet
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: scripts/etl/.cache
+          key: etl-cache-${{ github.run_id }}
 
       # ─── KAPI ───────────────────────────────────────────────────────────
       # Buradan sonrası yalnızca kabul kontrolü geçerse çalışır. Zorunlu

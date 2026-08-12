@@ -2502,6 +2502,30 @@ Bu, ETL'i durduran bir kapı olduğu için tavan gerçekçi bir tamponla konur �
 
 > **Neden pencere kapanır kapanmaz değil.** Kaynak Wikidata'dır ve gönüllü katkısıyla güncellenir. Transferin sisteme yansıması, o transferin Wikidata'ya girilmiş olmasına bağlıdır; büyük kulüplerde bu günler sürer, küçüklerde daha uzun. Pencere kapanır kapanmaz koşmak, eksik bir anlık görüntüyü altı ay boyunca yayında tutmak demektir.
 
+#### Koşu yarıda kalırsa — ölçülmüş bir arıza (12 Ağustos 2026)
+
+İlk elle koşu **68 dakikada** düştü ve arıza iki ayrı zayıflığı birden gösterdi.
+
+**Belirti.** Wikidata sorgu ucu bozuk durumdaydı: beş dakika içinde iki `502`, iki `429`, ardından 263. oyuncu grubunda yarım yanıt gövdesi. Ayrıştırma beş denemede de **aynı konumda** (32.759 bayt ≈ 32 KB tampon sınırı) kırıldı — rastgele bir kopma değil, uç noktanın o sorguda tutarlı biçimde yarım yanıt döndürmesi.
+
+**Sınıflandırma DOĞRUYDU.** Hata `TransientResponseError` ile sarılmış, geçici sayılmış ve otomatik denenmişti; §4.3'te anlatılan eski kusur tekrarlamadı. Kusur sınıflandırmada değil, **bütçedeydi**.
+
+**Birinci zayıflık — yeniden deneme penceresi.** Geri çekilme `1s → 2s → 4s → 8s → 16s`, toplam **~31 saniye**. Uç nokta birkaç dakikalığına bozuksa 31 saniyelik ısrar onu aşamaz. Bütçe genişletildi: `MAX_ATTEMPTS` 6 → 9, `MAX_BACKOFF_MS` 30 sn → 120 sn. Yeni pencere **~4 dakika**. Maliyeti yalnızca gerçekten başarısız olan istek öder; ETL ilk tükenen istekte durduğu için toplam süreye etkisi tek seferliktir.
+
+**İkinci zayıflık — önbellek koşular arasında saklanmıyordu.** `scripts/etl/.cache/` yalnızca süreç içinde yaşıyordu; 262 başarılı grup, yani ~68 dakikalık iş, arızayla birlikte çöpe gitti ve yeniden koşu sıfırdan başlamak zorunda kaldı. İş akışına `actions/cache` eklendi.
+
+**ÖNBELLEK SÜRDÜRME BİR GİRDİYE BAĞLIDIR, olay türüne değil.** İlk tasarım "elle tetiklenen koşuda geri yükle" idi ve YANLIŞTI: elle tetikleme yalnızca yarım kalmış koşuyu sürdürmek için kullanılmıyor — şartnamenin kendi gerekçesine göre "pencere takvimi kaydığında veya bir veri hatası düzeltildiğinde" de kullanılıyor. O durumda önbellekten okumak, tazeleme diye eski yanıtları yeniden yazmak olurdu. Bu yüzden sürdürme açıkça istenir:
+
+| Koşu                               | Önbellek geri yükle   | Önbellek kaydet |
+| ---------------------------------- | --------------------- | --------------- |
+| Zamanlanmış (yılda iki kez)        | **hayır** — taze veri | evet            |
+| Elle, `resume = false` (öntanımlı) | **hayır** — taze veri | evet            |
+| Elle, `resume = true`              | evet — kaldığı yerden | evet            |
+
+Kayıt her koşuda ve **başarısızlıkta da** yapılır (`if: always()`); önbelleğin bütün değeri, bir sonraki denemenin sıfırdan başlamamasıdır. Başarısız bir koşunun yarım önbelleği bir sonraki `resume` koşusunun sermayesidir.
+
+> **Bu düzeltme kaybedilen 68 dakikayı geri getirmez.** Arıza anında kayıt adımı henüz yoktu, yani sürdürülecek bir önbellek de yok. Kazanç bir sonraki arızada başlar: ilk koşu önbelleği doldurur, sonraki her deneme dakikalar sürer.
+
 ---
 
 ## 9. Genişletilebilirlik: Oyun Modları

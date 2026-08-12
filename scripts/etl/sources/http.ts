@@ -23,9 +23,22 @@ import type { ZodType } from "zod";
 /** Geçici sayılan ve yeniden denenen HTTP kodları. */
 const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
 
-const MAX_ATTEMPTS = 6;
+/**
+ * Yeniden deneme bütçesi — PROJECT.md §8.3.
+ *
+ * ÖLÇÜLDÜ ve genişletildi (12 Ağustos 2026). Eski değerler (6 deneme, 30 sn
+ * tavan) `1s → 2s → 4s → 8s → 16s`, yani toplam ~31 saniyelik bir pencere
+ * veriyordu. İlk elle koşu tam bunun yüzünden 68. dakikada düştü: Wikidata
+ * sorgu ucu birkaç dakikalığına bozuktu (iki `502`, iki `429`, ardından yarım
+ * yanıt gövdesi) ve 31 saniyelik ısrar o pencereyi aşamadı.
+ *
+ * Yeni bütçe ~4 dakika. Maliyeti YALNIZCA gerçekten başarısız olan istek
+ * öder; ETL ilk tükenen istekte durduğu için toplam süreye etkisi tek
+ * seferliktir.
+ */
+const MAX_ATTEMPTS = 9;
 const BASE_BACKOFF_MS = 1_000;
-const MAX_BACKOFF_MS = 30_000;
+const MAX_BACKOFF_MS = 120_000;
 const REQUEST_TIMEOUT_MS = 90_000;
 
 export interface JsonClientOptions {
