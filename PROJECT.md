@@ -406,17 +406,25 @@ GitHub Actions  (cron: yılda 2 kez + elle tetik)
 
 **Bilinen sınır — ölçüldü.** Fonksiyon paketinin tamamı izlendi (`*.nft.json`), veritabanı tek başına değil:
 
-| Bileşen        | Boyut        | Pay                      |
-| -------------- | ------------ | ------------------------ |
-| Veritabanı     | 78,4 MB      | %62                      |
-| Prisma motoru  | 42,5 MB      | %34                      |
-| Uygulama kodu  | 3,2 MB       | %3                       |
-| `node_modules` | 1,4 MB       | %1                       |
-| **Toplam**     | **125,4 MB** | Vercel sınırı **250 MB** |
+| Bileşen        | Boyut         | Pay                      |
+| -------------- | ------------- | ------------------------ |
+| Veritabanı     | 156,5 MB      | %76,9                    |
+| Prisma motoru  | 42,5 MB       | %20,9                    |
+| Uygulama kodu  | 3,2 MB        | %1,6                     |
+| `node_modules` | 1,4 MB        | %0,7                     |
+| **Toplam**     | **~203,6 MB** | Vercel sınırı **250 MB** |
 
-Yani marj yaklaşık iki kat — "bol" değil ama yeterli. Veritabanı yayına çıkmadan VACUUM'lanıyor (78,4 → 72,8 MB), dolayısıyla üretimdeki paket ~120 MB.
+Marj **1,23 kat** — 46 MB boşluk. Veritabanı satırı yayımlanan sürüm varlığının
+gerçek boyutudur (`dataset-latest/dev.db`, 156.471.296 bayt, VACUUM sonrası);
+diğer üç satır 78,4 MB'lik ölçümden devralındı ve veri kümesiyle birlikte
+büyümedikleri için yeniden ölçülmedi.
 
-**Büyümeye karşı elde ne var.** `spells.wikidataStatementId` sütunu ve benzersizlik indeksi (~20 MB) yalnızca ETL'in idempotanlığı için gerekli; uygulama hiç okumuyor. Sınıra yaklaşılırsa yayına çıkan kopyadan bu ikisi düşürülür. O da yetmezse Postgres'e geçiş `PlayerRepository` port'unun arkasında kalır (§4.1) ve tek uygulama dosyasını etkiler — ki bu durumda Prisma motorunun 42,5 MB'ı da ortadan kalkmaz ama veritabanı payı sıfırlanır.
+> **Bu tablo 125,4 MB'de "yaklaşık iki kat marj" diyordu.** O ifade lig kapsamı
+> 6'dan 24'e çıkarken geçersizleşti; sayı burada dört kez güncellendi
+> (78,4 → 100 → 115 → 145 → 156,5 MB). Marjın hangi genişlemede biteceği
+> tahmin edilmiyor, her genişlemede yeniden ölçülüyor.
+
+**Büyümeye karşı elde ne var — valf kurulup TARTILDI.** `spells.wikidataStatementId` sütunu ve benzersizlik indeksi yalnızca ETL'in idempotanlığı için gerekli; uygulama hiç okumuyor. Kazanç tahmin değil, ölçüm: yalnızca o sütun düşünce **109,8 MB**, tamsayı birincil anahtarla birlikte **34,8 MB** (%78 küçülme, **kayıpsız** — sorgu sonuçları birebir aynı). Yani paket 203,6 MB'den ~82 MB'ye iner ve marj 3 katın üstüne çıkar. Şimdi uygulanmadı: ölçüm bir arıza göstermiyor ve yayın öncesi şema göçü karşılıksız risk. Bu yetmezse Postgres'e geçiş `PlayerRepository` port'unun arkasında kalır (§4.1) ve tek uygulama dosyasını etkiler — ki bu durumda Prisma motorunun 42,5 MB'ı ortadan kalkmaz ama veritabanı payı sıfırlanır.
 
 **Ne zaman değişir.** Skor tablosu (§9) yazma ve kimlik getirir; o zaman gerçek bir veritabanı gerekir. Ama bu **ayrı bir veri kümesidir** — kullanıcı skorları quiz verisiyle aynı yerde durmak zorunda değil ve bu mimariyi bozmaz.
 
@@ -3662,10 +3670,20 @@ Kod tarafı hazır. Kalanlar hesap açmayı ve dağıtımda ölçüm yapmayı ge
 
 1. [x] GitHub deposu; bu dalın `main`'e birleştirilmesi
 2. [x] `ETL_USER_AGENT` depo değişkeni — Wikidata kimliksiz istemcileri engeller
-3. [ ] Veri iş akışını **elle bir kez** çalıştır (~2 saat; GitHub'da yerel önbellek yok — Vikipedi katmanıyla birlikte, §4.3)
+3. [x] Veri iş akışını **elle bir kez** çalıştır — 12 Ağustos 2026, koşu `31637172644`
 4. [ ] Vercel projesi: derleme komutu `npm run vercel-build`, `DATASET_URL` ve hız sınırı değişkenleri
-5. [ ] Alan adı ve `SITE_URL`
-6. [ ] `CONTACT_EMAIL` — KVKK başvuru adresi (§7.18). Verilmezse `SITE_INDEXABLE=true` uygulamayı başlatmaz; yani bu adım atlanamaz, yalnızca ertelenebilir.
+5. [ ] **`VERCEL_DEPLOY_HOOK_URL` depo değişkeni** — Vercel projesi kurulunca alınır. Yoksa iş akışının son adımı sessizce ATLANIR (`if: vars.… != ''`) ve site yeni veriyi hiç görmez; otomatik güncellemenin son halkası budur.
+6. [ ] Alan adı ve `SITE_URL`
+7. [ ] `CONTACT_EMAIL` — KVKK başvuru adresi (§7.18). Verilmezse `SITE_INDEXABLE=true` uygulamayı başlatmaz; yani bu adım atlanamaz, yalnızca ertelenebilir.
+
+> **3. adımın tahmini yanlıştı ve bu kayda değer.** Listede "~2 saat" yazıyordu;
+> gerçek beş koşu sürdü. İlk ikisi WDQS'in aynı yerinde koptu (263. ve 308.
+> yığın), dördüncüsü 3 sa 38 dk'da ETL'i bitirdi ama `db:verify` kapısında
+> durdu — **künyesi eksik arma: 282/282**. Beşinci koşu 47 dk 49 sn'de tamamını
+> geçti. Süre değil, kusur sayısı önemliydi: üç gerçek eksik (yeniden deneme
+> bütçesi, koşular arası önbellek, iş akışına hiç bağlanmamış `db:crests`
+> adımı) yalnızca koşu **gerçekten çalıştırılınca** göründü. Bu yüzden 4. ve 5.
+> adımlar da ilk denemede tutmayabilir; §8.3'e bakınız.
 
 **Dağıtımda ölçülecekler** — hiçbiri yerelde ölçülemez:
 
@@ -3767,7 +3785,7 @@ Bunun süreçteki karşılığı `npm run db:verify`. Faz 1 boyunca doğrulama "
 | Konu                                      | Şimdiki karar                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Ne zaman değişir                                                                                                       |
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
 | SQLite                                    | Salt-okunur derleme çıktısı (§3.1); ölçüldü, yazma yolu yok                                                                                                                                                                                                                                                                                                                                                                                                                                            | Skor tablosu yazma getirdiğinde — ayrı veri kümesi olarak                                                              |
-| Fonksiyon paketi ~209 MB                  | **Yeniden ölçüldü (24 lig):** sınır 250 MB, marj **1,19 kat**. Veri 161,4 MB, Prisma motoru ~43 MB. Sıkıştırma valfi ARTIK KURULUP TARTILDI: yalnızca ETL sütunu düşürülünce 109,8 MB, tamsayı birincil anahtarla birlikte **34,8 MB** (%78 küçülme, kayıpsız; §3.1)                                                                                                                                                                                                                                   | Sınıra yaklaşılırsa uygulanır. Şimdi yapılmadı: ölçüm bir arıza göstermiyor ve yayın öncesi şema göçü karşılıksız risk |
+| Fonksiyon paketi ~203,6 MB                | **Yayımlanan varlıkla ölçüldü:** sınır 250 MB, marj **1,23 kat** (46 MB boşluk). Veri 156,5 MB (VACUUM sonrası, `dataset-latest/dev.db`), Prisma motoru ~42,5 MB. Sıkıştırma valfi KURULUP TARTILDI: yalnızca ETL sütunu düşürülünce 109,8 MB, tamsayı birincil anahtarla birlikte **34,8 MB** (%78 küçülme, kayıpsız; §3.1) — uygulanırsa paket ~82 MB'ye iner                                                                                                                                        | Sınıra yaklaşılırsa uygulanır. Şimdi yapılmadı: ölçüm bir arıza göstermiyor ve yayın öncesi şema göçü karşılıksız risk |
 | Derlemede NFT uyarısı                     | Kabul — `resolveDatabaseUrl` içindeki `path.resolve` tetikliyor; iz ÖLÇÜLDÜ, şişme yok (280 dosya)                                                                                                                                                                                                                                                                                                                                                                                                     | Turbopack daha dar analiz sunarsa                                                                                      |
 | Bellek içi hız sınırlama                  | Sunucusuzda örnek başına çalışır; katmanlardan biri, tek savunma değil (§7.5)                                                                                                                                                                                                                                                                                                                                                                                                                          | Skor tablosu geldiğinde paylaşımlı sayaç **zorunlu** olur                                                              |
 | Wikidata tek kaynak                       | **Çözüldü (Faz 4.7):** Vikipedi ikinci kaynak olarak devrede, 5 dil; elle düzeltme kaldırıldı (§4.3)                                                                                                                                                                                                                                                                                                                                                                                                   | Kadro keşfi ayrı bir borç olarak aşağıda                                                                               |
