@@ -3409,21 +3409,35 @@ Karar **asimetriden** çıktı. Kolay modda tanımadığı bir oyuncuyu gören k
 >
 > | Küme  |   n |     Medyan |   40+ dil |
 > | ----- | --: | ---------: | --------: |
-> | Kolay |  40 | **43 dil** | **%50,0** |
-> | Zor   |  39 |     20 dil |     %20,5 |
+> | Kolay |  40 | **43 dil** | **%57,5** |
+> | Zor   |  38 |     20 dil |     %21,1 |
 >
 > İki kümenin **kesişimi 1 isim**. Kara kutu kapıları da geçti: bilinmeyen
 > seviye `400`, alansız istek çalışıyor (varsayılan kolay), tur yanıtı hâlâ
 > sayı taşımıyor (`clubs, id, name` — BR-32).
 >
-> **İki uyarı yazılıyor.** (1) Kolay tarafın %50'si, havuz düzeyindeki
-> %66,7'nin altında; n = 40'ta binom standart hatası ±7,9 puan olduğu için bu
-> çekim %66,7'yi doğrulamıyor, yalnızca yönü doğruluyor (medyan 2,2 kat,
-> tanınan oranı 2,4 kat). (2) İlk deneme **geçersizdi ve atıldı**: dil sayıları
-> `wbsearchentities` ile ADLA aranmıştı ve yanlış varlıkları buluyordu — "David
-> Silva" bir Amerikalı ressamı, "Ricardo Oliveira" bir patenli hokey oyuncusunu
-> getirdi. Ad araması yaygın adlı ünlüleri sistematik olarak ıskaladığı için
-> yanlılık kolay kümenin ALEYHİNEydi; ölçüm QID'e çevrilerek tekrarlandı.
+> **ÖLÇÜM İKİ KEZ YANLIŞ YAPILDI; ikisi de aynı hata sınıfı — kimliği ADLA
+> çözmek.** Kayda geçiyor çünkü bir daha yapılmaması gereken şey bu.
+>
+> 1. **Adla Wikidata araması.** Dil sayıları önce `wbsearchentities` ile ADLA
+>    arandı; "David Silva" bir Amerikalı ressamı, "Ricardo Oliveira" bir
+>    patenli hokey oyuncusunu getirdi. Sonuç imkânsız sıfırlarla doluydu.
+> 2. **Kendi veritabanımızda adla eşleme.** İkinci deneme QID kullandı ama
+>    QID'i yine AD üzerinden buldu — oysa veri kümesinde **ad ikizleri var**:
+>    iki Michal Kadlec (`Q294990`, 67 millî maç, 43 dil · `Q1784204`, 2 dil),
+>    üç David Silva (`Q161069`, 125 millî maç, 76 dil · 11 ve 4 dillik ikisi
+>    daha). Eşleme haritasında **son satır kazandığı** için hep silik ikiz
+>    seçildi; kolay kümenin oranı %57,5 yerine **%50,0** ölçüldü.
+>
+> Doğrusu: ad ikizi **havuzun kendi ölçütüyle** ayrıştırılır. Kolay havuz
+> `millî maç ≥ 20` istediği için hangi ikizin çekildiği belirlidir — ölçüm
+> böyle tekrarlandı ve kolay tarafta çözülemeyen **sıfır** ad kaldı (zor
+> tarafta bir ad ikizi ayrıştırılamadı ve dışarıda bırakıldı, n = 38).
+>
+> **Kalan uyarı.** Kolay tarafın %57,5'i, havuz düzeyindeki
+> %66,7'nin hâlâ altında, ama n = 40'ta binom standart hatası ±7,8 puan; aradaki
+> 9,2 puan ~1,2 SE. Bu çekim %66,7 ile **çelişmiyor**. Kesin olan yön: medyan
+> 2,2 kat, tanınan oranı **2,7 kat** daha iyi.
 
 #### Ölçüm: kolay havuz her istatistikte oynanabilir
 
