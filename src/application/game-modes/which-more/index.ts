@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { isStatKey, STAT_KEYS } from "@/domain/services/stat-match";
-import { isDirection } from "@/domain/services/which-more";
+import { isDirection, isLevel } from "@/domain/services/which-more";
 import {
   isValidIdentifier,
   playerId,
@@ -21,6 +21,9 @@ import type { RegisteredGameMode } from "../types";
  * iki eylem taşır. Buradaki ayırt edici kural BR-32'dir — `round` eylemi sayı
  * DÖNDÜRMEZ, `answer` eylemi döndürür.
  *
+ * `level` ise yalnızca `round` girdisindedir — simetrik gerekçe: seviye
+ * hangi çiftin kurulacağını belirler, cevabın doğruluğunu değil (BR-41).
+ *
  * `direction` yalnızca `answer` girdisindedir. Tur kurulurken yön bilinmesi
  * GEREKMEZ: band ve dengeleme yönden bağımsız çalışır (§9.3). Tur ucuna da
  * konsaydı iki uç arasında tutarlılığı hiçbir şey zorlamazdı.
@@ -33,6 +36,18 @@ const statKeySchema = z
 const directionSchema = z
   .string()
   .refine(isDirection, { message: "Bilinmeyen yön." });
+
+/**
+ * BR-41 — seviye. VARSAYILANI "easy" ve bu bir kolaylık değil, bir karar.
+ *
+ * Alan gövdede yoksa dar havuz kullanılır. Tersi (varsayılan "hard") sessizce
+ * eski davranışı sürdürürdü — yani modun düzeltmek için var olduğu kusuru,
+ * alanı göndermeyi unutan her istemciye geri verirdi. Varsayılan, yanlış
+ * gidildiğinde ZARARSIZ olan taraftır.
+ */
+const levelSchema = z
+  .string()
+  .refine(isLevel, { message: "Bilinmeyen seviye." });
 
 const playerIdSchema = z.string().refine(isValidIdentifier).transform(playerId);
 
@@ -50,6 +65,7 @@ export const whichMoreInputSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("round"),
     statKey: statKeySchema,
+    level: levelSchema.default("easy"),
     /** Yoksa koşunun ilk turu kurulur. */
     stayingId: playerIdSchema.optional(),
     exclude: z.array(playerIdSchema).max(MAX_EXCLUDED).optional(),
@@ -83,6 +99,7 @@ export const whichMoreMode: RegisteredGameMode = defineGameMode<
         return getRound(
           {
             statKey: input.statKey,
+            level: input.level,
             stayingId: input.stayingId ?? null,
             exclude: input.exclude ?? [],
           },

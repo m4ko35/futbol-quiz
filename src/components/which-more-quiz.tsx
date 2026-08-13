@@ -9,7 +9,12 @@ import type {
 } from "@/application/use-cases/which-more";
 import { ModeHeader, Scoreboard } from "./mode-header";
 import { STAT_KEYS, type StatKey } from "@/domain/services/stat-match";
-import { MIN_GAP, type Direction } from "@/domain/services/which-more";
+import {
+  LEVELS,
+  MIN_GAP,
+  type Direction,
+  type Level,
+} from "@/domain/services/which-more";
 
 /**
  * "Hangisi daha" oyunu — PROJECT.md §9.3.
@@ -167,6 +172,46 @@ const STAT_GROUPS: readonly {
   },
 ];
 
+/**
+ * BR-41'in seviyelerinin ARAYÜZ karşılığı.
+ *
+ * Anahtarlar sözleşmenin parçası, bu cümleler değil (§6.5) — `QUESTIONS` ile
+ * aynı ayrım.
+ *
+ * `detail` BİR VAAT DEĞİL, ÖLÇÜTÜN KENDİSİDİR. "Bildiğin oyuncular" demek
+ * yanlış olurdu: kolay havuzun ölçülen %33'ü hâlâ dar bir kitlece tanınıyor
+ * (§9.3). Ölçütü yazmak kullanıcıya neyi seçtiğini söyler ve tutulamayacak bir
+ * söz vermez — §5.2'nin dürüstlük metinleriyle aynı sınıf.
+ */
+interface LevelOption {
+  readonly key: Level;
+  readonly name: string;
+  readonly detail: string;
+  /** Kurulum önizlemesinde ve tur ekranında sorunun altına yazılan not. */
+  readonly note: string;
+}
+
+const LEVEL_OPTIONS: readonly LevelOption[] = [
+  {
+    key: "easy",
+    name: "Kolay",
+    detail: "A millî takımda 20+ maç yapmış, 2000 sonrasında oynamış oyuncular",
+    note: "Bilindik oyuncular arasından",
+  },
+  {
+    key: "hard",
+    name: "Zor",
+    detail: "Havuzun tamamı — adını hiç duymadığın isimler de çıkar",
+    note: "Bütün oyuncular arasından",
+  },
+];
+
+function levelFor(key: Level): LevelOption {
+  const found = LEVEL_OPTIONS.find((one) => one.key === key);
+  if (found === undefined) throw new Error(`Etiketsiz seviye: ${key}`);
+  return found;
+}
+
 function questionFor(key: StatKey): StatQuestion {
   // STAT_KEYS ile QUESTIONS aynı altı anahtarı taşır; bulunamama hâli tip
   // düzeyinde imkânsız ama `noUncheckedIndexedAccess` altında kanıtlanmalı.
@@ -233,6 +278,13 @@ export function WhichMoreQuiz({
   fetchAnswer = (body) => postJson("/api/hangisi-daha/answer", body),
 }: WhichMoreQuizProps) {
   const [statKey, setStatKey] = useState<StatKey>("appearances");
+  /**
+   * BR-41 — VARSAYILAN "easy".
+   *
+   * Modun var olma sebebi kolay havuz; hiç seçim yapmayan kullanıcı düzeltilmiş
+   * davranışı görmeli, düzeltilmek istenen davranışı değil.
+   */
+  const [level, setLevel] = useState<Level>("easy");
   const [direction, setDirection] = useState<Direction>("more");
   const [phase, setPhase] = useState<Phase>({ kind: "setup" });
   const [streak, setStreak] = useState(0);
@@ -253,13 +305,16 @@ export function WhichMoreQuiz({
   const loadRound = useCallback(
     async (
       key: StatKey,
+      chosenLevel: Level,
       stayingId: string | null,
       exclude: readonly string[],
     ) => {
       setPhase({ kind: "loading" });
       try {
+        // Seviye HER TURDA gönderilir: sunucu koşuyu hatırlamıyor (§9.3).
         const round = await fetchRound({
           statKey: key,
+          level: chosenLevel,
           ...(stayingId === null ? {} : { stayingId }),
           exclude,
         });
@@ -302,7 +357,7 @@ export function WhichMoreQuiz({
     setStreak(0);
     setSeen([]);
     setKeptId(null);
-    void loadRound(statKey, null, []);
+    void loadRound(statKey, level, null, []);
   }
 
   function restart(): void {
@@ -359,8 +414,10 @@ export function WhichMoreQuiz({
         {modeHeader}
         <StatPicker
           statKey={statKey}
+          level={level}
           direction={direction}
           onStatKey={setStatKey}
+          onLevel={setLevel}
           onDirection={setDirection}
           onStart={start}
         />
@@ -384,6 +441,14 @@ export function WhichMoreQuiz({
         <h2 className="text-2xl font-extrabold tracking-tight text-balance sm:text-3xl">
           Hangisi {direction === "more" ? question.more : question.less}?
         </h2>
+
+        {/*
+          HANGİ HAVUZDA OYNANDIĞI TUR EKRANINDA DA YAZAR. Seviye kurulumda
+          seçiliyor ve koşu boyunca değişmiyor; yazılmasaydı kullanıcı tanımadığı
+          bir isim gördüğünde bunun modun kusuru mu yoksa kendi seçimi mi
+          olduğunu bilemezdi.
+        */}
+        <p className="text-sm text-note">{levelFor(level).note}</p>
 
         {question.scoped && (
           <p className="text-sm text-note">
@@ -498,7 +563,7 @@ export function WhichMoreQuiz({
                 <VerdictBar
                   streak={streak}
                   onContinue={() => {
-                    void loadRound(statKey, phase.answer.winnerId, seen);
+                    void loadRound(statKey, level, phase.answer.winnerId, seen);
                   }}
                 />
               ) : (
@@ -889,8 +954,10 @@ function ErrorPanel({
 
 interface StatPickerProps {
   readonly statKey: StatKey;
+  readonly level: Level;
   readonly direction: Direction;
   onStatKey(key: StatKey): void;
+  onLevel(level: Level): void;
   onDirection(direction: Direction): void;
   onStart(): void;
 }
@@ -931,8 +998,10 @@ function StepLegend({ step, children }: { step: number; children: string }) {
  */
 function StatPicker({
   statKey,
+  level,
   direction,
   onStatKey,
+  onLevel,
   onDirection,
   onStart,
 }: StatPickerProps) {
@@ -955,10 +1024,84 @@ function StatPicker({
         >
           Hangisi {direction === "more" ? question.more : question.less}?
         </p>
+
+        {/*
+          ÖNİZLEME ARTIK ÜÇ SEÇİMİ DE TAŞIYOR. Seviye cümlenin İÇİNE girmiyor —
+          "Hangisi daha genç?" sorusu havuzdan bağımsız — ama cümlenin altına
+          yazılıyor, çünkü kurulumun çıktısı artık soru + havuzdur.
+        */}
+        <p key={level} className="animate-duel-swap mt-1.5 text-sm text-note">
+          {levelFor(level).note}
+        </p>
       </div>
 
+      {/*
+        SEVİYE BİRİNCİ ADIM. İstatistikten önce geliyor çünkü daha geniş bir
+        karar: hangi sayının sorulacağını değil, KİMİN sorulacağını belirliyor.
+        Adım 1'den öteye hiç bakmayan kullanıcı da varsayılanla (kolay) doğru
+        yerde kalır.
+      */}
+      <fieldset
+        className="animate-duel-enter flex flex-col gap-2"
+        style={{ animationDelay: `${String(SETUP_STEP_MS)}ms` }}
+      >
+        <StepLegend step={1}>Kimler çıksın?</StepLegend>
+
+        <div className="grid gap-2 sm:grid-cols-2">
+          {LEVELS.map((option) => {
+            const one = levelFor(option);
+            const isCurrent = option === level;
+            return (
+              <label
+                key={option}
+                className={`flex cursor-pointer flex-col gap-1.5 rounded-2xl border-2 px-3.5 py-3 transition-[transform,box-shadow,background-color,border-color] duration-150 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent ${
+                  isCurrent
+                    ? "border-accent bg-accent-soft shadow-card"
+                    : "border-line-strong bg-surface hover:-translate-y-0.5 hover:border-accent hover:shadow-card"
+                }`}
+              >
+                {/* Seçili olan yalnızca renkle ayrılmıyor (WCAG 1.4.1). */}
+                <span
+                  aria-hidden="true"
+                  className={`h-1 rounded-full transition-[width,background-color] duration-200 ${
+                    isCurrent ? "w-full bg-accent" : "w-6 bg-line"
+                  }`}
+                />
+
+                <input
+                  type="radio"
+                  name="which-more-level"
+                  className="sr-only"
+                  value={option}
+                  checked={isCurrent}
+                  onChange={() => {
+                    onLevel(option);
+                  }}
+                />
+
+                <span
+                  className={
+                    "text-sm " +
+                    (isCurrent ? "font-bold text-accent" : "font-semibold")
+                  }
+                >
+                  {one.name}
+                </span>
+
+                {/*
+                  ÖLÇÜT ERİŞİLEBİLİR ADIN PARÇASI, gizli değil: "Kolay" tek
+                  başına neyin kolay olduğunu söylemiyor ve bu tam da modun
+                  cevapladığı soru.
+                */}
+                <span className="text-xs text-muted">{one.detail}</span>
+              </label>
+            );
+          })}
+        </div>
+      </fieldset>
+
       <fieldset className="flex flex-col gap-4">
-        <StepLegend step={1}>Hangi istatistik?</StepLegend>
+        <StepLegend step={2}>Hangi istatistik?</StepLegend>
 
         {STAT_GROUPS.map((group, groupIndex) => (
           <fieldset key={group.caption} className="flex flex-col gap-2">
@@ -989,7 +1132,7 @@ function StatPicker({
                     }`}
                     style={{
                       animationDelay: `${String(
-                        (groupIndex * 3 + index + 1) * SETUP_STEP_MS,
+                        (groupIndex * 3 + index + 2) * SETUP_STEP_MS,
                       )}ms`,
                     }}
                   >
@@ -1042,9 +1185,9 @@ function StatPicker({
 
       <fieldset
         className="animate-duel-enter flex flex-col gap-2"
-        style={{ animationDelay: `${String(7 * SETUP_STEP_MS)}ms` }}
+        style={{ animationDelay: `${String(8 * SETUP_STEP_MS)}ms` }}
       >
-        <StepLegend step={2}>Hangi yön?</StepLegend>
+        <StepLegend step={3}>Hangi yön?</StepLegend>
 
         <div className="flex flex-wrap gap-2">
           {(["more", "less"] as const).map((option) => {
@@ -1092,7 +1235,7 @@ function StatPicker({
       */}
       <div
         className="animate-duel-enter"
-        style={{ animationDelay: `${String(8 * SETUP_STEP_MS)}ms` }}
+        style={{ animationDelay: `${String(9 * SETUP_STEP_MS)}ms` }}
       >
         <button
           type="button"

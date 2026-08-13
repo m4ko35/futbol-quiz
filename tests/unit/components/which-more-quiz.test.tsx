@@ -188,6 +188,80 @@ describe("BR-32 — değerler cevaptan önce görünmez", () => {
   });
 });
 
+/**
+ * BR-41 — seviye.
+ *
+ * Arayüz tarafında denetlenen üç şey var: seçim SUNULUYOR mu, VARSAYILANI
+ * doğru mu, ve gövdeye KOŞU BOYUNCA taşınıyor mu. Üçüncüsü en kolay kaçandır:
+ * sunucu koşuyu hatırlamadığı için seviyeyi her turda istemci söylemek
+ * zorunda ve ilk turda çalışıp ikinci turda düşen bir kod sessizce havuzu
+ * genişletirdi.
+ */
+describe("BR-41 — seviye seçimi", () => {
+  it("iki seviyeyi sunar ve KOLAY olan seçilidir", () => {
+    setup();
+
+    expect(screen.getByRole("radio", { name: /^Kolay/u })).toBeChecked();
+    expect(screen.getByRole("radio", { name: /^Zor/u })).not.toBeChecked();
+  });
+
+  it("seçim ölçütü YAZILI — 'Kolay' tek başına neyin kolay olduğunu söylemez", () => {
+    setup();
+
+    // Erişilebilir adın PARÇASI: gizlenseydi ekran okuyucu kullanıcısı iki
+    // seçenek arasındaki farkı hiç öğrenemezdi.
+    expect(
+      screen.getByRole("radio", { name: /A millî takımda 20/u }),
+    ).toBeInTheDocument();
+  });
+
+  it("varsayılan gövdede 'easy' gider", async () => {
+    const { user, fetchRound } = setup();
+    await start(user);
+
+    const body = fetchRound.mock.calls[0]?.[0] as { level?: string };
+    expect(body.level).toBe("easy");
+  });
+
+  it("'Zor' seçilince gövdede 'hard' gider", async () => {
+    const { user, fetchRound } = setup();
+
+    await user.click(screen.getByRole("radio", { name: /^Zor/u }));
+    await start(user);
+
+    const body = fetchRound.mock.calls[0]?.[0] as { level?: string };
+    expect(body.level).toBe("hard");
+  });
+
+  it("seviye SONRAKİ turlara da taşınır", async () => {
+    const { user, fetchRound } = setup();
+
+    await user.click(screen.getByRole("radio", { name: /^Zor/u }));
+    await start(user);
+
+    await user.click(screen.getByRole("button", { name: /Henry/u }));
+    await user.click(await screen.findByRole("button", { name: "Devam" }));
+
+    await waitFor(() => {
+      expect(fetchRound).toHaveBeenCalledTimes(2);
+    });
+
+    const body = fetchRound.mock.calls[1]?.[0] as { level?: string };
+    expect(body.level).toBe("hard");
+  });
+
+  it("hangi havuzda oynandığı TUR ekranında da yazar", async () => {
+    const { user } = setup();
+
+    await user.click(screen.getByRole("radio", { name: /^Zor/u }));
+    await start(user);
+
+    // Kullanıcı tanımadığı bir isim gördüğünde bunun kendi seçimi olduğunu
+    // görebilmeli; yoksa modun kusuru sanır.
+    expect(screen.getByText("Bütün oyuncular arasından")).toBeInTheDocument();
+  });
+});
+
 describe("BR-28 — zincir", () => {
   it("doğru cevapta seri artar ve KAZANAN bir sonraki tura geçer", async () => {
     const { user, fetchRound } = setup();

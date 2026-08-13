@@ -5,7 +5,12 @@ import type {
   WhichMoreRepository,
 } from "@/application/ports/which-more-repository";
 import { STAT_KEYS, type StatKey } from "@/domain/services/stat-match";
-import { MIN_GAP } from "@/domain/services/which-more";
+import {
+  isWellKnown,
+  LEVELS,
+  MIN_GAP,
+  type Level,
+} from "@/domain/services/which-more";
 import { playerId, type PlayerId } from "@/domain/value-objects/identifiers";
 import { Prisma, type PrismaClient } from "@/generated/prisma";
 import { yearOf } from "../birth-year";
@@ -21,6 +26,10 @@ import { yearOf } from "../birth-year";
  * Aynı gerekçe `PrismaPlayerRepository`'nin ölçüt önbelleğinde de yazılı; orada
  * ölçülen kazanç 148 ms → 1,6 ms idi.
  *
+ * SEVİYE HAVUZU İKİYE AYIRIR, sorguyu değil (BR-41): tek bir sorgu koşar,
+ * satırlar bellekte "bilindik" ölçütüne göre iki liste kümesine dağıtılır.
+ * İki ayrı SQL sorgusu, aynı tanınırlık taramasını iki kez ödemek olurdu.
+ *
  * SEÇİM SQL'DE DEĞİL BELLEKTE yapılıyor. `ORDER BY RANDOM()` her çağrıda
  * havuzu yeniden kurmak demekti; sıralı bir dizide ikili arama ise bandın iki
  * ucunu O(log n) bulur.
@@ -34,7 +43,21 @@ interface PoolEntry {
 }
 
 /** Değere göre ARTAN sıralı diziler — ikili arama bunu şart koşar. */
-type Pool = Readonly<Record<StatKey, readonly PoolEntry[]>>;
+type StatLists = Readonly<Record<StatKey, readonly PoolEntry[]>>;
+
+/**
+ * BR-41 — seviye başına AYRI liste kümesi.
+ *
+ * Alternatif, tek listede `isEasy` bayrağı taşıyıp seçim anında elemekti; o
+ * yol ikili aramayı bozar. İndeks aritmetiği listenin YOĞUN olmasına dayanıyor
+ * ve kolay oyuncular havuzun beşte biri: bandın içindeki rastgele seçim
+ * sistematik olarak dışlanana denk gelir, her tur `MAX_RANDOM_TRIES` deneyip
+ * tam taramaya düşerdi.
+ *
+ * Bedeli belleğin iki katı DEĞİL: `PoolEntry` nesneleri iki liste arasında
+ * PAYLAŞILIYOR, çoğalan yalnızca işaretçi dizisi (~8.000 işaretçi).
+ */
+type Pool = Readonly<Record<Level, StatLists>>;
 
 interface PoolRow {
   id: string;
@@ -49,6 +72,18 @@ interface PoolRow {
   missing: number | bigint;
 }
 
+/**
+ * Havuz sorgusunun EK alanı.
+ *
+ * Ayrı tip, çünkü tekil okuma yolu (`#valueOf`) bu sütunu seçmiyor ve
+ * seçmesine gerek de yok — seviye yalnızca havuz kurulurken sorulur (BR-41).
+ * `PoolRow`'a eklenseydi tip, tekil sorguda hiç dolmayan bir alan vaat ederdi.
+ */
+interface PoolBuildRow extends PoolRow {
+  /** Altyapı dışı EN SON dönem yılı — BR-41'in ikinci ölçütü. */
+  lastYear: number | bigint | null;
+}
+
 interface ClubRow {
   shortName: string;
 }
@@ -56,10 +91,11 @@ interface ClubRow {
 /**
  * Rastgele denemenin tavanı.
  *
- * Dışlama listesi en çok 200 (BR-28) ve en dar havuz 3.333; yani rastgele bir
- * seçimin dışlanmış çıkma olasılığı %6'nın altında ve 25 deneme sonunda
- * tükenme olasılığı ihmal edilebilir. Yine de tarama yedeği var: "çok düşük
- * olasılık" ile "imkânsız" aynı şey değil.
+ * Dışlama listesi en çok 200 (BR-28). En dar havuz artık BR-41'in kolay
+ * seviyesinde: ölçüldü, 1.271 oyuncu (kulüp maçı/golü). Yani rastgele bir
+ * seçimin dışlanmış çıkma olasılığı en kötü hâlde %15,7 ve 25 denemenin
+ * hepsinin ıskalama olasılığı 10⁻²⁰ mertebesinde. Yine de tarama yedeği var:
+ * "çok düşük olasılık" ile "imkânsız" aynı şey değil.
  */
 const MAX_RANDOM_TRIES = 25;
 
@@ -82,7 +118,7 @@ export class PrismaWhichMoreRepository implements WhichMoreRepository {
     query: WhichMoreCandidateQuery,
   ): Promise<WhichMoreCandidate | null> {
     const pool = await this.#load();
-    const list = pool[query.statKey];
+    const list = pool[query.level][query.statKey];
     const excluded = new Set<string>(query.exclude);
 
     const ranges = this.#ranges(list, query);
@@ -245,7 +281,7 @@ export class PrismaWhichMoreRepository implements WhichMoreRepository {
    * gerekiyor. Ölçüldü (§9.3): 6.464 oyuncu, istatistik başına 3.333–6.464.
    */
   async #buildPool(): Promise<Pool> {
-    const rows = await this.#prisma.$queryRaw<PoolRow[]>(Prisma.sql`
+    const rows = await this.#prisma.$queryRaw<PoolBuildRow[]>(Prisma.sql`
       WITH taninir AS (
         SELECT s.playerId AS pid
         FROM spells s
@@ -263,36 +299,59 @@ export class PrismaWhichMoreRepository implements WhichMoreRepository {
              SUM(s.appearances)       AS appearances,
              SUM(s.goals)             AS goals,
              COUNT(DISTINCT s.clubId) AS clubs,
-             SUM(CASE WHEN s.appearances IS NULL OR s.goals IS NULL THEN 1 ELSE 0 END) AS missing
+             SUM(CASE WHEN s.appearances IS NULL OR s.goals IS NULL THEN 1 ELSE 0 END) AS missing,
+             MAX(COALESCE(s.endYear, s.startYear)) AS lastYear
       FROM players p
       JOIN taninir t ON t.pid = p.id
       JOIN spells  s ON s.playerId = p.id AND s.isYouth = 0
       GROUP BY p.id
     `);
 
-    const lists: Record<StatKey, PoolEntry[]> = {
-      appearances: [],
-      goals: [],
-      clubs: [],
-      nationalCaps: [],
-      heightCm: [],
-      birthYear: [],
+    const lists: Record<Level, Record<StatKey, PoolEntry[]>> = {
+      easy: emptyLists(),
+      hard: emptyLists(),
     };
 
     for (const row of rows) {
+      // Ölçüt DOMAIN'de (BR-41); burada yalnızca uygulanıyor. SQL'e gömülseydi
+      // eşikler test edilemez ve §9.3'ün ölçümleriyle ayrışabilirdi.
+      const wellKnown = isWellKnown(
+        toNumber(row.nationalCaps),
+        toNumber(row.lastYear),
+      );
+
       for (const key of STAT_KEYS) {
         const value = valueOf(row, key);
         // Değeri olmayan oyuncu O İSTATİSTİĞİN havuzunda yer almaz (BR-31);
         // diğerlerinde durur.
-        if (value !== null) {
-          lists[key].push({ id: row.id, name: row.name, value });
-        }
+        if (value === null) continue;
+
+        // Aynı nesne iki listeye girer; kayıtlar salt okunur.
+        const entry: PoolEntry = { id: row.id, name: row.name, value };
+        lists.hard[key].push(entry);
+        // "hard" KAPSAYICIDIR: kolay oyuncular her iki havuzda da bulunur.
+        if (wellKnown) lists.easy[key].push(entry);
       }
     }
 
-    for (const key of STAT_KEYS) lists[key].sort((a, b) => a.value - b.value);
+    for (const level of LEVELS) {
+      for (const key of STAT_KEYS) {
+        lists[level][key].sort((a, b) => a.value - b.value);
+      }
+    }
     return lists;
   }
+}
+
+function emptyLists(): Record<StatKey, PoolEntry[]> {
+  return {
+    appearances: [],
+    goals: [],
+    clubs: [],
+    nationalCaps: [],
+    heightCm: [],
+    birthYear: [],
+  };
 }
 
 /**

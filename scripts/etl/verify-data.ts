@@ -1,5 +1,6 @@
 ﻿import { CURATED_CLUB_QIDS } from "../../src/application/curated-clubs";
 import { STAT_KEYS } from "../../src/domain/services/stat-match";
+import { LEVELS } from "../../src/domain/services/which-more";
 import { PrismaStatMatchRepository } from "../../src/infrastructure/db/repositories/prisma-stat-match-repository";
 import { PrismaWhichMoreRepository } from "../../src/infrastructure/db/repositories/prisma-which-more-repository";
 import { Prisma, PrismaClient } from "../../src/generated/prisma";
@@ -610,6 +611,10 @@ async function verifyDailyCandidates(): Promise<void> {
  * zaten ölçülüyor ama o ölçüm TÜM oyuncular üzerinden; bu havuz tanınırlık
  * süzgecinden geçenleri sayar ve ikisi aynı şey değil.
  *
+ * SEVİYE BAŞINA AYRI ÖLÇÜLÜR (BR-41). Kolay havuz tanınırlık havuzunun beşte
+ * biri ve bir istatistikte ayrıca boşalabilir; yalnızca "hard" ölçen bir kapı
+ * bunu göremezdi. Kapı 6 değil 12 kontrol yapıyor.
+ *
  * Bir istatistiğin havuzu boşalırsa `RoundUnavailableError` üretime çıkar ve
  * bunu ilk öğrenen kullanıcı olur.
  */
@@ -618,32 +623,36 @@ async function verifyWhichMorePool(): Promise<void> {
 
   const repository = new PrismaWhichMoreRepository(prisma);
 
-  for (const key of STAT_KEYS) {
-    // Havuzun DOLU olduğunu, bir çift kurulabildiğiyle ölçüyoruz: tek oyuncusu
-    // olan bir havuz "boş değil" ama oyun kurulamaz.
-    const first = await repository.findCandidate({
-      statKey: key,
-      threshold: null,
-      side: "any",
-      exclude: [],
-    });
+  for (const level of LEVELS) {
+    for (const key of STAT_KEYS) {
+      // Havuzun DOLU olduğunu, bir çift kurulabildiğiyle ölçüyoruz: tek
+      // oyuncusu olan bir havuz "boş değil" ama oyun kurulamaz.
+      const first = await repository.findCandidate({
+        statKey: key,
+        level,
+        threshold: null,
+        side: "any",
+        exclude: [],
+      });
 
-    if (first === null) {
-      check(false, `${key}: havuz BOŞ`);
-      continue;
+      if (first === null) {
+        check(false, `${level}/${key}: havuz BOŞ`);
+        continue;
+      }
+
+      const opponent = await repository.findCandidate({
+        statKey: key,
+        level,
+        threshold: first.value,
+        side: "any",
+        exclude: [first.id],
+      });
+
+      check(
+        opponent !== null,
+        `${level}/${key}: BR-29 bandını sağlayan çift kurulabiliyor`,
+      );
     }
-
-    const opponent = await repository.findCandidate({
-      statKey: key,
-      threshold: first.value,
-      side: "any",
-      exclude: [first.id],
-    });
-
-    check(
-      opponent !== null,
-      `${key}: BR-29 bandını sağlayan çift kurulabiliyor`,
-    );
   }
 }
 

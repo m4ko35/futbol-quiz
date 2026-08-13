@@ -1,4 +1,5 @@
 import { STAT_KEYS } from "../src/domain/services/stat-match";
+import { LEVELS } from "../src/domain/services/which-more";
 import { DEFAULT_SPELL_FILTER } from "../src/domain/services/spell-filter";
 import { clubId } from "../src/domain/value-objects/identifiers";
 import { PrismaClient } from "../src/generated/prisma";
@@ -259,6 +260,9 @@ async function main(): Promise<void> {
   const coldStarted = performance.now();
   const firstPick = await whichMore.findCandidate({
     statKey: "appearances",
+    // Soğuk maliyet seviyeden BAĞIMSIZ: tek sorgu koşar, iki liste kümesi
+    // birden kurulur (BR-41). Hangi seviyenin istendiği ölçümü değiştirmez.
+    level: "hard",
     threshold: null,
     side: "any",
     exclude: [],
@@ -277,10 +281,14 @@ async function main(): Promise<void> {
   for (let i = 0; i < 120; i++) {
     const key = STAT_KEYS[i % STAT_KEYS.length];
     if (key === undefined) continue;
+    // İki seviye de dönüşümlü ölçülür: kolay havuz beşte biri kadar ve ikili
+    // arama log n, yani fark ölçüm gürültüsünde kalmalı — kalmıyorsa görülsün.
+    const level = LEVELS[i % LEVELS.length] ?? "hard";
 
     const started = performance.now();
     const staying = await whichMore.findCandidate({
       statKey: key,
+      level,
       threshold: null,
       side: "any",
       exclude: [],
@@ -288,6 +296,7 @@ async function main(): Promise<void> {
     if (staying !== null) {
       await whichMore.findCandidate({
         statKey: key,
+        level,
         threshold: staying.value,
         side: i % 2 === 0 ? "above" : "below",
         exclude: [],

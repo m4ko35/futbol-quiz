@@ -1284,6 +1284,7 @@ Bunlar `domain/services/` içinde saf fonksiyon olarak yaşar ve birim testi ile
 - **BR-38 — Uyruk VATANDAŞLIK değil, futbol uyruğudur.** Wikidata'nın `P27`'si çok değerlidir ve çift pasaportlu oyuncularda birden fazla ülke döndürür. Seçim şu sırayla yapılır: (1) oyuncunun **A millî takımı** varsa o takımın ülkesi, (2) yoksa ve **tek** vatandaşlık varsa o, (3) yoksa ve **doğum ülkesi** vatandaşlıklar arasındaysa o, (4) hiçbiri değilse vatandaşlıklar alfabetik sıralanıp ilki alınır — **belirlenimci** olsun diye, doğru olduğu iddia edilmeden. Sıra keyfî değil ölçülmüştür (§5.5): tek başına vatandaşlık Messi'yi İspanyol, Icardi'yi İtalyan yapıyor; tek başına doğum yeri ise Thiago Motta'yı Brezilyalı, Diego Costa'yı Brezilyalı yapıyor. Millî takım ikisini birden doğru veriyor. Uyruk yalnızca gösterilen bir alan değil, **ızgaranın ölçütüdür** (BR-25) — yanlış uyruk doğru cevabı yanlış saydırır.
 - **BR-39 — Lig bayrağı ülke kodundan gelir, iki lig için İSTİSNA taşır.** Kulüp seçicisinin birinci kademesinde her lig ülkesinin bayrağıyla görünür ve bayrak ülke adının **yanına** konur, yerine değil (WCAG 1.1.1). Eşleme `League.country` (ISO 3166-1 alpha-2) üzerinden yapılır; tek istisna `GB`'dir, çünkü Premier League (`Q9448`) ile İskoçya Premier Ligi (`Q14377162`) veride aynı kodu taşır ve aynı bayrağı basmak bayrağın ayırt etme işlevini yok eder. İstisna ülke koduna değil **lig QID'ine** bağlanır. Dosyalar yereldir (`public/flags/`, `flag-icons` MIT); emoji bayrak REDDEDİLDİ çünkü Windows'ta Chrome ve Edge glif taşımaz ve aynı kod tarayıcıya göre farklı sonuç verir. Bayrağı olmayan ülke arayüzde sessizce boş kalır, ama bu durum bir testle tutulur (§7.14).
 - **BR-40 — Dile bağlı değer VERİ KATMANINDA saklanmaz.** Veritabanına yazılan her değer dilden bağımsız olmalıdır; kullanıcıya gösterilecek metin render anında üretilir. `Player.position` bu kuralın ölçülmüş karşı örneğiydi: `normalize.ts` `goalkeeper` → `"Kaleci"` çevirisini ETL'de yapıyordu (§6.2). Alan artık nötr anahtar taşır (`goalkeeper`, `defender`, `midfielder`, `winger`, `forward`) ve çeviri `positionName()` ile arayüzde yapılır — `countryName()` ile aynı desen. Kuralın gerekçesi maliyettir: dile bağlı bir değeri sonradan çevirmek TAM BİR ETL KOŞUSU (~2 saat) artı veri göçü demektir, oysa render anındaki çeviri bir satırdır. Aynı sebeple kulüp ve oyuncu adları da olduğu gibi saklanır; çevrilmezler.
+- **BR-41 — "Hangisi daha" iki SEVİYE taşır; varsayılanı dar havuzdur.** Kullanıcı kurulumda **Kolay** (bilindik oyuncular) ya da **Zor** (havuzun tamamı) seçer. "Bilindik" ölçütü **A millî takımda 20+ maç VE son kulüp dönemi 2000 veya sonrası**; iki koşul da gereklidir ve ölçülerek seçilmiştir (§9.3). Ölçüt bir VEKİLDİR, bir vaat değil: kolay havuzun %66,7'si 40+ dilde Vikipedi maddesi taşıyor, %33'ü taşımıyor — bu yüzden arayüzde "bildiğin oyuncular" DENMEZ, ölçütün kendisi yazılır. "Zor" KAPSAYICIDIR: kolay havuzun tamamını da içerir, yani seviye bir zorluk vaadi değil havuzun genişliğidir. Seviye yalnızca `round` girdisindedir; **cevap ucu seviye almaz**, çünkü hangi çiftin kurulacağını daraltır, hangi cevabın doğru olduğunu değil. Varsayılan "kolay"dır: alanı göndermeyen istemci, modun düzeltmek için var olduğu kusuru geri almamalıdır.
 - **BR-8 — Kanıt düzeyi.** Bir `Spell`, `startYear`, `endYear`, `appearances` ve `goals` alanlarının **dördü de** boşsa **kanıtsızdır**; en az biri doluysa kanıtlıdır. Kanıtsız dönemler BR-1 kapsamında **sayılır** (elenmez), fakat API yanıtında ve arayüzde açıkça işaretlenir. Gerekçe ve ölçüm §1.4'tedir; özeti: eleme, uydurma kayıtlarla birlikte doğru kayıtları da siliyor ve Wikidata ikisini ayıracak bir sinyal taşımıyor. BR-5'in sıralaması bu dönemleri kendiliğinden en sona koyar (ne maç sayısı ne yıl bilgisi vardır), dolayısıyla ayrı bir sıralama kuralı gerekmez.
 
 ---
@@ -1622,8 +1623,11 @@ Yeni bir tur ister. `GET` değil çünkü dışlama listesi (`exclude`) uzundur 
 | Alan        | Tip      | Zorunlu | Kural                                               |
 | ----------- | -------- | ------- | --------------------------------------------------- |
 | `statKey`   | string   | evet    | §9.2'nin altı anahtarından biri                     |
+| `level`     | string   | hayır   | `"easy"`                                            | `"hard"` (BR-41). **Yoksa `"easy"`** |
 | `stayingId` | string   | hayır   | Kalan oyuncu (BR-28). Yoksa turun İLK çifti kurulur |
 | `exclude`   | string[] | hayır   | Bu koşuda görülmüş oyuncular; en çok 200 kimlik     |
+
+`level` **her turda gönderilir**, koşu başında bir kez değil: sunucu koşuyu hatırlamaz (§9.3). Varsayılanının `"easy"` olması bir kolaylık değil bir karardır — alanı göndermeyen istemci, modun düzeltmek için var olduğu kusuru geri almamalıdır. Cevap ucunda `level` **yoktur**: seviye hangi çiftin kurulacağını daraltır, hangi cevabın doğru olduğunu değil.
 
 `direction` **girdide yoktur**: yön yalnızca cevabın hangi tarafının doğru sayılacağını belirler ve o karar sunucuda, cevap ucunda verilir. Tur ucuna taşınsaydı iki uç arasında tutarlılığı kimse zorlamazdı.
 
@@ -3276,13 +3280,13 @@ Maç, gol ve kulüp sayısı **yalnızca §1.3 kapsamındaki yirmi dört ligi** 
 
 ### 9.3 Hangisi Daha
 
-Kullanıcı §9.2'nin altı istatistiğinden **birini** ve bir **yön** seçer ("daha çok" / "daha az"). Karşısına iki oyuncu gelir, değerleri gizlidir; hangisinin daha fazla (ya da daha az) olduğunu seçer. **Doğruysa seçtiği oyuncu kalır**, karşısına yeni bir rakip gelir — her turda bir oyuncu değişir. Yanlışta koşu biter ve skor, verilen doğru cevap sayısıdır.
+Kullanıcı bir **seviye** (BR-41: "Kolay" / "Zor"), §9.2'nin altı istatistiğinden **birini** ve bir **yön** seçer ("daha çok" / "daha az"). Karşısına iki oyuncu gelir, değerleri gizlidir; hangisinin daha fazla (ya da daha az) olduğunu seçer. **Doğruysa seçtiği oyuncu kalır**, karşısına yeni bir rakip gelir — her turda bir oyuncu değişir. Yanlışta koşu biter ve skor, verilen doğru cevap sayısıdır.
 
 §9.2 ile aynı sayıları kullanır ama **başka bir soru sorar**: orada "bu değere kim yakın" diye bir büyüklük tahmini istenir, burada iki isim arasında bir **sıralama** kararı. Bu yüzden §9.2'nin BR-18 puanlaması burada hiç kullanılmaz; doğru ya da yanlış vardır.
 
 #### Ölçüm: havuz
 
-Havuz BR-15'in tanınırlık ölçütüyle kurulur (küratörlü kulüplerde 100+ maç, 2+ kulüp) ama §9.2'nin aksine **altı istatistiğin hepsi aranmaz** — yalnızca karşılaştırılan istatistik gerekir. Ölçüldü (2026-08-08, **6.464 tanınır oyuncu**):
+Havuz BR-15'in tanınırlık ölçütüyle kurulur (küratörlü kulüplerde 100+ maç, 2+ kulüp) ama §9.2'nin aksine **altı istatistiğin hepsi aranmaz** — yalnızca karşılaştırılan istatistik gerekir. Ölçüldü (2026-08-08, **6.464 tanınır oyuncu**). Aşağıdaki tablo BR-41'in **"Zor"** havuzudur; kolay havuzun aynı tablosu bu bölümün ilerisindedir:
 
 | İstatistik   | Havuz | Kapsam |  min | medyan |  max |
 | ------------ | ----: | -----: | ---: | -----: | ---: |
@@ -3354,14 +3358,69 @@ Aynı değere sahip iki oyuncuda "doğru cevap" diye bir şey yoktur. Ölçüld�
 
 Band, oyunun zorluğunu ayarlayan **tek sayıdır** — §9.2'deki `SCORE_TOLERANCE_FACTOR`'ün buradaki karşılığı. Değerler ölçülerek kondu: her biri, çiftlerin ~%10–22'sini eleyen en küçük anlamlı fark (kulüp sayısı ölçeğin kabalığı yüzünden istisna).
 
+#### Ölçüm: havuzun çoğu TANINIR ama BİLİNDİK değil (13 Ağustos 2026)
+
+BR-31'in havuzu "küratörlü kulüplerde 100+ maç, 2+ kulüp" diyor. Bu ölçüt bir oyuncunun **kariyerini** ölçüyor, **tanınırlığını** değil — ve aradaki fark ölçüldü. Şöhret ölçütü olarak **oyuncunun Vikipedi maddesinin bulunduğu dil sayısı** alındı (`wbgetentities&props=sitelinks`); 40+ dil "tanınan" sayıldı.
+
+| Küme                          | Medyan dil | Tanınan (40+ dil) |
+| ----------------------------- | ---------: | ----------------: |
+| Kolay havuz (1.369)           |     **47** |         **%66,7** |
+| Ölçütün dışında kalan (5.095) |         22 |             %14,7 |
+
+Havuzun **%78,8'i** ikinci satırda. Kullanıcının şikâyeti buydu ve ölçüm onu doğruluyor: oyuncuların çoğunda soru bilgi değil kura soruyordu.
+
+> **Ölçümün sınırı.** Dil sayıları havuzun tamamından değil, **150'şer oyunculuk iki örneklemden** geliyor. Dışarıdakiler örneği ayrıca en çok maç yapanlardan seçildi — yani gerçek küme ölçülenden **daha az** tanınır. Hata payı iddianın lehine düşüyor, aleyhine değil.
+
+**Sezgisel ölçüt yanlıştı.** İlk aday kulüp maç sayısıydı; dil sayısıyla korelasyonu yalnızca **r = 0,28**. A millî maç sayısınınki **r = 0,78** — çünkü millî takımda 20 maç yapan bir oyuncu ülkesinde tanınır. Ölçüt zaten veritabanında olduğu için **ETL koşusu gerekmedi**.
+
+**İkinci ölçüt neden gerekli.** Tek başına millî maç 1.725 oyuncu veriyor. Fazladan gelen 356'sı (2000 öncesinde bırakanlar) ölçüldü: medyan **29 dil**, yalnızca **%21,3** tanınan. Küme ikiye bölünmüş — birkaç ölümsüz (Beckenbauer 99 dil, Puskás 87, Laudrup 68) ve çok sayıda unutulmuş millî takım oyuncusu — ve **millî maç sayısı ikisini ayıramıyor** (Capello 32 maç, Breitner 48). Kümenin tamamı dışarıda kaldı: kolay havuz %57,3'ten **%66,7'ye** çıktı.
+
+Karar **asimetriden** çıktı. Kolay modda tanımadığı bir oyuncuyu gören kullanıcı rahatsız olur; modun var olma sebebi budur. Beckenbauer'in kolay havuzda **olmadığını** ise fark etmez — yokluk görünmez, üstelik "Zor" havuzunda zaten çıkar. Yanlış negatif ucuz, yanlış pozitif pahalı.
+
+**Yıl mutlaktır, kayan pencere değil.** "Son 25 yıl" deseydik havuz her yıl sessizce değişir ve yukarıdaki ölçümlerin hiçbiri bir daha üretilemezdi. 2000 bir çağ sınırıdır; kayacaksa ölçülerek kaydırılır.
+
+#### Ölçüm: kolay havuz her istatistikte oynanabilir
+
+Havuz beşte bire indiğinde BR-29 bandının ve BR-30 dengelemesinin hâlâ çalıştığı **varsayılamaz**; ölçüldü (`npm run stats:measure`, 2026-08-13):
+
+| İstatistik   | Kolay havuz | Kapsam | Elenen çift | Tek yanlı | (Zor: kapsam / elenen / tek yanlı) |
+| ------------ | ----------: | -----: | ----------: | --------: | ---------------------------------: |
+| Kulüp maçı   |       1.271 |  %92,8 |       %11,1 |      %1,0 |               %83,6 / %11,4 / %2,5 |
+| Kulüp golü   |       1.271 |  %92,8 |        %7,8 |      %9,3 |              %83,6 / %10,0 / %16,0 |
+| Kulüp sayısı |       1.369 |   %100 |       %39,6 |     %18,0 |               %100 / %40,1 / %27,6 |
+| A millî maç  |       1.369 |   %100 |        %9,2 |      %8,4 |              %55,4 / %15,6 / %24,2 |
+| Boy          |       1.316 |  %96,1 |       %21,0 |      %0,4 |               %67,6 / %21,2 / %0,2 |
+| Doğum yılı   |       1.369 |   %100 |       %24,3 |      %1,7 |                %100 / %10,7 / %1,0 |
+
+İki sonuç beklenmiyordu:
+
+**Kolay havuz her istatistikte DAHA DOLU.** A millî maç kapsamı %55,4'ten %100'e (tanım gereği), ama boy da %67,6'dan **%96,1'e**, kulüp maçı %83,6'dan **%92,8'e** çıkıyor. Sebep aynı: iyi belgelenmiş oyuncunun her alanı daha dolu. Yani seviye, veri eksikliğinin oyuna sızmasını da azaltıyor.
+
+**BR-30 tek yanlılığı DÜŞÜYOR.** Kulüp sayısında %27,6 → %18,0, millî maçta %24,2 → **%8,4**. Kolay havuz uçlarda değil ortada yoğunlaştığı için kalan oyuncunun bir tarafı boş bırakma olasılığı azalıyor. Sömürü kapanışı zaten yazı turaya dayanıyor (istatistikten bağımsız), bu yalnızca marjı genişletiyor.
+
+Tek ters yön **doğum yılında**: bandın elediği çift oranı %10,7'den **%24,3'e** çıkıyor, çünkü kolay havuzun doğum yılı aralığı 1861–2005 değil **1958–2005**. Kulüp sayısının belgelenmiş %40,2'sinin altında kaldığı için band değiştirilmedi.
+
+En dar alt havuz **1.271** oyuncu (kulüp maçı/golü). Dışlama listesinin tavanı 200 (BR-28), yani en kötü hâlde havuzun %15,7'si dışlanmış olur — `MAX_RANDOM_TRIES` için hâlâ fazlasıyla geniş. `db:verify` artık 6 değil **12** kontrol yapıyor: her seviyede her istatistik için bir çift kurulabildiği ölçülüyor.
+
+#### Bilinen kusur: ölçüt bir VEKİLDİR
+
+Kolay havuzun **%33'ü** hâlâ 40 dilin altında. İki kusur sınıfı ölçüldü:
+
+- **Küçük ülke millî takımları yukarı çekiyor.** James Debbah 72 maç (Liberya) ama 11 dil; Imre Szabics 36 maç (Macaristan), 16 dil.
+- **Dil sayısı YEREL şöhreti göremiyor.** Ünal Karaman 36 maç / 18 dil, Ertuğrul Sağlam 26 maç / 18 dil, Stefano Rossini 30 maç / 15 dil. İlk ikisi ölçüte göre "kusur" ama **site Türkçedir ve Türk kullanıcı ikisini de bilir** — yani burada yanılan ölçüt değil, şöhret ölçeğidir.
+
+Doğru ölçüt ikisinin **birleşimi** olurdu: 40+ dil **VEYA** Türkiye millî takımında 20+ maç. Bu, `sitelinks` alanını veriye yazmayı, yani bir **ETL koşusu** gerektiriyor ve **20 Eylül 2026 tazelemesine** bırakıldı (§10.2). Sıralama bilinçli: millî maç ölçütü bugün çalışıyor ve dağıtım gerektirmiyor; dil sayısı onu keskinleştirecek, yerinden etmeyecek.
+
 #### Ölçüm: maliyet
 
 Tanınırlık havuzu 405 bin dönemi tarıyor ve süreç başına **bir kez** kuruluyor; veri bir derleme çıktısı olduğu için (§3.1) süreç boyunca değişmez. Seçim SQL'de değil, sıralı dizide ikili aramayla yapılıyor. Ölçüldü (`npm run bench`):
 
-| Yol                          |    Ölçülen | Bütçe  |
-| ---------------------------- | ---------: | ------ |
-| Soğuk (havuz kurulumu dâhil) |     306 ms | 600 ms |
-| Sıcak (tur başına, p95)      | **0,7 ms** | 10 ms  |
+| Yol                          |    Ölçülen | BR-41 sonrası | Bütçe  |
+| ---------------------------- | ---------: | ------------: | ------ |
+| Soğuk (havuz kurulumu dâhil) |     306 ms |    **313 ms** | 600 ms |
+| Sıcak (tur başına, p95)      | **0,7 ms** |    **0,8 ms** | 10 ms  |
+
+Seviye ayrımı (BR-41) ölçüm sonrası **yeniden ölçüldü**: soğuk maliyet ek bir sütun (`lastYear`) ve satırların iki liste kümesine dağıtılmasıyla 306 → 313 ms'ye çıktı, sıcak maliyet değişmedi. İkinci bir SQL sorgusu açılsaydı soğuk maliyet ikiye katlanırdı; tek sorgu + bellekte bölme kararının ölçülen bedeli **%2**.
 
 Soğuk maliyet bir "başlangıç gideri" diye kenara konamaz: sunucusuz ortamda onu ilk isteği yapan kullanıcı öder. Sıcak bütçenin ölçülenin 14 katı olması bilinçli — 1,4 ms'lik bir kapı ölçüm gürültüsünde kalırdı ve kapının koruduğu şey zaten başka: seçimin bir gün bellekten SQL'e dönmesi (o regresyon 100 ms'in üstünde olurdu).
 

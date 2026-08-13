@@ -21,7 +21,12 @@ import {
   STAT_KEYS,
   type StatKey,
 } from "../src/domain/services/stat-match";
-import { MIN_GAP } from "../src/domain/services/which-more";
+import {
+  isWellKnown,
+  LEVELS,
+  MIN_GAP,
+  type Level,
+} from "../src/domain/services/which-more";
 import { Prisma, PrismaClient } from "../src/generated/prisma";
 
 const prisma = new PrismaClient();
@@ -35,6 +40,8 @@ const DRIFT_TOLERANCE = 0.15;
 
 interface Row {
   birthDate: Date | null;
+  /** BR-41 — altyapı dışı EN SON dönem yılı. */
+  lastYear: number | bigint | null;
   nationalCaps: number | bigint | null;
   heightCm: number | bigint | null;
   appearances: number | bigint | null;
@@ -60,7 +67,8 @@ async function recognizablePool(): Promise<Row[]> {
            SUM(s.appearances)       AS appearances,
            SUM(s.goals)             AS goals,
            COUNT(DISTINCT s.clubId) AS clubs,
-           SUM(CASE WHEN s.appearances IS NULL OR s.goals IS NULL THEN 1 ELSE 0 END) AS missing
+           SUM(CASE WHEN s.appearances IS NULL OR s.goals IS NULL THEN 1 ELSE 0 END) AS missing,
+           MAX(COALESCE(s.endYear, s.startYear)) AS lastYear
     FROM players p
     JOIN taninir t ON t.pid = p.id
     JOIN spells  s ON s.playerId = p.id AND s.isYouth = 0
@@ -68,9 +76,12 @@ async function recognizablePool(): Promise<Row[]> {
   `);
 }
 
+function toNumber(value: number | bigint | null): number | null {
+  return value === null ? null : Number(value);
+}
+
 function valueOf(row: Row, key: StatKey): number | null {
-  const num = (v: number | bigint | null): number | null =>
-    v === null ? null : Number(v);
+  const num = toNumber;
 
   switch (key) {
     case "birthYear":
@@ -146,40 +157,70 @@ function percentile(sorted: readonly number[], p: number): number {
   return sorted[Math.floor((sorted.length - 1) * p)] ?? 0;
 }
 
-async function main(): Promise<void> {
-  const rows = await recognizablePool();
-  const pad = (s: string | number, n: number): string => String(s).padStart(n);
+const pad = (s: string | number, n: number): string => String(s).padStart(n);
 
-  console.log(`\n=== Tanınırlık havuzu (BR-31) — ${rows.length} oyuncu ===\n`);
+/**
+ * Bir havuzun tablosu — BR-31 kapsamı, BR-29 bandı, BR-30 tek yanlılığı.
+ *
+ * SEVİYE BAŞINA ÇAĞRILIR (BR-41). Kolay havuz tanınırlık havuzunun beşte biri
+ * ve dağılımı DARDIR; aynı band orada bambaşka bir oranı eleyebilir. Ölçüldü:
+ * doğum yılında %10,7 → **%24,3**, çünkü kolay havuzun doğum yılı aralığı
+ * 1861–2005 değil 1958–2005. Yalnızca tam havuzu ölçen bir araç, kullanıcıların
+ * çoğunun oynadığı havuzu hiç görmezdi.
+ */
+function report(label: string, rows: readonly Row[]): void {
+  console.log(`\n=== ${label} — ${rows.length} oyuncu ===\n`);
   console.log(
-    "istatistik      havuz  kapsam    min    p25  medyan    p75    p95    max",
+    "istatistik      havuz  kapsam    min    p25  medyan    p75    p95    max" +
+      "   band   elenen  tek yanlı",
   );
-  const sortedByKey = new Map<StatKey, number[]>();
+
   for (const key of STAT_KEYS) {
     const values = rows
       .map((r) => valueOf(r, key))
       .filter((v): v is number => v !== null)
       .sort((a, b) => a - b);
-    sortedByKey.set(key, values);
+    const gap = MIN_GAP[key];
     console.log(
       `${key.padEnd(14)}${pad(values.length, 6)}  ${pad(((values.length / rows.length) * 100).toFixed(1) + "%", 6)}` +
         `${pad(percentile(values, 0), 7)}${pad(percentile(values, 0.25), 7)}` +
         `${pad(percentile(values, 0.5), 8)}${pad(percentile(values, 0.75), 7)}` +
-        `${pad(percentile(values, 0.95), 7)}${pad(percentile(values, 1), 7)}`,
+        `${pad(percentile(values, 0.95), 7)}${pad(percentile(values, 1), 7)}` +
+        `${pad(gap, 7)}${pad(eliminationRate(values, gap).toFixed(1) + "%", 9)}` +
+        `${pad(oneSidedRate(values, gap).toFixed(1) + "%", 11)}`,
+    );
+  }
+}
+
+async function main(): Promise<void> {
+  const rows = await recognizablePool();
+
+  // Ölçüt DOMAIN'den geliyor, burada kopyalanmıyor (BR-41). Kopyalansaydı
+  // §9.3'ün sayıları ile oyunun havuzu sessizce ayrışabilirdi.
+  const byLevel: Record<Level, readonly Row[]> = {
+    easy: rows.filter((r) =>
+      isWellKnown(toNumber(r.nationalCaps), toNumber(r.lastYear)),
+    ),
+    hard: rows,
+  };
+
+  for (const level of LEVELS) {
+    report(
+      level === "easy"
+        ? "KOLAY havuz (BR-41) — bilindik oyuncular"
+        : "ZOR havuz (BR-31) — tanınırlık havuzunun tamamı",
+      byLevel[level],
     );
   }
 
-  console.log(`\n=== BR-29 bandı ve BR-30 tek yanlılık ===\n`);
-  console.log("istatistik      band   elenen çift   tek yanlı tur");
-  for (const key of STAT_KEYS) {
-    const values = sortedByKey.get(key) ?? [];
-    const gap = MIN_GAP[key];
-    console.log(
-      `${key.padEnd(14)}${pad(gap, 5)}${pad(eliminationRate(values, gap).toFixed(1) + "%", 14)}${pad(oneSidedRate(values, gap).toFixed(1) + "%", 16)}`,
-    );
-  }
+  console.log(
+    `\nkolay havuzun payı: %${((byLevel.easy.length / rows.length) * 100).toFixed(1)}`,
+  );
 
   // BR-15 havuzu: ALTI istatistiğin de dolu olması istenir (§9.2).
+  //
+  // SEVİYEDEN BAĞIMSIZ: `STAT_DEVIATIONS` §9.2'nin istatistik eşleştirme
+  // modunundur ve o modda seviye YOKTUR (BR-41 yalnızca §9.3'e aittir).
   const candidates = rows.filter((r) =>
     STAT_KEYS.every((k) => valueOf(r, k) !== null),
   );

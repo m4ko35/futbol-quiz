@@ -359,6 +359,15 @@ export interface FakeWhichMorePlayer {
   readonly name: string;
   readonly clubs?: readonly string[];
   readonly values: Partial<Record<StatKey, number>>;
+  /**
+   * BR-41 — "bilindik" mi? Verilmezse EVET.
+   *
+   * Varsayılan bilinçli: seviyeyi hiç umursamayan onlarca mevcut test, kolay
+   * havuzun varsayılan olması yüzünden aksi hâlde boş havuzla karşılaşırdı.
+   * Gerçek ölçüt (`isWellKnown`) burada TEKRARLANMAZ — fake'in işi kuralı
+   * yeniden hesaplamak değil, sonucunu taşımak.
+   */
+  readonly wellKnown?: boolean;
 }
 
 /**
@@ -367,6 +376,10 @@ export interface FakeWhichMorePlayer {
  * PORT SÖZLEŞMESİNİ GERÇEKTEN UYGULAR: BR-29 bandı, BR-30'un taraf seçimi ve
  * dışlama listesi burada da geçerlidir. Sözleşmeyi çiğneyen bir fake, use-case
  * testlerini yeşil gösterip üretimde patlayan bir kural boşluğu bırakırdı.
+ *
+ * SEVİYE DE SÖZLEŞMEYE DÂHİL (BR-41): "easy" sorulduğunda yalnızca
+ * `wellKnown` oyuncular döner. Fake bunu yok sayarsa seviyenin uçtan depoya
+ * kadar taşındığını hiçbir test ölçemezdi.
  *
  * SEÇİM RASTGELE DEĞİL, sıradaki İLK uygun adaydır. Rastgelelik testin
  * beklentisini yazılamaz kılardı; dengelemenin doğruluğu domain testinde,
@@ -387,6 +400,7 @@ export class FakeWhichMoreRepository implements WhichMoreRepository {
 
     const match = this.#players.find((one) => {
       if (excluded.has(one.id)) return false;
+      if (query.level === "easy" && one.wellKnown === false) return false;
 
       const value = one.values[query.statKey];
       if (value === undefined) return false;

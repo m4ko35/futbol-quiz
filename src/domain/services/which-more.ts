@@ -24,6 +24,88 @@ export function isDirection(value: string): value is Direction {
 }
 
 /**
+ * BR-41 — oyuncu havuzunun SEVİYESİ.
+ *
+ * NEDEN VAR. Tanınırlık havuzu (BR-31) "küratörlü kulüplerde 100+ maç, 2+
+ * kulüp" diyor ve bu ölçüt bir oyuncunun KARİYERİNİ ölçüyor, TANINIRLIĞINI
+ * değil. Ölçüldü (13 Ağustos 2026, Vikipedi dil sayısı şöhret ölçütü olarak):
+ * havuzun **%78,8'i** ölçütün dışında kalıyor ve o kümenin medyanı **22 dil**,
+ * yalnızca **%14,7'si** 40+ dilde madde taşıyor. Yani oyuncuların çoğunda
+ * kullanıcı bilerek değil atarak oynuyordu.
+ *
+ * "hard" ZOR DEĞİL KARIŞIK demektir: bütün havuzdur, kolay oyuncuları da
+ * içerir. Adı yine de "hard" çünkü kullanıcının seçtiği şey budur; seviye
+ * bir vaat değil, havuzun genişliğidir.
+ */
+export const LEVELS = ["easy", "hard"] as const;
+
+export type Level = (typeof LEVELS)[number];
+
+export function isLevel(value: string): value is Level {
+  return (LEVELS as readonly string[]).includes(value);
+}
+
+/**
+ * "Bilindik" ölçütü — A millî maç ≥ 20 VE son kulüp dönemi ≥ 2000.
+ *
+ * NEDEN MİLLÎ MAÇ. Sezgisel aday kulüp maç sayısıydı ve YANLIŞTI: dil sayısıyla
+ * korelasyonu yalnızca **r = 0,28**. Millî maçın korelasyonu **r = 0,78** —
+ * çünkü millî takımda 20 maç yapan bir oyuncu ülkesinde tanınır. Ölçülen ayrım:
+ *
+ *   kolay havuz   medyan 47 dil · %66,7 tanınan (40+ dil)
+ *   dışarıdakiler medyan 22 dil · %14,7 tanınan
+ *
+ * ÖLÇÜMÜN SINIRI YAZILI OLSUN: dil sayıları 150'şer oyuncudan oluşan iki
+ * örneklemden geliyor, havuzun tamamından değil. Dışarıdakiler örneği ayrıca
+ * EN ÇOK MAÇ YAPANLARDAN seçildi, yani gerçek küme ölçülenden daha az tanınır
+ * — hata payı iddianın aleyhine değil lehine düşüyor.
+ *
+ * NEDEN İKİNCİ ÖLÇÜT DE GEREKLİ. Tek başına millî maç 1.725 oyuncu veriyor ve
+ * bunların 356'sı 2000 öncesinde oynamayı bırakmış. O 356'nın medyanı **29
+ * dil**, yalnızca **%21,3'ü** tanınıyor: küme ikiye bölünmüş, birkaç ölümsüz
+ * (Beckenbauer 99 dil, Puskás 87) ve çok sayıda unutulmuş millî takım oyuncusu.
+ * Millî maç sayısı bu ikisini AYIRAMIYOR (Capello 32 maç, Breitner 48), o yüzden
+ * kümenin tamamı dışarıda kalıyor: kolay havuz %57,3'ten %66,7'ye çıkıyor.
+ *
+ * Karar ASİMETRİDEN çıktı: kolay modda tanımadığı bir oyuncuyu gören kullanıcı
+ * rahatsız olur — modun var olma sebebi bu. Beckenbauer'in kolay havuzda
+ * OLMADIĞINI ise fark etmez; yokluk görünmez. Yanlış negatif ucuz, yanlış
+ * pozitif pahalı.
+ *
+ * YIL MUTLAKTIR, KAYAN PENCERE DEĞİL. "Son 25 yıl" deseydik havuz her yıl
+ * sessizce değişir ve yukarıdaki ölçümlerin hiçbiri bir daha üretilemezdi.
+ * 2000 bir çağ sınırıdır; kayarsa ölçülerek kaydırılır.
+ *
+ * ÖLÇÜT BİR VEKİLDİR ve öyle olduğu biliniyor: kolay havuzun **%33'ü** hâlâ
+ * 40 dilin altında. İki bilinen kusur sınıfı var — küçük ülke millî takımları
+ * yukarı çekiyor (James Debbah 72 maç, Liberya, 11 dil), ve dil sayısı YEREL
+ * şöhreti göremiyor (Ünal Karaman 36 maç 18 dil, Ertuğrul Sağlam 26 maç 18 dil
+ * — Türk kullanıcı ikisini de bilir, site Türkçedir). Doğru ölçüt ikisinin
+ * BİRLEŞİMİ olurdu: 40+ dil VEYA Türkiye millî takımında 20+ maç. O, bir ETL
+ * koşusu gerektiriyor ve 20 Eylül tazelemesine bırakıldı (§9.3, §10.2).
+ */
+export const EASY_MIN_NATIONAL_CAPS = 20;
+export const EASY_MIN_LAST_YEAR = 2000;
+
+/**
+ * Bir oyuncu "bilindik" sayılır mı?
+ *
+ * Girdi iki sayı, bir oyuncu kaydı değil — kural, değerleri kimin nasıl
+ * topladığından bağımsız (BR-29'un `isPlayablePair`'i ile aynı desen). `null`
+ * "bilinmiyor" demektir ve bilinmeyen oyuncu kolay havuza GİRMEZ: eksik veriyi
+ * lehte yorumlamak, modun elemeye çalıştığı tam da o oyuncuyu içeri alırdı.
+ */
+export function isWellKnown(
+  nationalCaps: number | null,
+  lastYear: number | null,
+): boolean {
+  if (nationalCaps === null || lastYear === null) return false;
+  return (
+    nationalCaps >= EASY_MIN_NATIONAL_CAPS && lastYear >= EASY_MIN_LAST_YEAR
+  );
+}
+
+/**
  * BR-29 — bir çiftin kurulabilmesi için gereken asgari fark.
  *
  * NEDEN VAR: aynı değere sahip iki oyuncuda "doğru cevap" diye bir şey yok ve

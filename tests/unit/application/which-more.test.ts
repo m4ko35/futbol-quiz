@@ -33,10 +33,97 @@ function deps(players: readonly FakeWhichMorePlayer[] = POOL) {
 const ABOVE = () => 0;
 const BELOW = () => 0.9;
 
+/**
+ * BR-41 — seviye havuzu daraltır.
+ *
+ * Silik oyuncular LİSTENİN BAŞINDA duruyor: fake sıradaki ilk uygun adayı
+ * seçtiği için, seviye süzgeci uygulanmazsa test kaçınılmaz olarak onları
+ * çeker. Yani süzgecin varlığı değil, YOKLUĞU görünür.
+ */
+const MIXED: FakeWhichMorePlayer[] = [
+  { id: "silik", name: "Silik", values: { heightCm: 160 }, wellKnown: false },
+  { id: "orta", name: "Orta", values: { heightCm: 180 } },
+  {
+    id: "silikUzun",
+    name: "Silik Uzun",
+    values: { heightCm: 210 },
+    wellKnown: false,
+  },
+  { id: "uzun", name: "Uzun", values: { heightCm: 200 } },
+];
+
+describe("BR-41 — seviye", () => {
+  it("'easy' ilk turda silik oyuncu sunmaz", async () => {
+    const round = await getRound(
+      { statKey: "heightCm", level: "easy", stayingId: null, exclude: [] },
+      deps(MIXED),
+    );
+
+    expect(round.pair?.left.id).toBe("orta");
+    expect(round.pair?.right.id).toBe("uzun");
+  });
+
+  it("'hard' aynı havuzda silik oyuncuyu sunar", async () => {
+    // Aynı havuz, aynı çağrı, tek fark seviye — karşılaştırma bu yüzden anlamlı.
+    const round = await getRound(
+      { statKey: "heightCm", level: "hard", stayingId: null, exclude: [] },
+      deps(MIXED),
+    );
+
+    expect(round.pair?.left.id).toBe("silik");
+  });
+
+  it("seviye SONRAKİ turlarda da uygulanır", async () => {
+    // İlk turda sızmayıp ikinci turda sızmak, `findOn`'un seviyeyi taşımadığı
+    // anlamına gelirdi ve arayüzde ancak ikinci turda fark edilirdi.
+    const easy = await getRound(
+      {
+        statKey: "heightCm",
+        level: "easy",
+        stayingId: playerId("orta"),
+        exclude: [],
+      },
+      deps(MIXED),
+      ABOVE,
+    );
+    expect(easy.pair?.right.id).toBe("uzun");
+
+    const hard = await getRound(
+      {
+        statKey: "heightCm",
+        level: "hard",
+        stayingId: playerId("orta"),
+        exclude: [],
+      },
+      deps(MIXED),
+      ABOVE,
+    );
+    expect(hard.pair?.right.id).toBe("silikUzun");
+  });
+
+  it("kalan oyuncu seviyeden BAĞIMSIZ okunur", async () => {
+    // `findPlayer` tanınırlık da sormuyor; seviye de sormaz (BR-41). Silik bir
+    // oyuncu "kalan" olarak gelirse tur yine kurulur, rakibi kolay havuzdandır.
+    const round = await getRound(
+      {
+        statKey: "heightCm",
+        level: "easy",
+        stayingId: playerId("silik"),
+        exclude: [],
+      },
+      deps(MIXED),
+      ABOVE,
+    );
+
+    expect(round.pair?.left.id).toBe("silik");
+    expect(round.pair?.right.id).toBe("orta");
+  });
+});
+
 describe("getRound — ilk tur", () => {
   it("iki oyuncu sunar ve HİÇBİR SAYI taşımaz (BR-32)", async () => {
     const round = await getRound(
-      { statKey: "heightCm", stayingId: null, exclude: [] },
+      { statKey: "heightCm", level: "hard", stayingId: null, exclude: [] },
       deps(),
     );
 
@@ -53,7 +140,7 @@ describe("getRound — ilk tur", () => {
     // ikincisini atlayıp 200'e gitmeli. Bandı uygulamayan bir kod 180/181
     // çifti kurar ve bu test kırılır.
     const round = await getRound(
-      { statKey: "heightCm", stayingId: null, exclude: [] },
+      { statKey: "heightCm", level: "hard", stayingId: null, exclude: [] },
       deps([
         { id: "a", name: "A", values: { heightCm: 180 } },
         { id: "yakin", name: "Yakın", values: { heightCm: 181 } },
@@ -68,7 +155,10 @@ describe("getRound — ilk tur", () => {
   it("havuz BOŞKEN ve dışlama yokken hata verir", async () => {
     // Bu havuzun tükenmesi değil, YOKLUĞU: o istatistik hiç çekilmemiş (§6.6).
     await expect(
-      getRound({ statKey: "heightCm", stayingId: null, exclude: [] }, deps([])),
+      getRound(
+        { statKey: "heightCm", level: "hard", stayingId: null, exclude: [] },
+        deps([]),
+      ),
     ).rejects.toBeInstanceOf(RoundUnavailableError);
   });
 
@@ -76,6 +166,7 @@ describe("getRound — ilk tur", () => {
     const round = await getRound(
       {
         statKey: "heightCm",
+        level: "hard",
         stayingId: null,
         exclude: [playerId("kisa"), playerId("orta"), playerId("uzun")],
       },
@@ -89,7 +180,12 @@ describe("getRound — ilk tur", () => {
 describe("getRound — BR-28: kazanan kalır", () => {
   it("kalan oyuncu SOLDA durur, değişen sağdaki", async () => {
     const round = await getRound(
-      { statKey: "heightCm", stayingId: playerId("orta"), exclude: [] },
+      {
+        statKey: "heightCm",
+        level: "hard",
+        stayingId: playerId("orta"),
+        exclude: [],
+      },
       deps(),
       ABOVE,
     );
@@ -102,6 +198,7 @@ describe("getRound — BR-28: kazanan kalır", () => {
     const round = await getRound(
       {
         statKey: "heightCm",
+        level: "hard",
         stayingId: playerId("orta"),
         exclude: [playerId("uzun")],
       },
@@ -117,7 +214,12 @@ describe("getRound — BR-28: kazanan kalır", () => {
 describe("getRound — BR-30: dengeli rakip", () => {
   it("yazı 'above' ise rakip kalandan BÜYÜK", async () => {
     const round = await getRound(
-      { statKey: "heightCm", stayingId: playerId("orta"), exclude: [] },
+      {
+        statKey: "heightCm",
+        level: "hard",
+        stayingId: playerId("orta"),
+        exclude: [],
+      },
       deps(),
       ABOVE,
     );
@@ -127,7 +229,12 @@ describe("getRound — BR-30: dengeli rakip", () => {
 
   it("yazı 'below' ise rakip kalandan KÜÇÜK", async () => {
     const round = await getRound(
-      { statKey: "heightCm", stayingId: playerId("orta"), exclude: [] },
+      {
+        statKey: "heightCm",
+        level: "hard",
+        stayingId: playerId("orta"),
+        exclude: [],
+      },
       deps(),
       BELOW,
     );
@@ -142,12 +249,22 @@ describe("getRound — BR-30: dengeli rakip", () => {
    */
   it("aynı kalanla iki tura FARKLI rakip verir", async () => {
     const above = await getRound(
-      { statKey: "heightCm", stayingId: playerId("orta"), exclude: [] },
+      {
+        statKey: "heightCm",
+        level: "hard",
+        stayingId: playerId("orta"),
+        exclude: [],
+      },
       deps(),
       ABOVE,
     );
     const below = await getRound(
-      { statKey: "heightCm", stayingId: playerId("orta"), exclude: [] },
+      {
+        statKey: "heightCm",
+        level: "hard",
+        stayingId: playerId("orta"),
+        exclude: [],
+      },
       deps(),
       BELOW,
     );
@@ -158,7 +275,12 @@ describe("getRound — BR-30: dengeli rakip", () => {
   it("seçilen taraf boşsa ÖTEKİ taraftan çekilir", async () => {
     // "uzun" havuzun en büyüğü; üstünde kimse yok.
     const round = await getRound(
-      { statKey: "heightCm", stayingId: playerId("uzun"), exclude: [] },
+      {
+        statKey: "heightCm",
+        level: "hard",
+        stayingId: playerId("uzun"),
+        exclude: [],
+      },
       deps(),
       ABOVE,
     );
@@ -170,6 +292,7 @@ describe("getRound — BR-30: dengeli rakip", () => {
     const round = await getRound(
       {
         statKey: "heightCm",
+        level: "hard",
         stayingId: playerId("orta"),
         exclude: [playerId("kisa"), playerId("uzun")],
       },
@@ -183,7 +306,12 @@ describe("getRound — BR-30: dengeli rakip", () => {
   it("kalan oyuncunun o istatistikte değeri yoksa reddedilir", async () => {
     await expect(
       getRound(
-        { statKey: "birthYear", stayingId: playerId("orta"), exclude: [] },
+        {
+          statKey: "birthYear",
+          level: "hard",
+          stayingId: playerId("orta"),
+          exclude: [],
+        },
         deps(),
       ),
     ).rejects.toBeInstanceOf(ValidationError);

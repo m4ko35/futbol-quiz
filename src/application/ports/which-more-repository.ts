@@ -1,4 +1,5 @@
 import type { StatKey } from "@/domain/services/stat-match";
+import type { Level } from "@/domain/services/which-more";
 import type { PlayerId } from "@/domain/value-objects/identifiers";
 
 /**
@@ -32,6 +33,15 @@ export interface WhichMoreCandidateQuery {
   readonly statKey: StatKey;
 
   /**
+   * BR-41 — hangi havuzdan çekilecek.
+   *
+   * `"easy"` yalnızca "bilindik" oyuncuları içerir (`isWellKnown`), `"hard"`
+   * havuzun tamamını. Seviye BURADA, cevap sorgusunda DEĞİL: hangi çiftin
+   * KURULABİLECEĞİNİ daraltır, hangi cevabın DOĞRU olduğunu değiştirmez.
+   */
+  readonly level: Level;
+
+  /**
    * Kalan oyuncunun değeri. `null` ise koşunun İLK oyuncusu çekiliyordur ve
    * sınır yoktur.
    */
@@ -60,6 +70,7 @@ export interface WhichMoreRepository {
    *  - `threshold` doluysa dönen değer BR-29 bandını sağlar:
    *    `|value - threshold| >= MIN_GAP[statKey]`.
    *  - `side` "above" ise `value > threshold`, "below" ise `value < threshold`.
+   *  - `level` "easy" ise dönen oyuncu `isWellKnown` ölçütünü de geçer.
    *  - `exclude` içindeki hiçbir kimlik dönmez.
    *
    * `null` = bu koşullarda aday YOK. Band gevşetilerek ya da eşik kaydırılarak
@@ -79,7 +90,9 @@ export interface WhichMoreRepository {
    *
    * İki yerde gerekli: kalan oyuncunun bir sonraki turda EŞİK olması (BR-30) ve
    * cevabın doğrulanması (BR-32). Tanınırlık süzgeci UYGULANMAZ — kimlik zaten
-   * sunucunun kendi kurduğu bir turdan geliyor.
+   * sunucunun kendi kurduğu bir turdan geliyor. AYNI GEREKÇEYLE SEVİYE DE
+   * SORULMAZ (BR-41): kalan oyuncu bir önceki turda o seviyenin havuzundan
+   * çekilmişti; ikinci kez süzmek yalnızca ikinci bir ayrışma kaynağı olurdu.
    *
    * `null` = oyuncu yok ya da bu istatistikte değeri yok. Sıfır DEĞİL: "golü
    * yok" ile "gol verisi yok" farklı şeylerdir (§2.7).

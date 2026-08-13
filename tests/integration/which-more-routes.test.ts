@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";
 import { CURATED_CLUB_QIDS } from "@/application/curated-clubs";
 import { STAT_KEYS } from "@/domain/services/stat-match";
-import { MIN_GAP } from "@/domain/services/which-more";
+import { LEVELS, MIN_GAP } from "@/domain/services/which-more";
 import { playerId } from "@/domain/value-objects/identifiers";
 import { toSearchKey } from "@/domain/value-objects/search-key";
 import { PrismaStatMatchRepository } from "@/infrastructure/db/repositories/prisma-stat-match-repository";
@@ -35,11 +35,51 @@ const clubIdOf = (qid: string) => `club-${qid}`;
  * (band 3), maç sayısı 60 arayla (band 25), gol 24+ (band 5), millî maç 20+
  * (band 5). İlk yazımda maç sayıları 10–20 arayla duruyordu ve sunucu çifti
  * haklı olarak reddediyordu — fikstürün kendisi kuralı çiğniyordu.
+ *
+ * ÜÇÜ DE "BİLİNDİK" (BR-41): 20+ millî maç ve 2000 sonrası son dönem. Zorunlu,
+ * çünkü seviyenin varsayılanı "easy" — aksi hâlde bu üç oyuncu varsayılan
+ * havuzdan düşer ve aşağıdaki testlerin hiçbiri kurulamazdı. h160'ın millî
+ * maçı 10'du, 20'ye çıkarıldı; kalan aralık (20/30/60) bandın hâlâ üstünde.
  */
 const NOTABLE = [
-  { id: "h160", height: 160, apps: [80, 40], goals: [4, 2], caps: 10 },
-  { id: "h180", height: 180, apps: [120, 60], goals: [20, 10], caps: 30 },
-  { id: "h200", height: 200, apps: [150, 90], goals: [40, 30], caps: 60 },
+  {
+    id: "h160",
+    height: 160,
+    apps: [80, 40],
+    goals: [4, 2],
+    caps: 20,
+    lastYear: 2010,
+  },
+  {
+    id: "h180",
+    height: 180,
+    apps: [120, 60],
+    goals: [20, 10],
+    caps: 30,
+    lastYear: 2012,
+  },
+  {
+    id: "h200",
+    height: 200,
+    apps: [150, 90],
+    goals: [40, 30],
+    caps: 60,
+    lastYear: 2015,
+  },
+];
+
+/**
+ * BR-41 — tanınır AMA bilindik DEĞİL. İki ölçütün her biri için bir oyuncu.
+ *
+ * Boyları öteki üçünden ve birbirinden 10 cm uzakta (band 3): "hard" havuzunda
+ * gerçekten eşleşebilirler, yani kolay havuzda görünmemeleri bir tesadüf değil
+ * süzgecin sonucudur.
+ */
+const OBSCURE = [
+  // Yıl ölçütüne takılır: millî maçı bol ama 2000'den önce bıraktı.
+  { id: "eski", height: 190, caps: 40, lastYear: 1995 },
+  // Millî maç ölçütüne takılır: çağdaş ama millî takımda neredeyse hiç oynamadı.
+  { id: "capsiz", height: 170, caps: 3, lastYear: 2015 },
 ];
 
 let clientCounter = 0;
@@ -99,6 +139,29 @@ beforeAll(async () => {
             clubId: clubIdOf(qid),
             appearances: player.apps[i],
             goals: player.goals[i],
+            endYear: player.lastYear,
+          })),
+        },
+      },
+    });
+  }
+
+  for (const player of OBSCURE) {
+    await db.prisma.player.create({
+      data: {
+        id: player.id,
+        wikidataId: `Q${player.id}`,
+        name: `Silik ${player.id}`,
+        searchKey: toSearchKey(`Silik ${player.id}`),
+        heightCm: player.height,
+        nationalCaps: player.caps,
+        spells: {
+          create: [CLUB_A, CLUB_B].map((qid, i) => ({
+            wikidataStatementId: `${player.id}-${String(i)}`,
+            clubId: clubIdOf(qid),
+            appearances: 100 + i * 10,
+            goals: 5 + i,
+            endYear: player.lastYear,
           })),
         },
       },
@@ -133,12 +196,15 @@ beforeAll(async () => {
       wikidataId: "Qboysuz",
       name: "Boysuz Oyuncu",
       searchKey: toSearchKey("Boysuz Oyuncu"),
+      // Bilindik (BR-41): eksik olan yalnızca BOY olsun, seviye olmasın.
+      nationalCaps: 25,
       spells: {
         create: [CLUB_A, CLUB_B].map((qid, i) => ({
           wikidataStatementId: `boysuz-${String(i)}`,
           clubId: clubIdOf(qid),
           appearances: 120 + i,
           goals: 3,
+          endYear: 2014,
         })),
       },
     },
@@ -152,6 +218,8 @@ beforeAll(async () => {
       name: "Eksik Veri",
       searchKey: toSearchKey("Eksik Veri"),
       heightCm: 178,
+      // Bilindik (BR-41): eksik olan yalnızca MAÇ SAYISI olsun, seviye olmasın.
+      nationalCaps: 22,
       spells: {
         create: [
           {
@@ -159,12 +227,14 @@ beforeAll(async () => {
             clubId: clubIdOf(CLUB_A),
             appearances: 150,
             goals: 10,
+            endYear: 2013,
           },
           {
             wikidataStatementId: "eksik-1",
             clubId: clubIdOf(CLUB_B),
             appearances: null,
             goals: null,
+            endYear: 2013,
           },
         ],
       },
@@ -264,6 +334,74 @@ describe("POST /api/hangisi-daha/round — §6.6", () => {
     });
 
     expect(data.pair).toBeNull();
+  });
+
+  /**
+   * BR-41 — SEVİYE. Varsayılanın "easy" olması bir uygulama ayrıntısı değil,
+   * modun var olma sebebi: alanı hiç göndermeyen istemci dar havuzu almalı.
+   */
+  it("seviye GÖNDERİLMEZSE kolay havuz kullanılır (BR-41)", async () => {
+    const seen = new Set<string>();
+    for (let i = 0; i < 20; i++) {
+      const data = await round({ statKey: "heightCm" });
+      seen.add(data.pair?.left.id ?? "");
+      seen.add(data.pair?.right.id ?? "");
+    }
+
+    // İkisi de tanınır (BR-31) ve boyları eşleşmeye elverişli; dışarıda
+    // kalmalarının TEK sebebi BR-41 olabilir.
+    expect(seen.has("eski")).toBe(false);
+    expect(seen.has("capsiz")).toBe(false);
+    expect(seen.has("h160")).toBe(true);
+  });
+
+  it("'hard' seviyesinde İKİ ölçütün de elediği oyuncular çıkar", async () => {
+    const seen = new Set<string>();
+    for (let i = 0; i < 40; i++) {
+      const data = await round({ statKey: "heightCm", level: "hard" });
+      seen.add(data.pair?.left.id ?? "");
+      seen.add(data.pair?.right.id ?? "");
+    }
+
+    // "eski" yıl ölçütüne, "capsiz" millî maç ölçütüne takılıyordu. İkisinin
+    // birden dönmesi, "hard"ın gerçekten KAPSAYICI olduğunu gösterir.
+    expect(seen.has("eski")).toBe(true);
+    expect(seen.has("capsiz")).toBe(true);
+  });
+
+  it("kalan oyuncu seviye süzgecinden GEÇMEZ (BR-41)", async () => {
+    // Bilinçli: kalan oyuncu bir önceki turda o seviyenin havuzundan çekilmişti
+    // ve `findPlayer` tanınırlığı da sormuyor. İkinci bir süzgeç, sunucunun
+    // kendi kurduğu turu reddetmesine yol açabilecek ikinci bir ayrışma
+    // kaynağı olurdu. Test bu kararı SABİTLİYOR.
+    const data = await round({
+      statKey: "heightCm",
+      level: "easy",
+      stayingId: "eski",
+    });
+
+    expect(data.pair?.left.id).toBe("eski");
+    // Rakip yine KOLAY havuzdan gelir — asıl kural burada.
+    expect(["eski", "capsiz"]).not.toContain(data.pair?.right.id);
+  });
+
+  it("bilinmeyen seviye reddedilir", async () => {
+    const response = await roundRoute.POST(
+      post("/api/hangisi-daha/round", { statKey: "heightCm", level: "orta" }),
+    );
+
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.error.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("her seviye kendi havuzunda çift kurabilir", async () => {
+    // §9.3'ün ölçümü kolay havuzun her istatistikte dolu olduğunu söylüyor;
+    // burada aynı iddia gerçek bir veritabanına karşı sınanıyor.
+    for (const level of LEVELS) {
+      const data = await round({ statKey: "heightCm", level });
+      expect(data.pair, level).not.toBeNull();
+    }
   });
 
   it("bilinmeyen istatistik reddedilir", async () => {
@@ -374,6 +512,29 @@ describe("POST /api/hangisi-daha/answer — §6.6", () => {
  * değerle görür — ve daha kötüsü, sunucu kendi kurduğu çifti cevap ucunda
  * reddedebilir. Bu test o ayrışmayı sessiz kalmaktan çıkarır.
  */
+describe("BR-41 — seviye cevabı ETKİLEMEZ", () => {
+  it("kolay havuzda olmayan iki oyuncunun cevabı yine açılır", async () => {
+    // Cevap ucu seviye ALMAZ ve alması da gerekmez: seviye hangi çiftin
+    // KURULACAĞINI daraltır, hangi cevabın DOĞRU olduğunu değil. İki silik
+    // oyuncu (190/170, band 3) gönderiliyor ve iki değer de dönüyor.
+    const response = await answerRoute.POST(
+      post("/api/hangisi-daha/answer", {
+        statKey: "heightCm",
+        direction: "more",
+        leftId: "eski",
+        rightId: "capsiz",
+        chosenId: "eski",
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.correct).toBe(true);
+    expect(body.data.left.value).toBe(190);
+    expect(body.data.right.value).toBe(170);
+  });
+});
+
 describe("değer tanımı §9.2 ile aynıdır", () => {
   it("her oyuncu ve her istatistikte iki depo aynı değeri verir", async () => {
     const whichMore = new PrismaWhichMoreRepository(db.prisma);

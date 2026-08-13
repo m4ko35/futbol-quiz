@@ -9,6 +9,7 @@ import {
   otherSide,
   winningSide,
   type Direction,
+  type Level,
 } from "@/domain/services/which-more";
 import type { PlayerId } from "@/domain/value-objects/identifiers";
 import type { WhichMoreCandidate } from "../ports/which-more-repository";
@@ -52,6 +53,12 @@ export interface WhichMoreAnswerDto {
 
 export interface RoundInput {
   readonly statKey: StatKey;
+  /**
+   * BR-41 — havuzun genişliği. Koşu boyunca DEĞİŞMEZ ama sunucu bunu bilmez:
+   * koşuyu hatırlamayan bir sunucuda her tur seviyeyi yeniden söylemek
+   * zorundadır (§9.3'ün durumsuzluk kararının doğrudan sonucu).
+   */
+  readonly level: Level;
   /** `null` = koşunun ilk turu. */
   readonly stayingId: PlayerId | null;
   readonly exclude: readonly PlayerId[];
@@ -70,10 +77,10 @@ export async function getRound(
   deps: RoundDeps,
   random: () => number = Math.random,
 ): Promise<WhichMoreRoundDto> {
-  const { statKey } = input;
+  const { statKey, level } = input;
 
   if (input.stayingId === null) {
-    return getFirstRound(statKey, input.exclude, deps);
+    return getFirstRound(statKey, level, input.exclude, deps);
   }
 
   const staying = await deps.whichMore.findPlayer(input.stayingId, statKey);
@@ -85,11 +92,12 @@ export async function getRound(
   // BR-30 — yazı tura; seçilen taraf boşsa öteki denenir.
   const first = opponentSide(random());
   const opponent =
-    (await findOn(first, staying.value, statKey, input.exclude, deps)) ??
+    (await findOn(first, staying.value, statKey, level, input.exclude, deps)) ??
     (await findOn(
       otherSide(first),
       staying.value,
       statKey,
+      level,
       input.exclude,
       deps,
     ));
@@ -103,11 +111,13 @@ export async function getRound(
 
 async function getFirstRound(
   statKey: StatKey,
+  level: Level,
   exclude: readonly PlayerId[],
   deps: RoundDeps,
 ): Promise<WhichMoreRoundDto> {
   const left = await deps.whichMore.findCandidate({
     statKey,
+    level,
     threshold: null,
     side: "any",
     exclude,
@@ -122,6 +132,7 @@ async function getFirstRound(
 
   const right = await deps.whichMore.findCandidate({
     statKey,
+    level,
     threshold: left.value,
     side: "any",
     exclude: [...exclude, left.id],
@@ -136,12 +147,30 @@ function findOn(
   side: "above" | "below",
   threshold: number,
   statKey: StatKey,
+  level: Level,
   exclude: readonly PlayerId[],
   deps: RoundDeps,
 ): Promise<WhichMoreCandidate | null> {
-  return deps.whichMore.findCandidate({ statKey, threshold, side, exclude });
+  return deps.whichMore.findCandidate({
+    statKey,
+    level,
+    threshold,
+    side,
+    exclude,
+  });
 }
 
+/**
+ * BR-41 — CEVAP GİRDİSİNDE SEVİYE YOK ve bu bir eksiklik değil.
+ *
+ * Seviye hangi çiftin KURULACAĞINI daraltır, hangi cevabın DOĞRU olduğunu
+ * değiştirmez: iki oyuncunun değeri seviyeden bağımsızdır. Cevap ucuna da
+ * konsaydı iki uç arasında tutarlılığı hiçbir şey zorlamazdı — `direction`'ın
+ * tur girdisinde OLMAMASIYLA aynı gerekçe (§9.3).
+ *
+ * Güvenlik açığı da doğurmuyor: bu uç zaten BR-29 bandını sağlayan HER çifte
+ * cevap veriyor ve seviye o bandı ne genişletiyor ne daraltıyor.
+ */
 export interface AnswerInput {
   readonly statKey: StatKey;
   readonly direction: Direction;

@@ -2,8 +2,13 @@ import { describe, expect, it } from "vitest";
 import { STAT_KEYS } from "@/domain/services/stat-match";
 import {
   DIRECTIONS,
+  EASY_MIN_LAST_YEAR,
+  EASY_MIN_NATIONAL_CAPS,
   isDirection,
+  isLevel,
   isPlayablePair,
+  isWellKnown,
+  LEVELS,
   MIN_GAP,
   opponentSide,
   otherSide,
@@ -62,6 +67,52 @@ describe("yön", () => {
     expect(winningSide("more", 200, 100)).not.toBe(
       winningSide("less", 200, 100),
     );
+  });
+});
+
+describe("BR-41 — bilindik oyuncu ölçütü", () => {
+  it("İKİ ölçüt de gereklidir — biri yetmez", () => {
+    // Ölçüm bunu söylüyordu (§9.3): tek başına millî maç 1.725 oyuncu veriyor
+    // ve fazladan gelen 356'nın yalnızca %21,3'ü tanınıyor.
+    expect(isWellKnown(40, 1995)).toBe(false); // millî maç var, çağdaş değil
+    expect(isWellKnown(3, 2015)).toBe(false); // çağdaş, millî maç yok
+    expect(isWellKnown(40, 2015)).toBe(true);
+  });
+
+  it("eşikler DÂHİLDİR", () => {
+    expect(isWellKnown(EASY_MIN_NATIONAL_CAPS, EASY_MIN_LAST_YEAR)).toBe(true);
+    expect(isWellKnown(EASY_MIN_NATIONAL_CAPS - 1, EASY_MIN_LAST_YEAR)).toBe(
+      false,
+    );
+    expect(isWellKnown(EASY_MIN_NATIONAL_CAPS, EASY_MIN_LAST_YEAR - 1)).toBe(
+      false,
+    );
+  });
+
+  it("BİLİNMEYEN veri kolay havuza girmez", () => {
+    // §2.7: eksik değer sıfır değildir. Ama burada asıl gerekçe yön: eksik
+    // veriyi lehte yorumlamak, modun elemeye çalıştığı oyuncuyu içeri alırdı.
+    expect(isWellKnown(null, 2015)).toBe(false);
+    expect(isWellKnown(40, null)).toBe(false);
+    expect(isWellKnown(null, null)).toBe(false);
+  });
+
+  it("ölçülen eşikleri taşır", () => {
+    // Sayılar §9.3'te ölçüldü; değişirlerse belge de değişmeli.
+    expect(EASY_MIN_NATIONAL_CAPS).toBe(20);
+    expect(EASY_MIN_LAST_YEAR).toBe(2000);
+  });
+
+  it("seviye anahtarları tanınır, uydurma olan reddedilir", () => {
+    for (const level of LEVELS) expect(isLevel(level)).toBe(true);
+    expect(isLevel("orta")).toBe(false);
+    expect(isLevel("")).toBe(false);
+  });
+
+  it("iki seviye vardır ve kolay olan İLKTİR", () => {
+    // Sıra arayüzde de kullanılıyor (kurulum ekranı LEVELS'ı sırayla basıyor);
+    // varsayılan olan başta durmalı.
+    expect(LEVELS).toEqual(["easy", "hard"]);
   });
 });
 
