@@ -3402,6 +3402,29 @@ Karar **asimetriden** çıktı. Kolay modda tanımadığı bir oyuncuyu gören k
 
 **Yıl mutlaktır, kayan pencere değil.** "Son 25 yıl" deseydik havuz her yıl sessizce değişir ve yukarıdaki ölçümlerin hiçbiri bir daha üretilemezdi. 2000 bir çağ sınırıdır; kayacaksa ölçülerek kaydırılır.
 
+> **Üretimde doğrulandı (13 Ağustos 2026).** Yukarıdaki ölçümlerin hepsi yerel
+> veri kümesine karşı yapıldı; dağıtımdan sonra canlı uçtan her seviyeden 20
+> tur çekildi (`Kulüp maçı` ekseni) ve dönen isimlerin dil sayıları **QID ile**
+> ölçüldü:
+>
+> | Küme  |   n |     Medyan |   40+ dil |
+> | ----- | --: | ---------: | --------: |
+> | Kolay |  40 | **43 dil** | **%50,0** |
+> | Zor   |  39 |     20 dil |     %20,5 |
+>
+> İki kümenin **kesişimi 1 isim**. Kara kutu kapıları da geçti: bilinmeyen
+> seviye `400`, alansız istek çalışıyor (varsayılan kolay), tur yanıtı hâlâ
+> sayı taşımıyor (`clubs, id, name` — BR-32).
+>
+> **İki uyarı yazılıyor.** (1) Kolay tarafın %50'si, havuz düzeyindeki
+> %66,7'nin altında; n = 40'ta binom standart hatası ±7,9 puan olduğu için bu
+> çekim %66,7'yi doğrulamıyor, yalnızca yönü doğruluyor (medyan 2,2 kat,
+> tanınan oranı 2,4 kat). (2) İlk deneme **geçersizdi ve atıldı**: dil sayıları
+> `wbsearchentities` ile ADLA aranmıştı ve yanlış varlıkları buluyordu — "David
+> Silva" bir Amerikalı ressamı, "Ricardo Oliveira" bir patenli hokey oyuncusunu
+> getirdi. Ad araması yaygın adlı ünlüleri sistematik olarak ıskaladığı için
+> yanlılık kolay kümenin ALEYHİNEydi; ölçüm QID'e çevrilerek tekrarlandı.
+
 #### Ölçüm: kolay havuz her istatistikte oynanabilir
 
 Havuz beşte bire indiğinde BR-29 bandının ve BR-30 dengelemesinin hâlâ çalıştığı **varsayılamaz**; ölçüldü (`npm run stats:measure`, 2026-08-13):
