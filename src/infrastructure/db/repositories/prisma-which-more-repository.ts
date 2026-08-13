@@ -8,6 +8,7 @@ import { STAT_KEYS, type StatKey } from "@/domain/services/stat-match";
 import { MIN_GAP } from "@/domain/services/which-more";
 import { playerId, type PlayerId } from "@/domain/value-objects/identifiers";
 import { Prisma, type PrismaClient } from "@/generated/prisma";
+import { yearOf } from "../birth-year";
 
 /**
  * "Hangisi daha" deposu — PROJECT.md §9.3.
@@ -40,7 +41,8 @@ interface PoolRow {
   name: string;
   nationalCaps: number | bigint | null;
   heightCm: number | bigint | null;
-  weightKg: number | bigint | null;
+  /** Doğum YILI ayrı bir sütun değil, buradan türetilir — §9.2. */
+  birthDate: Date | null;
   appearances: number | bigint | null;
   goals: number | bigint | null;
   clubs: number | bigint;
@@ -187,19 +189,21 @@ export class PrismaWhichMoreRepository implements WhichMoreRepository {
    * karşılaştırıyor.
    */
   async #valueOf(id: PlayerId, key: StatKey): Promise<number | null> {
-    if (key === "nationalCaps" || key === "heightCm" || key === "weightKg") {
+    if (key === "nationalCaps" || key === "heightCm" || key === "birthYear") {
       const player = await this.#prisma.player.findUnique({
         where: { id },
-        select: { nationalCaps: true, heightCm: true, weightKg: true },
+        select: { nationalCaps: true, heightCm: true, birthDate: true },
       });
-      return player?.[key] ?? null;
+      if (player === null) return null;
+      if (key === "birthYear") return yearOf(player.birthDate);
+      return player[key];
     }
 
     const rows = await this.#prisma.$queryRaw<PoolRow[]>(Prisma.sql`
       SELECT p.id AS id, p.name AS name,
              p.nationalCaps AS nationalCaps,
              p.heightCm     AS heightCm,
-             p.weightKg     AS weightKg,
+             p.birthDate    AS birthDate,
              SUM(s.appearances)       AS appearances,
              SUM(s.goals)             AS goals,
              COUNT(DISTINCT s.clubId) AS clubs,
@@ -255,7 +259,7 @@ export class PrismaWhichMoreRepository implements WhichMoreRepository {
       SELECT p.id AS id, p.name AS name,
              p.nationalCaps AS nationalCaps,
              p.heightCm     AS heightCm,
-             p.weightKg     AS weightKg,
+             p.birthDate    AS birthDate,
              SUM(s.appearances)       AS appearances,
              SUM(s.goals)             AS goals,
              COUNT(DISTINCT s.clubId) AS clubs,
@@ -272,7 +276,7 @@ export class PrismaWhichMoreRepository implements WhichMoreRepository {
       clubs: [],
       nationalCaps: [],
       heightCm: [],
-      weightKg: [],
+      birthYear: [],
     };
 
     for (const row of rows) {
@@ -298,7 +302,7 @@ export class PrismaWhichMoreRepository implements WhichMoreRepository {
 function valueOf(row: PoolRow, key: StatKey): number | null {
   if (key === "nationalCaps") return toNumber(row.nationalCaps);
   if (key === "heightCm") return toNumber(row.heightCm);
-  if (key === "weightKg") return toNumber(row.weightKg);
+  if (key === "birthYear") return yearOf(row.birthDate);
 
   const clubs = Number(row.clubs);
   // Kapsamda hiç dönemi yok: bu istatistikte 0 DEĞİL, bilinmiyor (§2.7).

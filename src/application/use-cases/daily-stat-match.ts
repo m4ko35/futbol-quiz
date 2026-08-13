@@ -60,7 +60,7 @@ const STAT_LABELS: Readonly<Record<StatKey, string>> = {
   clubs: "Oynadığı kulüp",
   nationalCaps: "A millî maç",
   heightCm: "Boy (cm)",
-  weightKg: "Kilo (kg)",
+  birthYear: "Doğum yılı",
 };
 
 function isoDate(date: Date): string {

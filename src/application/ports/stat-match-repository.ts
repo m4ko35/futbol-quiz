@@ -12,7 +12,7 @@ export interface PlayerStatValues {
   readonly clubs: number;
   readonly nationalCaps: number;
   readonly heightCm: number;
-  readonly weightKg: number;
+  readonly birthYear: number;
 }
 
 /**

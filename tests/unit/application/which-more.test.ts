@@ -183,7 +183,7 @@ describe("getRound — BR-30: dengeli rakip", () => {
   it("kalan oyuncunun o istatistikte değeri yoksa reddedilir", async () => {
     await expect(
       getRound(
-        { statKey: "weightKg", stayingId: playerId("orta"), exclude: [] },
+        { statKey: "birthYear", stayingId: playerId("orta"), exclude: [] },
         deps(),
       ),
     ).rejects.toBeInstanceOf(ValidationError);
@@ -298,7 +298,7 @@ describe("checkAnswer — BR-32", () => {
     await expect(
       checkAnswer(
         {
-          statKey: "weightKg",
+          statKey: "birthYear",
           direction: "more",
           leftId: playerId("orta"),
           rightId: playerId("uzun"),

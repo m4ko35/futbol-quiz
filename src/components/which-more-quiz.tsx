@@ -47,6 +47,15 @@ interface StatQuestion {
   readonly lessShort: string;
   /** Değerin yanına yazılan birim. */
   readonly unit: string;
+  /**
+   * BANT metnindeki birim ("en az 5 … fark"), farklıysa.
+   *
+   * Beş istatistikte `unit` ile aynı ve verilmez. Doğum yılında AYRIŞIYOR:
+   * değerin yanında "1985 doğumlu" doğru okunur ama "en az 5 doğumlu fark"
+   * anlamsızdır — orada birim yıldır. Tek alanı iki bağlamda kullanmak bu
+   * istatistikte cümleyi bozuyordu.
+   */
+  readonly gapUnit?: string;
   /** §9.2'nin kapsam bildirimi: yalnızca 24 ligi mi sayıyor? */
   readonly scoped: boolean;
 }
@@ -107,14 +116,24 @@ const QUESTIONS: readonly StatQuestion[] = [
     unit: "cm",
     scoped: false,
   },
+  /**
+   * YÖN BURADA TERSİNE DÖNER ve bu satırların en kolay yanlış yazılan yeri.
+   *
+   * `more` = DEĞERİ büyük olan demektir. Doğum yılında büyük değer daha GEÇ
+   * doğmuş, yani daha GENÇ olandır. "more: daha yaşlı" yazmak sezgisel gelir
+   * ve oyunu baştan sona ters çevirirdi: kullanıcı doğru bildiği her turda
+   * yanlış cevap alırdı. Diğer beş istatistikte büyük değer "daha çok" ile
+   * aynı yöne baktığı için bu tuzak yalnızca burada var.
+   */
   {
-    key: "weightKg",
-    name: "Kilo",
-    more: "daha ağır",
-    less: "daha hafif",
-    moreShort: "daha ağır",
-    lessShort: "daha hafif",
-    unit: "kg",
+    key: "birthYear",
+    name: "Doğum yılı",
+    more: "daha genç",
+    less: "daha yaşlı",
+    moreShort: "daha genç",
+    lessShort: "daha yaşlı",
+    unit: "doğumlu",
+    gapUnit: "yıl",
     scoped: false,
   },
 ];
@@ -123,7 +142,7 @@ const QUESTIONS: readonly StatQuestion[] = [
  * İstatistikler İKİ ÖBEKTE sunuluyor ve ayrım uydurma değil: `scoped`.
  *
  * Kulüp maçı, gol ve kulüp sayısı §1.3'ün yirmi dört ligini sayar; millî maç,
- * boy ve kilo oyuncunun kendi kaydından gelir. Bu fark oyuna doğrudan etki
+ * boy ve doğum yılı oyuncunun kendi kaydından gelir. Bu fark oyuna doğrudan etki
  * ediyor (aynı oyuncu için "gerçek" toplamdan farklı bir sayı görülebilir) ve
  * bugüne dek yalnızca TUR ekranında, seçim yapıldıktan SONRA söyleniyordu.
  * Öbek başlığına taşındığında kullanıcı onu seçerken okuyor.
@@ -1010,7 +1029,8 @@ function StatPicker({
                       okuyucu kullanıcısı bu farkı hiç öğrenemezdi.
                     */}
                     <span className="text-xs text-muted">
-                      en az {String(MIN_GAP[key])} {one.unit} fark
+                      en az {String(MIN_GAP[key])} {one.gapUnit ?? one.unit}{" "}
+                      fark
                     </span>
                   </label>
                 );

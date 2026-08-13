@@ -30,7 +30,7 @@ const ELIGIBLE = [
     id: "elig1",
     caps: 40,
     height: 180,
-    weight: 75,
+    born: 1990,
     apps: [120, 60],
     goals: [10, 5],
   },
@@ -38,7 +38,7 @@ const ELIGIBLE = [
     id: "elig2",
     caps: 90,
     height: 190,
-    weight: 88,
+    born: 1978,
     apps: [200, 90],
     goals: [40, 20],
   },
@@ -46,7 +46,7 @@ const ELIGIBLE = [
     id: "elig3",
     caps: 12,
     height: 172,
-    weight: 68,
+    born: 1996,
     apps: [150, 80],
     goals: [2, 1],
   },
@@ -96,7 +96,7 @@ beforeAll(async () => {
         nationality: "TR",
         nationalCaps: player.caps,
         heightCm: player.height,
-        weightKg: player.weight,
+        birthDate: new Date(Date.UTC(player.born, 0, 1)),
         spells: {
           create: [CLUB_A, CLUB_B].map((qid, i) => ({
             wikidataStatementId: `${player.id}-${String(i)}`,
@@ -120,7 +120,7 @@ beforeAll(async () => {
       name: "Millîsiz Oyuncu",
       searchKey: toSearchKey("Millîsiz Oyuncu"),
       heightCm: 185,
-      weightKg: 80,
+      birthDate: new Date(Date.UTC(1988, 0, 1)),
       spells: {
         create: [CLUB_A, CLUB_B].map((qid, i) => ({
           wikidataStatementId: `capsiz-${String(i)}`,
@@ -141,7 +141,7 @@ beforeAll(async () => {
       searchKey: toSearchKey("Eksik Veri"),
       nationalCaps: 20,
       heightCm: 180,
-      weightKg: 75,
+      birthDate: new Date(Date.UTC(1992, 0, 1)),
       spells: {
         create: [
           {

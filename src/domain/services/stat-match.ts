@@ -17,7 +17,7 @@ export const STAT_KEYS = [
   "clubs",
   "nationalCaps",
   "heightCm",
-  "weightKg",
+  "birthYear",
 ] as const;
 
 export type StatKey = (typeof STAT_KEYS)[number];
@@ -31,31 +31,38 @@ export function isStatKey(value: string): value is StatKey {
  *
  * NEDEN SABİT, VERİDEN HESAPLANMIYOR: puanlama kuralı her istek için tüm
  * havuzu taramamalı ve aynı cevap farklı günlerde farklı puan almamalı.
- * Değerler ölçülerek konur; veri kümesi yenilendiğinde ölçüm TEKRARLANIR
- * (§10, Faz 4.6).
+ * Değerler ölçülerek konur; veri kümesi yenilendiğinde ölçüm TEKRARLANIR —
+ * artık elle değil, `npm run stats:measure` ile.
  *
- * ÖLÇÜM — BR-15 aday havuzunun tamamı, **1.904 oyuncu** (2026-07-31):
+ * ÖLÇÜM — BR-15 aday havuzunun tamamı, **2.518 oyuncu** (2026-08-13):
  *
- *                min   p25  medyan  p75   p95   max    ort     SD
- *   kulüp maçı   100   167    236   323   461   786   255,2  111,4
- *   kulüp golü     0     7     21    51   139   496    39,5   51,3
- *   kulüp sayısı   2     2      3     4     5    10     3,2    1,2
- *   A millî maç    0    10     34    68   116   233    42,7   38,2
- *   boy          159   176    181   185   192   203   181,0    6,6
- *   kilo          55    72     75    80    89   117    76,1    6,8
+ *                min   p25  medyan  p75   p95   max     ort     SD
+ *   kulüp maçı   100   272    352   435   569   962   357,8  120,3
+ *   kulüp golü     0    12     32    77   178   600    54,1   60,5
+ *   kulüp sayısı   2     4      5     7     9    17     5,4    2,2
+ *   A millî maç    0     8     27    60   110   233    38,3   36,4
+ *   boy          157   176    180   185   191   203   180,8    6,6
+ *   doğum yılı  1868  1965   1978  1987  1996  2005  1973,7   19,8
  *
- * ONDALIKLAR KORUNDU. `clubs` sapması 1,2 ve tam sayıya yuvarlamak onu 1'e
- * indirirdi; o durumda iki kulüp sapması doğrudan %0 olurdu. Ölçülen değerle
- * aynı sapma %17 alır — küçük bir fark gibi görünüyor ama altı istatistiğin
- * en dar olanında oyunun tamamını sertleştiriyordu.
+ * BAYATLAMA ÖLÇÜLDÜ VE BU SATIRLARIN VAR OLMA SEBEBİDİR. Önceki değerler
+ * 1.904 oyunculuk havuzda (2026-07-31) ölçülmüştü; lig kapsamı 6'dan 24'e
+ * çıkınca `clubs` sapması **1,2 → 2,2** oldu, yani gerçek yayılım iki katına
+ * çıkarken puanlama eski dar yayılımı kullanmaya devam etti ve o istatistiği
+ * tasarlandığından iki kat sert hâle getirdi. Kimse fark etmedi çünkü ölçümü
+ * tekrarlayacak bir araç yoktu; `scripts/measure-stats.ts` o boşluğu kapatıyor
+ * ve sapma %15'ten fazlaysa "BAYAT" diye işaretliyor.
+ *
+ * ONDALIKLAR KORUNDU. `clubs` sapması tam sayıya yuvarlansa 2'ye inerdi; iki
+ * kulüplük bir sapmanın puanı %50'den %55'e kayardı. Altı istatistiğin en dar
+ * ölçeklisinde bu fark oyunun tamamını etkiliyor.
  */
 export const STAT_DEVIATIONS: Readonly<Record<StatKey, number>> = {
-  appearances: 111.4,
-  goals: 51.3,
-  clubs: 1.2,
-  nationalCaps: 38.2,
+  appearances: 120.3,
+  goals: 60.5,
+  clubs: 2.2,
+  nationalCaps: 36.4,
   heightCm: 6.6,
-  weightKg: 6.8,
+  birthYear: 19.8,
 };
 
 /**
@@ -102,7 +109,7 @@ export function totalScore(scores: readonly number[]): number {
  *
  * Arayüz bunu göstermek zorundadır: Ajax'ta geçen yıllar bu sayılara girmez
  * ve kullanıcı bildiği gerçek toplamla karşılaştırıp siteyi yanlış sanar.
- * Millî maç, boy ve kilo ise kapsamdan bağımsızdır — oyuncunun kendi
+ * Millî maç, boy ve doğum yılı ise kapsamdan bağımsızdır — oyuncunun kendi
  * kaydından gelir.
  */
 export const SCOPED_STATS: ReadonlySet<StatKey> = new Set<StatKey>([

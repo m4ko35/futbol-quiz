@@ -31,12 +31,17 @@ export function isDirection(value: string): value is Direction {
  * oyuncu) — rastgele iki oyuncunun berabere olma oranı:
  *
  *   kulüp maçı %0,3 · kulüp golü %1,7 · KULÜP SAYISI %14,1
- *   millî maç  %2,5 · boy        %4,9 · kilo         %4,6
+ *   millî maç  %2,5 · boy        %4,9 · doğum yılı   %1,2
  *
  * NEDEN BU SAYILAR: her biri, çiftlerin ~%10–22'sini eleyen en küçük anlamlı
  * fark. Kulüp sayısı istisnadır — yalnızca 16 farklı değer taşıdığı için 2'lik
  * band çiftlerin %40,2'sini eliyor; daha küçüğü ise "3 kulüp mü 4 kulüp mü"
  * sorusuna dönerdi ve o soru cevaplanabilir değil.
+ *
+ * DOĞUM YILI 5 — ölçüldü: 1 yıl çiftlerin yalnızca %1,2'sini, 5 yıl **%10,8**'ini
+ * eliyor, yani bandın alt ucu. Daha küçüğü seçilseydi "1985 doğumlu mu 1987
+ * doğumlu mu" sorusu kalırdı; o soru bilgi değil kura sorar. `npm run
+ * stats:measure` bu oranı yeniden ölçer.
  *
  * Bu, oyunun zorluğunu ayarlayan TEK sayıdır — §9.2'deki
  * `SCORE_TOLERANCE_FACTOR`'ün buradaki karşılığı.
@@ -47,7 +52,7 @@ export const MIN_GAP: Readonly<Record<StatKey, number>> = {
   clubs: 2,
   nationalCaps: 5,
   heightCm: 3,
-  weightKg: 3,
+  birthYear: 5,
 };
 
 /**

@@ -133,7 +133,7 @@ describe("isScoped — kapsam bildirimi", () => {
   it("oyuncu kaynaklı istatistikleri işaretlemez", () => {
     expect(isScoped("nationalCaps")).toBe(false);
     expect(isScoped("heightCm")).toBe(false);
-    expect(isScoped("weightKg")).toBe(false);
+    expect(isScoped("birthYear")).toBe(false);
   });
 });
 

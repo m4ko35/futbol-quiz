@@ -405,7 +405,7 @@ describe("BR-29 bandı", () => {
       clubs: 2,
       nationalCaps: 5,
       heightCm: 3,
-      weightKg: 3,
+      birthYear: 5,
     });
   });
 });

@@ -6,6 +6,7 @@ import type {
 import type { StatKey } from "@/domain/services/stat-match";
 import { playerId, type PlayerId } from "@/domain/value-objects/identifiers";
 import { Prisma, type PrismaClient } from "@/generated/prisma";
+import { yearOf } from "../birth-year";
 
 /**
  * `StatMatchRepository` port'unun Prisma uygulaması (PROJECT.md §4.1, §9.2).
@@ -52,7 +53,7 @@ export class PrismaStatMatchRepository implements StatMatchRepository {
              p.nationality   AS nationality,
              p.nationalCaps  AS nationalCaps,
              p.heightCm      AS heightCm,
-             p.weightKg      AS weightKg,
+             p.birthDate     AS birthDate,
              SUM(s.appearances)       AS appearances,
              SUM(s.goals)             AS goals,
              COUNT(DISTINCT s.clubId) AS clubs
@@ -61,7 +62,7 @@ export class PrismaStatMatchRepository implements StatMatchRepository {
       JOIN spells  s ON s.playerId = p.id AND s.isYouth = 0
       WHERE p.nationalCaps IS NOT NULL
         AND p.heightCm     IS NOT NULL
-        AND p.weightKg     IS NOT NULL
+        AND p.birthDate    IS NOT NULL
       GROUP BY p.id
       HAVING SUM(CASE WHEN s.appearances IS NULL OR s.goals IS NULL THEN 1 ELSE 0 END) = 0
       ORDER BY p.id
@@ -85,7 +86,7 @@ export class PrismaStatMatchRepository implements StatMatchRepository {
              p.nationality   AS nationality,
              p.nationalCaps  AS nationalCaps,
              p.heightCm      AS heightCm,
-             p.weightKg      AS weightKg,
+             p.birthDate     AS birthDate,
              SUM(s.appearances)       AS appearances,
              SUM(s.goals)             AS goals,
              COUNT(DISTINCT s.clubId) AS clubs
@@ -94,7 +95,7 @@ export class PrismaStatMatchRepository implements StatMatchRepository {
       WHERE p.id = ${id}
         AND p.nationalCaps IS NOT NULL
         AND p.heightCm     IS NOT NULL
-        AND p.weightKg     IS NOT NULL
+        AND p.birthDate    IS NOT NULL
       GROUP BY p.id
       HAVING SUM(CASE WHEN s.appearances IS NULL OR s.goals IS NULL THEN 1 ELSE 0 END) = 0
          AND SUM(s.appearances) >= ${MIN_APPEARANCES}
@@ -106,12 +107,14 @@ export class PrismaStatMatchRepository implements StatMatchRepository {
 
   async findStatValue(id: PlayerId, key: StatKey): Promise<number | null> {
     // Oyuncunun kendi kaydındaki alanlar — dönemlere bakmaya gerek yok.
-    if (key === "nationalCaps" || key === "heightCm" || key === "weightKg") {
+    if (key === "nationalCaps" || key === "heightCm" || key === "birthYear") {
       const player = await this.#prisma.player.findUnique({
         where: { id },
-        select: { nationalCaps: true, heightCm: true, weightKg: true },
+        select: { nationalCaps: true, heightCm: true, birthDate: true },
       });
-      return player?.[key] ?? null;
+      if (player === null) return null;
+      if (key === "birthYear") return yearOf(player.birthDate);
+      return player[key];
     }
 
     // BR-23 — hedef 24 ligi saydığı için cevap da sayar. Küratörlü kısıt
@@ -169,7 +172,7 @@ interface TargetRow {
   nationality: string | null;
   nationalCaps: number | bigint;
   heightCm: number | bigint;
-  weightKg: number | bigint;
+  birthDate: Date;
   appearances: number | bigint;
   goals: number | bigint;
   clubs: number | bigint;
@@ -193,7 +196,9 @@ function toTarget(row: TargetRow): StatMatchTarget {
       clubs: Number(row.clubs),
       nationalCaps: Number(row.nationalCaps),
       heightCm: Number(row.heightCm),
-      weightKg: Number(row.weightKg),
+      // `TargetRow.birthDate` null DEĞİL: havuz sorgusu `IS NOT NULL` süzüyor.
+      // `yearOf` bunu aşırı yükle ile biliyor, yani burada yedek değer yok.
+      birthYear: yearOf(row.birthDate),
     },
   };
 }

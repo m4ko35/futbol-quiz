@@ -1575,7 +1575,12 @@ Parametresi yoktur (BR-19).
         "scoped": false,
       },
       { "key": "heightCm", "label": "Boy (cm)", "value": 188, "scoped": false },
-      { "key": "weightKg", "label": "Kilo (kg)", "value": 86, "scoped": false },
+      {
+        "key": "birthYear",
+        "label": "Doğum yılı",
+        "value": 1969,
+        "scoped": false,
+      },
     ],
   },
 }
@@ -2910,14 +2915,53 @@ Soru "bu oyuncuyu tanıyor musun" değil, **"başka oyuncuların büyüklükleri
 
 Ürün sahibi altı istatistik seçti. Üçü elimizde, üçü Wikidata'dan çekilecek:
 
-| İstatistik     | Kaynak                      | Kapsam | Not                               |
-| -------------- | --------------------------- | ------ | --------------------------------- |
-| Kulüp maçı     | `Spell.appearances` toplamı | %61    | Yalnızca §1.3 kapsamındaki ligler |
-| Kulüp golü     | `Spell.goals` toplamı       | %61    | Yalnızca §1.3 kapsamındaki ligler |
-| Oynadığı kulüp | türetilir                   | %100   | Yalnızca §1.3 kapsamındaki ligler |
-| A millî maç    | `P54` + `P1350` (yeni)      | %73    | Kural aşağıda — toplam DEĞİL      |
-| Boy            | `P2048` (yeni)              | %69    |                                   |
-| Kilo           | `P2067` (yeni)              | %49    |                                   |
+| İstatistik     | Kaynak                      | Kapsam¹    | Not                                        |
+| -------------- | --------------------------- | ---------- | ------------------------------------------ |
+| Kulüp maçı     | `Spell.appearances` toplamı | %61        | Yalnızca §1.3 kapsamındaki ligler          |
+| Kulüp golü     | `Spell.goals` toplamı       | %61        | Yalnızca §1.3 kapsamındaki ligler          |
+| Oynadığı kulüp | türetilir                   | %100       | Yalnızca §1.3 kapsamındaki ligler          |
+| A millî maç    | `P54` + `P1350`             | %73        | Kural aşağıda — toplam DEĞİL               |
+| Boy            | `P2048`                     | %69        |                                            |
+| **Doğum yılı** | `Player.birthDate` yılı     | **%99,95** | **Kilonun yerine geçti** — gerekçe aşağıda |
+
+<sub>¹ Bu yüzdeler ilk ölçümündür (2026-07-31, çok daha küçük bir oyuncu evreni). İşleyen sayılar §9.3'ün tanınırlık havuzu tablosudur; oyunun havuzunu o belirler, bu sütun değil.</sub>
+
+##### Kilo çıkarıldı: kapatılamayan bir kapsam (13 Ağustos 2026)
+
+Ürün sahibi kilo kapsamının düşüklüğünü sordu ve tamamlanıp tamamlanamayacağını araştırmamızı istedi. **Tamamlanamıyor** ve bu ölçüldü — tanınırlık havuzunda kilosu olmayan 3.131 oyuncu iki kaynağa birden soruldu:
+
+| Kaynak                              | Kilosu bulunan |
+| ----------------------------------- | -------------: |
+| Wikidata `P2067`                    |  **1** / 3.131 |
+| Vikipedi bilgi kutusu (72 örneklem) |     **0** / 72 |
+
+Sıfır. Modern futbolcu bilgi kutuları kilo alanını taşımıyor. Kilo %52'de tavan yapıyordu ve tavan **veri kaynağındaydı**, bizim okumamızda değil.
+
+**Yerine ne konacağı da uydurulmadı, ölçüldü.** Beş aday, elimizdeki veriden türetilebilir olanlar arasından — yani yeni bir ETL koşusu gerektirmeyenlerden:
+
+| Aday                   | Mevcut altıyla en yüksek örtüşme (\|r\|) | Beraberlik |
+| ---------------------- | ---------------------------------------: | ---------: |
+| **Doğum yılı**         |                                 **0,34** |   **%1,2** |
+| Ülke sayısı            |                                     0,43 |      %40,2 |
+| Tek kulüpte en çok maç |                                     0,56 |       %0,5 |
+| Kariyer uzunluğu       |                                     0,68 |       %7,1 |
+| 100 maçta gol          |                                     0,88 |       %3,8 |
+
+**İki aday sezgiyle seçilseydi yanlış olurdu, ölçüm ikisini de eledi.** _100 maçta gol_ en cazibiydi — "500 maçta 20 gol atan stoper mi, 200 maçta 100 gol atan santrfor mu" gerçek futbol bilgisi sorar — ama kulüp goluyla **r = 0,88**: çok gol atan zaten yüksek oranlı, yani yedinci istatistik değil ikinci bir "gol" olurdu. _Ülke sayısı_ ise kulağa hoş geliyordu ama havuzun medyanı **1**: çiftlerin **%40,2'si** beraberlik.
+
+Doğum yılı üç ölçütte birden kazandı: kapsam **%99,95** (kilonun asıl derdi buydu), örtüşme **en düşük**, beraberlik **%1,2** (boyun %4,8'inden bile iyi). Ve veri zaten `Player.birthDate` içinde — **ETL koşusu gerektirmedi**.
+
+**Yan etkisi ölçüldü ve iyi yönde:** BR-15 aday havuzu altı istatistiğin de dolu olmasını ister; kilo yerine doğum yılı konunca havuz **1.927 → 2.518** (×1,31). Yani değişiklik yalnızca "hangisi daha"yı değil, bu modu da genişletti.
+
+`weightKg` sütunu **veride duruyor** ama hiçbir mod okumuyor. Düşürmek şema göçü artı tam bir ETL koşusu isterdi; karşılığı yok, çünkü değer boyla aynı SPARQL isteğinde geliyor (ek maliyet sıfır). `db:verify` kapsamını artık kapı saymıyor — kullanılmayan bir alanın yayını durdurması yanlış olurdu.
+
+##### Yol üstünde bulunan kusur: düşük kesinlikli doğum tarihi
+
+Doğum yılını kapıya bağlarken ölçüldü: **30 oyuncunun** tarihi akla yatkın aralığın dışında ve 20'den fazlası tam olarak `1801-01-01`, biri `2100-01-01`. Bunlar gerçek tarih değil — Wikidata yüzyıl kesinlikli tarihleri de veriyor ve ETL onları tam tarihmiş gibi yazıyor.
+
+**Bugün oyunu etkilemiyor ve bu ölçüldü:** hiçbiri havuza girmiyor, çünkü havuz 100+ maç ve 2+ kulüp istiyor; bu kayıtların neredeyse tamamı 0 maçlık. Havuzun en eski gerçek doğum yılı 1861 (`db:verify` kapısı: akla yatkın olmayan doğum yılı **0**).
+
+**Onarım ertelendi, sebebi maliyet:** kesinliği okumak `playerDetails` sorgusunu değiştirmek demek, yani tam bir ETL koşusu. Kusur şu an görünmez ve kapı onu havuza girdiği gün yakalar. Kapsam genişlemesiyle birlikte tekrar bakılır.
 
 **İki istatistik istendi ama YOK ve eklenemez.** Kayda geçiyor ki tekrar sorulmasın:
 
@@ -3119,7 +3163,7 @@ kullanıcının kendisine ait.
 
 - **BR-14 — Millî maç tek takımdan.** Bir oyuncunun millî maç sayısı, **tek bir millî takım için** yaptığı en çok maçtır. Toplama, U-21 kayıtlarını ve FIFA dışı takımları da katıp yanlış sonuç verir (yukarıda ölçüldü).
 - **BR-15 — Günün oyuncusu tam veri ister.** Seçilebilmesi için altı istatistiğin **hepsi** dolu olmalıdır. Eksik veriyle soru sorulmaz; "bilinmiyor" bir cevap değildir.
-- **BR-16 — Cevap havuzu istatistik başınadır.** Kullanıcının bir istatistik için seçebileceği oyuncular, **o istatistiği dolu olanlardır**. Altı istatistiğin kesişimiyle sınırlamak havuzu gereksiz daraltırdı; kullanıcı gol sorusunda kilosu bilinmeyen birini seçebilmelidir.
+- **BR-16 — Cevap havuzu istatistik başınadır.** Kullanıcının bir istatistik için seçebileceği oyuncular, **o istatistiği dolu olanlardır**. Altı istatistiğin kesişimiyle sınırlamak havuzu gereksiz daraltırdı; kullanıcı gol sorusunda boyu bilinmeyen birini seçebilmelidir.
 - **BR-17 — Bir oyuncu bir kez.** Aynı oyuncu birden çok istatistikte kullanılamaz; kullanıcı **her istatistik için ayrı** bir isim verir.
 - **BR-18 — Puan yayılıma göre.** Bir seçimin puanı
   `100 × max(0, 1 − |seçilen − hedef| / (2 × sd))`
@@ -3240,14 +3284,14 @@ Kullanıcı §9.2'nin altı istatistiğinden **birini** ve bir **yön** seçer (
 
 Havuz BR-15'in tanınırlık ölçütüyle kurulur (küratörlü kulüplerde 100+ maç, 2+ kulüp) ama §9.2'nin aksine **altı istatistiğin hepsi aranmaz** — yalnızca karşılaştırılan istatistik gerekir. Ölçüldü (2026-08-08, **6.464 tanınır oyuncu**):
 
-| İstatistik   | Havuz | Kapsam | min | medyan | max |
-| ------------ | ----: | -----: | --: | -----: | --: |
-| Kulüp maçı   | 6.464 |   %100 | 100 |    305 | 962 |
-| Kulüp golü   | 6.458 |   %100 |   0 |     26 | 600 |
-| Kulüp sayısı | 6.464 |   %100 |   2 |      5 |  17 |
-| A millî maç  | 3.578 |    %55 |   0 |     18 | 233 |
-| Boy          | 4.369 |    %68 | 157 |    180 | 203 |
-| Kilo         | 3.333 |    %52 |  50 |     75 | 117 |
+| İstatistik   | Havuz | Kapsam |  min | medyan |  max |
+| ------------ | ----: | -----: | ---: | -----: | ---: |
+| Kulüp maçı   | 6.464 |   %100 |  100 |    305 |  962 |
+| Kulüp golü   | 6.458 |   %100 |    0 |     26 |  600 |
+| Kulüp sayısı | 6.464 |   %100 |    2 |      5 |   17 |
+| A millî maç  | 3.578 |    %55 |    0 |     18 |  233 |
+| Boy          | 4.369 |    %68 |  157 |    180 |  203 |
+| Doğum yılı   | 6.461 |  %99,9 | 1861 |   1970 | 2005 |
 
 Eksik istatistik oyunu durdurmaz, yalnızca o istatistiğin havuzunu daraltır — §9.2'deki BR-16'nın aynı davranışı. Hiçbir istatistikte "rakip bulunamadı" durumu ölçülmedi (%0,00).
 
@@ -3277,9 +3321,21 @@ Diğer üç istatistikte de aynı: hep kalanı seçen %9,5–13,7 oranında 10+ 
 | Kulüp sayısı | **hep kalanı** |      0 |   2 |   6 | **%0,1** |         %29,0 |
 | A millî maç  | **hep kalanı** |      0 |   2 |   6 | **%0,1** |         %19,2 |
 | Boy          | **hep kalanı** |      1 |   3 |   6 | **%0,2** |         %23,2 |
-| Kilo         | **hep kalanı** |      0 |   3 |   6 | **%0,1** |          %6,5 |
+| Doğum yılı   | **hep kalanı** |      0 |   3 |   6 | **%0,1** |          %1,0 |
 
 Bilgisiz strateji artık yazı turayla **birebir aynı** (p90 = 3, p99 = 6). "Tek yanlı tur", kalan oyuncu uca yaklaştığı için bir tarafın boş kaldığı turların oranıdır; oyun o turda yine kurulur (tek taraftan çekilir) ve ölçüm gösteriyor ki %29'a varan tek yanlılık bile sömürüyü geri getirmiyor.
+
+> **Doğum yılı satırı NASIL elde edildi — beş satırdan farklı.** İlk beş satır
+> 2026-08-08'de 20.000 koşuluk benzetimle ölçüldü. Doğum yılı 13 Ağustos'ta
+> eklendi ve o benzetim TEKRARLANMADI; satırdaki **tek yanlı tur %1,0**
+> ölçümdür (`npm run stats:measure`), seri sütunları ise **türetilmiştir**.
+> Türetme meşru çünkü kapanışın mekanizması istatistikten bağımsız: BR-30
+> rakibin hangi taraftan çekileceğine **yazı turayla** karar veriyor, yani
+> "hep kalanı seç" tanım gereği yazı turadır ve p90 = 3, p99 = 6,
+> P(≥10) = 2⁻¹⁰ ≈ %0,1 doğrudan buradan çıkar. İlk beş satırın hepsinin aynı
+> değerleri taşıması da bunun kanıtı. Dağılıma bağlı olan tek sütun tek
+> yanlılıktır ve o ölçüldü: doğum yılı **%1,0** ile kulüp sayısının
+> **%27,6**'sının çok altında, yani en güvenli eksenlerden biri.
 
 #### Ölçüm: beraberlik gerçek bir sorun
 
@@ -3292,7 +3348,7 @@ Aynı değere sahip iki oyuncuda "doğru cevap" diye bir şey yoktur. Ölçüld�
 | Kulüp sayısı | **%14,1** |           **%40,2** |    2 |
 | A millî maç  |      %2,5 |               %15,6 |    5 |
 | Boy          |      %4,9 |               %21,3 |    3 |
-| Kilo         |      %4,6 |               %21,7 |    3 |
+| Doğum yılı   |      %1,2 |               %10,7 |    5 |
 
 **Kulüp sayısı en kaba eksen** ve öyle kalıyor: yalnızca 16 farklı değer taşıdığı için rastgele iki oyuncunun %14,1'i berabere ve 2'lik band çiftlerin %40,2'sini eliyor. Listeden çıkarılmadı çünkü band uygulandığında oynanabilir (yukarıdaki tabloda sömürü kapalı); ama en dar havuz odur ve zorluk ayarı yapılacaksa ilk oraya bakılır.
 
@@ -3347,7 +3403,7 @@ Kurulum ekranı sekiz radyo düğmesi ve bir "Başla"dan ibaretti. Asıl kusuru 
 
 **Yön düğmeleri kısaldı, adları kısalmadı.** Cümlenin tamamı önizlemede durduğu için düğmede ikinci kez basmak seçimi bir cümle yığınına çeviriyordu ("daha çok kulüp maçı yaptı" / "daha az kulüp maçı yaptı" yan yana). Görünen metin artık "daha çok" / "daha az"; **erişilebilir ad tam cümle kaldı** — §7.17'deki gezinme kararının aynısı ve WCAG 2.5.3 kısa biçim tam cümlenin içinde geçtiği için sağlanıyor. Bir test bunu tutuyor.
 
-**İstatistikler iki öbeğe ayrıldı ve ayrım uydurma değil: `scoped`.** Kulüp maçı, gol ve kulüp sayısı §1.3'ün yirmi dört ligini sayar; millî maç, boy ve kilo oyuncunun kendi kaydından gelir. Bu fark oyuna doğrudan etki ediyor ve bugüne dek yalnızca **tur** ekranında, seçim yapıldıktan **sonra** söyleniyordu. Öbek başlığına taşındığında kullanıcı onu seçerken okuyor. Öbek üyeliği elle listelenmiyor, `scoped` alanından türetiliyor — yeni bir istatistik iki yerde birden güncelleme gerektirmesin diye.
+**İstatistikler iki öbeğe ayrıldı ve ayrım uydurma değil: `scoped`.** Kulüp maçı, gol ve kulüp sayısı §1.3'ün yirmi dört ligini sayar; millî maç, boy ve doğum yılı oyuncunun kendi kaydından gelir. Bu fark oyuna doğrudan etki ediyor ve bugüne dek yalnızca **tur** ekranında, seçim yapıldıktan **sonra** söyleniyordu. Öbek başlığına taşındığında kullanıcı onu seçerken okuyor. Öbek üyeliği elle listelenmiyor, `scoped` alanından türetiliyor — yeni bir istatistik iki yerde birden güncelleme gerektirmesin diye.
 
 **Her kart artık BR-29'un bandını taşıyor** ("en az 25 maç fark"). Bu, oyunun zorluğunu ayarlayan **tek** sayıdır ve arayüzün hiçbir yerinde görünmüyordu: kullanıcı "kulüp sayısı" ile "kulüp maçı"nın neden bambaşka zorlukta olduğunu bilemiyordu. Sayı `MIN_GAP`'ten okunuyor, arayüze kopyalanmadı; metin **erişilebilir adın parçası** — gizlenseydi ekran okuyucu kullanıcısı bu farkı hiç öğrenemezdi.
 
@@ -3360,7 +3416,7 @@ Kurulum ekranı sekiz radyo düğmesi ve bir "Başla"dan ibaretti. Asıl kusuru 
 #### Kurallar
 
 - **BR-28 — Zincir: kazanan kalır.** Doğru cevapta **seçilen** oyuncu bir sonraki tura geçer ve karşısına yeni bir rakip gelir; her turda yalnızca bir oyuncu değişir. Yanlış cevapta koşu biter, skor doğru cevap sayısıdır. Koşu boyunca aynı oyuncu ikinci kez rakip olarak sunulmaz.
-- **BR-29 — Ayırt edilebilirlik bandı.** Bir çift, ancak iki değer arasında istatistiğe özgü asgari fark varsa kurulur (kulüp maçı 25, kulüp golü 5, kulüp sayısı 2, millî maç 5, boy 3, kilo 3). Beraberlik ve kıl payı farklar ölçüldü (yukarıda); bandsız oyun bilgi değil kura sorardı — BR-9'un oynanabilirlik bandıyla aynı gerekçe.
+- **BR-29 — Ayırt edilebilirlik bandı.** Bir çift, ancak iki değer arasında istatistiğe özgü asgari fark varsa kurulur (kulüp maçı 25, kulüp golü 5, kulüp sayısı 2, millî maç 5, boy 3, doğum yılı 5). Beraberlik ve kıl payı farklar ölçüldü (yukarıda); bandsız oyun bilgi değil kura sorardı — BR-9'un oynanabilirlik bandıyla aynı gerekçe.
 - **BR-30 — Dengeli rakip.** Yeni rakip, kalan oyuncunun değerine göre **yazı turayla** ya büyük ya küçük taraftan çekilir. Bir taraf boşsa diğerinden çekilir ve tur yine kurulur. Rastgele çekim ölçülerek elendi: bilgisiz "hep kalanı seç" stratejisi %9,5–13,7 oranında 10+ seri yapıyordu, dengeli çekimde %0,1.
 - **BR-31 — Tanınırlık havuzu.** Havuz BR-15'in tanınırlık ölçütünü kullanır (küratörlü kulüplerde 100+ maç, 2+ kulüp) ama yalnızca **karşılaştırılan** istatistiğin dolu olmasını ister. Altısını birden aramak havuzu 6.464'ten 1.927'ye düşürürdü ve bunun oyuna hiçbir katkısı yok: sorulmayan istatistiğin dolu olması gerekmiyor.
 - **BR-32 — Değerler cevaptan ÖNCE istemciye gitmez.** Tur yanıtı yalnızca iki oyuncunun kimliğini ve adını taşır; sayılar cevap gönderildikten sonra dönen yanıtta açılır. BR-12 ve BR-20 ile aynı kural — değerler baştan gönderilseydi oyun tarayıcı konsolunda çözülürdü.

@@ -66,7 +66,7 @@ describe("kurulum ekranı", () => {
       /Oynadığı kulüp/u,
       /A millî maç/u,
       /Boy/u,
-      /Kilo/u,
+      /Doğum yılı/u,
     ]) {
       expect(screen.getByRole("radio", { name })).toBeInTheDocument();
     }

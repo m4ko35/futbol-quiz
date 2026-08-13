@@ -27,6 +27,7 @@
     "db:verify": "tsx scripts/etl/verify-data.ts",
     "db:crests": "tsx scripts/etl/crests.ts",
     "db:crest-audit": "tsx scripts/etl/crest-audit.ts",
+    "stats:measure": "tsx scripts/measure-stats.ts",
     "bench": "tsx scripts/benchmark.ts",
     "dataset:fetch": "tsx scripts/fetch-dataset.ts",
     "vercel-build": "npm run dataset:fetch && prisma generate && next build"

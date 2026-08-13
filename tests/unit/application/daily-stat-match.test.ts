@@ -23,7 +23,7 @@ function aStatPlayer(
       clubs: 3,
       nationalCaps: 30,
       heightCm: 180,
-      weightKg: 75,
+      birthYear: 1990,
       ...overrides,
     },
   };

@@ -43,7 +43,7 @@ const DAILY_STATS: DailyStatMatchDto = {
     { key: "clubs", label: "Oynadığı kulüp", value: 3, scoped: true },
     { key: "nationalCaps", label: "A millî maç", value: 45, scoped: false },
     { key: "heightCm", label: "Boy (cm)", value: 188, scoped: false },
-    { key: "weightKg", label: "Kilo (kg)", value: 86, scoped: false },
+    { key: "birthYear", label: "Doğum yılı", value: 1969, scoped: false },
   ],
 };
 

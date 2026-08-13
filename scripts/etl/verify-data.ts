@@ -413,7 +413,16 @@ async function verifyGridPool(): Promise<void> {
  *  3. ADAY HAVUZU. BR-15 altı istatistiğin de dolu olmasını ister. Havuz
  *     365'in altına düşerse yıl dolmadan oyuncular tekrar etmeye başlar.
  */
-const MIN_STAT_COVERAGE = { caps: 0.14, height: 0.26, weight: 0.16 } as const;
+/**
+ * Alt sınırlar ölçülen kapsamın ALTINA konur: kapı gerilemeyi yakalamalı,
+ * normal dalgalanmada ötmemeli. Ölçüm (2026-08-13, 132.263 oyuncu):
+ * millî maç %17,4 · boy %34,9 · doğum tarihi **%98,7**.
+ *
+ * `weight` kaldırıldı çünkü kilo artık bir oyun istatistiği değil (§9.2);
+ * sütun veride duruyor ama hiçbir moda girmiyor, dolayısıyla kapsamı
+ * yayını durdurmamalı.
+ */
+const MIN_STAT_COVERAGE = { caps: 0.14, height: 0.26, birth: 0.9 } as const;
 const MIN_DAILY_CANDIDATES = 365;
 
 /**
@@ -484,11 +493,11 @@ async function verifySpellTallies(): Promise<void> {
 async function verifyPlayerStats(): Promise<void> {
   console.log("\n=== Oyuncu istatistikleri (§9.2) ===");
 
-  const [total, caps, height, weight] = await Promise.all([
+  const [total, caps, height, born] = await Promise.all([
     prisma.player.count(),
     prisma.player.count({ where: { nationalCaps: { not: null } } }),
     prisma.player.count({ where: { heightCm: { not: null } } }),
-    prisma.player.count({ where: { weightKg: { not: null } } }),
+    prisma.player.count({ where: { birthDate: { not: null } } }),
   ]);
 
   if (total === 0) {
@@ -501,24 +510,21 @@ async function verifyPlayerStats(): Promise<void> {
 
   check(
     ratio(caps) >= MIN_STAT_COVERAGE.caps,
-    `millî maç ${caps}/${total} = ${pct(caps)} (alt sınır %${String(MIN_STAT_COVERAGE.caps * 100)})`,
+    `millî maç ${caps}/${total} = ${pct(caps)} (alt sınır %${(MIN_STAT_COVERAGE.caps * 100).toFixed(0)})`,
   );
   check(
     ratio(height) >= MIN_STAT_COVERAGE.height,
-    `boy ${height}/${total} = ${pct(height)} (alt sınır %${String(MIN_STAT_COVERAGE.height * 100)})`,
+    `boy ${height}/${total} = ${pct(height)} (alt sınır %${(MIN_STAT_COVERAGE.height * 100).toFixed(0)})`,
   );
   check(
-    ratio(weight) >= MIN_STAT_COVERAGE.weight,
-    `kilo ${weight}/${total} = ${pct(weight)} (alt sınır %${String(MIN_STAT_COVERAGE.weight * 100)})`,
+    ratio(born) >= MIN_STAT_COVERAGE.birth,
+    `doğum tarihi ${born}/${total} = ${pct(born)} (alt sınır %${(MIN_STAT_COVERAGE.birth * 100).toFixed(0)})`,
   );
 
   // Aralık dışı değer "bilinmiyor"dan kötüdür: 2 cm boyunda futbolcu.
-  const [badHeight, badWeight, badCaps] = await Promise.all([
+  const [badHeight, badCaps] = await Promise.all([
     prisma.player.count({
       where: { OR: [{ heightCm: { lt: 140 } }, { heightCm: { gt: 220 } }] },
-    }),
-    prisma.player.count({
-      where: { OR: [{ weightKg: { lt: 40 } }, { weightKg: { gt: 140 } }] },
     }),
     // Kimse 400'den fazla A millî maç yapmadı; aşan değer BR-14'ün
     // bozulduğunu (toplama geri döndüğünü) gösterir.
@@ -526,8 +532,32 @@ async function verifyPlayerStats(): Promise<void> {
   ]);
 
   check(badHeight === 0, `aralık dışı boy: ${badHeight}`);
-  check(badWeight === 0, `aralık dışı kilo: ${badWeight}`);
   check(badCaps === 0, `400'den fazla millî maç: ${badCaps}`);
+
+  /**
+   * DÜŞÜK KESİNLİKLİ DOĞUM TARİHİ — bilinen kusur, KAPI DEĞİL sayaç.
+   *
+   * Wikidata yüzyıl kesinlikli tarihleri de veriyor ve ETL onları tam tarih
+   * gibi yazıyor: ölçüldü, **30 oyuncu** aralık dışında ve 20'den fazlası
+   * tam olarak `1801-01-01`, biri `2100-01-01`. Bunlar gerçek tarih değil,
+   * kesinlik artefaktı.
+   *
+   * NEDEN YAYINI DURDURMUYOR: hiçbiri oyun havuzuna girmiyor — havuz 100+
+   * maç ve 2+ kulüp istiyor, bu kayıtların neredeyse tamamı 0 maçlık. Asıl
+   * kapı aşağıda, aday havuzunun kendisinde (`verifyDailyCandidates`).
+   * Buradaki sayı, kusurun BÜYÜMESİNİ görünür tutmak için basılıyor.
+   */
+  const lowPrecision = await prisma.player.count({
+    where: {
+      OR: [
+        { birthDate: { lt: new Date("1850-01-01T00:00:00Z") } },
+        { birthDate: { gt: new Date("2020-01-01T00:00:00Z") } },
+      ],
+    },
+  });
+  console.log(
+    `  ℹ düşük kesinlikli doğum tarihi: ${lowPrecision} (havuz dışı, §9.2)`,
+  );
 }
 
 async function verifyDailyCandidates(): Promise<void> {
@@ -540,6 +570,26 @@ async function verifyDailyCandidates(): Promise<void> {
     candidates.length >= MIN_DAILY_CANDIDATES,
     `altı istatistiği de dolu aday: ${candidates.length} ` +
       `(alt sınır ${MIN_DAILY_CANDIDATES} = bir yıl)`,
+  );
+
+  /**
+   * ASIL DOĞUM YILI KAPISI BURADADIR, tüm oyuncularda değil.
+   *
+   * Wikidata yüzyıl kesinlikli tarihleri tam tarih gibi veriyor (`1801-01-01`,
+   * `2100-01-01`). Bugün bunların hiçbiri havuza girmiyor çünkü havuz 100+ maç
+   * istiyor; ama kapsam genişledikçe girebilirler ve o gün oyun "hangisi daha
+   * yaşlı?" sorusunu 1801 doğumlu bir oyuncuyla sorardı. Kapı, o günü
+   * kullanıcıdan önce görmek için var.
+   */
+  const implausible = candidates.filter(
+    (c) => c.stats.birthYear < 1850 || c.stats.birthYear > 2020,
+  );
+  check(
+    implausible.length === 0,
+    `akla yatkın olmayan doğum yılı: ${implausible.length}` +
+      (implausible.length === 0
+        ? ""
+        : ` (ör. ${implausible[0]?.name ?? "?"} → ${String(implausible[0]?.stats.birthYear)})`),
   );
 
   // Sıra KARARLI olmalı: günün seçimi bu listeye tohumla indekslenir ve
@@ -556,7 +606,7 @@ async function verifyDailyCandidates(): Promise<void> {
  *
  * NEDEN AYRI BİR KAPI. BR-15'in havuzu altı istatistiğin de dolu olmasını
  * ister; buradaki havuz yalnızca SORULANI ister, yani istatistik başına ayrı
- * ayrı dolabilir ya da boşalabilir. Millî maç, boy ve kilo kapsamı §9.2'de
+ * ayrı dolabilir ya da boşalabilir. Millî maç, boy ve doğum yılı kapsamı §9.2'de
  * zaten ölçülüyor ama o ölçüm TÜM oyuncular üzerinden; bu havuz tanınırlık
  * süzgecinden geçenleri sayar ve ikisi aynı şey değil.
  *

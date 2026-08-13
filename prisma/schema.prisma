@@ -120,10 +120,19 @@ model Player {
   /// Sekiz bilinen oyuncuda: toplama 4/8, en büyük 7/8.
   nationalCaps Int?
 
-  /// Boy (cm) ve kilo (kg) — Wikidata P2048 / P2067.
-  /// Ölçülen kapsam: boy %69, kilo %49. Eksikliği normaldir; §9.2'nin
-  /// BR-16'sı gereği o istatistiğin cevap havuzunu daraltır, oyunu durdurmaz.
+  /// Boy (cm) — Wikidata `P2048`. Eksikliği normaldir; §9.2'nin BR-16'sı
+  /// gereği o istatistiğin cevap havuzunu daraltır, oyunu durdurmaz.
   heightCm Int?
+
+  /// Kilo (kg) — `P2067`. **ARTIK BİR OYUN İSTATİSTİĞİ DEĞİL** (§9.2,
+  /// 13 Ağustos 2026): kapsamı %52'de tavan yapıyordu ve tavan veri
+  /// kaynağındaydı — eksik 3.131 oyuncunun Wikidata'da 1'inde, Vikipedi
+  /// bilgi kutusunda 0'ında kilo vardı. Yerine doğum yılı kondu.
+  ///
+  /// SÜTUN NEDEN DURUYOR: düşürmek bir şema göçü ARTI tam bir ETL koşusu
+  /// isterdi ve karşılığında hiçbir şey kazandırmazdı — veri `playerPhysical`
+  /// sorgusunda boyla AYNI istekte geliyor, yani toplamaya ek maliyeti sıfır.
+  /// Uygulama okumuyor; `db:verify` de kapsamını artık kapı saymıyor.
   weightKg Int?
 
   /// Arama sıralama ağırlığı — PROJECT.md §6.1, BR-21.

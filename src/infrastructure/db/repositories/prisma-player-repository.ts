@@ -419,7 +419,7 @@ function scoreableWhere(key: StatKey | undefined): Prisma.PlayerWhereInput {
 
   if (key === "nationalCaps") return { nationalCaps: { not: null } };
   if (key === "heightCm") return { heightCm: { not: null } };
-  if (key === "weightKg") return { weightKg: { not: null } };
+  if (key === "birthYear") return { birthDate: { not: null } };
 
   // Kapsamdaki profesyonel dönemler — hem varlık hem eksiklik koşulunun
   // tabanı. Kulüp kısıtı YOK: değerler artık tüm kapsamı sayıyor.
@@ -469,7 +469,7 @@ function targetableWhere(
   return {
     nationalCaps: { not: null },
     heightCm: { not: null },
-    weightKg: { not: null },
+    birthDate: { not: null },
     careerAppearances: { gte: MIN_TARGET_APPEARANCES },
     spells: {
       none: {
