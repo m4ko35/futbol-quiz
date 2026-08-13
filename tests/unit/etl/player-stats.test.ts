@@ -128,9 +128,45 @@ describe("physicalFrom — akla yatkın aralık", () => {
    * bir futbolcu gösterilir (§2.7).
    */
   it("aralık dışı değeri null yapar", () => {
-    expect(physicalFrom([row("Q1", 2, 92)]).get("Q1")?.heightCm).toBeNull();
+    // 2,5 m = 250 cm, tavanın (220) üstünde. Eskiden burada "2" yazıyordu ve
+    // testin kendisi KUSURU SABİTLİYORDU: 2 metre akla yatkın bir boydur.
+    expect(physicalFrom([row("Q1", 2.5, 92)]).get("Q1")?.heightCm).toBeNull();
     expect(physicalFrom([row("Q2", 192, 3)]).get("Q2")?.weightKg).toBeNull();
     expect(physicalFrom([row("Q3", 500, 92)]).get("Q3")?.heightCm).toBeNull();
+  });
+
+  /**
+   * ÖLÇÜLEN KUSUR: `parseInt("1.82", 10)` → 1 → aralık dışı → null.
+   *
+   * Metreyle girilmiş HER boy sessizce çöpe gidiyordu; ölçüm bizde boş olup
+   * Wikidata'da değeri olan oyuncuların %100'ünün metre olduğunu gösterdi
+   * (900 oyunculuk örneklem, 1,57–1,95). Tanınırlık havuzunda 334 oyuncu.
+   */
+  it("METREYLE girilmiş boyu santimetreye çevirir", () => {
+    expect(physicalFrom([row("Q1", 1.82)]).get("Q1")?.heightCm).toBe(182);
+    expect(physicalFrom([row("Q2", 1.8)]).get("Q2")?.heightCm).toBe(180);
+    // Ölçülen uçlar: en kısa 1,57 · en uzun 1,95.
+    expect(physicalFrom([row("Q3", 1.57)]).get("Q3")?.heightCm).toBe(157);
+    expect(physicalFrom([row("Q4", 1.95)]).get("Q4")?.heightCm).toBe(195);
+  });
+
+  it("yuvarlama en yakına yapılır, kırpma DEĞİL", () => {
+    // parseInt'in kırpması 1,785 m'yi 178'e indirirdi; doğrusu 179.
+    expect(physicalFrom([row("Q1", 1.785)]).get("Q1")?.heightCm).toBe(179);
+  });
+
+  it("santimetre değerleri olduğu gibi geçer", () => {
+    // Ayrımın diğer yarısı: 3'ün üstündeki her değer santimetredir. Ölçülen
+    // uçlar 163–201; ikisi de dokunulmadan geçmeli.
+    expect(physicalFrom([row("Q1", 163)]).get("Q1")?.heightCm).toBe(163);
+    expect(physicalFrom([row("Q2", 201)]).get("Q2")?.heightCm).toBe(201);
+  });
+
+  it("BELİRSİZ bölgedeki değer null olur", () => {
+    // 3–100 arası hiçbir birimde anlamlı değil ve ölçümde de hiç çıkmadı;
+    // metre sayılsa 500 cm, cm sayılsa 5 cm olurdu. İkisi de yanlış (§2.7).
+    expect(physicalFrom([row("Q1", 5)]).get("Q1")?.heightCm).toBeNull();
+    expect(physicalFrom([row("Q2", 50)]).get("Q2")?.heightCm).toBeNull();
   });
 
   it("eksik alanı null yapar", () => {

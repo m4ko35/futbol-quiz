@@ -557,6 +557,49 @@ export function nationalTeamCountriesFrom(
 const HEIGHT_RANGE = { min: 140, max: 220 } as const;
 const WEIGHT_RANGE = { min: 40, max: 140 } as const;
 
+/**
+ * Bu değerin ALTINDAKİ her ölçü metredir.
+ *
+ * 3 cm'lik futbolcu da yok, 3 m'lik futbolcu da; aradaki bölge boş olduğu için
+ * birim büyüklükten okunabiliyor. Ölçüm bunu doğruladı: 3–100 arasında TEK BİR
+ * DEĞER ÇIKMADI.
+ */
+const METRE_CEILING = 3;
+
+/**
+ * Boy (cm) — HAM DEĞER METRE DE OLABİLİR SANTİMETRE DE.
+ *
+ * ÖLÇÜLEN KUSUR (13 Ağustos 2026). `wdt:P2048` birim niteleyicisi taşımaz;
+ * sorgu yalnızca sayıyı getirir ve o sayı Wikidata'ya iki birimden biriyle
+ * girilmiş olabilir. Eski kod `Number.parseInt` kullanıyordu:
+ *
+ *     parseInt("1.82", 10)  →  1  →  aralık dışı  →  null
+ *
+ * Yani METRE İLE GİRİLMİŞ HER BOY SESSİZCE ÇÖPE GİDİYORDU. Sessizce, çünkü
+ * sonuç "bilinmiyor"dan ayırt edilemiyordu ve `db:verify`'ın kapsam kapısı
+ * yalnızca bir ALT SINIR ölçüyor — kayıp, kapının geçtiği yerde duruyordu.
+ *
+ * Ölçüldü (900 oyuncu, canlı SPARQL):
+ *
+ *     bizde BOŞ olup Wikidata'da değeri olanların  %100'ü metre  (1,57–1,95)
+ *     bizde DOLU olanların                         %100'ü cm     (163–201)
+ *
+ * Tanınırlık havuzunda 334 oyuncunun boyu bu yolla geri geliyor (§9.2).
+ *
+ * DÜZELTME BİR ETL KOŞUSUNDAN SONRA ETKİLİ OLUR: veritabanındaki mevcut
+ * `null`'lar kendiliğinden dolmaz.
+ */
+function heightCmFrom(binding: SparqlBinding): number | null {
+  const raw = str(binding, "height");
+  if (raw === undefined) return null;
+
+  const value = Number(raw);
+  if (!Number.isFinite(value)) return null;
+
+  const cm = value < METRE_CEILING ? value * 100 : value;
+  return inRange(Math.round(cm), HEIGHT_RANGE);
+}
+
 export function physicalFrom(
   bindings: readonly SparqlBinding[],
 ): Map<string, { heightCm: number | null; weightKg: number | null }> {
@@ -570,7 +613,10 @@ export function physicalFrom(
     if (player === undefined) continue;
 
     result.set(player, {
-      heightCm: inRange(int(binding, "height"), HEIGHT_RANGE),
+      heightCm: heightCmFrom(binding),
+      // KİLODA AYNI HİLE YAPILAMAZ: kilogram (40–140) ile libre (88–308)
+      // aralıkları ÖRTÜŞÜYOR, yani birim büyüklükten okunamıyor. Kilo zaten
+      // bir oyun istatistiği değil (§9.2), ondalık kırpılmasının bedeli sıfır.
       weightKg: inRange(int(binding, "mass"), WEIGHT_RANGE),
     });
   }

@@ -2925,7 +2925,7 @@ Soru "bu oyuncuyu tanıyor musun" değil, **"başka oyuncuların büyüklükleri
 | Kulüp golü     | `Spell.goals` toplamı       | %61        | Yalnızca §1.3 kapsamındaki ligler          |
 | Oynadığı kulüp | türetilir                   | %100       | Yalnızca §1.3 kapsamındaki ligler          |
 | A millî maç    | `P54` + `P1350`             | %73        | Kural aşağıda — toplam DEĞİL               |
-| Boy            | `P2048`                     | %69        |                                            |
+| Boy            | `P2048`                     | %69        | Metre/cm ayrımı — kusur ve onarımı aşağıda |
 | **Doğum yılı** | `Player.birthDate` yılı     | **%99,95** | **Kilonun yerine geçti** — gerekçe aşağıda |
 
 <sub>¹ Bu yüzdeler ilk ölçümündür (2026-07-31, çok daha küçük bir oyuncu evreni). İşleyen sayılar §9.3'ün tanınırlık havuzu tablosudur; oyunun havuzunu o belirler, bu sütun değil.</sub>
@@ -2966,6 +2966,29 @@ Doğum yılını kapıya bağlarken ölçüldü: **30 oyuncunun** tarihi akla ya
 **Bugün oyunu etkilemiyor ve bu ölçüldü:** hiçbiri havuza girmiyor, çünkü havuz 100+ maç ve 2+ kulüp istiyor; bu kayıtların neredeyse tamamı 0 maçlık. Havuzun en eski gerçek doğum yılı 1861 (`db:verify` kapısı: akla yatkın olmayan doğum yılı **0**).
 
 **Onarım ertelendi, sebebi maliyet:** kesinliği okumak `playerDetails` sorgusunu değiştirmek demek, yani tam bir ETL koşusu. Kusur şu an görünmez ve kapı onu havuza girdiği gün yakalar. Kapsam genişlemesiyle birlikte tekrar bakılır.
+
+##### Sessiz veri kaybı: metreyle girilmiş boylar (13 Ağustos 2026)
+
+`wdt:P2048` **birim niteleyicisi taşımaz** — sorgu yalnızca sayıyı getirir ve o sayı Wikidata'ya iki birimden biriyle girilmiş olabilir. Ayrıştırıcı `Number.parseInt` kullanıyordu:
+
+```
+parseInt("1.82", 10)  →  1  →  akla yatkın aralık dışı  →  null
+```
+
+Yani **metreyle girilmiş her boy sessizce çöpe gidiyordu.** Ölçüldü (900 oyunculuk örneklem, canlı SPARQL):
+
+| Küme                                          | Ham değer birimi | Aralık    |
+| --------------------------------------------- | ---------------- | --------- |
+| Bizde **boş** olup Wikidata'da değeri olanlar | **%100 metre**   | 1,57–1,95 |
+| Bizde **dolu** olanlar                        | **%100 cm**      | 163–201   |
+
+Belirsiz bölgede (3–100) **tek bir değer yok**, yani birim büyüklükten güvenle okunabiliyor: 3 cm'lik futbolcu da yok, 3 m'lik futbolcu da. Düzeltme bu ayrımı kullanıyor — ondalık okunur, 3'ün altındaki değer 100 ile çarpılır, sonra aynı akla yatkınlık aralığı uygulanır.
+
+**Neden bu kadar uzun görünmedi.** Kayıp, "bilinmiyor"dan ayırt edilemiyordu: sonuç iki durumda da `null`. `db:verify`'ın kapsam kapısı ise bir **alt sınır** ölçüyor (%26) ve gerçek kapsam %69 olduğu için kapı rahatça geçiyordu. Bir kapının geçmesi, ölçtüğü şeyin doğru olduğunu göstermez — yalnızca eşiğin üstünde olduğunu.
+
+**Etkisi bir ETL koşusundan sonra görünür.** Veritabanındaki mevcut `null`'lar kendiliğinden dolmaz. Beklenen kazanç tanınırlık havuzunda **334 oyuncu**, yani boy kapsamı %67,6'dan ~%72,8'e çıkmalı. Kesin sayı **20 Eylül 2026** tazelemesinden sonra ölçülecek ve `MIN_STAT_COVERAGE.height` kapısı o zaman yukarı çekilecek; bugün çekmek, henüz düzelmemiş veriye karşı kapıyı kırmak olurdu.
+
+**Kiloda aynı hile yapılamaz** ve bu da kayda geçiyor: kilogram (40–140) ile libre (88–308) aralıkları örtüşüyor, yani birim büyüklükten okunamaz. Kilo zaten bir oyun istatistiği değil (yukarıda), dolayısıyla ondalık kırpılmasının bedeli sıfır.
 
 **İki istatistik istendi ama YOK ve eklenemez.** Kayda geçiyor ki tekrar sorulmasın:
 
