@@ -1,4 +1,5 @@
 import { isPlausibleSeasonYear } from "../../../src/domain/value-objects/season";
+import type { Contradiction } from "./cross-check";
 import { MIN_SPELLS_FOR_SELECTABLE } from "../leagues";
 import type {
   NormalizedClub,
@@ -40,6 +41,14 @@ export interface SanitizeResult {
 
 /** Bu oranın üstünde ayıklama sistemik hataya işaret eder; yükleme durur. */
 const MAX_REJECT_RATIO = 0.01;
+
+/**
+ * Açık uçlu dönemin bitişi — `cross-check.ts` ile AYNI değer, aynı gerekçe.
+ *
+ * `null` bitiş "bilinmiyor VEYA hâlâ orada" demek; örtüşme sorusunda ikisi de
+ * kaydı AÇIK sayar.
+ */
+const OPEN_END = 9999;
 
 /** Uyarı listeleri log'u boğmasın diye kırpılır. */
 const MAX_REPORTED = 8;
@@ -111,6 +120,13 @@ export function validateDataset(input: {
    * hiç sorgulanmamış kulüpler boş görünüp yanlış uyarı üretir.
    */
   readonly fetchedClubIds: ReadonlySet<string>;
+  /**
+   * BR-42 — Vikipedi'nin çürüttüğü Wikidata dönemleri (`cross-check.ts`).
+   *
+   * Vikipedi katmanı atlandıysa (`--skip-wikipedia`) verilmez; o koşuda
+   * ikinci kaynak yoktur ve denetim susar.
+   */
+  readonly contradictions?: readonly Contradiction[];
 }): ValidationReport {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -148,8 +164,27 @@ export function validateDataset(input: {
     }
   }
 
-  // Aynı oyuncunun zaman olarak örtüşen iki kalıcı dönemi olamaz — ama
-  // Wikidata'da bu sık görülür (kiralık işaretlenmemiş transferler).
+  /*
+    Aynı oyuncunun zaman olarak örtüşen iki kalıcı dönemi olamaz — ama
+    Wikidata'da bu sık görülür (kiralık işaretlenmemiş transferler).
+
+    SÜREN DÖNEM DE SAYILIR (13 Ağustos 2026'da kapatılan boşluk). Eski kural
+    `prev.endYear === null` olduğunda ATLIYORDU; oysa süren iki dönem,
+    örtüşmenin en güçlü hâlidir. Ölçülen bedeli: Rafael Leão'nun vandalize
+    edilmiş kaydında Real Madrid ve Milan dönemlerinin İKİSİ de sürüyordu,
+    dolayısıyla bu uyarı hiç basılmadı ve kayıt üretime çıktı (BR-42).
+
+    AMA YALNIZCA `isCurrent` OLANLAR. Şema `null` bitişi iki anlamda kullanıyor
+    ve ayrımı bu bayrak yapıyor (§5.1): "hâlâ orada" ile "bitişi bilinmiyor".
+    İkincisini örtüşme saymak ölçüldü — bitişi bilinmeyen ikinci bir kalıcı
+    dönemi olan 3.588 oyuncu var ve çoğu eski, kaydı eksik oyuncular. Onları
+    da saymak uyarıyı okunmaz hâle getirirdi; bilinmeyen bitiş bir iddia
+    değildir (§2.7).
+
+    `cross-check.ts` bunun AKSİNİ yapıyor ve bu bilinçli: orada bitişi
+    bilinmeyen kayıt da açık sayılıyor, çünkü oradaki iddiayı tek başına
+    örtüşme değil İKİNCİ KAYNAK kuruyor — kanıt yükü zaten karşılanmış oluyor.
+  */
   const overlaps: string[] = [];
   for (const [playerId, spells] of permanentByPlayer) {
     if (spells.length < 2) continue;
@@ -161,11 +196,14 @@ export function validateDataset(input: {
       const prev = sorted[i - 1];
       const curr = sorted[i];
       if (prev === undefined || curr === undefined) continue;
-      if (prev.endYear === null || curr.startYear === null) continue;
+      if (curr.startYear === null) continue;
 
-      if (curr.startYear < prev.endYear) {
+      // Sınıra değmek örtüşme değildir; transfer yılı iki kayıtta da geçer.
+      const prevEnd = prev.endYear ?? (prev.isCurrent ? OPEN_END : null);
+      if (prevEnd === null) continue;
+      if (curr.startYear < prevEnd) {
         overlaps.push(
-          `${playerId}: ${prev.startYear}–${prev.endYear} ve ${curr.startYear}–${curr.endYear ?? "?"}`,
+          `${playerId}: ${prev.startYear}–${prev.endYear ?? "…"} ve ${curr.startYear}–${curr.endYear ?? "…"}`,
         );
       }
     }
@@ -205,6 +243,48 @@ export function validateDataset(input: {
     } else {
       warnings.push(line);
     }
+  }
+
+  /*
+    ─── Bloklayıcı denetim: çapraz kaynak çelişkisi (BR-42) ───────────────
+
+    KAPI KAPALI BAŞLAR. Ayıklama oranının aksine burada beklenen değer SIFIR:
+    iki bağımsız kaynağın aynı yıllar için farklı kulüp söylemesi normal bir
+    gürültü değil, birinin yanlış olmasıdır. Bir tanesi bile üretime çıkarsa
+    kullanıcı onu oyun içinde görür — nitekim öyle oldu (Real Madrid ∩ Milan
+    sorgusunda Rafael Leão).
+
+    ORAN DEĞİL SAYI: 78 bin dönemde tek bir vandalizm, oranı hiçbir eşiğin
+    üstüne çıkarmaz. Ayıklama oranı sistemik bozulmayı ölçer, bu kapı ise
+    HEDEFLİ bozulmayı; ikisinin eşiği aynı biçimde konulamaz.
+
+    KABUL EDİLEN RİSK, açıkça yazılıyor: eşik ÖLÇÜLMEDİ. Kural gerçek bir tam
+    koşuda hiç çalışmadı, çünkü çalıştırmak iki saatlik bir ETL koşusu ister.
+    İlk koşuda beklenenden çok çelişki çıkarsa doğru tepki eşiği sessizce
+    yükseltmek DEĞİL, listeye bakıp sebebi anlamaktır: her satır ifade
+    kimliğiyle basılıyor, tek tek Wikidata'da açılabilir.
+  */
+  const contradictions = input.contradictions ?? [];
+  if (contradictions.length > 0) {
+    const detay = contradictions
+      .slice(0, MAX_REPORTED)
+      .map(
+        (c) =>
+          `${c.playerWikidataId} → ${c.clubWikidataId} ` +
+          `(${c.startYear ?? "?"}–${c.endYear ?? "…"}, ${c.appearances ?? "?"} maç) ` +
+          `ama Vikipedi: ${c.wikipediaClubs.join("/")} [${c.spellId}]`,
+      )
+      .join("; ");
+    const more =
+      contradictions.length > MAX_REPORTED
+        ? ` … (+${contradictions.length - MAX_REPORTED})`
+        : "";
+
+    errors.push(
+      `${contradictions.length} dönemde Vikipedi ile Wikidata AYNI YILLAR için ` +
+        `farklı kulüp söylüyor (BR-42): ${detay}${more}. ` +
+        `Her biri elle incelenmeli — kaynaktaki kayıt düzeltilmeden yüklenmemeli.`,
+    );
   }
 
   pushIssue(warnings, beforeFounding, "dönem kulüp kuruluşundan önce");

@@ -26,6 +26,8 @@ import {
 import { int, qid, str, type SparqlBinding } from "../sources/wikidata/schemas";
 import { disambiguateShortNames } from "./club-labels";
 import { mergeDuplicateClubs } from "./merge-clubs";
+import { findContradictions } from "./cross-check";
+import type { Contradiction } from "./cross-check";
 import { mergeWikipediaSpells } from "./merge-wikipedia";
 import {
   applyPlayerStats,
@@ -52,6 +54,13 @@ export interface ExtractedDataset {
   readonly selectableClubIds: Set<string>;
   /** Dönemleri fiilen sorgulanan kulüpler (kısmi koşularda alt küme). */
   readonly fetchedClubIds: Set<string>;
+  /**
+   * BR-42 — Vikipedi'nin çürüttüğü Wikidata dönemleri.
+   *
+   * Vikipedi katmanı atlandıysa BOŞ kalır; o koşuda ikinci kaynak yoktur ve
+   * "çelişki yok" ile "sorulamadı" karıştırılmamalıdır.
+   */
+  readonly contradictions: Contradiction[];
 }
 
 export interface ExtractOptions {
@@ -461,6 +470,14 @@ export async function extractDataset(
   );
 
   let finalSpells = scopedSpells;
+  /**
+   * BR-42 — çapraz kaynak çelişkileri.
+   *
+   * Vikipedi katmanı atlanırsa BOŞ kalır ve bu bilinçli: ikinci kaynak
+   * okunmadığında "çelişki yok" demek, sorulmamış bir soruya cevap uydurmak
+   * olurdu (§2.7).
+   */
+  let contradictions: Contradiction[] = [];
 
   if (options.skipWikipedia === true) {
     console.log("\n[5/5] Vikipedi katmanı atlandı (--skip-wikipedia).");
@@ -547,6 +564,26 @@ export async function extractDataset(
     });
     finalSpells = merged.spells;
 
+    /*
+      BR-42 — çapraz kaynak denetimi.
+
+      BİRLEŞTİRMEDEN SONRA koşuyor ve bu sıra önemli: birleştirme, Vikipedi'nin
+      doğruladığı dönemleri zenginleştirir, yani buraya kalan uyuşmazlıklar
+      gerçekten uyuşmayanlardır. Önce koşsaydı, birleştirmenin kapatacağı
+      farkları çelişki diye sayardı.
+
+      Denetim SİLMEZ; kararı `validateDataset` verir (§4.3'ün 4. kuralı).
+    */
+    contradictions = findContradictions({
+      spells: finalSpells,
+      wikipedia: pass.spells,
+    });
+    console.log(
+      contradictions.length === 0
+        ? "      ✓ çapraz kaynak denetimi temiz (BR-42)"
+        : `      ✗ ${contradictions.length} dönemde Vikipedi ile Wikidata AYNI YILLAR için farklı kulüp söylüyor (BR-42)`,
+    );
+
     const s = merged.stats;
     console.log(
       `      +${s.added} yeni dönem · ${s.enriched} dönem zenginleşti · ` +
@@ -606,5 +643,6 @@ export async function extractDataset(
     spells: finalSpells,
     selectableClubIds,
     fetchedClubIds,
+    contradictions,
   };
 }

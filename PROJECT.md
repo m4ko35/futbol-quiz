@@ -1285,6 +1285,7 @@ Bunlar `domain/services/` içinde saf fonksiyon olarak yaşar ve birim testi ile
 - **BR-39 — Lig bayrağı ülke kodundan gelir, iki lig için İSTİSNA taşır.** Kulüp seçicisinin birinci kademesinde her lig ülkesinin bayrağıyla görünür ve bayrak ülke adının **yanına** konur, yerine değil (WCAG 1.1.1). Eşleme `League.country` (ISO 3166-1 alpha-2) üzerinden yapılır; tek istisna `GB`'dir, çünkü Premier League (`Q9448`) ile İskoçya Premier Ligi (`Q14377162`) veride aynı kodu taşır ve aynı bayrağı basmak bayrağın ayırt etme işlevini yok eder. İstisna ülke koduna değil **lig QID'ine** bağlanır. Dosyalar yereldir (`public/flags/`, `flag-icons` MIT); emoji bayrak REDDEDİLDİ çünkü Windows'ta Chrome ve Edge glif taşımaz ve aynı kod tarayıcıya göre farklı sonuç verir. Bayrağı olmayan ülke arayüzde sessizce boş kalır, ama bu durum bir testle tutulur (§7.14).
 - **BR-40 — Dile bağlı değer VERİ KATMANINDA saklanmaz.** Veritabanına yazılan her değer dilden bağımsız olmalıdır; kullanıcıya gösterilecek metin render anında üretilir. `Player.position` bu kuralın ölçülmüş karşı örneğiydi: `normalize.ts` `goalkeeper` → `"Kaleci"` çevirisini ETL'de yapıyordu (§6.2). Alan artık nötr anahtar taşır (`goalkeeper`, `defender`, `midfielder`, `winger`, `forward`) ve çeviri `positionName()` ile arayüzde yapılır — `countryName()` ile aynı desen. Kuralın gerekçesi maliyettir: dile bağlı bir değeri sonradan çevirmek TAM BİR ETL KOŞUSU (~2 saat) artı veri göçü demektir, oysa render anındaki çeviri bir satırdır. Aynı sebeple kulüp ve oyuncu adları da olduğu gibi saklanır; çevrilmezler.
 - **BR-41 — "Hangisi daha" iki SEVİYE taşır; varsayılanı dar havuzdur.** Kullanıcı kurulumda **Kolay** (bilindik oyuncular) ya da **Zor** (havuzun tamamı) seçer. "Bilindik" ölçütü **A millî takımda 20+ maç VE son kulüp dönemi 2000 veya sonrası**; iki koşul da gereklidir ve ölçülerek seçilmiştir (§9.3). Ölçüt bir VEKİLDİR, bir vaat değil: kolay havuzun %66,7'si 40+ dilde Vikipedi maddesi taşıyor, %33'ü taşımıyor — bu yüzden arayüzde "bildiğin oyuncular" DENMEZ, ölçütün kendisi yazılır. "Zor" KAPSAYICIDIR: kolay havuzun tamamını da içerir, yani seviye bir zorluk vaadi değil havuzun genişliğidir. Seviye yalnızca `round` girdisindedir; **cevap ucu seviye almaz**, çünkü hangi çiftin kurulacağını daraltır, hangi cevabın doğru olduğunu değil. Varsayılan "kolay"dır: alanı göndermeyen istemci, modun düzeltmek için var olduğu kusuru geri almamalıdır.
+- **BR-42 — Tek kaynağın iddiası, ikinci kaynak AYNI YILLAR için başkasını söylüyorsa yüklenmez.** Wikidata'nın bir dönem kaydı, oyuncunun Vikipedi bilgi kutusunda (i) o kulüp **hiç geçmiyor** ve (ii) aynı yıllar **başka bir kulüple** doluysa **çelişkilidir** ve yükleme durur. Üç koruma birlikte çalışır: oyuncunun bilgi kutusu yoksa kural **susar** (sessizlik kanıt değildir, §2.7), dönem 10 maçın altındaysa **susar** (bilgi kutuları kısa dönemleri atlar), kiralık dönemler iki tarafta da **dışarıdadır** (oyuncunun aynı anda iki kulüple ilişkili göründüğü tek meşru durum). Kural ölçülmüş bir olaydan doğdu: 11 Ağustos 2026'da bir Wikidata düzenlemesi Rafael Leão'nun Milan kaydını Real Madrid'e çevirdi, ETL 12 Ağustos'ta koştu ve hata üretime çıktı (§8.2). Aynı vandalizmin boy değişikliği (288 cm) akla yatkınlık aralığına takılmıştı — **bir alanın kapısı olması diğerlerininkini getirmiyor.** Kapı **oran değil sayı** ölçer (78 bin dönemde tek vandalizm hiçbir oranı bozmaz) ve **silmez**: çelişkiyi ifade kimliğiyle raporlar, kararı insan verir (§4.3'ün "Vikipedi asla silmez" kuralı korunur).
 - **BR-8 — Kanıt düzeyi.** Bir `Spell`, `startYear`, `endYear`, `appearances` ve `goals` alanlarının **dördü de** boşsa **kanıtsızdır**; en az biri doluysa kanıtlıdır. Kanıtsız dönemler BR-1 kapsamında **sayılır** (elenmez), fakat API yanıtında ve arayüzde açıkça işaretlenir. Gerekçe ve ölçüm §1.4'tedir; özeti: eleme, uydurma kayıtlarla birlikte doğru kayıtları da siliyor ve Wikidata ikisini ayıracak bir sinyal taşımıyor. BR-5'in sıralaması bu dönemleri kendiliğinden en sona koyar (ne maç sayısı ne yıl bilgisi vardır), dolayısıyla ayrı bir sıralama kuralı gerekmez.
 
 ---
@@ -2474,6 +2475,54 @@ Denetim **iki aşamalıdır**. Tek aşamalı ilk tasarım kullanılamaz çıktı
 2. **Oran denetimi** (`validateDataset`) — ayıklama oranı `MAX_REJECT_RATIO` (%1) eşiğini aşarsa süreç **hata ile biter** ve veritabanı güncellenmez. Örtüşen kalıcı dönem, kuruluş yılından önceki dönem ve 50'den az dönem gelen kulüp **uyarı** üretir; bunlar kaynaktaki bilinen gürültüdür (kulüp kuruluş yılı sık sık selef kulübü gösterir) ve yüklemeyi durdurmaz.
 
 Yükleme ayrıca **otoriter**dir: tam koşuda gelen listede olmayan kulüpler, dönemi kalmayan kulüpler ve dönemi kalmayan oyuncular silinir. Bu olmadan veritabanı önceki koşuların artıklarını biriktiriyordu.
+
+#### Vandalizm bize ulaştı: çapraz kaynak denetimi (BR-42, 13 Ağustos 2026)
+
+**Ürün sahibi oyunun içinde fark etti, hiçbir denetim değil.** Real Madrid ∩ Milan ortak oyuncu sorgusu **Rafael Leão**'yu döndürüyordu; Leão Real Madrid'de hiç oynamadı.
+
+Kaynağa bakıldı. Wikidata'da `Q30055335$390ce6af` ifadesi Real Madrid diyordu, `rank=preferred`, 227 maç. Bizim bir önceki veri kümemizde **aynı ifade kimliği** A.C. Milan'ı gösteriyordu. Kayıt geçmişi kesin:
+
+| Zaman (UTC)      | Kullanıcı           | Değişiklik                                     |
+| ---------------- | ------------------- | ---------------------------------------------- |
+| 2026-08-11 23:13 | `~2026-44395-88`    | Boy → **288 cm**                               |
+| 2026-08-11 23:14 | `~2026-44395-88`    | Kulüp → **Q128446** (Porto; doğrusu Lille)     |
+| 2026-08-11 23:15 | `~2026-44395-88`    | Kulüp → **Q8682** (Real Madrid; doğrusu Milan) |
+| 2026-08-13 13:07 | `Giammarco Ferrari` | Boy düzeltildi — **kulüpler düzeltilmedi**     |
+
+ETL **12 Ağustos**'ta koştu, yani tam aradaki pencerede.
+
+**Üç vandalizmden yalnızca ikisi bize ulaştı ve sebebi öğreticidir.** 288 cm boyun akla yatkınlık aralığına (140–220) takıldı ve `null` oldu — o kapı çalıştı. Kulüp üyeliği için ise hiçbir kapı yoktu: "Real Madrid" akla yatkın bir kulüptür, aralığı yoktur, kendi içinde çelişmez. **Bir alanın kapısı varsa diğerlerininki kendiliğinden gelmiyor.**
+
+Mevcut üç denetimin neden yetmediği tek tek ölçüldü:
+
+- `sanitizeSpells` tekil kaydın **kendi içinde** çelişmesine bakar; bu kayıt tutarlıydı.
+- "Örtüşen kalıcı dönem" uyarısı `prev.endYear` **dolu** olmasını şart koşuyordu; Leão'nun iki dönemi de sürüyordu, yani uyarı bile basılmadı.
+- İfade **rütbesi** kullanılamaz: vandalize edilen ifade `preferred` idi.
+
+**Çözüm: elimizdeki ikinci kaynağı ilk kez DOĞRULAMA için kullanmak.** Vikipedi bilgi kutusu §4.3'ten beri okunuyordu ama yalnızca **eklemek** için. `cross-check.ts` onu şu üç koşulla bir çürütme aracına çeviriyor:
+
+1. Oyuncunun Vikipedi kaydı **var** (yoksa sessizlik kanıt değildir, §2.7),
+2. Wikidata'nın kulübü bilgi kutusunda **hiç geçmiyor**,
+3. Bilgi kutusu **aynı yılları başka bir kulüple** dolduruyor.
+
+Üçüncüsü belirleyicidir: ikincisi tek başına "bilgi kutusu eksik" olabilir, ama aynı yıllara başka kulüp yazılmışsa iki kaynak **anlaşmıyor** demektir. Kiralık dönemler iki tarafta da dışarıda — kiralık, oyuncunun aynı anda iki kulüple ilişkili göründüğü tek meşru durumdur.
+
+**Kapı KAPALI başlar ve oran değil SAYI ölçer.** Ayıklama oranı sistemik bozulmayı ölçer; bu kapı **hedefli** bozulmayı ölçer ve 78 bin dönemde tek bir vandalizm hiçbir oranı eşiğin üstüne çıkarmaz. Tek bir çelişki yüklemeyi durdurur ve her satır **ifade kimliğiyle** basılır, çünkü inceleme ancak kimlikle yapılabilir.
+
+**Silmez.** §4.3'ün 4. kuralı ("Vikipedi asla silmez") ölçülerek konmuştu: silme denendiğinde 70 dönem ayıklanıyordu ve 66'sı sağlamdı. Bu modül de silmez; çelişkiyi **raporlar**, kararı `validateDataset` verir. Bulunan şey "yanlış kayıt" değil, "iki kaynağın anlaşamadığı kayıt"tır.
+
+**Örtüşme uyarısındaki boşluk da kapatıldı**, ama `isCurrent` ile sınırlı olarak. Şema `null` bitişi iki anlamda kullanıyor ve ayrımı bu bayrak yapıyor (§5.1): "hâlâ orada" ile "bitişi bilinmiyor". İkincisini örtüşme saymak ölçüldü — bitişi bilinmeyen ikinci bir kalıcı dönemi olan **3.588 oyuncu** var ve çoğu kaydı eksik eski oyuncular; hepsini saymak uyarıyı okunmaz hâle getirirdi.
+
+> **Eşik ÖLÇÜLMEDİ — açıkça yazılıyor.** `MIN_CONTRADICTION_APPEARANCES = 10` ve "tek çelişki bloklar" kuralı gerçek bir tam koşuda hiç çalışmadı; çalıştırmak iki saatlik bir ETL koşusu ister. İlk koşuda beklenenden çok çelişki çıkarsa doğru tepki eşiği sessizce yükseltmek **değil**, listeye bakıp sebebi anlamaktır. Kapı yanlış yere kapanıyorsa ölçülerek gevşetilir; bu, kapının kendisinden vazgeçmeyi gerektirmez.
+
+#### Aynı sınıftan başka hatalar — ölçüldü
+
+Leão tek örnek mi diye tarandı (2026-08-09 veri kümesi, 132.263 oyuncu). Kesin örtüşen kalıcı dönem çiftleri iki ayrı sınıfa ayrılıyor ve karıştırılmamalı:
+
+- **Kulüp ikizleri — 27 çift.** Aynı gerçek kulübün iki Wikidata varlığı: Gençlerbirliği 119 oyuncu (bilinen ve bilerek ertelenmiş durum), LR Vicenza 57, Ancona 48, IFK Norrköping 36, Örgryte 27. Burada oyuncu **gerçekten o kulüpte oynamış**; sorun kulüp kimliğindedir, dönemde değil.
+- **Oyuncuya özgü veri hatası — 69 çift, 76 oyuncu (%0,06).** Leão'nun sınıfı. Ölçülen örnekler: **Trapattoni** Juventus'ta Milan'ın 274 maçıyla görünüyor (orada teknik direktördü, oynamadı), **Cédric Bakambu** Rayo Vallecano'da Sochaux'nun 94 maçıyla, **Carlo Parola** Pro Vercelli'de Juventus'un 334 maçıyla, **Vincent Aboubakar** Monza'da Valenciennes'in 72 maçıyla.
+
+Bu tarama Leão'yu **yakalamıyor**, çünkü onun iki kaydının maç sayısı farklı (227 / 218). Yakalayan dar imza "aynı yıl başlayan, ikisi de süren iki kıdemli dönem" ve o **20 oyuncu**. İki ölçüm birlikte, BR-42'nin gerçek yükünün onlarca değil, birkaç düzine kayıt olduğunu gösteriyor.
 
 #### Kapsam boşlukları — ikinci KAYNAK, elle düzeltme değil
 

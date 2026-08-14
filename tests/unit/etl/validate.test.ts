@@ -118,6 +118,145 @@ describe("sanitizeSpells", () => {
   });
 });
 
+describe("BR-42 — çapraz kaynak kapısı", () => {
+  const fetchedClubIds = new Set(["QA"]);
+
+  const celiski = {
+    playerWikidataId: "Q30055335",
+    spellId: "Q30055335-390ce6af",
+    clubWikidataId: "Q8682",
+    startYear: 2019,
+    endYear: null,
+    appearances: 227,
+    wikipediaClubs: ["Q1543"],
+  };
+
+  it("TEK BİR çelişki bile yüklemeyi durdurur", () => {
+    // Oran değil SAYI: 78 bin dönemde tek bir vandalizm hiçbir oranı eşiğin
+    // üstüne çıkarmaz, ama kullanıcı onu oyun içinde görür — nitekim gördü.
+    const report = validateDataset({
+      clubs: [club("QA")],
+      spells: [spell("s1")],
+      rejected: [],
+      fetchedClubIds,
+      contradictions: [celiski],
+    });
+
+    expect(report.errors).toHaveLength(1);
+    expect(report.errors[0]).toContain("BR-42");
+  });
+
+  it("hata mesajı İFADE KİMLİĞİNİ taşır", () => {
+    // İnceleme ancak kimlikle yapılabilir: kayıt Wikidata'da tek tek açılıp
+    // geçmişine bakılacak. Kimliksiz bir uyarı "bir yerde bir sorun var" der.
+    const report = validateDataset({
+      clubs: [club("QA")],
+      spells: [spell("s1")],
+      rejected: [],
+      fetchedClubIds,
+      contradictions: [celiski],
+    });
+
+    expect(report.errors[0]).toContain("Q30055335-390ce6af");
+    expect(report.errors[0]).toContain("Q8682");
+    expect(report.errors[0]).toContain("Q1543");
+  });
+
+  it("çelişki yoksa sessizdir", () => {
+    const report = validateDataset({
+      clubs: [club("QA")],
+      spells: [spell("s1")],
+      rejected: [],
+      fetchedClubIds,
+      contradictions: [],
+    });
+
+    expect(report.errors).toHaveLength(0);
+  });
+
+  it("alan HİÇ verilmezse sessizdir", () => {
+    // `--skip-wikipedia` koşusunda ikinci kaynak yoktur; "çelişki yok" ile
+    // "sorulamadı" karıştırılmamalı (§2.7).
+    const report = validateDataset({
+      clubs: [club("QA")],
+      spells: [spell("s1")],
+      rejected: [],
+      fetchedClubIds,
+    });
+
+    expect(report.errors).toHaveLength(0);
+  });
+});
+
+describe("örtüşen kalıcı dönem — açık uçlu olanlar dâhil", () => {
+  const fetchedClubIds = new Set(["QA", "QB"]);
+
+  it("İKİSİ DE SÜREN iki dönem örtüşme sayılır", () => {
+    // Kapatılan boşluk: Leão'nun vandalize edilmiş kaydında Real Madrid ve
+    // Milan dönemlerinin ikisi de sürüyordu ve eski kural `endYear` dolu
+    // olmasını şart koştuğu için hiç uyarı basmadı.
+    const report = validateDataset({
+      clubs: [club("QA"), club("QB")],
+      spells: [
+        spell("s1", {
+          clubWikidataId: "QA",
+          startYear: 2019,
+          endYear: null,
+          isCurrent: true,
+        }),
+        spell("s2", {
+          clubWikidataId: "QB",
+          startYear: 2019,
+          endYear: null,
+          isCurrent: true,
+        }),
+      ],
+      rejected: [],
+      fetchedClubIds,
+    });
+
+    expect(
+      report.warnings.some((w) => w.includes("örtüşen kalıcı dönem")),
+    ).toBe(true);
+  });
+
+  it("BİTİŞİ BİLİNMEYEN dönem örtüşme SAYILMAZ", () => {
+    // `isCurrent = false` + `endYear = null` "bitişi bilinmiyor" demek (§5.1).
+    // Ölçüldü: böyle ikinci bir kalıcı dönemi olan 3.588 oyuncu var; hepsini
+    // örtüşme saymak uyarıyı okunmaz hâle getirirdi.
+    const report = validateDataset({
+      clubs: [club("QA"), club("QB")],
+      spells: [
+        spell("s1", { clubWikidataId: "QA", startYear: 2019, endYear: null }),
+        spell("s2", { clubWikidataId: "QB", startYear: 2019, endYear: null }),
+      ],
+      rejected: [],
+      fetchedClubIds,
+    });
+
+    expect(
+      report.warnings.some((w) => w.includes("örtüşen kalıcı dönem")),
+    ).toBe(false);
+  });
+
+  it("SINIRA DEĞEN iki dönem örtüşme sayılmaz", () => {
+    // Normal transfer: 2016–2019 ve 2019–2022 aynı sezonu paylaşmaz.
+    const report = validateDataset({
+      clubs: [club("QA"), club("QB")],
+      spells: [
+        spell("s1", { clubWikidataId: "QA", startYear: 2016, endYear: 2019 }),
+        spell("s2", { clubWikidataId: "QB", startYear: 2019, endYear: 2022 }),
+      ],
+      rejected: [],
+      fetchedClubIds,
+    });
+
+    expect(
+      report.warnings.some((w) => w.includes("örtüşen kalıcı dönem")),
+    ).toBe(false);
+  });
+});
+
 describe("validateDataset — ayıklama oranı", () => {
   const fetchedClubIds = new Set(["QA"]);
 

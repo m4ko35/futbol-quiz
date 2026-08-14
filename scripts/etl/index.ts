@@ -123,6 +123,7 @@ async function main(): Promise<void> {
     spells,
     rejected,
     fetchedClubIds: dataset.fetchedClubIds,
+    contradictions: dataset.contradictions,
   });
 
   for (const warning of report.warnings) console.warn(`  ⚠ ${warning}`);
