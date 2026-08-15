@@ -5,6 +5,10 @@ import {
   type WikiSite,
 } from "../sources/wikipedia/client";
 import {
+  parseCareerTotal,
+  type CareerTotal,
+} from "../sources/wikipedia/career-total";
+import {
   parseInfoboxSpells,
   type InfoboxSpell,
 } from "../sources/wikipedia/infobox";
@@ -61,10 +65,21 @@ export interface WikipediaPassStats {
   duplicateRows: number;
   /** İndekslenen kulüp adı (asıl ad + yönlendirme takma adları). */
   clubTitlesIndexed: number;
+  /** Kariyer toplamı okunan oyuncu — §9.2. */
+  careerTotalsParsed: number;
+  /** İngilizce makalesi olup kariyer toplamı OKUNAMAYAN oyuncu. */
+  careerTotalsMissed: number;
 }
 
 export interface WikipediaPassResult {
   readonly spells: WikipediaSpell[];
+  /**
+   * Oyuncu QID → kulüp kariyerinin tamamı (§9.2).
+   *
+   * AYNI MAKALE METNİNDEN okunur; bilgi kutusu için zaten çekilen metin
+   * ikinci kez ayrıştırılır, yeni bir ağ isteği YOKTUR.
+   */
+  readonly careerTotals: ReadonlyMap<string, CareerTotal>;
   readonly stats: WikipediaPassStats;
 }
 
@@ -92,7 +107,19 @@ export async function collectWikipediaSpells(
     unmatchedClubLinks: 0,
     duplicateRows: 0,
     clubTitlesIndexed: 0,
+    careerTotalsParsed: 0,
+    careerTotalsMissed: 0,
   };
+
+  /**
+   * Oyuncu QID → kulüp kariyer toplamı — §9.2.
+   *
+   * YALNIZCA İNGİLİZCE. Ölçülen tek dil o: kolay havuzda %81,4, BR-15 aday
+   * havuzunda %78,3 (çözülemeyen 0). Diğer diller eklenmeden önce ayrı ayrı
+   * ölçülmeli — bilgi kutusunda olduğu gibi tablo biçimi de dilden dile
+   * değişiyor ve `career-total.ts` başlığı İngilizceye göre arıyor.
+   */
+  const careerTotals = new Map<string, CareerTotal>();
 
   /** Dil başına `makale adı → kulüp QID`. */
   const clubIndex = new Map<WikiSite, Map<string, string>>();
@@ -158,6 +185,22 @@ export async function collectWikipediaSpells(
         const playerIdList = wanted.get(title);
         if (playerIdList === undefined) continue;
 
+        // KARİYER TOPLAMI BİLGİ KUTUSUNDAN ÖNCE OKUNUR ve bu sıra önemli:
+        // aşağıdaki erken dönüş, bilgi kutusu boş olan makaleyi atlıyor.
+        // Kariyer istatistiği tablosu bilgi kutusundan bağımsızdır — birinin
+        // yokluğu ötekini düşürmemeli (§2.7).
+        if (site === "en") {
+          const total = parseCareerTotal(text);
+          if (total === null) {
+            stats.careerTotalsMissed += playerIdList.length;
+          } else {
+            for (const playerId of playerIdList) {
+              careerTotals.set(playerId, total);
+              stats.careerTotalsParsed++;
+            }
+          }
+        }
+
         // DİL AÇIKÇA VERİLİR. `tr`/`en` numaralı alan kullanıyor, `it`/`de`/
         // `fr` konumsal üçlü; ayrıştırıcı hangi vikiden geldiğini tahmin etmez.
         const rows = parseInfoboxSpells(text, site);
@@ -211,5 +254,5 @@ export async function collectWikipediaSpells(
     }
   }
 
-  return { spells, stats };
+  return { spells, careerTotals, stats };
 }

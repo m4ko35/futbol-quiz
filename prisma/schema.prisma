@@ -120,6 +120,36 @@ model Player {
   /// Sekiz bilinen oyuncuda: toplama 4/8, en büyük 7/8.
   nationalCaps Int?
 
+  /// A millî takımda atılan gol — `nationalCaps` ile AYNI Wikidata
+  /// ifadesinden (`pq:P1351`), §9.2.
+  ///
+  /// "Toplam resmî gol"ün BİR YARISIDIR ve tek başına bir oyun istatistiği
+  /// değildir. Öbür yarısı, bütün kulvarları kapsayan kulüp golüdür; o veri
+  /// Wikidata'da YOK (`P6509` ölçüldü: havuzun %0,1'i) ve Vikipedi'nin
+  /// kariyer istatistiği tablosundan gelecek.
+  ///
+  /// KAPSAM ÖLÇÜLDÜ (15 Ağustos 2026, 6.464 oyunculuk tanınırlık havuzu):
+  /// maç sayısı olan 3.580 oyuncunun 3.573'ünde gol de var (%99,8); kolay
+  /// havuzda 1.368/1.369 (%99,9). Toplama maliyeti sıfır — maç sayısıyla
+  /// aynı ifadede, aynı istekte geliyor.
+  nationalGoals Int?
+
+  /// Kulüp kariyerinin TAMAMI — lig, yerel kupa, Avrupa, hepsi (§9.2).
+  ///
+  /// `careerAppearances` ile KARIŞTIRILMAMALI: o, BR-21'in arama sıralama
+  /// ağırlığıdır ve yalnızca kapsamdaki 24 ligi sayar. Bu ikisi ise
+  /// Vikipedi'nin kariyer istatistiği tablosunun toplam satırından gelir.
+  ///
+  /// KAYNAK NEDEN AYRI. Wikidata kulvar kırılımı taşımıyor ve `P6509`
+  /// havuzun %0,1'inde dolu; ölçümler §9.2'de. Toplama maliyeti yine de
+  /// sıfıra yakın — Vikipedi katmanı bilgi kutusu için makale metnini zaten
+  /// çekiyor, kariyer toplamı AYNI metinden okunuyor.
+  ///
+  /// KAPSAM ÖLÇÜLDÜ (15 Ağustos 2026): BR-15 aday havuzunda %78,3 (60
+  /// kişilik örneklem, çözülemeyen 0), kolay havuzda %81,4 (70 kişi).
+  clubCareerAppearances Int?
+  clubCareerGoals       Int?
+
   /// Boy (cm) — Wikidata `P2048`. Eksikliği normaldir; §9.2'nin BR-16'sı
   /// gereği o istatistiğin cevap havuzunu daraltır, oyunu durdurmaz.
   heightCm Int?

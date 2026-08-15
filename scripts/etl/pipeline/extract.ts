@@ -24,6 +24,8 @@ import {
   wikipediaArticles,
 } from "../sources/wikidata/queries";
 import { int, qid, str, type SparqlBinding } from "../sources/wikidata/schemas";
+import type { CareerTotal } from "../sources/wikipedia/career-total";
+import { checkCareerTotals } from "./career-total-check";
 import { disambiguateShortNames } from "./club-labels";
 import { mergeDuplicateClubs } from "./merge-clubs";
 import { findContradictions } from "./cross-check";
@@ -61,6 +63,13 @@ export interface ExtractedDataset {
    * "çelişki yok" ile "sorulamadı" karıştırılmamalıdır.
    */
   readonly contradictions: Contradiction[];
+  /**
+   * §9.2 — kulüp kariyerinin tamamı (lig + kupa + Avrupa), oyuncu QID başına.
+   *
+   * Yalnızca çapraz denetimi GEÇEN kayıtlar burada. Vikipedi katmanı
+   * atlandıysa boş kalır — "toplamı yok" ile "sorulmadı" ayrı şeylerdir.
+   */
+  readonly careerTotals: ReadonlyMap<string, CareerTotal>;
 }
 
 export interface ExtractOptions {
@@ -478,6 +487,8 @@ export async function extractDataset(
    * olurdu (§2.7).
    */
   let contradictions: Contradiction[] = [];
+  /** §9.2 — çapraz denetimi geçen kulüp kariyer toplamları. */
+  let careerTotals: ReadonlyMap<string, CareerTotal> = new Map();
 
   if (options.skipWikipedia === true) {
     console.log("\n[5/5] Vikipedi katmanı atlandı (--skip-wikipedia).");
@@ -584,6 +595,39 @@ export async function extractDataset(
         : `      ✗ ${contradictions.length} dönemde Vikipedi ile Wikidata AYNI YILLAR için farklı kulüp söylüyor (BR-42)`,
     );
 
+    /*
+      §9.2 — kulüp kariyer toplamı, kendi lig sayımızla karşılaştırılır.
+
+      BİRLEŞTİRMEDEN SONRA koşuyor, BR-42 ile aynı gerekçeyle: kıyas ölçüsü
+      `finalSpells` olmalı, çünkü Vikipedi katmanı maç/gol değerlerini
+      zenginleştiriyor. Önce koşsaydı kapı, birleştirmenin kapatacağı farkları
+      çelişki sayardı.
+
+      BU KAPI SİLER, raporlamakla kalmaz — ve BR-42'den ayrıldığı yer burası.
+      Orada bulunan şey "iki kaynağın anlaşamadığı kayıt"tı ve kararı insan
+      vermeliydi. Burada bulunan şey ARİTMETİK OLARAK İMKÂNSIZ: bütünü
+      kapsayan sayı parçasından küçük olamaz. İnsana sorulacak bir yanı yok.
+    */
+    const checked = checkCareerTotals({
+      careerTotals: pass.careerTotals,
+      spells: finalSpells,
+    });
+    careerTotals = checked.accepted;
+
+    const missed = pass.stats.careerTotalsMissed;
+    const read = pass.stats.careerTotalsParsed;
+    console.log(
+      `      kariyer toplamı: ${read} okundu · ${missed} makale okunamadı · ` +
+        `${checked.conflicts.length} kayıt lig sayımızdan KÜÇÜK çıktı ve düştü`,
+    );
+    for (const conflict of checked.conflicts.slice(0, 5)) {
+      console.log(
+        `        ${conflict.playerWikidataId}: toplam ` +
+          `${conflict.parsed.appearances}/${conflict.parsed.goals} < lig ` +
+          `${conflict.leagueAppearances}/${conflict.leagueGoals} (${conflict.reason})`,
+      );
+    }
+
     const s = merged.stats;
     console.log(
       `      +${s.added} yeni dönem · ${s.enriched} dönem zenginleşti · ` +
@@ -644,5 +688,6 @@ export async function extractDataset(
     selectableClubIds,
     fetchedClubIds,
     contradictions,
+    careerTotals,
   };
 }

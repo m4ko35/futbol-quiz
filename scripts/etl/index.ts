@@ -156,6 +156,7 @@ async function main(): Promise<void> {
       players: dataset.players,
       spells,
       selectableClubIds: dataset.selectableClubIds,
+      careerTotals: dataset.careerTotals,
       // Kısmi koşu tüm veritabanını otoriter kabul edemez.
       isFullRun: options.maxClubs === undefined,
     });

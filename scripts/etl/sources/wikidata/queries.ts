@@ -289,15 +289,26 @@ SELECT ?team ?sportCountryCode ?adminCountryCode WHERE {
  * süzer. Gerekçe o fonksiyonun başında.
  *
  * `?caps` ifade başına gelir ve **toplanmaz** — BR-14 gereği en büyüğü alınır.
+ *
+ * `?goals` AYNI İFADEDEN gelir ve `OPTIONAL`'dır. İkisini tek sorguda almak
+ * bir tercih değil, tek seçenek: gol niteliği maç niteliğinin yanında durur,
+ * ayrı sorgu ikinci bir tam tarama demek olurdu. Ölçüldü (15 Ağustos 2026,
+ * 6.464 oyunculuk tanınırlık havuzu): maç sayısı olan 3.580 oyuncunun
+ * 3.573'ünde gol de var — **%99,8**. Kolay havuzda 1.368/1.369.
+ *
+ * `OPTIONAL` ZORUNLU. Kaldırmak, golü olmayan o 7 oyuncunun maç sayısını da
+ * düşürürdü; yani kapsamı olan bir alanı, kapsamı olmayan bir alan uğruna
+ * sessizce kaybederdik.
  */
 export function playerStats(playerQids: readonly string[]): string {
   const values = playerQids.map((id) => `wd:${assertQid(id)}`).join(" ");
 
   return `
-SELECT ?player ?team ?caps WHERE {
+SELECT ?player ?team ?caps ?goals WHERE {
   VALUES ?player { ${values} }
   ?player p:${WD.PROP_MEMBER_OF_TEAM} ?st .
   ?st ps:${WD.PROP_MEMBER_OF_TEAM} ?team ; pq:${WD.PROP_MATCHES_PLAYED} ?caps .
+  OPTIONAL { ?st pq:${WD.PROP_GOALS} ?goals }
 }`.trim();
 }
 

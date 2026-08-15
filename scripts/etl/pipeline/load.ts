@@ -42,6 +42,18 @@ export async function loadDataset(
     /** Seçim listesinde görünecek kulüpler (§1.3). */
     readonly selectableClubIds: ReadonlySet<string>;
     /**
+     * §9.2 — kulüp kariyerinin tamamı, oyuncu QID başına.
+     *
+     * Çapraz denetimi geçmiş kayıtlardır (`career-total-check.ts`). Verilmezse
+     * ya da bir oyuncu haritada yoksa sütun `null` yazılır — atlanmaz. Alanı
+     * atlamak, kaynağından DÜŞMÜŞ bir değeri veritabanında sessizce ayakta
+     * bırakırdı; `nationalCaps` için aynı gerekçe aşağıda yazılı.
+     */
+    readonly careerTotals?: ReadonlyMap<
+      string,
+      { readonly appearances: number | null; readonly goals: number | null }
+    >;
+    /**
      * Bu koşu kulüp evreninin TAMAMINI mı kapsıyor?
      *
      * `true` ise yükleme otoriterdir: gelen kümede olmayan kulüpler silinir.
@@ -151,6 +163,11 @@ export async function loadDataset(
           // §9.2 — eksik olması normaldir; `null` yazmak doğru davranış,
           // alanı atlamak eski bir değeri sessizce ayakta bırakırdı.
           nationalCaps: player.nationalCaps,
+          nationalGoals: player.nationalGoals,
+          clubCareerAppearances:
+            input.careerTotals?.get(player.wikidataId)?.appearances ?? null,
+          clubCareerGoals:
+            input.careerTotals?.get(player.wikidataId)?.goals ?? null,
           heightCm: player.heightCm,
           weightKg: player.weightKg,
           careerAppearances: appearancesByPlayer.get(player.wikidataId) ?? 0,

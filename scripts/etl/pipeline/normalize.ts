@@ -48,6 +48,14 @@ export interface NormalizedPlayer {
 
   /** §9.2 — ayrı bir sorgudan gelir, `toPlayer` bunları doldurmaz. */
   nationalCaps: number | null;
+  /**
+   * A millî takımda atılan gol — `nationalCaps`'in geldiği AYNI ifadeden.
+   *
+   * "Toplam resmî gol"ün millî takım yarısıdır (§9.2). Öbür yarısı — bütün
+   * kulvarları kapsayan kulüp golü — Wikidata'da YOKTUR ve Vikipedi'nin
+   * kariyer istatistiği tablosundan gelir; ikisi ayrı fazlarda toplanır.
+   */
+  nationalGoals: number | null;
   heightCm: number | null;
   weightKg: number | null;
 }
@@ -381,6 +389,7 @@ export function toPlayer(binding: SparqlBinding): NormalizedPlayer | null {
     genderQid: qid(binding, "gender") ?? null,
     // Ayrı sorgulardan gelir; `applyPlayerStats` doldurur.
     nationalCaps: null,
+    nationalGoals: null,
     heightCm: null,
     weightKg: null,
   };
@@ -489,6 +498,19 @@ export function pickNationality(input: {
 export interface NationalTeamCaps {
   readonly caps: number;
   readonly teamQid: string;
+  /**
+   * Aynı takımdaki gol sayısı — `caps` ile AYNI ifadeden, §9.2.
+   *
+   * SEÇİM GOLE GÖRE YAPILMAZ. BR-14 "en çok maç yapılan millî takım" der ve
+   * gol o takımın kaydından okunur; "en çok gol" ayrı bir seçim olsaydı
+   * A millî takımın maçıyla U-21'in golü aynı satırda birleşebilirdi.
+   * Buffon'un tersi bir örnek yeterli: A takımda 0 gol, U-21'de 1 gol atan
+   * bir oyuncuda "en çok gol" U-21'i seçerdi.
+   *
+   * Maçı olup golü olmayan oyuncu için `null` — sıfır DEĞİL (§2.7). Ölçüldü:
+   * 3.580 oyuncunun 7'si.
+   */
+  readonly goals: number | null;
 }
 
 export function nationalCapsFrom(
@@ -508,7 +530,11 @@ export function nationalCapsFrom(
 
     const current = best.get(player);
     if (current === undefined || caps > current.caps) {
-      best.set(player, { caps, teamQid: team });
+      best.set(player, {
+        caps,
+        teamQid: team,
+        goals: int(binding, "goals") ?? null,
+      });
     }
   }
 
@@ -662,6 +688,7 @@ export function applyPlayerStats(
         birthCountry: player.birthCountry,
       }),
       nationalCaps: national?.caps ?? null,
+      nationalGoals: national?.goals ?? null,
       heightCm: size?.heightCm ?? null,
       weightKg: size?.weightKg ?? null,
     };

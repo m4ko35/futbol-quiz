@@ -535,6 +535,9 @@ async function verifyPlayerStats(): Promise<void> {
   check(badHeight === 0, `aralık dışı boy: ${badHeight}`);
   check(badCaps === 0, `400'den fazla millî maç: ${badCaps}`);
 
+  await verifyNationalGoals(caps);
+  await verifyClubCareerTotals();
+
   /**
    * DÜŞÜK KESİNLİKLİ DOĞUM TARİHİ — bilinen kusur, KAPI DEĞİL sayaç.
    *
@@ -558,6 +561,105 @@ async function verifyPlayerStats(): Promise<void> {
   });
   console.log(
     `  ℹ düşük kesinlikli doğum tarihi: ${lowPrecision} (havuz dışı, §9.2)`,
+  );
+}
+
+/**
+ * Millî takım golü — §9.2, "toplam resmî gol"ün birinci yarısı.
+ *
+ * İKİ AYRI ŞEY DENETLENİR ve ikisi aynı sertlikte DEĞİL:
+ *
+ *  · GOL > MAÇ **kapıdır**. Bir oyuncu oynadığı maçtan çok gol atamaz; aşan
+ *    kayıt, golün maçla aynı ifadeden okunmadığını gösterir — yani BR-14'ün
+ *    seçimi ile golün seçimi ayrışmıştır. Sütun boşken bu sayı 0'dır ve kapı
+ *    zararsızca geçer, doğruyken de 0 kalır.
+ *
+ *  · KAPSAM **sayaçtır, kapı değil** — henüz. Alan bu koşuyla eklendi ve ilk
+ *    ETL tazelemesine kadar BOŞ duracak; şimdi kapı yapmak, veriyi hiç
+ *    çekmemiş bir veritabanını "bozuk" ilan ederdi. Ölçülen beklenti yazılı:
+ *    maç sayısı olanların **%99,8'inde** gol de olmalı (15 Ağustos 2026,
+ *    6.464 oyunculuk tanınırlık havuzunda 3.573/3.580).
+ *
+ * İlk dolu koşudan sonra kapsam da `check`'e çevrilir; eşiği o zaman
+ * ölçülmüş değere göre konur, tahminle değil.
+ */
+async function verifyNationalGoals(caps: number): Promise<void> {
+  const [goals, overscored] = await Promise.all([
+    prisma.player.count({ where: { nationalGoals: { not: null } } }),
+    prisma.$queryRaw<{ n: bigint }[]>(Prisma.sql`
+      SELECT COUNT(*) AS n FROM players
+      WHERE "nationalGoals" IS NOT NULL
+        AND "nationalCaps" IS NOT NULL
+        AND "nationalGoals" > "nationalCaps"
+    `),
+  ]);
+
+  const over = Number(overscored[0]?.n ?? 0);
+  check(over === 0, `maçından çok gol atan oyuncu: ${over}`);
+
+  if (goals === 0) {
+    console.log(
+      "  ℹ millî gol: 0 — alan henüz doldurulmadı, ilk ETL koşusunda dolar (§9.2)",
+    );
+    return;
+  }
+
+  const ratio = caps === 0 ? 0 : goals / caps;
+  console.log(
+    `  ℹ millî gol ${goals}/${caps} = %${(ratio * 100).toFixed(1)} ` +
+      `(ölçülen beklenti %99,8; dolu ilk koşudan sonra kapıya çevrilecek)`,
+  );
+}
+
+/**
+ * Kulüp kariyer toplamı — §9.2, "toplam resmî gol"ün ikinci yarısı.
+ *
+ * Millî golle aynı iki kademe: ARİTMETİK İMKÂNSIZLIK kapıdır, KAPSAM sayaçtır.
+ *
+ * Kapı iki şeyi birden tutar ve ikisi de ETL'de zaten denetleniyor — buradaki
+ * kopya kasıtlı: `career-total-check.ts` yalnızca O KOŞUDA yazılanı süzer,
+ * veritabanında ise eski koşulardan kalmış kayıtlar da bulunabilir.
+ */
+async function verifyClubCareerTotals(): Promise<void> {
+  const [filled, impossible, belowLeague] = await Promise.all([
+    prisma.player.count({ where: { clubCareerGoals: { not: null } } }),
+    prisma.$queryRaw<{ n: bigint }[]>(Prisma.sql`
+      SELECT COUNT(*) AS n FROM players
+      WHERE "clubCareerGoals" IS NOT NULL
+        AND "clubCareerAppearances" IS NOT NULL
+        AND "clubCareerGoals" > "clubCareerAppearances"
+    `),
+    // Bütün kulvarların toplamı, yalnız ligden küçük olamaz.
+    prisma.$queryRaw<{ n: bigint }[]>(Prisma.sql`
+      SELECT COUNT(*) AS n FROM (
+        SELECT p.id,
+               p."clubCareerGoals" AS total,
+               SUM(s.goals) AS lig,
+               SUM(CASE WHEN s.goals IS NULL THEN 1 ELSE 0 END) AS eksik
+        FROM players p
+        JOIN spells s ON s.playerId = p.id AND s.isYouth = 0
+        WHERE p."clubCareerGoals" IS NOT NULL
+        GROUP BY p.id
+        HAVING eksik = 0 AND total < lig
+      )
+    `),
+  ]);
+
+  const over = Number(impossible[0]?.n ?? 0);
+  const below = Number(belowLeague[0]?.n ?? 0);
+  check(over === 0, `kulüp kariyerinde maçından çok gol: ${over}`);
+  check(below === 0, `kariyer golü lig golünden küçük: ${below}`);
+
+  if (filled === 0) {
+    console.log(
+      "  ℹ kulüp kariyer toplamı: 0 — alan henüz doldurulmadı, ilk ETL koşusunda dolar (§9.2)",
+    );
+    return;
+  }
+
+  console.log(
+    `  ℹ kulüp kariyer toplamı dolu: ${filled} ` +
+      `(ölçülen beklenti: BR-15 aday havuzunda %78,3)`,
   );
 }
 

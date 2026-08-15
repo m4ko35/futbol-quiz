@@ -921,6 +921,7 @@ model Player {
   nationality  String?                // ISO 3166-1 alpha-2
   position     String?                // §6.2'deki kapalı küme ya da null
   nationalCaps Int?                   // BR-14: tek takım için EN ÇOK maç
+  nationalGoals Int?                  // §9.2: aynı ifadeden, `pq:P1351`
   heightCm     Int?
   weightKg     Int?
   spells       Spell[]
@@ -3043,6 +3044,109 @@ Belirsiz bölgede (3–100) **tek bir değer yok**, yani birim büyüklükten g�
 
 - **Sarı/kırmızı kart** — Wikidata'da böyle bir özellik **hiç yok**. Katalog tarandı: "card" geçen 14 özelliğin hepsi alakasız (`MalaCards ID`, `Yu-Gi-Oh! TCG cards ID`, `card network`). Bu veri ancak başka bir kaynakla gelir ve §7.4'teki tek-kaynak kararını değiştirir.
 - **Kazandığı kupa sayısı** — takım kupaları oyuncu kaydında tutulmuyor. `P166` (aldığı ödül) var ama o **bireysel** ödüldür (Ballon d'Or, yılın kalecisi) ve ölçülen kapsamı %13 — bir oyun ekseni olamayacak kadar seyrek.
+
+##### Ölçüm: toplam resmî gol (15 Ağustos 2026)
+
+Mevcut `goals` istatistiği **yalnızca kapsamdaki 24 ligi** sayar. Ürün sahibi bunun yerine oyuncunun **bütün resmî gollerini** — lig, yerel kupa, Avrupa, millî takım — istedi. Ölçüm dört soruya ayrıldı ve üçü kapandı.
+
+**Kulvar kırılımı (Şampiyonlar Ligi, Avrupa Ligi, Konferans Ligi, Süper Kupa, Kulüpler Dünya Kupası ayrı ayrı) YOK ve eklenemez.** Wikidata'nın `P54` ifadelerinde kulvar niteleyicisi hiç bulunmuyor — Ronaldo'nun (`Q11571`) 12 ifadesindeki niteleyicilerin tamamı sayıldı, kulvar yok. Vikipedi'nin kariyer tablosunda ise üç Avrupa kupası **tek bir "Europe" / "Continental" sütununda** toplanıyor; Süper Kupa ve KDK ise etiketsiz bir **"Other"** torbasında, playoff maçlarıyla karışık. Bazı tablolarda o sütun hiç yok (Sergen Yalçın). Ayrım yalnızca hücre dipnotlarında, düz metin olarak geçiyor.
+
+**`P6509` (kariyerdeki toplam gol) kullanılamaz.** Kavram olarak tam aranan şey ve Ronaldo'da doğru değeri taşıyor (niteliksiz, `preferred` rütbeli **+975**) — ama:
+
+| Ölçüm                                  |                Sonuç |
+| -------------------------------------- | -------------------: |
+| Tanınırlık havuzunda `P6509` olan      | **6 / 6.464** (%0,1) |
+| Kolay havuzda                          |     6 / 1.369 (%0,4) |
+| Tüm Wikidata'da `P6509` taşıyan varlık |           **11.424** |
+| Kıyas: `P2048` (boy) taşıyan varlık    |        **1.418.944** |
+
+Yani boyun **1/124'ü** kadar doldurulmuş. Dolu olduğu yerde de belirsiz: Lewandowski'de `+0, +2`, Rooney'de `+0, +3, +1` (hepsi kulvar kırılımı, toplam yok), Kane'de hiç yok, Messi'de ise **iki aday toplam** (`+474` ve `+916`) ve hangisinin kariyer toplamı olduğu makinece ayrılamıyor. İlk ölçümüm "en büyüğünü al" diyerek 916'yı seçmişti — bu bir varsayımdı, kural değil, ve o yüzden reddedildi.
+
+**Sayı iki parçadan toplanabilir ve parçaların kapsamı ayrı ayrı ölçüldü.**
+
+_Birinci parça — millî takım golü (`pq:P1351`)._ Maç sayısının geldiği **aynı ifadede** duruyor; ek ağ isteği sıfır.
+
+| Küme                                  |                    Kapsam |
+| ------------------------------------- | ------------------------: |
+| Kolay havuz · millî maç               |    1.369 / 1.369 (%100,0) |
+| Kolay havuz · **millî gol**           | **1.368 / 1.369 (%99,9)** |
+| Tüm havuz · millî gol                 |     3.573 / 6.464 (%55,3) |
+| **Maçı olanların kaçında gol de var** | **3.573 / 3.580 (%99,8)** |
+
+Nokta kontrolleri beşte beş: Ronaldo 233/146, Hakan Şükür 112/51, Kane 121/85, Rooney 120/53, Arda Turan 100/16.
+
+_İkinci parça — bütün kulvarları kapsayan kulüp golü._ Yalnızca Vikipedi'nin `==Career statistics==` bölümünde, tablonun **en alt toplam satırında** var. Bölüm kapsamı ölçüldü (50'şer kişilik iki örneklem, çözülemeyen 0):
+
+| Küme                | en.wiki makalesi | "Career statistics" bölümü |
+| ------------------- | ---------------: | -------------------------: |
+| **Kolay havuz**     |          50 / 50 |             **49 (%98,0)** |
+| Havuzun geri kalanı |          40 / 50 |                 10 (%20,0) |
+
+O satır **hem maçı hem golü** taşıyor (`…!!440!!44` = 440 maç, 44 gol), yani ikinci parça geldiğinde `appearances` de golle birlikte kariyer kapsamına geçer. "975 gol / 758 maç" gibi bir asimetri oluşmaz.
+
+**Havuz yeterli.** 1.369 × 0,98 + 5.095 × 0,20 ≈ **2.360 oyuncu**; bugünkü en dar istatistik havuzu 1.271. Yani `goals` **değiştirilebilir**, yanına ikinci bir eksen eklenmesi gerekmez.
+
+**Bilinen tuzak — sessiz bozulma.** Naif bir "son toplam satırını al" uygulaması yanlış tabloyu okur: Thierry Henry ve Sergen Yalçın'ın makalelerinde son toplam satırı **teknik direktörlük** tablosuna aittir (`{{WDLtot}}`). Sayılar makul göründüğü için bu fark edilmez. Üç biçim farkı daha ölçüldü: satır ayracı `!!` yerine `||` olabiliyor (Kane), sayılar ayrı satırlara yayılabiliyor (Ronaldo), ve "Career total" `colspan=2` ile de yazılıyor — o durumda kapılan satır kulüp ara toplamı oluyor (Sivok). Ayrıştırıcı kulüp tablosuna **çıpalanmalı** ve BR-42 tarzı bir akla yatkınlık kapısı (kariyer toplamı ≥ lig golü) konmalı.
+
+##### Ölçüm: ayrıştırıcının tavanı — ve dört sessiz kusur
+
+`parseCareerTotal` yazıldı (`scripts/etl/sources/wikipedia/career-total.ts`) ve kolay havuzdan 70'er kişilik örneklemlerde ölçüldü. **Doğruluk** her turda beş bilinen makalede 5/5: Ronaldo 1.099/830, Kane 647/442, Henry 813/366, Hakan Şükür 709/332, Valverde 440/44.
+
+| Tur | Kural                                |    Okunan |    İçinden YANLIŞ |
+| --- | ------------------------------------ | --------: | ----------------: |
+| 1   | naif "son toplam satırı"             |     %94,3 |     5 / 66 (%7,6) |
+| 2   | + hücre bütünlüğü, kulüp alt başlığı |     %85,7 |     2 / 60 (%3,3) |
+| 3   | + kariyer satırı şartı, asist reddi  | **%81,4** | **2 / 57 (%3,5)** |
+
+**ÖRNEKLEMLER AYRI ÇEKİLDİ**, yani turlar arası oran farkı kural sıkılaşmasıyla örneklem değişimini karıştırıyor. Yön güvenilir (katılık okumayı azaltır), aradaki puan farkı değil. Kayda geçiyor ki ileride kıyaslanmak istenirse sabit örneklemle tekrarlansın.
+
+**Katılığın karşılığı ölçülmüş bir kusur sınıfıdır**, tercih değil:
+
+- **`+` ve `?` taşıyan hücre** (Guardiola): `398 || 21 || 33+ || … || 524+ || 28+`. Okunabilenleri toplayıp okunamayanları atlamak `[398, 21, 4, 0]` veriyor ve "son iki sayı" kuralı bundan **4 maç / 0 gol** üretiyordu. Sayı çift olduğu için bütünlük denetimi bile susuyordu. Artık okunamayan tek hücre satırın **tamamını** çürütür.
+- **Kulüp tablosu olmayan makale** (Cascarino, Krøldrup): `==Career statistics==` doğrudan `===International===` ile başlıyor. "İlk tabloyu al" millî takım tablosunu okuyordu.
+- **Kariyer toplamı satırı olmayan tablo** (M'Vila, Vargas): yalnızca kulüp/ülke başına ara toplamlar var; sonuncuyu almak son kulübün sayısını bütün kariyer diye yazıyordu (91 maç ↔ 449 maçlık kariyer).
+- **Asist sütunlu tablo** (Vargas): her kulvar için `Apps / Goals / Assists`. "Son iki sayı" orada maç/gol değil **gol/asist** verir ve sonuç akla yatkın göründüğü için fark edilmez.
+
+Bir de tablo **başlığındaki** `!colspan="2"|Total` sütun grubu etiketinin satır sanılması vardı; etiket saymak yerine sayı üreten satırları toplamak bunu kendiliğinden eliyor.
+
+**KALAN %3,5 İÇİN KAPI GEREKLİ.** Üçüncü turda Gheorghe Popescu (toplam 642/77, bizde 623/87) ve Habib Beye (262/5 ↔ 359/15) hâlâ imkânsız çıktı. Bunlar ayrıştırıcının içinden çözülemez — çünkü ayrıştırıcı bizim lig sayımızı bilmez ve bilmemeli (§8.1). Çözüm BR-42 ile aynı sınıfta bir **çapraz denetim**: kariyer toplamı, kendi lig sayımızdan küçükse kayıt reddedilir.
+
+**Havuz tahmini buna göre düzeltildi.** Önceki ≈2.360 rakamı bölümün VARLIĞINA dayanıyordu; gerçek oran ayrıştırma başarısıdır. Kolay havuzda %81,4 × (1 − %3,5) ≈ %78,6 → ~1.076 oyuncu; havuzun geri kalanında kaba tahminle ~815. Toplam **≈1.900**, bugünkü en dar istatistik havuzunun (1.271) üstünde — yani `goals` değiştirilebilir, ama pay eskisinden dar.
+
+##### Ölçüm: `goals` kapsamı — geçişin gerçek bedeli
+
+Geçiş onaylanmadan önce bugünkü kapsam ölçüldü (15 Ağustos 2026):
+
+| Küme                                         |                   Kapsam |
+| -------------------------------------------- | -----------------------: |
+| Veritabanı geneli (altyapı dışı dönemi olan) | 89.583 / 132.263 (%67,7) |
+| Tanınırlık havuzu                            |    5.405 / 6.464 (%83,6) |
+| — kolay havuz                                |    1.271 / 1.369 (%92,8) |
+| — zor-özel                                   |    4.134 / 5.095 (%81,1) |
+| **BR-15 aday havuzu** (altı istatistik dolu) |                **2.518** |
+
+**Bugünkü eksikliğin sebebi veri yokluğu DEĞİL.** Havuzda değeri olmayan 1.059 oyuncunun hiçbirinde "kapsamda dönemi yok" durumu yok; hepsi tek bir kuraldan düşüyor — _tek bir dönemde bile eksik değer varsa toplam yanıltıcıdır_ (BR-16). 1.059'un **826'sında yalnızca bir dönem eksik**.
+
+**Geçişin bedeli, istatistik eşleştirme modunun aday havuzunda ölçüldü:** o havuzdan 60 kişilik örneklemde ayrıştırıcı **%78,3** okudu (en.wiki makalesi 60/60, çözülemeyen 0), yani **2.518 → ~1.972**. Kayıp %22 ve `db:verify` kapısı (365 = bir yıl) rahatça geçiliyor. Oran, kolay havuzun %81,4'üne yakın çıktı ve sebebi yapısal: BR-15 havuzu zaten altı istatistiği birden dolu olan, yani en iyi belgelenmiş oyunculardan oluşuyor.
+
+**Kayda geçen tutarsızlık:** havuzun geri kalanında ölçülen %20'lik _bölüm varlığı_ figüründen genelleme yapılırsa "hangisi daha" gol havuzu ~1.850 çıkıyor — ki bu, aday havuzu tahmini olan 1.972'nin altında ve imkânsız, çünkü aday havuzu onun alt kümesi. Demek ki %20'den yapılan genelleme güvenilir değil: aday havuzundaki "zor" oyuncular ortalama zor oyuncudan çok daha iyi belgelenmiş. Sağlam olan üç sayı: kolay havuz **%81,4** (n=70), aday havuzu **%78,3** (n=60), ikisinde de çözülemeyen sıfır.
+
+**Durum (15 Ağustos 2026, geçiş ONAYLANDI):** boru hattı hazır ve `verify` temiz.
+
+- `Player.nationalGoals` — millî takım golü, `pq:P1351`, ek istek sıfır.
+- `Player.clubCareerAppearances` / `clubCareerGoals` — Vikipedi kariyer toplamı. `careerAppearances` ile karıştırılmamalı: o BR-21'in arama ağırlığıdır ve yalnız 24 ligi sayar.
+- `career-total.ts` (23 test) — ayrıştırıcı, saf.
+- `career-total-check.ts` (12 test) — çapraz denetim kapısı.
+- Vikipedi geçişi kariyer toplamını **bilgi kutusuyla aynı metinden** okur; yeni ağ isteği yok. Sıra önemli: kariyer tablosu bilgi kutusundan bağımsızdır, bu yüzden bilgi kutusu boş olan makaleyi atlayan erken dönüşten ÖNCE okunur.
+- `db:verify`: aritmetik imkânsızlıklar kapı (gol > maç, kariyer golü < lig golü), kapsam sayaç.
+
+**Kapı neden siler, BR-42 neden silmez.** BR-42'de bulunan şey "iki kaynağın anlaşamadığı kayıt"tır ve kararı insan vermelidir. Burada bulunan şey aritmetik olarak imkânsızdır — bütünü kapsayan sayı parçasından küçük olamaz — ve insana sorulacak bir yanı yoktur. Değeri lig sayımıza yükseltmek de akla gelebilir ama uydurma olurdu: `null` sıfır olmadığı gibi tahmin de değildir (§2.7).
+
+**KALAN:** ETL koşusunun kendisi (Eylül tazelemesi) ve veri geldikten sonra ürün tarafı — `SCOPED_STATS`'ten `goals` çıkar, BR-23 ile arayüzdeki "yalnızca kapsamdaki 24 lig" ibaresi birlikte değişir, ve **`STAT_DEVIATIONS.goals` (60,5) ile `MIN_GAP` yeniden ölçülür**.
+
+> **Yol üstünde bulunan, ilgisiz kusur.** `db:verify` mevki denetimi düşüyor: `POSITIONS` sabiti İngilizce (`goalkeeper`, `defender`, …) ama veritabanındaki değerler Türkçe (`Kaleci`, `Defans`, `Kanat`, …). Mevcut veri kümesi, mevki normalleştirmesi İngilizceye çevrilmeden önceki bir koşudan kalma; ilk tazelemede kendiliğinden düzelir. Kayda geçiyor ki tazeleme sonrası hâlâ duruyorsa gerçek bir kusur olduğu bilinsin.
+
+Ürün tarafı ayrıca ele alınacak: `SCOPED_STATS`'ten `goals` çıkar, BR-23 ile arayüzdeki "yalnızca kapsamdaki 24 lig" ibaresi birlikte değişir. **Ve `STAT_DEVIATIONS.goals` (60,5) ile `MIN_GAP` yeniden ÖLÇÜLMELİDİR:** ikisi de bugünkü lig golü dağılımına göre konuldu, kariyer toplamı dağılımı ise belirgin biçimde geniş (Ronaldo 600 → 830, Hakan Şükür 250 → 332, Ervin Skela 51 → 131). Ölçmeden geçmek oyunun zorluğunu sessizce değiştirir — `scripts/measure-stats.ts` tam olarak bunun için var.
 
 #### Ölçüm: BR-14 — millî maç TOPLANMAZ, EN BÜYÜĞÜ alınır
 

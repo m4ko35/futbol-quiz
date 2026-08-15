@@ -11,11 +11,19 @@ import type { SparqlBinding } from "../../../scripts/etl/sources/wikidata/schema
 
 const ENTITY = "http://www.wikidata.org/entity/";
 
-function capRow(player: string, team: string, caps: number): SparqlBinding {
+function capRow(
+  player: string,
+  team: string,
+  caps: number,
+  goals?: number,
+): SparqlBinding {
   return {
     player: { type: "uri", value: `${ENTITY}${player}` },
     team: { type: "uri", value: `${ENTITY}${team}` },
     caps: { type: "literal", value: String(caps) },
+    ...(goals === undefined
+      ? {}
+      : { goals: { type: "literal", value: String(goals) } }),
   };
 }
 
@@ -100,6 +108,86 @@ describe("nationalCapsFrom — BR-14", () => {
     );
 
     expect(caps.get("Q1")?.caps).toBe(50);
+  });
+});
+
+/**
+ * §9.2 — millî takım golü, "toplam resmî gol"ün birinci yarısı.
+ *
+ * BURADAKİ ASIL SORU seçimin neye göre yapıldığıdır. Gol, kendi başına
+ * seçilen bir değer DEĞİL; BR-14'ün seçtiği takımın kaydından okunur.
+ * Ölçülen kapsam (15 Ağustos 2026): maçı olan 3.580 oyuncunun 3.573'ünde
+ * gol de var — %99,8.
+ */
+describe("nationalCapsFrom — millî takım golü", () => {
+  it("golü, EN ÇOK MAÇ yapılan takımın kaydından alır", () => {
+    // A millî takımda 176 maç / 0 gol; U-21'de 11 maç / 1 gol. "En çok gol"
+    // diye ayrı bir seçim yapılsaydı U-21 kazanır ve A takımın maç sayısıyla
+    // U-21'in golü aynı satırda birleşirdi.
+    const caps = nationalCapsFrom(
+      [capRow("Q68060", ITALY, 176, 0), capRow("Q68060", ITALY_U21, 11, 1)],
+      isNationalTeam,
+    );
+
+    expect(caps.get("Q68060")).toEqual({
+      caps: 176,
+      teamQid: ITALY,
+      goals: 0,
+    });
+  });
+
+  it("gol niteliği YOKSA null olur — sıfır değil", () => {
+    // §2.7: kaydı olmayan oyuncu "0 gol atmış" demek değildir. Ölçülen
+    // 3.580 oyuncunun 7'si bu durumda.
+    const caps = nationalCapsFrom([capRow("Q1", ITALY, 50)], isNationalTeam);
+
+    expect(caps.get("Q1")?.caps).toBe(50);
+    expect(caps.get("Q1")?.goals).toBeNull();
+  });
+
+  it("maç sayısı olan oyuncuyu, golü yok diye DÜŞÜRMEZ", () => {
+    // `OPTIONAL` kaldırılsaydı bu oyuncunun maç sayısı da kaybolurdu:
+    // kapsamı olan bir alanı, kapsamı olmayan bir alan uğruna kaybetmek.
+    const caps = nationalCapsFrom([capRow("Q1", ITALY, 120)], isNationalTeam);
+
+    expect(caps.has("Q1")).toBe(true);
+  });
+
+  it("seçilen takım DEĞİŞİNCE gol de onunla değişir", () => {
+    // Sıra ne olursa olsun 176'nın golü kazanır; kalıntı bırakmamalı.
+    const artan = nationalCapsFrom(
+      [capRow("Q1", ITALY_U21, 11, 9), capRow("Q1", ITALY, 176, 3)],
+      isNationalTeam,
+    );
+    const azalan = nationalCapsFrom(
+      [capRow("Q1", ITALY, 176, 3), capRow("Q1", ITALY_U21, 11, 9)],
+      isNationalTeam,
+    );
+
+    expect(artan.get("Q1")?.goals).toBe(3);
+    expect(azalan.get("Q1")?.goals).toBe(3);
+  });
+
+  it("seçilen takımın golü yoksa, ELENEN takımın golü sızmaz", () => {
+    // En ince kusur bu olurdu: 176 maçlık kayıtta gol niteliği yok, 11
+    // maçlıkta var. Harita güncellenirken gol alanı silinmezse Buffon
+    // "176 maç, 9 gol" görünürdü.
+    const caps = nationalCapsFrom(
+      [capRow("Q1", ITALY_U21, 11, 9), capRow("Q1", ITALY, 176)],
+      isNationalTeam,
+    );
+
+    expect(caps.get("Q1")?.caps).toBe(176);
+    expect(caps.get("Q1")?.goals).toBeNull();
+  });
+
+  it("kulüp ifadesindeki gol millî gol sayılmaz", () => {
+    const caps = nationalCapsFrom(
+      [capRow("Q1", CLUB, 509, 200), capRow("Q1", ITALY, 176, 0)],
+      isNationalTeam,
+    );
+
+    expect(caps.get("Q1")?.goals).toBe(0);
   });
 });
 
@@ -189,6 +277,7 @@ describe("applyPlayerStats", () => {
     position: "goalkeeper",
     genderQid: null,
     nationalCaps: null,
+    nationalGoals: null,
     heightCm: null,
     weightKg: null,
   };
@@ -198,7 +287,7 @@ describe("applyPlayerStats", () => {
   it("istatistikleri oyuncuya işler", () => {
     const [player] = applyPlayerStats(
       [base],
-      new Map([["Q68060", { caps: 176, teamQid: "Q1088902" }]]),
+      new Map([["Q68060", { caps: 176, teamQid: "Q1088902", goals: null }]]),
       new Map([["Q68060", { heightCm: 192, weightKg: 92 }]]),
       ITALY,
     );
@@ -219,6 +308,7 @@ describe("applyPlayerStats", () => {
     expect(player).toMatchObject({
       wikidataId: "Q68060",
       nationalCaps: null,
+      nationalGoals: null,
       heightCm: null,
       weightKg: null,
       // Millî takım yok ama tek vatandaşlık var — BR-38'in ikinci kademesi.
@@ -244,7 +334,7 @@ describe("applyPlayerStats", () => {
 
     const [player] = applyPlayerStats(
       [motta],
-      new Map([["Q191885", { caps: 30, teamQid: "Q1088902" }]]),
+      new Map([["Q191885", { caps: 30, teamQid: "Q1088902", goals: null }]]),
       new Map(),
       ITALY,
     );
@@ -255,7 +345,7 @@ describe("applyPlayerStats", () => {
   it("girdiyi DEĞİŞTİRMEZ", () => {
     applyPlayerStats(
       [base],
-      new Map([["Q68060", { caps: 176, teamQid: "Q1088902" }]]),
+      new Map([["Q68060", { caps: 176, teamQid: "Q1088902", goals: null }]]),
       new Map(),
       ITALY,
     );

@@ -265,7 +265,11 @@ describe("nationalCapsFrom — takım kimliği de döner", () => {
       () => true,
     );
 
-    expect(map.get("Q68060")).toEqual({ caps: 176, teamQid: "Q1088902" });
+    expect(map.get("Q68060")).toEqual({
+      caps: 176,
+      teamQid: "Q1088902",
+      goals: null,
+    });
   });
 
   it("millî takım olmayanı eler", () => {
