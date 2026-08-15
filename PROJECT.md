@@ -4321,6 +4321,35 @@ yüzeyi açan seçenek.
   silebilir; skorları ya birlikte silinir ya da kimliksizleştirilir. Hangisi
   olduğu kullanıcıya silmeden ÖNCE söylenir.
 
+> **BR-46 UYGULANDI (15 Ağustos 2026) — kapı kara liste değil BEYAZ LİSTEDİR.**
+> Herkese açık bir tabloda asıl tehdit T5'in "hakaret" kısmı değil **taklit**:
+> Kiril "М" (U+041C) Latin "M" ile ekranda ayırt edilemez, sıfır genişlikli
+> karakter (U+200B) görünmez bir ikiz üretir, yön değiştirme işareti (U+202E)
+> adı ekranda başka türlü okutur. Kara liste bunları tek tek saymak zorundadır
+> ve biri kaçar; beyaz liste (Latin harf, rakam, boşluk, `-`, `_`) ailenin
+> **tamamını tek kuralla** kapatır. Bedeli emojidir ve kabul edilmiştir.
+>
+> **KÜFÜR SÜZGECİ YOK ve bu bir eksiklik değil, karar.** Kelime listesi yanlış
+> bir güven duygusu verir: eksiktir, dile bağlıdır ve araya boşluk konarak
+> aşılır — yani engellediğini sandığı şeyi engellemez. Kapı yalnızca **yetki
+> taklidini** kapatır (`admin`, `sistem`, `futbolquiz`…). T5'in hakaret kısmı
+> için dürüst mekanizma kullanıcı bildirimidir ve **yazılmadı** (§11.9).
+>
+> **Tekillik ölçütü `toSearchKey`.** Kulüp aramasının normalleştirmesi yeniden
+> kullanılıyor; Türkçe'nin ı/İ tuzağını zaten çözülmüş hâlde taşıyor. İkinci
+> bir normalleştirme yazmak, ikisinin zamanla ayrışması demekti.
+>
+> **Testin bulduğu kusur: "é" iki biçimde yazılabilir** — tek kod noktası
+> (U+00E9) ya da `e` + birleşik aksan (U+0301). İkisi ekranda aynıdır ama
+> hangisinin geldiği kullanıcının klavyesine bağlıdır ve beyaz liste birleşik
+> işaretleri kapsamaz; **ayrışık yazan kullanıcı kendi göremediği bir sebeple
+> reddediliyordu.** Onarım: girdi NFC'ye normalleştiriliyor. Bu ayrıca uzunluk
+> ölçümünü de kararlı kılar.
+>
+> **Sıra kuralın parçasıdır:** biçim denetimi ayrılmış ad denetiminden ÖNCE
+> gelir, yoksa "Admin!!!" yazan kullanıcı "bu ad ayrılmış" duyar ve bu, hangi
+> adların ayrıldığını sızdırır.
+
 ### 11.5 Lider tablosunun kapsamı
 
 Üç dönem, kullanıcı aralarında geçiş yapar (BR-50).
@@ -4387,8 +4416,15 @@ N örnek, N kat deneme demektir ve BR-43'ün değeri doğrudan buna bağlıdır.
 > sıralama söz konusu değil. **Lider tablosuyla birlikte kritik olur** — iki
 > kullanıcı aynı gün farklı bulmaca görebilir ve puanları aynı tabloya yazılır.
 > Düzeltme: günlük uçların `s-maxage` değeri, bir sonraki gün sınırına kalan
-> süreyle **sınırlanmalı** (BR-49). Sabit bir sayı yetmez; sınıra kalan süre
-> hesaplanmalıdır.
+> süreyle **sınırlanır** (BR-49). Sabit bir sayı yetmez; sınıra kalan süre
+> isteğin saatine bağlıdır.
+>
+> **ONARILDI (15 Ağustos 2026).** `handleApiRequest` artık isteğe bağlı bir
+> `freshUntil` alıyor; verildiğinde `s-maxage` o ana kalan süreyle sınırlanır.
+> `stale-while-revalidate` bu yolda **hiç gönderilmiyor** ve sebebi kuralın
+> kendisi: bayat yanıt sunmak futbol verisinde zararsızdı (iki güncelleme
+> arasında zaten değişmiyor), günlük bulmacada ise tam olarak kaçınılan şeydir
+> — sınırdan sonra sunulan bayat yanıt kullanıcıya DÜNKÜ bulmacayı verir.
 
 ### 11.8 Paket bütçesi
 
@@ -4408,9 +4444,15 @@ Kayda geçiyor ki yazarken "biliniyor" sanılmasın:
 - **Turso gecikmesi istek yolunda.** §3.1'in kazanımlarından biri "sorgu ağ
   turu içermez" idi; hesap yollarında bu artık geçerli değil. p95 bütçesi
   150 ms (§10.2) ve bu yollar için yeniden ölçülmelidir.
-- **Günlük uçların önbellek ömrü** (§11.7 notu) — gün sınırına kalan sürenin
-  hesaplanması yazılmadı; düzeltmeden önce üretimde ölçülmeli, çünkü §7.9'un
-  dağıtım-geçersizleştirme gözlemi bu yolda geçerli değil.
+- **Önbellek isabet oranı, gün sınırına yakın.** Ömür artık sınıra kalan
+  süreyle sınırlı (§11.7, onarıldı) ama bunun CDN isabet oranına etkisi
+  **üretimde ölçülmedi**: sınırdan hemen önce gelen istek saniyeler ömürlü bir
+  yanıt alır, yani sınır civarında fonksiyona daha çok istek ulaşır. Bugün
+  trafik ölçüm yapılamayacak kadar az.
+- **Görünen adda hakaret.** Beyaz liste taklidi kapatır, hakareti **kapatmaz**
+  (§11.4 notu) ve bildirim akışı yazılmadı. Tablo herkese açılmadan önce bu
+  boşluk bir karar gerektirir: ya bildirim akışı yazılır ya da ilk gösterim
+  elle onaylanır.
 - **"Tüm zamanlar" tablosunun uzun vadeli davranışı** — toplam seçildi (§11.5)
   ama sonradan katılanın tabloyu nasıl deneyimlediği ölçülmedi. Haftalık tablo
   bunun onarımı olarak konuldu; işe yarayıp yaramadığı ancak kullanımla görülür.
