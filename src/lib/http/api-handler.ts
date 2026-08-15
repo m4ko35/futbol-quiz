@@ -35,6 +35,24 @@ export interface HandleApiOptions<T> {
    * okuyucuyu yanıltır. Başlık, davranışın kendisi kadar sözleşmedir.
    */
   readonly cacheable?: boolean;
+  /**
+   * Yanıtın GEÇERSİZ olacağı an — günlük uçlar için, §11.7 (BR-49).
+   *
+   * ÖLÇÜLEN KUSURUN ONARIMI. `/api/grid` ve `/api/stat-match` bu alanı
+   * vermiyordu ve öntanımlı `s-maxage=86400` alıyordu. O sürenin gerekçesi
+   * futbol verisine ait — "yılda iki kez değişir, her değişim bir dağıtımla
+   * gelir" — ve günlük bulmaca için geçerli değil: o her gün değişiyor ve
+   * arada dağıtım yok. Sabah 10:00'da önbelleğe giren yanıt ertesi sabah
+   * 10:00'a kadar taze sayılıyor, yani gün sınırını 24 saate kadar aşıyordu.
+   *
+   * Bugün bedeli sınırlı (kullanıcı bir süre dünkü bulmacayı görür); lider
+   * tablosuyla birlikte iki kullanıcının aynı gün FARKLI bulmaca görüp aynı
+   * tabloya yazılmasına yol açar.
+   *
+   * Verilmezse davranış eskisi gibidir — bu alan yalnızca ömrü kendi
+   * takvimine bağlı olan yanıtlar içindir.
+   */
+  readonly freshUntil?: Date;
   run(context: ApiRequestContext): Promise<T>;
 }
 
@@ -83,6 +101,28 @@ const CACHEABLE = "public, s-maxage=86400, stale-while-revalidate=604800";
  */
 const NOT_CACHEABLE = "no-store";
 
+/**
+ * Ömrü kendi takvimine bağlı yanıtın önbellek başlığı — §11.7.
+ *
+ * `stale-while-revalidate` BURADA VERİLMEZ ve sebebi kuralın kendisidir: bayat
+ * bir yanıt sunmak futbol verisinde zararsızdı (iki güncelleme arasında zaten
+ * değişmiyor), günlük bulmacada ise tam olarak kaçınılan şeydir — sınırdan
+ * sonra sunulan bayat yanıt, kullanıcıya DÜNKÜ bulmacayı verir.
+ *
+ * Sınır geçmişte kalmışsa süre 0'dır: `s-maxage=0` "her istekte doğrula"
+ * demektir, `no-store` değil. Ayrım önemli — yanıt hâlâ paylaşılabilir, yalnızca
+ * tazeliği her seferinde sorulur.
+ */
+function cacheControlFor(freshUntil: Date | undefined): string {
+  if (freshUntil === undefined) return CACHEABLE;
+
+  const seconds = Math.max(
+    0,
+    Math.floor((freshUntil.getTime() - Date.now()) / 1_000),
+  );
+  return `public, s-maxage=${seconds}`;
+}
+
 export async function handleApiRequest<T>(
   options: HandleApiOptions<T>,
 ): Promise<Response> {
@@ -117,7 +157,9 @@ export async function handleApiRequest<T>(
       headers: {
         ...BASE_HEADERS,
         "Cache-Control":
-          options.cacheable === false ? NOT_CACHEABLE : CACHEABLE,
+          options.cacheable === false
+            ? NOT_CACHEABLE
+            : cacheControlFor(options.freshUntil),
       },
     });
   } catch (error: unknown) {

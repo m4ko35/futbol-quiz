@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";
 import { CURATED_CLUB_QIDS } from "@/application/curated-clubs";
 import { STAT_KEYS } from "@/domain/services/stat-match";
+import { nextRollover } from "@/domain/value-objects/daily-seed";
 import { toSearchKey } from "@/domain/value-objects/search-key";
 import {
   createTestDatabase,
@@ -215,6 +216,34 @@ describe("GET /api/stat-match — §6.5", () => {
 
     expect(cacheControl).toContain("public");
     expect(cacheControl).toMatch(/s-maxage=\d+/u);
+  });
+
+  /**
+   * §11.7 — ÖLÇÜLEN KUSURUN TESTİ. Uç, öntanımlı `s-maxage=86400` alıyordu ve
+   * o sürenin gerekçesi futbol verisine aitti ("yılda iki kez değişir, her
+   * değişim bir dağıtımla gelir"). Günün oyuncusu her gün değişiyor ve arada
+   * dağıtım yok; sabah önbelleğe giren yanıt gün sınırını 24 saate kadar
+   * aşabiliyordu. Lider tablosuyla birlikte bu, iki kullanıcının aynı gün
+   * FARKLI bulmaca görmesi demektir.
+   */
+  it("önbellek ömrü GÜN SINIRINI aşmaz (BR-49, §11.7)", async () => {
+    const response = await dailyRoute.GET(get("/api/stat-match"));
+    const cacheControl = response.headers.get("cache-control") ?? "";
+
+    const seconds = Number(/s-maxage=(\d+)/u.exec(cacheControl)?.[1] ?? "-1");
+    const kalan = Math.floor(
+      (nextRollover(new Date()).getTime() - Date.now()) / 1_000,
+    );
+
+    expect(seconds).toBeGreaterThanOrEqual(0);
+    // Bir saniyelik tolerans: başlığın üretimi ile ölçüm arasında zaman geçer.
+    expect(seconds).toBeLessThanOrEqual(kalan + 1);
+    // Eski davranışın geri gelmesini tutar.
+    expect(seconds).toBeLessThan(86_400);
+
+    // Bayat yanıt sunmak BURADA yasaktır: sınırdan sonra servis edilen bayat
+    // yanıt, kullanıcıya dünkü bulmacayı verir.
+    expect(cacheControl).not.toContain("stale-while-revalidate");
   });
 
   it("tarih parametresini yok sayar (BR-19)", async () => {

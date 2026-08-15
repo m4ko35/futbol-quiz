@@ -7,6 +7,7 @@ import {
   resolveClientKey,
   trustedProxyHops,
 } from "@/infrastructure/rate-limit";
+import { nextRollover } from "@/domain/value-objects/daily-seed";
 import { handleApiRequest } from "@/lib/http/api-handler";
 
 /**
@@ -27,6 +28,9 @@ export async function GET(request: NextRequest): Promise<Response> {
     headers: request.headers,
     limiter: rateLimiter(),
     clientKey,
+    // Günlük ızgara gün sınırında değişir (BR-49); önbellek ömrü o sınırı
+    // aşamaz — ayrıntılı gerekçe `freshUntil` alanının başında.
+    freshUntil: nextRollover(new Date()),
     run: () => {
       const mode = gameModes.get(GRID_MODE_ID);
       if (mode === undefined) {

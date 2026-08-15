@@ -2,38 +2,98 @@ import { describe, expect, it } from "vitest";
 import {
   createRandom,
   dailySeed,
+  nextRollover,
   seedVariant,
   shuffled,
 } from "@/domain/value-objects/daily-seed";
 
 /** §9.1 BR-11 — günlük ızgara deterministiktir. */
 
-describe("dailySeed", () => {
-  it("aynı gün aynı tohumu verir", () => {
-    expect(dailySeed(new Date("2026-07-31T00:00:00Z"))).toBe(
-      dailySeed(new Date("2026-07-31T23:59:59Z")),
-    );
+describe("dailySeed — BR-49, gün Türkiye saatiyle 06:00'da döner", () => {
+  /**
+   * SINIRIN İKİ YANI. 06:00 Türkiye = 03:00 UTC; bir saniye öncesi hâlâ
+   * dünkü bulmacadır. Kural bir ürün kararıdır (§11): eski sınır UTC gece
+   * yarısıydı ve Türkiye'de 03:00'e denk geliyordu, yani gece yarısı oynayan
+   * kullanıcı "dünkü" bulmacada kalıyordu.
+   */
+  it("sınırın bir saniye ÖNCESİ hâlâ önceki gündür", () => {
+    expect(dailySeed(new Date("2026-08-15T02:59:59Z"))).toBe(20260814);
   });
 
-  it("farklı gün farklı tohum verir", () => {
-    expect(dailySeed(new Date("2026-07-31T12:00:00Z"))).not.toBe(
-      dailySeed(new Date("2026-08-01T12:00:00Z")),
-    );
+  it("sınırın kendisi yeni gündür", () => {
+    expect(dailySeed(new Date("2026-08-15T03:00:00Z"))).toBe(20260815);
+  });
+
+  it("UTC gece yarısı gün DEĞİŞTİRMEZ", () => {
+    // Eski davranışın tam tersi; bu test o davranışın geri gelmesini tutar.
+    expect(dailySeed(new Date("2026-08-15T00:00:00Z"))).toBe(20260814);
+  });
+
+  it("bir bulmaca günü tam 24 saat sürer", () => {
+    const basla = dailySeed(new Date("2026-08-15T03:00:00Z"));
+    const bit = dailySeed(new Date("2026-08-16T02:59:59Z"));
+
+    expect(basla).toBe(bit);
+    expect(dailySeed(new Date("2026-08-16T03:00:00Z"))).not.toBe(basla);
   });
 
   /**
    * Sunucunun yerel dilimi bir dağıtım tesadüfüdür. Sabitlenmeseydi ızgara,
-   * hangi bölgedeki sunucunun yanıt verdiğine göre değişirdi.
+   * hangi bölgedeki sunucunun yanıt verdiğine göre değişirdi (BR-11).
    */
-  it("tohum UTC'ye sabitlenmiştir", () => {
-    // Aynı an, iki farklı yerel dilim gösterimi.
-    expect(dailySeed(new Date("2026-07-31T01:00:00+03:00"))).toBe(
-      dailySeed(new Date("2026-07-30T22:00:00Z")),
+  it("aynı ANIN farklı gösterimleri aynı tohumu verir", () => {
+    expect(dailySeed(new Date("2026-08-15T12:00:00+03:00"))).toBe(
+      dailySeed(new Date("2026-08-15T09:00:00Z")),
     );
   });
 
+  it("ay, yıl ve artık gün sınırlarını doğru geçer", () => {
+    // Türkiye saatiyle 05:00, yani hâlâ önceki gün.
+    expect(dailySeed(new Date("2026-01-01T02:00:00Z"))).toBe(20251231);
+    expect(dailySeed(new Date("2026-03-01T02:00:00Z"))).toBe(20260228);
+    expect(dailySeed(new Date("2028-03-01T02:00:00Z"))).toBe(20280229);
+  });
+
   it("YYYYMMDD biçimindedir", () => {
-    expect(dailySeed(new Date("2026-07-31T00:00:00Z"))).toBe(20260731);
+    expect(dailySeed(new Date("2026-07-31T12:00:00Z"))).toBe(20260731);
+  });
+});
+
+/**
+ * §11.7 — ölçülen önbellek kusurunun onarımı.
+ *
+ * Günlük uçlar `s-maxage=86400` alıyordu ve o sürenin gerekçesi futbol
+ * verisine aitti. Günlük bulmaca her gün değişiyor ve arada dağıtım yok;
+ * sabah 10:00'da önbelleğe giren yanıt gün sınırını 24 saate kadar aşıyordu.
+ */
+describe("nextRollover", () => {
+  it("sınırdan ÖNCE aynı günün sınırını verir", () => {
+    expect(nextRollover(new Date("2026-08-15T02:00:00Z")).toISOString()).toBe(
+      "2026-08-15T03:00:00.000Z",
+    );
+  });
+
+  it("sınırdan SONRA ertesi günün sınırını verir", () => {
+    expect(nextRollover(new Date("2026-08-15T12:00:00Z")).toISOString()).toBe(
+      "2026-08-16T03:00:00.000Z",
+    );
+  });
+
+  it("sınırın TAM ÜSTÜNDE bir sonraki güne geçer", () => {
+    // Aksi hâlde süre 0 kalır ve yanıt hiç önbelleklenemezdi.
+    expect(nextRollover(new Date("2026-08-15T03:00:00Z")).toISOString()).toBe(
+      "2026-08-16T03:00:00.000Z",
+    );
+  });
+
+  it("dönüş anı, o anın tohumunu DEĞİŞTİREN ilk andır", () => {
+    // İki fonksiyonun aynı sınırı gördüğünü tutar; ayrışırlarsa önbellek
+    // bayat bulmaca servis eder ve bunu kimse fark etmez.
+    const simdi = new Date("2026-08-15T12:00:00Z");
+    const sinir = nextRollover(simdi);
+
+    expect(dailySeed(new Date(sinir.getTime() - 1))).toBe(dailySeed(simdi));
+    expect(dailySeed(sinir)).not.toBe(dailySeed(simdi));
   });
 });
 
