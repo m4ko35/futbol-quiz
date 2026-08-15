@@ -4295,6 +4295,73 @@ yüzeyi açan seçenek.
 > e-postanın bizde durmasının işlevsel bir karşılığı yok — yalnızca KVKK
 > sorumluluğu var. Bu, projenin "ölçülmemiş veriyi tutma" ilkesinin
 > kişisel veriye uygulanmış hâlidir.
+>
+> **KAPSAM DA BUNA GÖRE İSTENİR.** Google'dan yalnızca `openid` kapsamı
+> isteniyor; `email` ve `profile` İSTENMİYOR. Fark önemli: istenmeyen veri
+> "saklamıyoruz" sözüne değil, **elimize hiç geçmemesine** dayanır. Yan
+> faydası, `openid`'nin hassas kapsam sayılmaması — uygulama Google'ın
+> doğrulama sürecine girmeden yayına alınabiliyor.
+
+#### Kurulum — 15 Ağustos 2026'da yapıldı ve ölçüldü
+
+Veritabanı **`aws-eu-west-1` (İrlanda)** bölgesinde. Frankfurt seçilmek
+istenmişti ama Turso'nun Avrupa'da sunduğu tek bölge buydu; alternatifler ABD.
+
+**HİZALAMA TERS YÖNDEN YAPILDI:** Vercel işlev bölgesi **`dub1` (Dublin)**
+olarak ayarlandı, yani işlev veritabanının yanına taşındı. Ölçüt "Türkiye'ye
+yakınlık" DEĞİL: sorgu kullanıcının tarayıcısından değil işlevden gidiyor.
+Ölçüm (Türkiye'den İrlanda'ya, geliştirici makinesinden):
+
+|                                         | Süre       |
+| --------------------------------------- | ---------- |
+| Soğuk bağlantı (TLS el sıkışması dâhil) | **474 ms** |
+| Sıcak sorgu medyanı (8 ölçüm)           | **90 ms**  |
+
+Dublin, Frankfurt'a göre Türkiye'ye ~25 ms daha uzak ve bu bedel kabul edildi:
+futbol sayfaları zaten CDN'den kenardan servis ediliyor (§7.9), **hesap yolları
+ise her zaman işleve gidiyor** (BR-47 gereği `private, no-store`) ve her biri
+birden çok sorgu yapıyor. 25 ms bir kez ödenip her cevapta 4×90 ms'den
+kurtulunuyor. **Bu bir hesap, ölçüm değil** — gerçek p95 dağıtımdan sonra
+işlevin içinden ölçülecek (§11.9).
+
+> **ÖLÇÜLEN KUSUR: göç komutu BAŞARIYLA yanlış veritabanına yazdı.**
+> `prisma.config.ts` içindeki `adapter` alanı **istemci ve Studio içindir**;
+> göç motoru onu kullanmaz. İlk denemede komut hatasız tamamlandı, "migration
+> applied" yazdı ve tabloları **yerel bir dosyaya** kurdu. Turso'da hiçbir şey
+> oluşmamıştı ve hiçbir uyarı yoktu.
+>
+> Onarım: yapılandırmaya `engine: "js"` eklendi. Ders kalıcı: **"komut hata
+> vermedi" bir kanıt değildir.** Göçten sonra tabloların Turso'da gerçekten
+> oluştuğu artık ayrıca sayılıyor.
+>
+> Prisma bu göç motorunu "yeni, KARARSIZ" diye işaretliyor. Alternatif, göç
+> SQL'ini elle üretip Turso'ya kendi betiğimizle uygulamaktı — yani kendi göç
+> koşucumuzu yazmak ve bakımını üstlenmek. Kararsız da olsa Prisma'nın kendi
+> yolu seçildi.
+>
+> **İLK GÖÇ `migrate dev` İLE ATILAMIYOR:** boş bir uzak veritabanında
+> `_prisma_migrations` tablosunu okumaya çalışıp düşüyor. İlk göç bu yüzden
+> `migrate diff` ile üretilip `migrate deploy` ile uygulandı. Sonrakiler
+> `db:migrate:accounts` ile normal akışına döner.
+>
+> **Şemadaki `url` bir YER TUTUCU ve silinemiyor:** göç komutu "bu değerler
+> kullanılmayacak, kaldırmanızı öneririz" diye uyarıyor, kaldırınca doğrulayıcı
+> "url eksik" diyerek durduruyor. İkisi çelişiyor.
+
+**KISITLAR GERÇEK VERİTABANINDA SINANDI** (10 denetim, geçici veriyle, sonunda
+silindi): aynı görünen ad ikinci kez alınamıyor (BR-46), aynı Google hesabı
+ikinci kullanıcı açamıyor, aynı gün ikinci tur açılamıyor ve aynı istatistiğe
+ikinci cevap yazılamıyor (BR-43), aynı oyuncu ikinci istatistikte
+kullanılamıyor (BR-17), hesap silinince tur ve cevaplar da siliniyor (BR-48).
+Onu da geçti.
+
+**PAKET: yerel ikili DIŞARIDA BIRAKILDI.** `@prisma/adapter-libsql` iki giriş
+sunuyor; düğüm girişi `libsql` yerel ikilisini (**7,0 MB**, platforma özel)
+içeri alıyor ve o ikili yalnızca yerel dosya ya da gömülü kopya için gerekli.
+Biz her zaman uzaktaki Turso'ya HTTP ile bağlandığımız için `/web` girişi
+kullanılıyor. `@libsql/client` doğrudan bağımlılık olarak da **kaldırıldı**:
+bağdaştırıcı kendi kopyasını taşıyor, bizim ayrıca kurduğumuz sürüm hiç
+içeri alınmıyordu. Paketteki gerçek etki dağıtımda ölçülecek (§11.9).
 
 ### 11.4 Kurallar
 
@@ -4521,9 +4588,18 @@ Kayda geçiyor ki yazarken "biliniyor" sanılmasın:
 - **Kimlik doğrulama kitaplığının paket maliyeti.** Kendi OIDC akışımızı yazmak
   paketi küçültür ama güvenlik açısından kritik kodu bize yükler. Ölçülmeden
   seçilmemeli.
-- **Turso gecikmesi istek yolunda.** §3.1'in kazanımlarından biri "sorgu ağ
-  turu içermez" idi; hesap yollarında bu artık geçerli değil. p95 bütçesi
-  150 ms (§10.2) ve bu yollar için yeniden ölçülmelidir.
+- **Turso gecikmesi İŞLEVİN İÇİNDEN.** Geliştirici makinesinden ölçüldü
+  (sıcak medyan 90 ms, soğuk 474 ms — §11.3) ama **bu sayı yanıltıcıdır**:
+  gerçek sorgu Dublin'deki işlevden yine Dublin'deki veritabanına gidecek,
+  yani çok daha kısa olmalı. "Olmalı" ölçüm değildir. p95 bütçesi 150 ms
+  (§10.2) ve bu yollar dağıtımdan sonra işlevin içinden ölçülmelidir.
+- **Bağdaştırıcının fonksiyon paketine etkisi.** `/web` girişi seçilerek 7 MB'lık
+  yerel ikilinin dışarıda kalması AMAÇLANDI (§11.3) ama Vercel'in dosya izleme
+  adımının onu gerçekten dışarıda bıraktığı doğrulanmadı; yalnızca dağıtımda
+  görülebilir.
+- **Göç motorunun kararlılığı.** `engine: "js"` Prisma tarafından "kararsız"
+  işaretli. Bugün çalışıyor; bir sürüm yükseltmesinde bozulursa göç SQL'i elle
+  uygulanabilir — `accounts-migrations/` altındaki dosyalar bunun için yeterli.
 - **Önbellek isabet oranı, gün sınırına yakın.** Ömür artık sınıra kalan
   süreyle sınırlı (§11.7, onarıldı) ama bunun CDN isabet oranına etkisi
   **üretimde ölçülmedi**: sınırdan hemen önce gelen istek saniyeler ömürlü bir

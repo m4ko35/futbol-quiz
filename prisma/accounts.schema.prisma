@@ -23,11 +23,23 @@ generator client {
 // Turso libSQL konuşur ve SQLite ile söz dizimi uyumludur; sağlayıcı bu yüzden
 // "sqlite" kalır (§11.3 — ikinci bir SQL lehçesi bakımı doğmasın diye).
 //
-// ÇALIŞMA ZAMANI BAĞLANTISI BURADAN GELMEZ: uygulama libSQL sürücü bağdaştırıcısı
-// kullanır ve kimlik belirtecini ondan alır. Buradaki adres GÖÇLER için gerekli.
+// AŞAĞIDAKİ ADRES KULLANILMAZ ve bu bir ihmal değil, Prisma'nın dayattığı bir
+// yer tutucudur: "sqlite" sağlayıcısının doğrulayıcısı `file:` ile başlayan bir
+// URL görmek ister, oysa gerçek adres `libsql://` ile başlar.
+//
+// GERÇEK BAĞLANTIYI SÜRÜCÜ BAĞDAŞTIRICISI KURAR — hem çalışma zamanında hem
+// göçlerde (prisma/accounts.config.ts). Buradaki dosya yolu hiçbir zaman
+// açılmaz; açılsaydı göçler Turso yerine yerel bir dosyaya işlerdi ve bu
+// SESSİZ bir hata olurdu — bir kez oldu, §11.3'te yazılı. Göçten sonra
+// tabloların gerçekten Turso'da oluştuğu bu yüzden ayrıca sayılıyor.
+//
+// PRISMA BU SATIRI SİLMEYİ ÖNERİYOR ama silinemiyor: göç komutu "bu değerler
+// KULLANILMAYACAK, kaldırmanızı öneririz" diye uyarıyor, kaldırınca da
+// doğrulayıcı "url eksik" diyerek durduruyor. İkisi çelişiyor; yer tutucu
+// bu çelişkinin sonucudur, tercih değil.
 datasource db {
   provider = "sqlite"
-  url      = env("ACCOUNTS_DATABASE_URL")
+  url      = "file:./KULLANILMIYOR.db"
 }
 
 /// Hesap — §11.3, BR-46.

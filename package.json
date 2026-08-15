@@ -21,9 +21,10 @@
     "audit:full": "npm audit --audit-level=high",
     "verify": "npm run typecheck && npm run lint && npm run format:check && npm run test && npm run build",
     "db:generate": "prisma generate",
-    "db:generate:accounts": "prisma generate --schema prisma/accounts.schema.prisma",
+    "db:generate:accounts": "prisma generate --config prisma/accounts.config.ts",
     "db:migrate": "prisma migrate dev",
-    "db:migrate:accounts": "prisma migrate dev --schema prisma/accounts.schema.prisma",
+    "db:migrate:accounts": "prisma migrate dev --config prisma/accounts.config.ts",
+    "db:deploy:accounts": "prisma migrate deploy --config prisma/accounts.config.ts",
     "db:studio": "prisma studio",
     "etl": "tsx scripts/etl/index.ts",
     "db:verify": "tsx scripts/etl/verify-data.ts",
@@ -35,6 +36,7 @@
     "vercel-build": "npm run dataset:fetch && prisma generate && next build"
   },
   "dependencies": {
+    "@prisma/adapter-libsql": "^6.19.3",
     "@prisma/client": "^6.19.1",
     "next": "16.2.12",
     "react": "19.2.4",
