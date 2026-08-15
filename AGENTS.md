@@ -16,8 +16,12 @@ kaynağıdır; kod ile belge çelişirse önce belge güncellenir, sonra kod yaz
 1. **Bağımlılık yönü içe doğrudur** (§2.1, §4.1). `src/domain/` hiçbir şeye —
    `next`, `react`, `@prisma/client` dâhil — bağımlı olamaz. ESLint bunu zorlar;
    kuralı devre dışı bırakarak çözmeye çalışmayın.
-2. **Ağa yalnızca `scripts/etl/` çıkar** (§7.4). Bir istek yolunda (route
-   handler, sayfa, servis) dış HTTP çağrısı yapılmaz.
+2. **İstek yolunda ağ çıkışı SABİT bir adres listesiyle sınırlıdır** (§7.4).
+   Adres hiçbir zaman kullanıcı girdisinden türetilmez ve yönlendirme takip
+   edilmez — yasağın konusu "dış servis" değil, **SSRF**'tir. Liste bugün iki
+   adrestir: kendi hesap veritabanımız (Turso) ve Google'ın jeton ucu.
+   Uzatmak bir karar gerektirir ve önce §7.4'e yazılır. Wikidata bu listede
+   **yoktur**: ona hâlâ yalnızca `scripts/etl/` erişir.
 3. **Sınırlarda Zod ile doğrulama** (§2.3). Ayrıştırılmamış girdi iç katmanlara
    geçemez.
 4. **Ham SQL yasak** (§7.2). Prisma sorgu kurucusu veya `Prisma.sql` etiketli

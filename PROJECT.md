@@ -1296,6 +1296,8 @@ Bunlar `domain/services/` içinde saf fonksiyon olarak yaşar ve birim testi ile
 - **BR-48 — Hesap silinebilir ve silme skorları da kapsar.** _(§11, TASARIM.)_ Kullanıcı hesabını silebilir; skorları ya birlikte silinir ya da kimliksizleştirilir ve hangisi olduğu silmeden ÖNCE söylenir.
 - **BR-49 — Bulmaca günü Türkiye saatiyle 06:00'da döner.** _(§11 — UYGULANDI.)_ "Bugünün" bulmacası, `Europe/Istanbul` diliminde saat 06:00'da değişir; bu, Türkiye kalıcı olarak UTC+3 olduğu için **03:00 UTC**'ye denktir. Sınır **dilim adıyla** hesaplanır, sabit `+3` ile değil: Türkiye 2016'dan beri yaz saati uygulamıyor ama uygularsa sabit kaydırma sessizce yanlış güne kayar. Kural üç modu birden bağlar — ızgara (§9.1), günün oyuncusu (§9.2) ve lider tablosu (§11) aynı günü görmek zorundadır; ayrışırlarsa "herkes aynı soruyu çözer" güvencesi (BR-11) kırılır. **Bu değişiklik kırıcıdır:** bugünkü UTC sınırı 03:00 TR'de dönüyor, yeni sınır 06:00 TR. Şimdi yapılması ucuz, yayından sonra değil.
 - **BR-50 — Lider tablosu ÜÇ dönemde gösterilir: günlük, haftalık, tüm zamanlar.** _(§11 — SAF KURAL YAZILDI: `leaderboard.ts`; sorgu ve uç bağlanmadı.)_ Kullanıcı aralarında geçiş yapar. Günlük tablo o bulmaca gününün puanıdır; haftalık, **pazartesi 06:00'dan** başlayan yedi bulmaca gününün **toplamıdır**; tüm zamanlar, tamamlanmış bütün günlerin toplamıdır. Oynanmayan gün **sıfır sayılır, eksik değil** — tablo katılımı ödüllendirir ve bu kasıtlıdır (§11.5). Üç dönemde de yalnızca TAMAMLANMIŞ turlar sayılır (BR-45). Eşit puanlar **aynı sırayı paylaşır** (1, 1, 3); eşitler arasındaki gösterim sırası turu önce tamamlayana göredir ve bu bir GÖSTERİM tercihidir, sıralama ölçütü değil — erken saatte oynamak sıra kazandırmaz.
+- **BR-51 — Kimlik jetonu YALNIZCA jeton ucundan kabul edilir.** _(§11.10 — TASARIM.)_ `id_token`, Google'ın jeton ucuna yaptığımız doğrudan TLS çağrısının yanıtından okunur; istemciden gelen, sorgu parametresinde taşınan ya da başka bir yerden devralınan jeton hiçbir koşulda kabul edilmez. Kural, **imza doğrulamasının atlanmasını geçerli kılan tek koşuldur**: jeton güvenilmeyen bir yoldan gelmediği için imzayla kanıtlanacak bir şey kalmıyor. İhlal edilirse doğrulanmamış jeton kabul etmiş oluruz ve bu doğrudan hesap ele geçirmedir. İki karar kenetlidir — biri değişirse diğeri de değişmelidir.
+- **BR-52 — Google'dan gelen erişim jetonları SAKLANMAZ.** _(§11.10 — TASARIM.)_ Jeton takasından yalnızca `sub` alınır; `access_token` ve `refresh_token` kullanılmadan atılır ve girişten sonra Google'a bir daha çağrı yapılmaz. Saklanmayan sır sızmaz, yenilenmesi gerekmez ve KVKK kapsamında açıklanacak bir veri olmaz.
 
 ---
 
@@ -1805,6 +1807,41 @@ Wikidata'ya **yalnızca** `scripts/etl/` erişir. Çalışma zamanında (request
 **Kuralın kapsamı: İSTEK YOLU.** Yasaklanan şey, bir kullanıcı isteğinin dış bir servise gitmesidir. Derleme adımı istek yolu değildir ve `scripts/fetch-dataset.ts` orada çalışır: veri kümesini yayımlanmış sürüm varlığından indirir (§3.1). Ayrım keyfi değil, tehdide dayalı — derleme çıktısı dağıtılmadan önce doğrulanabilir ve tekrarlanabilirdir; bir istek anında yapılan çağrı ise kullanıcının gecikmesine, kesintisine ve SSRF yüzeyine doğrudan eklenir.
 
 Betik, yarım veya yanlış bir indirmeyi kabul etmez: geçici dosyaya yazar, boyutu denetler, ancak sonra yerine taşır. Veri inmezse **derleme durur** — boş bir veritabanıyla devam etmek, çalışıyor görünen ama hiçbir kulübü bulamayan bir site üretirdi.
+
+#### Kural İKİ KEZ gevşetildi (§11) — gerekçeleri ayrı
+
+Hesap özelliği, "istek yolunda hiçbir dış çağrı yoktur" cümlesini olduğu gibi
+korumayı imkânsız kıldı. Gevşetme **iki ayrı adımda** ve **iki ayrı gerekçeyle**
+yapıldı; tek bir "artık ağa çıkabiliriz" cümlesine indirgenmemelidir.
+
+**1. Kendi hesap veritabanımız (Turso).** Hesap ve skor yolları Turso'ya
+bağlanır. Tehdit farklıdır: kendi veritabanımız bir SSRF yüzeyi değildir,
+adresi kullanıcıdan gelmez ve yanıtı doğrudan kullanıcıya yansımaz. Futbol
+sorguları **hâlâ** ağ turu içermez (§3.1 korunur).
+
+**2. Google'ın jeton ucu (kimlik doğrulama).** Yetkilendirme kodunu jetona
+çevirmek, tanım gereği istek yolundan yapılan bir dış çağrıdır; OAuth bunsuz
+çalışmaz.
+
+**KURALIN GERÇEK SINIRI ADRESİN NEREDEN GELDİĞİDİR.** Yasak, "dış servise
+istek" olmaktan çok **kullanıcının belirlediği bir adrese istek** olmaktır —
+SSRF budur. Kuralın bugünkü hâli:
+
+> İstek yolunda yalnızca **kodda sabit yazılı** bir adres listesine çağrı
+> yapılır. Adres hiçbir zaman kullanıcı girdisinden, bir yanıttan ya da bir
+> yapılandırma değerinden **türetilmez**; yönlendirme takip edilmez.
+
+Bugünkü liste **iki** adrestir ve uzaması bir karar gerektirir:
+
+| Adres                                 | Ne için                    | Nerede                |
+| ------------------------------------- | -------------------------- | --------------------- |
+| Turso hesap veritabanı                | hesap, tur, skor           | hesap yolları         |
+| `https://oauth2.googleapis.com/token` | yetkilendirme kodu → jeton | yalnızca giriş dönüşü |
+
+Google'ın **anahtar seti ucu listede YOKTUR** ve olmasına gerek de yok:
+kimlik jetonunun imzası doğrulanmıyor, çünkü jeton bize Google'ın jeton
+ucundan **doğrudan TLS üzerinden** geliyor (§11.10). Yani ağ yüzeyi bir uçla
+sınırlı kaldı.
 
 ### 7.5 İstek Hızı Sınırlama
 
@@ -4387,6 +4424,17 @@ içeri alınmıyordu. Paketteki gerçek etki dağıtımda ölçülecek (§11.9).
 - **BR-48 — Hesap silinebilir ve silme skorları da kapsar.** Kullanıcı hesabını
   silebilir; skorları ya birlikte silinir ya da kimliksizleştirilir. Hangisi
   olduğu kullanıcıya silmeden ÖNCE söylenir.
+- **BR-51 — Kimlik jetonu YALNIZCA jeton ucundan kabul edilir.** Kimlik jetonu
+  (`id_token`) yalnızca Google'ın jeton ucuna yaptığımız doğrudan TLS
+  çağrısının yanıtından okunur. İstemciden gelen, bir sorgu parametresinde
+  taşınan ya da başka bir yerden devralınan jeton **hiçbir koşulda** kabul
+  edilmez. Kural, imza doğrulamasının atlanmasını geçerli kılan tek koşuldur
+  (§11.10); ihlal edilirse doğrulanmamış jeton kabul etmiş oluruz ve bu doğrudan
+  hesap ele geçirmedir.
+- **BR-52 — Google'dan gelen erişim jetonları SAKLANMAZ.** Jeton takasından
+  yalnızca `sub` alınır; `access_token` ve `refresh_token` kullanılmadan
+  atılır. Girişten sonra Google'a bir daha çağrı yapılmaz. Saklanmayan sır
+  sızmaz ve yenilenmesi gerekmez.
 
 > **BR-46 UYGULANDI (15 Ağustos 2026) — kapı kara liste değil BEYAZ LİSTEDİR.**
 > Herkese açık bir tabloda asıl tehdit T5'in "hakaret" kısmı değil **taklit**:
@@ -4585,9 +4633,9 @@ değil.
 
 Kayda geçiyor ki yazarken "biliniyor" sanılmasın:
 
-- **Kimlik doğrulama kitaplığının paket maliyeti.** Kendi OIDC akışımızı yazmak
-  paketi küçültür ama güvenlik açısından kritik kodu bize yükler. Ölçülmeden
-  seçilmemeli.
+- ~~Kimlik doğrulama kitaplığının paket maliyeti.~~ **ÖLÇÜLDÜ VE KARARA
+  BAĞLANDI (§11.10):** Auth.js 7 paket / ~7,2 MB ekliyor, 2,6 MB'ı hiç
+  kullanılmayacak hazır giriş sayfası. Akış kendimiz yazılıyor.
 - **Turso gecikmesi İŞLEVİN İÇİNDEN.** Geliştirici makinesinden ölçüldü
   (sıcak medyan 90 ms, soğuk 474 ms — §11.3) ama **bu sayı yanıltıcıdır**:
   gerçek sorgu Dublin'deki işlevden yine Dublin'deki veritabanına gidecek,
@@ -4612,6 +4660,96 @@ Kayda geçiyor ki yazarken "biliniyor" sanılmasın:
 - **"Tüm zamanlar" tablosunun uzun vadeli davranışı** — toplam seçildi (§11.5)
   ama sonradan katılanın tabloyu nasıl deneyimlediği ölçülmedi. Haftalık tablo
   bunun onarımı olarak konuldu; işe yarayıp yaramadığı ancak kullanımla görülür.
+
+### 11.10 Kimlik doğrulama akışı
+
+**Karar: akış kendimiz yazılıyor, kitaplık kullanılmıyor** (ürün sahibi kararı,
+15 Ağustos 2026). §11.9'daki "ölçülmeden seçilmemeli" maddesi kapandı; ölçüm
+şu: Auth.js projeye **7 yeni paket ve ~7,2 MB** ekliyor.
+
+| Paket                     |  Boyut | Ne için                 |
+| ------------------------- | -----: | ----------------------- |
+| `@auth/core`              | 3,0 MB | çekirdek                |
+| `preact`                  | 1,7 MB | **hazır giriş sayfası** |
+| `preact-render-to-string` | 919 KB | **aynı sayfa**          |
+| `next-auth`               | 796 KB | Next sarmalayıcısı      |
+| `jose`                    | 461 KB | jeton imzası doğrulama  |
+| `oauth4webapi`            | 332 KB | OAuth istemcisi         |
+| `@panva/hkdf`             |  38 KB | anahtar türetme         |
+
+**2,6 MB'ı baştan ölü ağırlık:** Preact yalnızca Auth.js'in hazır giriş ve hata
+sayfalarını çizmek için var, bizim kendi arayüzümüz olduğu için o sayfalar hiç
+kullanılmayacak. Paket bütçesi 203,6 / 250 MB (§11.8), yani 7,2 MB ölümcül
+değil — karar boyuttan çok **kapsam uyumsuzluğuna** dayanıyor: onlarca
+sağlayıcı ve iki oturum stratejisi taşıyan bir kitaplıktan **tek sağlayıcı, tek
+kapsam** kullanacaktık.
+
+> **YAZDIĞIMIZ ŞEY KİMLİK DOĞRULAMA DEĞİL.** Kullanıcının kim olduğunu Google
+> belirliyor; biz yalnızca yetkilendirme kodunu jetona çeviren istemci tarafını
+> yazıyoruz. "Kendi kimlik doğrulamanı yazma" uyarısı yerindedir ama başka bir
+> şeyi anlatır — parola saklamayı, oturum üretmeyi, kimlik kanıtlamayı. Bunların
+> hiçbirini yapmıyoruz.
+
+#### Akış
+
+1. **Giriş** — kullanıcı "Google ile gir" der. Sunucu `state`, `nonce` ve PKCE
+   doğrulayıcısı üretir, ilk ikisini kısa ömürlü `HttpOnly` çerezlere yazar ve
+   kullanıcıyı Google'a yönlendirir. İstenen kapsam **yalnızca `openid`**.
+2. **Dönüş** — Google `code` ile geri yönlendirir. Sunucu önce `state`'i
+   çerezdekiyle karşılaştırır (eşleşmezse akış durur), sonra kodu PKCE
+   doğrulayıcısıyla birlikte jeton ucuna gönderir.
+3. **Denetim** — dönen `id_token`'ın gövdesindeki `aud` kendi istemci
+   kimliğimiz, `iss` Google, `exp` gelecekte ve `nonce` çerezdekiyle aynı
+   olmalıdır. **Dördü de zorunludur.**
+4. **Hesap** — `sub` özetlenir (aşağıda), kullanıcı bulunur ya da oluşturulur,
+   imzalı oturum çerezi yazılır. `access_token` ve `refresh_token` atılır
+   (BR-52).
+
+#### İmza neden doğrulanmıyor
+
+Kimlik jetonunun imzasını doğrulamak, Google'ın anahtar setini indirmeyi,
+önbelleğe almayı ve anahtar döndürmesini izlemeyi gerektirir — OIDC'nin en
+çetrefil parçası budur ve `jose` paketinin varlık sebebi odur.
+
+Bize gerekmiyor, çünkü jetonu **Google'ın jeton ucundan doğrudan TLS
+bağlantısıyla** alıyoruz: kimden geldiği TLS'in kendisiyle kanıtlanmış oluyor.
+İmza, jetonun GÜVENİLMEYEN bir yoldan (tarayıcı, istemci, üçüncü taraf)
+geldiği durumlar için vardır.
+
+> **Bu muafiyet TEK BİR KOŞULA bağlıdır ve o koşul BR-51'dir:** jeton başka
+> hiçbir yerden kabul edilmez. Bir gün "istemci bize `id_token` göndersin"
+> denirse imza doğrulaması **zorunlu hâle gelir**. İki karar birbirine
+> kenetlidir; biri değişirse diğeri de değişmelidir.
+
+#### Saklanan sır: yalnızca `sub`'ın özeti
+
+`sub` ham hâliyle yazılmaz. Sunucuya özel bir gizli anahtarla **HMAC**'lenir,
+yani veritabanı sızsa bile elinde bir `sub` olan biri "bu Google hesabı burada
+oynuyor mu" sorusunu yanıtlayamaz. Yalın özet bunu kapatmazdı — özeti hesaplayıp
+karşılaştırmak serbest olurdu.
+
+**TEK GİZLİ ANAHTAR (`AUTH_SECRET`), iki amaç.** Oturum çerezinin imzası ve
+`sub` özeti aynı anahtardan **farklı etiketlerle** türetilir. İki ayrı ortam
+değişkeni istemek yapılandırmayı büyütür ve birinin unutulması ihtimalini
+doğurur; etiket ayrımı aynı yalıtımı sağlar.
+
+#### Oturum çerezi
+
+`HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`, sınırlı ömür. İçeriği yalnızca
+kullanıcı kimliği ve imzasıdır — **durum sunucuda tutulmaz**, çünkü her istekte
+oturum tablosuna bakmak §11.3'te hizaladığımız gecikme bütçesini iki katına
+çıkarırdı.
+
+Çerez kendi başına yetki vermez: kullanıcı zaten her istekte veritabanından
+okunuyor (ad, tur, puan). **Silinmiş bir hesabın çerezi bu yüzden işe yaramaz**
+(BR-48) — kayıt yoksa istek reddedilir, çerezin ömrü dolmasa bile.
+
+#### Bu akışın YAPMADIKLARI
+
+Kayda geçiyor ki ileride "eksik" sanılmasın: ikinci bir sağlayıcı yok, hesap
+birleştirme yok, Google'a sonradan çağrı yok, jeton yenileme yok. Bunlardan
+biri gerekirse karar **yeniden verilmelidir** — özellikle ikinci sağlayıcı,
+kitaplık seçimini yeniden tartışmayı gerektirir.
 
 ---
 
