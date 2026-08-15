@@ -83,3 +83,69 @@ describe("CONTACT_EMAIL — SITE_INDEXABLE ile kenetli", () => {
     ).rejects.toThrow(/Ortam yapılandırması geçersiz/u);
   });
 });
+
+/**
+ * §11 — hesap yapılandırması YA TAM YA HİÇ.
+ *
+ * Tehlikeli olan hâl "hiç yok" değil YARIM: site açılır, "Google ile gir"
+ * düğmesi görünür ve akış ortasında patlar. Kullanıcı için bu, çalışmayan bir
+ * siteden daha kötü — çalışıyor sanıp deniyor.
+ */
+const ACCOUNT_ENV = {
+  ACCOUNTS_DATABASE_URL: "libsql://ornek.turso.io",
+  ACCOUNTS_DATABASE_TOKEN: "belirtec",
+  GOOGLE_CLIENT_ID: "istemci.apps.googleusercontent.com",
+  GOOGLE_CLIENT_SECRET: "GOCSPX-sir",
+  AUTH_SECRET: "a".repeat(43),
+};
+
+async function loadAccounts(overrides: Record<string, string>) {
+  vi.resetModules();
+  for (const [key, value] of Object.entries({ ...BASE_ENV, ...overrides })) {
+    vi.stubEnv(key, value);
+  }
+  return import("@/infrastructure/config/env");
+}
+
+describe("hesap yapılandırması — §11", () => {
+  it("hiçbiri yokken uygulama ÇALIŞIR, özellik kapalıdır", async () => {
+    // Bugünkü üretim tam olarak bu hâlde; zorunlu yapmak siteyi düşürürdü.
+    const mod = await loadAccounts({});
+
+    expect(mod.accountsEnabled()).toBe(false);
+    expect(mod.accountsEnv()).toBeNull();
+  });
+
+  it("beşi de varken özellik AÇIKTIR", async () => {
+    const mod = await loadAccounts(ACCOUNT_ENV);
+
+    expect(mod.accountsEnabled()).toBe(true);
+    expect(mod.accountsEnv()?.googleClientId).toBe(
+      ACCOUNT_ENV.GOOGLE_CLIENT_ID,
+    );
+  });
+
+  it("YARIM yapılandırmada uygulama BAŞLAMAZ", async () => {
+    const { AUTH_SECRET: _atilan, ...eksik } = ACCOUNT_ENV;
+    const mod = await loadAccounts(eksik);
+
+    expect(() => mod.serverEnv()).toThrow(/YARIM/u);
+  });
+
+  it("hata EKSİK OLANI söyler — aranmaz", async () => {
+    // "Hesap yapılandırması eksik" demek, hangisini unuttuğunu aramaya
+    // bırakır; mesaj adı vermek zorunda.
+    const { GOOGLE_CLIENT_SECRET: _atilan, ...eksik } = ACCOUNT_ENV;
+    const mod = await loadAccounts(eksik);
+
+    expect(() => mod.serverEnv()).toThrow(/GOOGLE_CLIENT_SECRET/u);
+  });
+
+  it("KISA anahtar reddedilir", async () => {
+    // Kısa anahtar HMAC'i tahmin edilebilir kılar; oturum imzası da `sub`
+    // özeti de ona dayanıyor (§11.10).
+    const mod = await loadAccounts({ ...ACCOUNT_ENV, AUTH_SECRET: "kisa" });
+
+    expect(() => mod.serverEnv()).toThrow(/Ortam yapılandırması geçersiz/u);
+  });
+});

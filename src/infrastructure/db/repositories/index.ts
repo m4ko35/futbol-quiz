@@ -1,6 +1,9 @@
+import type { AccountsRepository } from "@/application/ports/accounts-repository";
 import type { DatasetRepository } from "@/application/ports/dataset-repository";
 import type { GameModeDeps } from "@/application/game-modes";
+import { accountsPrisma } from "../accounts-client";
 import { prisma } from "../client";
+import { PrismaAccountsRepository } from "./prisma-accounts-repository";
 import { PrismaClubRepository } from "./prisma-club-repository";
 import { PrismaDatasetRepository } from "./prisma-dataset-repository";
 import { PrismaPlayerRepository } from "./prisma-player-repository";
@@ -38,3 +41,20 @@ export const repositories: GameModeDeps = {
  * yüzeyi olduğu gibi bırakır.
  */
 export const datasets: DatasetRepository = new PrismaDatasetRepository(prisma);
+
+/**
+ * Hesap deposu — hesap özelliği kapalıysa `null` (§11).
+ *
+ * SABİT DEĞİL, İŞLEV. `repositories` gibi modül yüklenirken kurulsaydı,
+ * hesaplara hiç dokunmayan bir istek (ızgara, arama, kulüp sayfası) de Turso
+ * bağlantısını kurmuş olurdu — ve o bağlantının bedeli ölçüldü: soğuk el
+ * sıkışma 474 ms (§11.3).
+ *
+ * `null` bir hata değildir; çağıran özelliği gizler ya da `404` döner.
+ */
+export function accountsRepository(): AccountsRepository | null {
+  const client = accountsPrisma();
+  if (client === null) return null;
+
+  return new PrismaAccountsRepository(client);
+}
