@@ -1,0 +1,145 @@
+// Futbol Quiz — HESAP ve LİDER TABLOSU veri modeli (PROJECT.md §11).
+//
+// BU ŞEMA FUTBOL VERİSİNDEN AYRIDIR ve ayrılık kasıtlıdır (§11.3):
+//
+//   prisma/schema.prisma          → pakete gömülü, SALT OKUNUR futbol verisi
+//   prisma/accounts.schema.prisma → Turso'da duran, YAZILABİLİR hesap verisi
+//
+// Tek şemada birleştirilseydi futbol sorguları da ağ üzerinden gitmek zorunda
+// kalırdı ve §3.1'in bütün kazanımları (ağ turu yok, veriyle birlikte
+// sürümlenir, `db:verify` geçmeden dağıtılmaz) kaybolurdu.
+//
+// Üretim komutu:  npm run db:generate:accounts
+//
+// DERLEMEYE HENÜZ BAĞLI DEĞİL. Bağlantı dizesi gelene kadar bu şemadan üretilen
+// istemciyi kullanan kod yok; `vercel-build` bu yüzden onu üretmiyor. Depo
+// uygulaması yazılırken hem `db:generate` hem `vercel-build` güncellenecek.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma-accounts"
+}
+
+// Turso libSQL konuşur ve SQLite ile söz dizimi uyumludur; sağlayıcı bu yüzden
+// "sqlite" kalır (§11.3 — ikinci bir SQL lehçesi bakımı doğmasın diye).
+//
+// ÇALIŞMA ZAMANI BAĞLANTISI BURADAN GELMEZ: uygulama libSQL sürücü bağdaştırıcısı
+// kullanır ve kimlik belirtecini ondan alır. Buradaki adres GÖÇLER için gerekli.
+datasource db {
+  provider = "sqlite"
+  url      = env("ACCOUNTS_DATABASE_URL")
+}
+
+/// Hesap — §11.3, BR-46.
+///
+/// E-POSTA SAKLANMAZ ve bu bir eksiklik değil karardır: Google bize e-posta ve
+/// ad döner, ikisini de tutmak zorunda değiliz. Hesap kurtarma Google'ın
+/// işidir, yani e-postanın bizde durmasının işlevsel bir karşılığı yok —
+/// yalnızca KVKK sorumluluğu var.
+model User {
+  id String @id
+
+  /// Google OAuth `sub` değerinin ÖZETİ — ham değer saklanmaz.
+  ///
+  /// Özet, veritabanı sızarsa "bu Google hesabı burada oynuyor mu" sorusunu
+  /// yanıtlanamaz kılmak içindir. Yalın özet bunu TAM KAPATMAZ: elinde bir
+  /// `sub` olan biri özeti hesaplayıp karşılaştırabilir. Kapatmak için
+  /// sunucuya özel bir gizli anahtarla HMAC gerekir; anahtar yönetimi kimlik
+  /// doğrulama yazılırken kararlaştırılacak ve bu satır o zaman güncellenecek.
+  subjectHash String @unique
+
+  /// Kullanıcının SEÇTİĞİ ad (BR-46). Google'dan gelen gerçek ad değildir.
+  displayName String
+
+  /// Tekillik ölçütü — `toSearchKey` normalleştirmesi (BR-46).
+  ///
+  /// Tekillik ham ad üzerinden zorlansaydı "Mehmet" varken "mehmet", "MEHMET"
+  /// ve çift boşluklu "Mehmet  " hepsi ayrı satır olurdu; tabloda gözle ayırt
+  /// edilemezler.
+  displayNameKey String @unique
+
+  createdAt DateTime @default(now())
+
+  rounds DailyRound[]
+
+  @@map("users")
+}
+
+/// Bir kullanıcının bir bulmaca gününe ait turu — BR-43, BR-44, BR-45.
+model DailyRound {
+  id String @id
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Gün tohumu (`dailySeed`), örn. 20260815 — BR-49'un 06:00 sınırıyla.
+  ///
+  /// TARİH DEĞİL SAYI: tohum zaten uygulamanın gün ölçütü ve tarih tipi
+  /// saklamak ikinci bir gerçek kaynağı yaratırdı. Aralık sorguları sayı
+  /// karşılaştırmasıyla çalışır — ay sonlarında 20260832..20260899 gibi
+  /// boşluklar oluşur ama o değerlere karşılık gelen satır hiç üretilmez,
+  /// yani `>= başlangıç AND <= bitiş` doğru sonucu verir.
+  puzzleDay Int
+
+  /// BR-44 — sunucuda biriken toplam, 0–600.
+  ///
+  /// TÜRETİLMİŞ ALAN: cevapların puan toplamıdır. Saklanmasının sebebi lider
+  /// tablosu sorgusunun tek bir dizin taramasına inmesi. Bedeli, cevap
+  /// eklerken AYNI İŞLEMDE güncellenmek zorunda olması — ayrışırsa tablo
+  /// sessizce yanlış sıralar.
+  points Int @default(0)
+
+  /// BR-45 — tamamlanmamış tur lider tablosuna GİRMEZ.
+  ///
+  /// `null` = yarım. Yarım turu 0 puanla listeye koymak yanlış olurdu:
+  /// kullanıcı kötü oynadığı için değil, bitirmediği için listede yok.
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  answers RoundAnswer[]
+
+  /// BR-43 — bir kullanıcı, bir gün, TEK tur.
+  @@unique([userId, puzzleDay])
+  /// Lider tablosunun günlük/haftalık sorgusu (BR-50) bu dizinden okur.
+  @@index([puzzleDay, points])
+  @@map("daily_rounds")
+}
+
+/// Tek bir istatistiğe verilmiş cevap — BR-43, BR-17.
+model RoundAnswer {
+  id String @id
+
+  roundId String
+  round   DailyRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  /// `StatKey` — sözleşmenin parçası (§6.5).
+  statKey String
+
+  /// Seçilen oyuncunun futbol veritabanındaki kimliği.
+  ///
+  /// YABANCI ANAHTAR YOK ve olamaz: oyuncu tablosu BAŞKA bir veritabanında
+  /// (pakete gömülü SQLite). Bunun sonucu kabul edilmiştir — veri kümesi
+  /// yenilendiğinde bir kimlik kaybolursa buradaki kayıt öksüz kalır. Puanı
+  /// etkilemez, çünkü değer ve puan cevap anında yazılır.
+  playerId String
+
+  /// Seçilen oyuncunun o istatistikteki değeri (sunucu okumuştur).
+  value Int
+
+  /// BR-18, 0–100 — sunucu hesaplar (BR-20).
+  score Int
+
+  createdAt DateTime @default(now())
+
+  /// BR-43 — istatistik başına TEK deneme.
+  ///
+  /// KISIT UYGULAMA MANTIĞININ TEKRARI DEĞİL, GARANTİSİDİR. `judgeSubmission`
+  /// önce okuyup sonra yazar; aynı anda gelen iki istek ikisi de "bu istatistik
+  /// boş" görüp ikisi de yazabilir. O yarışı yalnızca veritabanı kısıtı
+  /// durdurur.
+  @@unique([roundId, statKey])
+  /// BR-17 — bir oyuncu bir turda yalnızca bir istatistikte kullanılır.
+  @@unique([roundId, playerId])
+  @@map("round_answers")
+}

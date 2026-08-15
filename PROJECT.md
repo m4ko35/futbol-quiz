@@ -1288,13 +1288,13 @@ Bunlar `domain/services/` içinde saf fonksiyon olarak yaşar ve birim testi ile
 - **BR-41 — "Hangisi daha" iki SEVİYE taşır; varsayılanı dar havuzdur.** Kullanıcı kurulumda **Kolay** (bilindik oyuncular) ya da **Zor** (havuzun tamamı) seçer. "Bilindik" ölçütü **A millî takımda 20+ maç VE son kulüp dönemi 2000 veya sonrası**; iki koşul da gereklidir ve ölçülerek seçilmiştir (§9.3). Ölçüt bir VEKİLDİR, bir vaat değil: kolay havuzun %66,7'si 40+ dilde Vikipedi maddesi taşıyor, %33'ü taşımıyor — bu yüzden arayüzde "bildiğin oyuncular" DENMEZ, ölçütün kendisi yazılır. "Zor" KAPSAYICIDIR: kolay havuzun tamamını da içerir, yani seviye bir zorluk vaadi değil havuzun genişliğidir. Seviye yalnızca `round` girdisindedir; **cevap ucu seviye almaz**, çünkü hangi çiftin kurulacağını daraltır, hangi cevabın doğru olduğunu değil. Varsayılan "kolay"dır: alanı göndermeyen istemci, modun düzeltmek için var olduğu kusuru geri almamalıdır.
 - **BR-42 — Tek kaynağın iddiası, ikinci kaynak AYNI YILLAR için başkasını söylüyorsa yüklenmez.** Wikidata'nın bir dönem kaydı, oyuncunun Vikipedi bilgi kutusunda (i) o kulüp **hiç geçmiyor** ve (ii) aynı yıllar **başka bir kulüple** doluysa **çelişkilidir** ve yükleme durur. Üç koruma birlikte çalışır: oyuncunun bilgi kutusu yoksa kural **susar** (sessizlik kanıt değildir, §2.7), dönem 10 maçın altındaysa **susar** (bilgi kutuları kısa dönemleri atlar), kiralık dönemler iki tarafta da **dışarıdadır** (oyuncunun aynı anda iki kulüple ilişkili göründüğü tek meşru durum). Kural ölçülmüş bir olaydan doğdu: 11 Ağustos 2026'da bir Wikidata düzenlemesi Rafael Leão'nun Milan kaydını Real Madrid'e çevirdi, ETL 12 Ağustos'ta koştu ve hata üretime çıktı (§8.2). Aynı vandalizmin boy değişikliği (288 cm) akla yatkınlık aralığına takılmıştı — **bir alanın kapısı olması diğerlerininkini getirmiyor.** Kapı **oran değil sayı** ölçer (78 bin dönemde tek vandalizm hiçbir oranı bozmaz) ve **silmez**: çelişkiyi ifade kimliğiyle raporlar, kararı insan verir (§4.3'ün "Vikipedi asla silmez" kuralı korunur).
 - **BR-8 — Kanıt düzeyi.** Bir `Spell`, `startYear`, `endYear`, `appearances` ve `goals` alanlarının **dördü de** boşsa **kanıtsızdır**; en az biri doluysa kanıtlıdır. Kanıtsız dönemler BR-1 kapsamında **sayılır** (elenmez), fakat API yanıtında ve arayüzde açıkça işaretlenir. Gerekçe ve ölçüm §1.4'tedir; özeti: eleme, uydurma kayıtlarla birlikte doğru kayıtları da siliyor ve Wikidata ikisini ayıracak bir sinyal taşımıyor. BR-5'in sıralaması bu dönemleri kendiliğinden en sona koyar (ne maç sayısı ne yıl bilgisi vardır), dolayısıyla ayrı bir sıralama kuralı gerekmez.
-- **BR-43 — Günlük tur SUNUCUDA durumludur; istatistik başına TEK deneme.** _(§11, TASARIM — yazılmadı.)_ Bir kullanıcı, bir gün, bir istatistik için yalnızca bir kez cevap gönderebilir; ikinci istek ilk cevabı ve puanını döner, yeniden puanlamaz. Kural ölçülmüş bir açıktan doğdu: `/api/stat-match/answer` bugün **durumsuzdur ve puanı yanıtta döner**, yani aynı istatistik için farklı oyuncular denenip en iyisi tutulabilir. Sıralama olmadığı sürece bunun bedeli yoktu; lider tablosuyla birlikte tablonun ölçtüğünü iddia ettiği şeyi ölçmemesine yol açar. **BR-17 de bu durumla birlikte sunucuda zorlanır** — bugün `isPlayerAlreadyUsed` uygulamanın hiçbir yerinde çağrılmıyor.
-- **BR-44 — Skoru istemci göndermez.** _(§11, TASARIM.)_ Tur toplamı sunucuda birikir; istemci yalnızca hangi istatistiğe hangi oyuncuyu verdiğini söyler. BR-20'nin ("puanı sunucu hesaplar") tur ölçeğine taşınmış hâlidir.
-- **BR-45 — Lider tablosuna yalnızca TAMAMLANMIŞ tur girer.** _(§11, TASARIM.)_ Altı istatistiğin hepsi cevaplanmadan sıralamada yer alınmaz. Yarım bırakılan koşu ne cezalandırılır ne ödüllendirilir — yalnızca listede görünmez.
-- **BR-46 — Görünen ad kullanıcının seçimidir ve denetlenir.** _(§11, TASARIM.)_ Google'dan gelen ad otomatik kullanılMAZ; gerçek isimler kullanıcı istemeden herkese açık olurdu. Ad tekildir, uzunluğu sınırlıdır, engellenen kalıplar reddedilir ve reddedilen ad **sessizce değiştirilmez** — kullanıcıya söylenir.
+- **BR-43 — Günlük tur SUNUCUDA durumludur; istatistik başına TEK deneme.** _(§11 — SAF KURAL YAZILDI: `daily-round.ts`; depolama ve uç bağlanmadı.)_ Bir kullanıcı, bir gün, bir istatistik için yalnızca bir kez cevap gönderebilir; ikinci istek ilk cevabı ve puanını döner, yeniden puanlamaz. Kural ölçülmüş bir açıktan doğdu: `/api/stat-match/answer` bugün **durumsuzdur ve puanı yanıtta döner**, yani aynı istatistik için farklı oyuncular denenip en iyisi tutulabilir. Sıralama olmadığı sürece bunun bedeli yoktu; lider tablosuyla birlikte tablonun ölçtüğünü iddia ettiği şeyi ölçmemesine yol açar. **BR-17 de bu durumla birlikte sunucuda zorlanır** — `daily-round.ts` kuralı taşıyor ama henüz hiçbir uç onu çağırmıyor, yani uca doğrudan istek atan bir istemci hâlâ hiçbir engelle karşılaşmıyor.
+- **BR-44 — Skoru istemci göndermez.** _(§11 — SAF KURAL YAZILDI; depolama ve uç bağlanmadı.)_ Tur toplamı sunucuda birikir; istemci yalnızca hangi istatistiğe hangi oyuncuyu verdiğini söyler. BR-20'nin ("puanı sunucu hesaplar") tur ölçeğine taşınmış hâlidir.
+- **BR-45 — Lider tablosuna yalnızca TAMAMLANMIŞ tur girer.** _(§11 — SAF KURAL YAZILDI; depolama ve uç bağlanmadı.)_ Altı istatistiğin hepsi cevaplanmadan sıralamada yer alınmaz. Yarım bırakılan koşu ne cezalandırılır ne ödüllendirilir — yalnızca listede görünmez.
+- **BR-46 — Görünen ad kullanıcının seçimidir ve denetlenir.** _(§11 — DOĞRULAMA YAZILDI: `display-name.ts`; hesap akışı yok.)_ Google'dan gelen ad otomatik kullanılMAZ; gerçek isimler kullanıcı istemeden herkese açık olurdu. Ad tekildir, uzunluğu sınırlıdır, engellenen kalıplar reddedilir ve reddedilen ad **sessizce değiştirilmez** — kullanıcıya söylenir.
 - **BR-47 — Oturumlu yanıt paylaşılan önbelleğe girmez.** _(§11, TASARIM.)_ Kimliğe bağlı her yanıt `private, no-store` taşır. §7.9 bugün oturum olmadığı için güvenliydi; oturumlu bir yanıtın CDN'de tutulması bir kullanıcının verisini başkasına servis etmek olurdu. Lider tablosunun kendisi kimliğe bağlı DEĞİLDİR ve önbelleklenebilir; "benim sıram" bilgisi ondan ayrı istenir.
 - **BR-48 — Hesap silinebilir ve silme skorları da kapsar.** _(§11, TASARIM.)_ Kullanıcı hesabını silebilir; skorları ya birlikte silinir ya da kimliksizleştirilir ve hangisi olduğu silmeden ÖNCE söylenir.
-- **BR-49 — Bulmaca günü Türkiye saatiyle 06:00'da döner.** _(§11, TASARIM.)_ "Bugünün" bulmacası, `Europe/Istanbul` diliminde saat 06:00'da değişir; bu, Türkiye kalıcı olarak UTC+3 olduğu için **03:00 UTC**'ye denktir. Sınır **dilim adıyla** hesaplanır, sabit `+3` ile değil: Türkiye 2016'dan beri yaz saati uygulamıyor ama uygularsa sabit kaydırma sessizce yanlış güne kayar. Kural üç modu birden bağlar — ızgara (§9.1), günün oyuncusu (§9.2) ve lider tablosu (§11) aynı günü görmek zorundadır; ayrışırlarsa "herkes aynı soruyu çözer" güvencesi (BR-11) kırılır. **Bu değişiklik kırıcıdır:** bugünkü UTC sınırı 03:00 TR'de dönüyor, yeni sınır 06:00 TR. Şimdi yapılması ucuz, yayından sonra değil.
+- **BR-49 — Bulmaca günü Türkiye saatiyle 06:00'da döner.** _(§11 — UYGULANDI.)_ "Bugünün" bulmacası, `Europe/Istanbul` diliminde saat 06:00'da değişir; bu, Türkiye kalıcı olarak UTC+3 olduğu için **03:00 UTC**'ye denktir. Sınır **dilim adıyla** hesaplanır, sabit `+3` ile değil: Türkiye 2016'dan beri yaz saati uygulamıyor ama uygularsa sabit kaydırma sessizce yanlış güne kayar. Kural üç modu birden bağlar — ızgara (§9.1), günün oyuncusu (§9.2) ve lider tablosu (§11) aynı günü görmek zorundadır; ayrışırlarsa "herkes aynı soruyu çözer" güvencesi (BR-11) kırılır. **Bu değişiklik kırıcıdır:** bugünkü UTC sınırı 03:00 TR'de dönüyor, yeni sınır 06:00 TR. Şimdi yapılması ucuz, yayından sonra değil.
 - **BR-50 — Lider tablosu ÜÇ dönemde gösterilir: günlük, haftalık, tüm zamanlar.** _(§11, TASARIM.)_ Kullanıcı aralarında geçiş yapar. Günlük tablo o bulmaca gününün puanıdır; haftalık, **pazartesi 06:00'dan** başlayan yedi bulmaca gününün **toplamıdır**; tüm zamanlar, tamamlanmış bütün günlerin toplamıdır. Oynanmayan gün **sıfır sayılır, eksik değil** — tablo katılımı ödüllendirir ve bu kasıtlıdır (§11.5). Üç dönemde de yalnızca TAMAMLANMIŞ turlar sayılır (BR-45). Eşit puanlar **aynı sırayı paylaşır** (1, 1, 3); eşitler arasındaki gösterim sırası turu önce tamamlayana göredir ve bu bir GÖSTERİM tercihidir, sıralama ölçütü değil — erken saatte oynamak sıra kazandırmaz.
 
 ---
@@ -4350,6 +4350,50 @@ yüzeyi açan seçenek.
 > gelir, yoksa "Admin!!!" yazan kullanıcı "bu ad ayrılmış" duyar ve bu, hangi
 > adların ayrıldığını sızdırır.
 
+> **BR-43/BR-44/BR-45 UYGULANDI (15 Ağustos 2026) — turun saf kuralı yazıldı,
+> depolaması yazılmadı.** `src/domain/services/daily-round.ts` turu bir DEĞER
+> olarak modelliyor: cevaplar, karar ve puan. Nerede saklandığı (Turso) kuralı
+> değiştirmiyor ve değiştirmemeli.
+>
+> **PUAN TOPLAM SAKLANIR, ORTALAMA DEĞİL.** İkisi aynı sırayı üretir (ortalama
+> = toplam / 6) ama ortalama yuvarlanır ve o yuvarlama, sıralamada GERÇEK fark
+> taşıyan iki kullanıcıyı eşit gösterir: 407 ve 409 puanın ikisi de %68'dir.
+> Tabloda saklanan sayı bu yüzden toplamdır (0–600); yüzde yalnızca sunumda
+> hesaplanır ve oyunun bugüne kadar gösterdiği sayı odur.
+>
+> **DENETİM SIRASI BİR AĞ TEKRARINI DOĞRU ELE ALMAK İÇİN BÖYLE.** Önce "bu
+> istatistik cevaplanmış mı", sonra "bu oyuncu kullanılmış mı" bakılır. Ters
+> sırada, istemci yanıtı alamayıp AYNI isteği yeniden gönderdiğinde "bu
+> oyuncuyu zaten kullandın" hatası alırdı — oysa o oyuncuyu kullanan şey
+> isteğin kendisi. Doğru cevap saklanan cevabı geri vermektir; BR-43'ün
+> "ikinci istek ilk cevabı döner" cümlesi tam olarak bu.
+>
+> **YARIM TUR 0 DEĞİL, YOK.** `leaderboardPoints` tamamlanmamış tur için
+> `null` döner. Sıfır yazmak "kötü oynadı" diye okunur; doğrusu "bitirmedi"
+> (BR-45). Buna karşılık altı istatistiği de cevaplayıp hiç isabet edemeyen
+> kullanıcı 0 puanla **listede görünür** — o gerçekten oynamıştır.
+
+> **KISIT, MANTIĞIN TEKRARI DEĞİL GARANTİSİDİR.** `prisma/accounts.schema.prisma`
+> BR-43'ü `@@unique([roundId, statKey])`, BR-17'yi `@@unique([roundId, playerId])`
+> ve "bir gün bir tur" kuralını `@@unique([userId, puzzleDay])` ile zorluyor.
+> Uygulama mantığı önce okuyup sonra yazar; aynı anda gelen iki istek ikisi de
+> "bu istatistik boş" görüp ikisi de yazabilir. **O yarışı yalnızca veritabanı
+> kısıtı durdurur** — ve T1'in kapatılması buna bağlı.
+>
+> `playerId` için YABANCI ANAHTAR YOK ve olamaz: oyuncu tablosu başka bir
+> veritabanında (§11.3). Sonucu kabul edildi — veri kümesi yenilenince bir
+> kimlik kaybolursa kayıt öksüz kalır ama puanı etkilemez, çünkü değer ve puan
+> cevap anında yazılır.
+>
+> `points` TÜRETİLMİŞ bir alandır (cevapların toplamı) ve saklanmasının tek
+> sebebi lider tablosu sorgusunun tek dizin taramasına inmesi. Bedeli, cevapla
+> AYNI İŞLEMDE güncellenmek zorunda olması; ayrışırsa tablo sessizce yanlış
+> sıralar.
+>
+> **ŞEMA HENÜZ DERLEMEYE BAĞLI DEĞİL.** Bağlantı dizesi gelene kadar bu şemadan
+> üretilen istemciyi kullanan kod yok, bu yüzden `vercel-build` onu üretmiyor.
+> Depo uygulaması yazılırken `db:generate` ve `vercel-build` güncellenecek.
+
 ### 11.5 Lider tablosunun kapsamı
 
 Üç dönem, kullanıcı aralarında geçiş yapar (BR-50).
@@ -4359,6 +4403,10 @@ yüzeyi açan seçenek.
 | **Günlük**       | O bulmaca gününün puanı                      | Bugün oynamak için sebep                            |
 | **Haftalık**     | Pazartesi 06:00'dan başlayan 7 günün toplamı | Her hafta HERKESİN yeniden yarışa girebildiği yüzey |
 | **Tüm zamanlar** | Tamamlanmış bütün günlerin toplamı           | Uzun soluklu süreklilik                             |
+
+**BİRİM: gün başına 0–600 puan** (altı istatistik × 100). Oyunun ekranda
+gösterdiği yüzde bunun altıya bölünmüş hâlidir; tabloda toplam durur, çünkü
+yuvarlanmış yüzde eşit olmayan turları eşit gösterir (§11.4 notu).
 
 **Toplam mı, ortalama mı — ölçülmedi, GEREKÇEYLE seçildi.** Toplam, düzenli
 oynayanı ödüllendirir ve ürün sahibinin amacı tam olarak budur (siteye düzenli
