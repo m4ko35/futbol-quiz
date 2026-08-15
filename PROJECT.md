@@ -1295,7 +1295,7 @@ Bunlar `domain/services/` içinde saf fonksiyon olarak yaşar ve birim testi ile
 - **BR-47 — Oturumlu yanıt paylaşılan önbelleğe girmez.** _(§11, TASARIM.)_ Kimliğe bağlı her yanıt `private, no-store` taşır. §7.9 bugün oturum olmadığı için güvenliydi; oturumlu bir yanıtın CDN'de tutulması bir kullanıcının verisini başkasına servis etmek olurdu. Lider tablosunun kendisi kimliğe bağlı DEĞİLDİR ve önbelleklenebilir; "benim sıram" bilgisi ondan ayrı istenir.
 - **BR-48 — Hesap silinebilir ve silme skorları da kapsar.** _(§11, TASARIM.)_ Kullanıcı hesabını silebilir; skorları ya birlikte silinir ya da kimliksizleştirilir ve hangisi olduğu silmeden ÖNCE söylenir.
 - **BR-49 — Bulmaca günü Türkiye saatiyle 06:00'da döner.** _(§11 — UYGULANDI.)_ "Bugünün" bulmacası, `Europe/Istanbul` diliminde saat 06:00'da değişir; bu, Türkiye kalıcı olarak UTC+3 olduğu için **03:00 UTC**'ye denktir. Sınır **dilim adıyla** hesaplanır, sabit `+3` ile değil: Türkiye 2016'dan beri yaz saati uygulamıyor ama uygularsa sabit kaydırma sessizce yanlış güne kayar. Kural üç modu birden bağlar — ızgara (§9.1), günün oyuncusu (§9.2) ve lider tablosu (§11) aynı günü görmek zorundadır; ayrışırlarsa "herkes aynı soruyu çözer" güvencesi (BR-11) kırılır. **Bu değişiklik kırıcıdır:** bugünkü UTC sınırı 03:00 TR'de dönüyor, yeni sınır 06:00 TR. Şimdi yapılması ucuz, yayından sonra değil.
-- **BR-50 — Lider tablosu ÜÇ dönemde gösterilir: günlük, haftalık, tüm zamanlar.** _(§11, TASARIM.)_ Kullanıcı aralarında geçiş yapar. Günlük tablo o bulmaca gününün puanıdır; haftalık, **pazartesi 06:00'dan** başlayan yedi bulmaca gününün **toplamıdır**; tüm zamanlar, tamamlanmış bütün günlerin toplamıdır. Oynanmayan gün **sıfır sayılır, eksik değil** — tablo katılımı ödüllendirir ve bu kasıtlıdır (§11.5). Üç dönemde de yalnızca TAMAMLANMIŞ turlar sayılır (BR-45). Eşit puanlar **aynı sırayı paylaşır** (1, 1, 3); eşitler arasındaki gösterim sırası turu önce tamamlayana göredir ve bu bir GÖSTERİM tercihidir, sıralama ölçütü değil — erken saatte oynamak sıra kazandırmaz.
+- **BR-50 — Lider tablosu ÜÇ dönemde gösterilir: günlük, haftalık, tüm zamanlar.** _(§11 — SAF KURAL YAZILDI: `leaderboard.ts`; sorgu ve uç bağlanmadı.)_ Kullanıcı aralarında geçiş yapar. Günlük tablo o bulmaca gününün puanıdır; haftalık, **pazartesi 06:00'dan** başlayan yedi bulmaca gününün **toplamıdır**; tüm zamanlar, tamamlanmış bütün günlerin toplamıdır. Oynanmayan gün **sıfır sayılır, eksik değil** — tablo katılımı ödüllendirir ve bu kasıtlıdır (§11.5). Üç dönemde de yalnızca TAMAMLANMIŞ turlar sayılır (BR-45). Eşit puanlar **aynı sırayı paylaşır** (1, 1, 3); eşitler arasındaki gösterim sırası turu önce tamamlayana göredir ve bu bir GÖSTERİM tercihidir, sıralama ölçütü değil — erken saatte oynamak sıra kazandırmaz.
 
 ---
 
@@ -4423,6 +4423,38 @@ odur: her pazartesi sıfırlanır, yani tablo hiç kimse için baştan kapanmaz.
 geçerli olan "`null` sıfır değildir" kuralının (§2.7) **bilinçli istisnasıdır**
 ve gerekçesi farklı: orada soru "veri var mı" idi, burada soru "kullanıcı
 oynadı mı". Oynamamak bir ölçüm eksikliği değil, bir olgudur.
+
+> **BR-50 UYGULANDI (15 Ağustos 2026) — saf kural yazıldı, sorgu yazılmadı.**
+> `src/domain/services/leaderboard.ts`. **Üç dönem tek kod yolundan geçer:**
+> dönem yalnızca hangi bulmaca günlerinin toplanacağını belirler; toplama ve
+> sıralama üçünde de aynıdır. Üç ayrı yol yazılsaydı üç tablo zamanla üç farklı
+> davranışa ayrışırdı.
+>
+> **HAFTA SINIRI GÜN TOHUMUNDAN TÜRETİLİR, saatten değil.** Bulmaca günü zaten
+> 06:00'da başlıyor (BR-49), yani "pazartesi bulmaca günü" ile "pazartesi
+> 06:00" aynı şeydir. Saat ikinci bir yerde tanımlansaydı biri değiştiğinde
+> diğeri sessizce yanlış kalırdı — ve testi yazan da aynı sabiti kullanacağı
+> için hiçbir test yakalamazdı.
+>
+> **AY SONU TUZAĞI.** Tohum `20260831` iken haftanın sonunu sayıya `+6`
+> ekleyerek bulmak `20260837` verir; eylülün ilk günleri sessizce haftanın
+> dışında kalırdı. Aralık bu yüzden takvim aritmetiğiyle üretiliyor. Buna
+> karşılık **sorgu** sayı karşılaştırmasıyla çalışabilir: `20260831..20260906`
+> aralığı var olmayan `20260832..20260899` değerlerini de kapsar ama onlara
+> karşılık gelen satır hiç üretilmez. Ay ve yıl sınırının ikisinin de testi var.
+>
+> **EŞİTLİK: aynı sıra, farklı gösterim.** Eşit puanlılar aynı `rank` değerini
+> taşır (1, 1, 3 — sonraki sıra atlanır); listedeki gösterim sırasını turu önce
+> tamamlayan alır. Bu bir **sıralama ölçütü değildir**: erken saatte oynamak
+> sıra kazandırmaz. Son çare `userId`'dir, çünkü iki tur aynı milisaniyede
+> tamamlanabilir ve o zaman da sıra kararlı kalmalı — yoksa aynı tablo iki
+> istekte iki farklı düzende döner.
+>
+> **ULAŞMA ANI SON TURUNKİDİR.** Çok günlü dönemlerde "bu toplama önce kim
+> ulaştı" sorusunun doğru cevabı budur. İlk turun anı kullanılsaydı, pazartesi
+> oynayıp cumaya kadar bekleyen biri, aynı puana perşembe ulaşan birinin önünde
+> görünürdü. Görünen ad da son turdan alınır: kullanıcı adını değiştirirse
+> tablo eskisini göstermemeli.
 
 ### 11.6 Gizlilik ve KVKK etkisi
 
