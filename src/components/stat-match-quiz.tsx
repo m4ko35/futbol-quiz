@@ -32,6 +32,13 @@ export interface StatMatchQuizProps {
    * vermek, kaydedilmeyen bir turu kaydedilmiş gibi göstermek olurdu.
    */
   readonly serverAnswers?: StatMatchGameProps["serverAnswers"];
+  /**
+   * Günlük turun kaydedilme durumu (§11.11).
+   *
+   * Saklanan tur alanıyla AYNI GEREKÇE: yalnızca günlük tura geçirilir. "Sen
+   * seç" turunda kayıttan söz etmek, kaydedilebileceği izlenimi verirdi.
+   */
+  readonly recording?: StatMatchGameProps["recording"];
 }
 
 /** API hata gövdesinden kullanıcıya gösterilebilir mesajı çıkarır (§6.3). */
@@ -53,7 +60,11 @@ async function readErrorMessage(response: Response): Promise<string> {
   return "İstek tamamlanamadı. Lütfen tekrar deneyin.";
 }
 
-export function StatMatchQuiz({ daily, serverAnswers }: StatMatchQuizProps) {
+export function StatMatchQuiz({
+  daily,
+  serverAnswers,
+  recording,
+}: StatMatchQuizProps) {
   const [chosen, setChosen] = useState<StatMatchRoundDto | null>(null);
   const [isPicking, setIsPicking] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -160,6 +171,7 @@ export function StatMatchQuiz({ daily, serverAnswers }: StatMatchQuizProps) {
         round={daily}
         date={daily.date}
         {...(serverAnswers === undefined ? {} : { serverAnswers })}
+        {...(recording === undefined ? {} : { recording })}
         header={{
           // Yalnızca TARİH — gerekçe `grid-quiz.tsx`'teki ikiziyle aynı.
           eyebrow: formatTurkishIsoDate(daily.date),

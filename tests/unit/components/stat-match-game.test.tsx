@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PlayerDto } from "@/application/dto/player-dto";
 import type { DailyStatMatchDto } from "@/application/use-cases/daily-stat-match";
 import { StatMatchGame } from "@/components/stat-match-game";
+import { PUZZLE_ROLLOVER_HOUR } from "@/domain/value-objects/daily-seed";
 import { resetStatMatchCache } from "@/lib/stat-match-storage";
 
 /**
@@ -68,6 +69,28 @@ async function answerStat(
     expect(screen.getAllByRole("option").length).toBeGreaterThan(0);
   });
   await user.keyboard("{Enter}");
+}
+
+/** Altı cevabı depoya yazarak turu bitmiş hâle getirir; ortalama %50. */
+function finishRoundInStorage(): void {
+  window.localStorage.setItem(
+    "futbol-quiz:stat-match",
+    JSON.stringify({
+      date: DAILY.date,
+      answers: Object.fromEntries(
+        DAILY.stats.map((stat, i) => [
+          stat.key,
+          {
+            playerId: `p${String(i)}`,
+            playerName: `Oyuncu ${String(i)}`,
+            value: 100,
+            score: i < 3 ? 100 : 0,
+          },
+        ]),
+      ),
+    }),
+  );
+  resetStatMatchCache();
 }
 
 beforeEach(() => {
@@ -303,25 +326,7 @@ describe("StatMatchGame — ilerlemenin saklanması", () => {
 
 describe("StatMatchGame — tur sonu", () => {
   it("altı cevaptan sonra biter ve ortalamayı gösterir", () => {
-    window.localStorage.setItem(
-      "futbol-quiz:stat-match",
-      JSON.stringify({
-        date: DAILY.date,
-        answers: Object.fromEntries(
-          DAILY.stats.map((stat, i) => [
-            stat.key,
-            {
-              playerId: `p${String(i)}`,
-              playerName: `Oyuncu ${String(i)}`,
-              value: 100,
-              score: i < 3 ? 100 : 0,
-            },
-          ]),
-        ),
-      }),
-    );
-    resetStatMatchCache();
-
+    finishRoundInStorage();
     setup();
 
     expect(screen.getByRole("status")).toHaveTextContent(/Tur bitti/u);
@@ -437,5 +442,91 @@ describe("StatMatchGame — saklanmayan tur", () => {
     });
     await user.click(restart);
     expect(onRestart).toHaveBeenCalled();
+  });
+});
+
+/**
+ * §11.11 — kaydedilme durumu HER ZAMAN ekranda yazılıdır.
+ *
+ * Bu testler bir kusurdan doğdu: lider tablosu çalışıyordu ama oyun ekranı
+ * ondan hiç söz etmiyordu, yani kullanıcı giriş yapmadan oynuyor ve turunun
+ * hiçbir yere yazılmadığını öğrenemiyordu. Her katman ayrı ayrı sınanmıştı;
+ * hiçbir test "kullanıcı bu özelliğin varlığını nereden öğrenecek" diye
+ * sormamıştı.
+ */
+describe("StatMatchGame — kayıt şeridi (§11.11)", () => {
+  it("durum verilmezse HİÇBİR ŞEY yazmaz", () => {
+    setup();
+
+    expect(screen.queryByText(/kaydedilmiyor/u)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /Giriş yap/u }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("misafire turun kaydedilmediğini söyler ve girişe bağlar", () => {
+    setup({ recording: { kind: "misafir" } });
+
+    expect(screen.getByText(/kaydedilmiyor/u)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Giriş yap" })).toHaveAttribute(
+      "href",
+      "/giris",
+    );
+  });
+
+  /**
+   * DAVET TURUN BAŞINDA VERİLİR, sonunda değil: bitmiş bir misafir turu giriş
+   * yapılınca sunucuya taşınmıyor, yani sonunda davet etmek kullanıcıya
+   * kaçırdığı şeyi haber vermek olurdu.
+   */
+  it("davet tur BAŞLAMADAN önce görünür", () => {
+    setup({ recording: { kind: "misafir" } });
+
+    expect(screen.queryByText(/Tur bitti/u)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Giriş yap" })).toBeVisible();
+  });
+
+  it("girişli kullanıcıya hangi adla oynadığını söyler", () => {
+    setup({ recording: { kind: "kayitli", displayName: "mako" } });
+
+    expect(screen.getByText("mako")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "lider tablosuna" }),
+    ).toHaveAttribute("href", "/lider-tablosu");
+  });
+
+  it("girişli kullanıcıya tur bitince tabloya bağlantı verir", () => {
+    finishRoundInStorage();
+    setup({ recording: { kind: "kayitli", displayName: "mako" } });
+
+    expect(
+      screen.getByRole("link", { name: "Lider tablosunu gör" }),
+    ).toHaveAttribute("href", "/lider-tablosu");
+  });
+
+  it("misafire tur bitince tablo bağlantısı VERMEZ", () => {
+    finishRoundInStorage();
+    setup({ recording: { kind: "misafir" } });
+
+    expect(
+      screen.queryByRole("link", { name: "Lider tablosunu gör" }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * §11.11 — yayın saati arayüzde ELLE YAZILMAZ.
+ *
+ * Ekran aylarca "03.00" dedi: sınır 06:00'ya taşınmıştı (BR-49) ama metin
+ * geride kalmıştı ve hiçbir test metni saatle karşılaştırmıyordu. Bu test o
+ * boşluğu kapatıyor — sabit değişirse metin onunla birlikte değişmeli.
+ */
+describe("StatMatchGame — yayın saati (BR-49)", () => {
+  it("tur sonundaki saat, gün sınırı sabitinden türer", () => {
+    finishRoundInStorage();
+    setup();
+
+    const expected = `${String(PUZZLE_ROLLOVER_HOUR).padStart(2, "0")}.00`;
+    expect(screen.getByRole("status")).toHaveTextContent(expected);
   });
 });

@@ -182,6 +182,31 @@ export default async function LeaderboardPage({ searchParams }: PageProps) {
         </div>
       )}
 
+      {/*
+        AYNI DAVET BURADA DA (§11.11). Tabloyu açan ama girişi olmayan biri
+        listeye nasıl gireceğini soruyor; cevabı sayfanın kendisinde yoksa
+        aramak zorunda kalır.
+      */}
+      {user === null && (
+        <p className="rounded-xl border border-line bg-surface-2/40 px-4 py-3 text-sm text-muted">
+          Listeye girmek için{" "}
+          <Link
+            href="/giris"
+            className="font-semibold text-accent underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            giriş yap
+          </Link>{" "}
+          ve günün{" "}
+          <Link
+            href="/istatistik"
+            className="font-semibold text-accent underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            istatistik bulmacasını
+          </Link>{" "}
+          tamamla.
+        </p>
+      )}
+
       <p className="max-w-prose text-sm text-muted">
         Yarım bırakılan turlar listeye girmez. Oynanmayan gün sıfır sayılır —
         haftalık ve tüm zamanlar sıralaması <strong>toplam</strong> puandır,

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import type { PlayerDto } from "@/application/dto/player-dto";
 import type {
@@ -14,6 +15,7 @@ import {
   totalScore,
   type StatKey,
 } from "@/domain/services/stat-match";
+import { PUZZLE_ROLLOVER_HOUR } from "@/domain/value-objects/daily-seed";
 import { countryName } from "@/lib/country-name";
 import {
   parseStatMatch,
@@ -36,6 +38,27 @@ import { PlayerPicker } from "./player-picker";
  * BR-17 (bir oyuncu bir kez) yalnızca istemcide zorlanıyor — ızgaradaki
  * BR-10 ile aynı sınır ve aynı gerekçe (§9.1).
  */
+
+/**
+ * Günlük turun kaydedilme durumu — PROJECT.md §11.11.
+ *
+ * VERİLMEZSE HİÇBİR ŞEY YAZILMAZ ve bu üç ayrı durumu kapsıyor: "Sen seç"
+ * turu (zaten kaydedilmez, BR-24), hesap özelliğinin kapalı olduğu kurulum
+ * (olmayan bir özelliği tanıtmak yanıltıcı olurdu) ve bileşeni doğrudan
+ * kullanan testler.
+ */
+export type RoundRecording =
+  | { readonly kind: "misafir" }
+  | { readonly kind: "kayitli"; readonly displayName: string };
+
+/**
+ * Yeni bulmacanın yayın saati — BR-49'un sabitinden TÜRETİLİR.
+ *
+ * Metne elle yazılmıştı ve sınır 06:00'ya taşındığında geride kaldı: ekran
+ * aylarca "03.00" dedi (§11.11). Sabitten türetmek ikinci kez ayrışmayı
+ * imkânsız kılıyor.
+ */
+const ROLLOVER_LABEL = `${String(PUZZLE_ROLLOVER_HOUR).padStart(2, "0")}.00`;
 
 export interface StatMatchGameProps {
   /** Turun hedefi ve altı istatistiği — günlük ya da kullanıcı seçimi. */
@@ -65,6 +88,12 @@ export interface StatMatchGameProps {
    * turu ekranda boş göstermek demekti — kullanıcı yeniden dener ve reddedilir.
    */
   readonly serverAnswers?: StatMatchState["answers"];
+  /**
+   * Turun kaydedilip kaydedilmediği — §11.11'in "durum her zaman yazılıdır"
+   * kuralı. Oturum bilgisi istemciye ait olmadığı için SUNUCU SAYFASINDAN
+   * gelir; burada okunmaya çalışılsaydı sayfa önce yanlış durumu çizerdi.
+   */
+  readonly recording?: RoundRecording;
   /** Cevap gönderimi; testlerde sahte bir uygulama verilir. */
   submitAnswer(
     statKey: StatKey,
@@ -119,6 +148,7 @@ export function StatMatchGame({
   date,
   onRestart,
   serverAnswers,
+  recording,
   submitAnswer,
   searchPlayers,
 }: StatMatchGameProps) {
@@ -331,6 +361,47 @@ export function StatMatchGame({
         </div>
       </section>
 
+      {/*
+        KAYIT ŞERİDİ (§11.11). Lider tablosu çalışıyordu ama oyun ekranı ondan
+        hiç söz etmiyordu; kullanıcı giriş yapmadan oynuyor ve turunun hiçbir
+        yere yazılmadığını ÖĞRENEBİLECEĞİ bir yer bulunmuyordu.
+
+        DAVET TURUN BAŞINDA. Biten bir misafir turu giriş yapılınca sunucuya
+        taşınmaz; sonunda davet etmek kaçırılanı haber vermek olurdu.
+
+        GİRİŞ DUVARI DEĞİL: bildirim, engel değil (§11.1).
+      */}
+      {recording !== undefined && (
+        <p className="rounded-xl border border-line bg-surface-2/40 px-4 py-3 text-sm text-muted">
+          {recording.kind === "misafir" ? (
+            <>
+              Bu tur <strong className="text-foreground">kaydedilmiyor</strong>.{" "}
+              <Link
+                href="/giris"
+                className="font-semibold text-accent underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              >
+                Giriş yap
+              </Link>{" "}
+              — tamamladığın günlük turlar lider tablosuna girer.
+            </>
+          ) : (
+            <>
+              <strong className="text-foreground">
+                {recording.displayName}
+              </strong>{" "}
+              adıyla oynuyorsun. Turu tamamlayınca{" "}
+              <Link
+                href="/lider-tablosu"
+                className="font-semibold text-accent underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              >
+                lider tablosuna
+              </Link>{" "}
+              girersin.
+            </>
+          )}
+        </p>
+      )}
+
       {header === undefined && (
         <p
           className="w-fit rounded-full border border-line bg-surface px-3 py-1.5 text-sm font-semibold tabular-nums shadow-card"
@@ -397,8 +468,16 @@ export function StatMatchGame({
             Tur bitti — ortalama <strong>%{String(total)}</strong>.{" "}
             {date === undefined
               ? "Bu tur kaydedilmez."
-              : "Yeni oyuncu her gün 03.00'te (TSİ) yayınlanır."}
+              : `Yeni oyuncu her gün ${ROLLOVER_LABEL} (TSİ) yayınlanır.`}
           </p>
+          {recording?.kind === "kayitli" && (
+            <Link
+              href="/lider-tablosu"
+              className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            >
+              Lider tablosunu gör
+            </Link>
+          )}
           {onRestart !== undefined && (
             <button
               type="button"

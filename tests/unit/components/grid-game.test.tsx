@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PlayerDto } from "@/application/dto/player-dto";
 import type { DailyGridDto } from "@/application/use-cases/daily-grid";
 import { GridGame } from "@/components/grid-game";
+import { PUZZLE_ROLLOVER_HOUR } from "@/domain/value-objects/daily-seed";
 import { GRID_SIZE, maxGuesses } from "@/domain/services/grid";
 import { resetSavedGameCache } from "@/lib/grid-storage";
 
@@ -399,6 +400,39 @@ describe("GridGame — oyun sonu", () => {
 
     expect(screen.getByRole("status")).toHaveTextContent(/Oyun bitti/u);
     expect(screen.getByRole("status")).toHaveTextContent(/4\/9/u);
+  });
+
+  /**
+   * §11.11 — yayın saati arayüzde ELLE YAZILMAZ.
+   *
+   * Ekran aylarca "03.00" dedi: sınır 06:00'ya taşınmıştı (BR-49) ama iki
+   * oyun bileşeninin metni de geride kalmıştı ve hiçbir test metni saatle
+   * karşılaştırmıyordu.
+   */
+  it("yayın saati, gün sınırı sabitinden türer", () => {
+    window.localStorage.setItem(
+      "futbol-quiz:grid",
+      JSON.stringify({
+        date: GRID.date,
+        guessesUsed: MAX_GUESSES,
+        cells: Object.fromEntries(
+          Array.from({ length: MAX_GUESSES }, (_, i) => [
+            `${String(Math.floor(i / 3))}:${String(i % 3)}`,
+            {
+              status: "wrong",
+              playerId: `p${String(i)}`,
+              playerName: `Oyuncu ${String(i)}`,
+            },
+          ]),
+        ),
+      }),
+    );
+    resetSavedGameCache();
+
+    setup();
+
+    const expected = `${String(PUZZLE_ROLLOVER_HOUR).padStart(2, "0")}.00`;
+    expect(screen.getByRole("status")).toHaveTextContent(expected);
   });
 
   /** Haklar tükendiyse kalan boş hücreler açılamaz. */

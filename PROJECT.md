@@ -4807,6 +4807,60 @@ birleştirme yok, Google'a sonradan çağrı yok, jeton yenileme yok. Bunlardan
 biri gerekirse karar **yeniden verilmelidir** — özellikle ikinci sağlayıcı,
 kitaplık seçimini yeniden tartışmayı gerektirir.
 
+### 11.11 Özelliğin görünürlüğü
+
+**Bu bölüm bir kusurdan doğdu (16 Ağustos 2026).** §11'in tamamı yazılıp
+sınandıktan sonra ürün sahibi oyunu oynadı ve şunu bildirdi: _"lider tablosuna
+dair bir şey göremedim."_ Ölçüm bunu doğruladı — hesap veritabanında **sıfır
+tur** vardı, oysa oyun oynanmıştı.
+
+**Kusur lider tablosunda değildi.** Sayfa çalışıyordu, üst şeritte bağlantısı
+vardı, sorgular doğruydu, testleri geçiyordu. Kusur **oyun ekranındaydı:**
+istatistik ekranı lider tablosundan, hesaptan ve turun kaydedilip
+kaydedilmediğinden hiç söz etmiyordu. Kullanıcı giriş yapmadan oynuyor, turu
+hiçbir yere yazılmıyor ve bunu **öğrenebileceği hiçbir yer** bulunmuyordu.
+
+**Ders kayda geçiyor:** bir özelliğin çalışıyor olması, bulunabilir olduğu
+anlamına gelmez. §11 boyunca her katman ayrı ayrı sınandı — kural, depo, uç,
+sayfa — ama hiçbiri "kullanıcı bu özelliğin varlığını nereden öğrenecek"
+sorusunu sormadı. Uçtan uca deneme bunu ilk denemede yakaladı.
+
+#### Kural: kaydedilme durumu HER ZAMAN ekranda yazılıdır
+
+Günlük istatistik turu üç durumdan birindedir ve **hangisinde olduğu
+kullanıcıya söylenir**:
+
+| Durum                 | Ekranda                                              |
+| --------------------- | ---------------------------------------------------- |
+| Hesap özelliği kapalı | hiçbir şey — olmayan bir özelliği tanıtmak yanıltıcı |
+| Giriş yapılmamış      | "bu tur kaydedilmiyor" + giriş bağlantısı            |
+| Giriş yapılmış        | hangi adla oynandığı + tablo bağlantısı              |
+
+**Davet turun BAŞINDA verilir, sonunda değil.** Bitmiş bir misafir turu giriş
+yapılınca sunucuya taşınmaz (misafir turu `localStorage`'da, kayıtlı tur
+veritabanında durur ve ikisi birleştirilmez — §11.4). Sonunda davet etmek
+kullanıcıya kaçırdığı şeyi haber vermek olurdu; başında etmek seçim şansı
+verir.
+
+**Bu, giriş duvarı DEĞİLDİR.** §11.1'in anonim oyun kararı yürürlükte: giriş
+yapmayan oynamaya devam eder, yalnızca tabloya girmez. Şerit bir bildirimdir,
+bir engel değil.
+
+**"Sen seç" turunda şerit YOKTUR.** O tur zaten hiç kaydedilmiyor (BR-24) ve
+orada kayıttan söz etmek, kaydedilebileceği izlenimi verirdi.
+
+> **UYGULANDI (16 Ağustos 2026).** Şerit `stat-match-game.tsx`'te; durumu
+> `/istatistik` sunucu bileşeni hesaplayıp veriyor, çünkü oturum bilgisi
+> istemciye ait değildir. Lider tablosu sayfası da giriş yapmamış ziyaretçiye
+> aynı daveti veriyor.
+>
+> **AYNI GÖZDEN GEÇİRMEDE BULUNAN İKİNCİ KUSUR:** hem ızgara hem istatistik
+> ekranı, tur bitince "yeni bulmaca **03.00**'te yayınlanır" diyordu. Sınır
+> 15 Ağustos 2026'da 06:00'ya taşınmıştı (BR-49) ve **arayüz metni geride
+> kalmıştı** — kullanıcıya üç saat yanlış bilgi veriliyordu. Testler bunu
+> yakalamadı çünkü hiçbiri metni saatle karşılaştırmıyordu; artık saat
+> `PUZZLE_ROLLOVER_HOUR` sabitinden türetiliyor, yani ikinci kez ayrışamaz.
+
 ---
 
 ## 12. Sözlük

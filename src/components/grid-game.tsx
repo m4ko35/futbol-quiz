@@ -12,6 +12,7 @@ import {
   maxGuesses,
   type CellRef,
 } from "@/domain/services/grid";
+import { PUZZLE_ROLLOVER_HOUR } from "@/domain/value-objects/daily-seed";
 import {
   parseSavedGame,
   readSavedGame,
@@ -23,6 +24,13 @@ import {
 } from "@/lib/grid-storage";
 import { ModeHeader, Scoreboard } from "./mode-header";
 import { PlayerPicker } from "./player-picker";
+
+/**
+ * Yeni bulmacanın yayın saati — BR-49'un sabitinden TÜRETİLİR.
+ *
+ * Metne elle yazılmıştı ve sınır 06:00'ya taşındığında geride kaldı (§11.11).
+ */
+const ROLLOVER_LABEL = `${String(PUZZLE_ROLLOVER_HOUR).padStart(2, "0")}.00`;
 
 /**
  * 3×3 ızgara oyunu — PROJECT.md §9.1.
@@ -433,7 +441,7 @@ export function GridGame({
             .{" "}
             {date === undefined
               ? "Bu ızgara kaydedilmez."
-              : "Yeni ızgara her gün 03.00'te (TSİ) yayınlanır."}
+              : `Yeni ızgara her gün ${ROLLOVER_LABEL} (TSİ) yayınlanır.`}
           </p>
           {onRestart !== undefined && (
             <button

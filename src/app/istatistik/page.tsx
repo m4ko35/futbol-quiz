@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getDailyStatMatch } from "@/application/use-cases/daily-stat-match";
 import { getStoredRound } from "@/application/use-cases/stored-round";
 import { SiteFooter } from "@/components/site-footer";
+import type { RoundRecording } from "@/components/stat-match-game";
 import { StatMatchQuiz } from "@/components/stat-match-quiz";
 import {
   accountsRepository,
@@ -66,11 +67,30 @@ export default async function StatMatchPage() {
           ]),
         );
 
+  /**
+   * KAYIT DURUMU BURADA HESAPLANIR — §11.11.
+   *
+   * İstemciye bırakılamaz: oturum bilgisi tarayıcıya ait değil. Orada
+   * okunmaya çalışılsaydı sayfa önce "misafir" çizer, sonra durum atlayarak
+   * düzelirdi — giriş yapmış kullanıcıya bir an "kaydedilmiyor" demek,
+   * söylenebilecek en kötü yalan olurdu.
+   *
+   * Hesap özelliği kapalıyken `undefined`: olmayan bir özelliği tanıtmak
+   * yanıltıcıdır ve `/giris` zaten 404 döner.
+   */
+  const recording: RoundRecording | undefined =
+    accounts === null
+      ? undefined
+      : user === null
+        ? { kind: "misafir" }
+        : { kind: "kayitli", displayName: user.displayName };
+
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-5 py-10 sm:px-6 sm:py-14">
       <StatMatchQuiz
         daily={daily}
         {...(serverAnswers === undefined ? {} : { serverAnswers })}
+        {...(recording === undefined ? {} : { recording })}
       />
 
       <SiteFooter dataGeneratedAt={dataGeneratedAt} />
