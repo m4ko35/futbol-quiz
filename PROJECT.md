@@ -4818,6 +4818,34 @@ uyuşmuyor" ile düşerdi. Oturum çerezi de aynı sebeple `Lax`.
 **Kapalı özellik `404` döner, `500` değil.** Yapılandırılmamış bir özellik bir
 arıza değildir (§11).
 
+#### Jeton takası başarısız olursa sebebi GÜNLÜĞE yazılır
+
+**Bu bölüm bir üretim arızasından doğdu (16 Ağustos 2026).** Giriş "Google ile
+bağlantı kurulamadı" ile düşüyordu ve sebebi **hiçbir yerden okunamıyordu**:
+`exchangeCode` başarısızlığı `reddedildi` / `ulasilamadi` diye daraltıp
+dönüyor, ayrıntıyı ise hiçbir yere yazmıyordu.
+
+Daraltma DOĞRUYDU ve korunuyor: kullanıcıya hangi parçanın yanlış olduğunu
+söylemek, istemci kimliğini deneyerek arayan birine geri bildirim vermek olurdu
+(§11.2). Eksik olan, §6.3'ün kuralının **ikinci yarısıydı**: _ayrıntı LOGA,
+kimlik YANITA._ Yanıt tarafı yazılmış, log tarafı atlanmıştı.
+
+Artık Google'ın hata kodu sunucu günlüğüne düşüyor ve teşhisin tamamı odur:
+
+| Google'ın kodu          | Ne demek                                   |
+| ----------------------- | ------------------------------------------ |
+| `invalid_client`        | istemci kimliği ya da gizli anahtar yanlış |
+| `redirect_uri_mismatch` | adres Google Console'da kayıtlı değil      |
+| `invalid_grant`         | kod ya da PKCE doğrulayıcısı uyuşmuyor     |
+
+**Jetonun kendisi loglanmaz; yokluğu loglanır.** Gizli anahtarın ve
+yetkilendirme kodunun günlüğe sızmadığı ayrıca test ediliyor.
+
+**`exchangeCode` daha önce HİÇ test edilmemişti** — ağ çağrısı olduğu için
+atlanmıştı ve bedeli burada ödendi. Beş test eklendi; biri, `describeError`'ün
+`message` alanının log satırının kendi mesajını **ezdiğini** daha yazarken
+yakaladı.
+
 #### Bu akışın YAPMADIKLARI
 
 Kayda geçiyor ki ileride "eksik" sanılmasın: ikinci bir sağlayıcı yok, hesap

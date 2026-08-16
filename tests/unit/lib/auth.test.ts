@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { exchangeCode } from "@/lib/auth/google";
 import {
   authorizationUrl,
   checkIdToken,
@@ -302,5 +303,136 @@ describe("bekleyen kayıt çerezi", () => {
     const birSaatSonra = new Date(NOW.getTime() + 60 * 60 * 1_000);
 
     expect(await readPendingValue(SECRET, value, birSaatSonra)).toBeNull();
+  });
+});
+
+/**
+ * Jeton takası — PROJECT.md §11.10, §6.3.
+ *
+ * BU İŞLEV TEST EDİLMEMİŞTİ ve bedeli üretimde ödendi: giriş "Google ile
+ * bağlantı kurulamadı" ile düştüğünde sebebi Vercel günlüğünden bile
+ * okunamıyordu, çünkü hiçbir yere yazılmıyordu. §6.3'ün kuralı "ayrıntı LOGA,
+ * kimlik YANITA" — yanıt tarafı doğruydu, log tarafı eksikti.
+ *
+ * Testler iki şeyi birlikte tutuyor: çağırana dönen sebep DARALTILMIŞ kalmalı
+ * (kullanıcıya sızmasın), günlüğe düşen sebep ise AYRINTILI olmalı.
+ */
+describe("Google jeton takası", () => {
+  const GIRDI = {
+    code: "kod",
+    codeVerifier: "dogrulayici",
+    clientId: "istemci",
+    clientSecret: "sir",
+    redirectUri: "https://ornek.test/api/auth/callback/google",
+  };
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  function yakalaHatalari(): { satirlar: string[] } {
+    const satirlar: string[] = [];
+    vi.spyOn(console, "error").mockImplementation((line: unknown) => {
+      satirlar.push(String(line));
+    });
+    return { satirlar };
+  }
+
+  it("başarılı yanıttan id_token'ı okur", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ id_token: "jeton", access_token: "e" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+
+    await expect(exchangeCode(GIRDI)).resolves.toEqual({
+      ok: true,
+      idToken: "jeton",
+    });
+  });
+
+  it("Google reddederse sebebi GÜNLÜĞE yazar, yanıta değil", async () => {
+    const { satirlar } = yakalaHatalari();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            error: "invalid_client",
+            error_description: "Unauthorized",
+          }),
+          { status: 401, headers: { "Content-Type": "application/json" } },
+        ),
+      ),
+    );
+
+    const sonuc = await exchangeCode(GIRDI);
+
+    // Çağırana dönen sebep DAR: hangi parçanın yanlış olduğunu söylemiyor.
+    expect(sonuc).toEqual({ ok: false, reason: "reddedildi" });
+
+    // Günlükte ise teşhisin tamamı var.
+    expect(satirlar).toHaveLength(1);
+    const kayit: unknown = JSON.parse(satirlar[0] ?? "{}");
+    expect(kayit).toMatchObject({
+      level: "error",
+      googleError: "invalid_client",
+      googleDescription: "Unauthorized",
+      status: 401,
+    });
+  });
+
+  it("gizli anahtar GÜNLÜĞE SIZMAZ", async () => {
+    const { satirlar } = yakalaHatalari();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ error: "invalid_grant" }), {
+          status: 400,
+        }),
+      ),
+    );
+
+    await exchangeCode(GIRDI);
+
+    expect(satirlar.join("\n")).not.toContain(GIRDI.clientSecret);
+    expect(satirlar.join("\n")).not.toContain(GIRDI.code);
+  });
+
+  it("ağ hatasında 'ulasilamadi' döner ve hatayı günlüğe yazar", async () => {
+    const { satirlar } = yakalaHatalari();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new Error("bağlanılamadı")),
+    );
+
+    await expect(exchangeCode(GIRDI)).resolves.toEqual({
+      ok: false,
+      reason: "ulasilamadi",
+    });
+    expect(satirlar.join("\n")).toContain("ulaşılamadı");
+  });
+
+  it("id_token yoksa reddeder ve günlüğe yazar", async () => {
+    const { satirlar } = yakalaHatalari();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ access_token: "yalnizca-bu" }), {
+          status: 200,
+        }),
+      ),
+    );
+
+    await expect(exchangeCode(GIRDI)).resolves.toEqual({
+      ok: false,
+      reason: "reddedildi",
+    });
+    expect(satirlar.join("\n")).toContain("id_token");
   });
 });
