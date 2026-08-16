@@ -3,7 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import { connection } from "next/server";
 import { SiteHeader } from "@/components/site-header";
-import { serverEnv } from "@/infrastructure/config/env";
+import { accountsEnabled, serverEnv } from "@/infrastructure/config/env";
 import { THEME_BOOT_SCRIPT } from "@/lib/theme";
 
 import "./globals.css";
@@ -128,7 +128,7 @@ export default async function RootLayout({
         {/* Başlık DÜZENDE: üç sayfada birebir tekrarlanıyordu ve her biri
             bulunduğu modu elle bildiriyordu. Burada yol adresinden türetiliyor
             ve 404 ile hata ekranı da gezinmeye kavuşuyor. */}
-        <SiteHeader />
+        <SiteHeader showLeaderboard={accountsEnabled()} />
         {children}
       </body>
     </html>

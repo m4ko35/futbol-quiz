@@ -32,7 +32,22 @@ function modeFromPath(pathname: string): ModeId | null {
   return null;
 }
 
-export function SiteHeader() {
+export interface SiteHeaderProps {
+  /**
+   * Lider tablosu bağlantısı gösterilsin mi — §11.11.
+   *
+   * KOŞULSUZDU VE BU BİR KUSURDU: hesap değişkenleri tanımsız bir dağıtımda
+   * sayfa 404 döner (§11), yani başlık HER SAYFADA kırık bir bağlantı
+   * taşırdı. Üretime ilk çıkışta tam olarak bu durum geçerli olacaktı.
+   *
+   * Karar DÜZENDEN gelir çünkü başlık istemci bileşenidir ve yapılandırmayı
+   * okuyamaz; okuyabilseydi de gizli anahtarların adları istemci paketine
+   * sızardı.
+   */
+  readonly showLeaderboard: boolean;
+}
+
+export function SiteHeader({ showLeaderboard }: SiteHeaderProps) {
   const pathname = usePathname();
 
   return (
@@ -65,14 +80,24 @@ export function SiteHeader() {
           eklemek hem yerleşimi bozardı (§7.17'de dört öğeyle ölçüldü) hem de
           kullanıcıya "beşinci bir oyun" diye okunurdu.
         */}
-        <Link
-          href="/lider-tablosu"
-          className="order-2 ms-auto rounded-md px-2 py-1 text-sm font-medium text-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:order-3 sm:ms-0"
-        >
-          Lider Tablosu
-        </Link>
+        {showLeaderboard && (
+          <Link
+            href="/lider-tablosu"
+            className="order-2 ms-auto rounded-md px-2 py-1 text-sm font-medium text-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:order-3 sm:ms-0"
+          >
+            Lider Tablosu
+          </Link>
+        )}
 
-        <ThemeToggle className="order-2 sm:order-4" />
+        {/* Bağlantı yokken görünüm seçicisi sağa yaslanmayı DEVRALIR; yoksa
+            marka işaretinin hemen yanına yapışırdı. */}
+        <ThemeToggle
+          className={
+            showLeaderboard
+              ? "order-2 sm:order-4"
+              : "order-2 ms-auto sm:order-4"
+          }
+        />
 
         <ModeNav
           current={modeFromPath(pathname)}
