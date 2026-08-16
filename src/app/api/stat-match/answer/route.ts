@@ -1,27 +1,48 @@
 import type { NextRequest } from "next/server";
-import { gameModes } from "@/application/game-modes";
-import { STAT_MATCH_MODE_ID } from "@/application/game-modes/stat-match";
+import { z } from "zod";
+import { submitStatAnswer } from "@/application/use-cases/submit-stat-answer";
 import { ValidationError } from "@/domain/errors/domain-error";
-import { repositories } from "@/infrastructure/db/repositories";
+import { isStatKey } from "@/domain/services/stat-match";
+import {
+  isValidIdentifier,
+  playerId,
+} from "@/domain/value-objects/identifiers";
+import {
+  accountsRepository,
+  repositories,
+} from "@/infrastructure/db/repositories";
 import {
   rateLimiter,
   resolveClientKey,
   trustedProxyHops,
 } from "@/infrastructure/rate-limit";
+import { currentUserFromRequest } from "@/lib/auth/current-user";
 import { handleApiRequest } from "@/lib/http/api-handler";
 
 /**
  * `POST /api/stat-match/answer` — bir istatistik seçiminin puanlanması
- * (§6.5, BR-18, BR-20).
+ * (§6.5, BR-18, BR-20, BR-43, BR-44).
  *
- * NEDEN POST: ızgara cevabıyla aynı gerekçe — seçimler kullanıcının oyun
- * ilerleyişidir ve GET olsaydı tarayıcı geçmişine, erişim loglarına ve
- * paylaşılan önbelleğe URL olarak yazılırdı.
+ * NEDEN POST: seçimler kullanıcının oyun ilerleyişidir; GET olsaydı tarayıcı
+ * geçmişine, erişim loglarına ve paylaşılan önbelleğe URL olarak yazılırdı.
  *
  * PUANI SUNUCU HESAPLAR. Gövde yalnızca hangi istatistik ve hangi oyuncu
- * olduğunu taşır; hedef değeri istemci gönderemez, gönderebilseydi kendi
- * hedefini uydurup %100 alırdı.
+ * olduğunu taşır; hedef değeri istemci gönderemez.
+ *
+ * OYUN MODU KAYIT DEFTERİNDEN GEÇMİYOR ve bu bilinçli bir ayrılma. Modların
+ * gördüğü bağımlılık yüzeyi (`GameModeDeps`) kasıtlı olarak dardır — bir mod
+ * ileride topluluk katkısı olabilir. Oturum sahibinin kimliğini oraya koymak
+ * o yüzeyi genişletirdi; üstelik kimlik istemci girdisi değil, sunucudan
+ * gelen bir bilgidir ve mod girdisiyle aynı borudan geçmemelidir.
  */
+
+const bodySchema = z.object({
+  statKey: z.string().refine(isStatKey, { message: "Bilinmeyen istatistik." }),
+  playerId: z.string().refine(isValidIdentifier).transform(playerId),
+  /** Yoksa hedef günün oyuncusudur (BR-19); varsa "Sen seç" turu (BR-24). */
+  targetId: z.string().refine(isValidIdentifier).transform(playerId).optional(),
+});
+
 export async function POST(request: NextRequest): Promise<Response> {
   const clientKey = resolveClientKey(request.headers, trustedProxyHops());
 
@@ -30,28 +51,41 @@ export async function POST(request: NextRequest): Promise<Response> {
     headers: request.headers,
     limiter: rateLimiter(),
     clientKey,
-    // Kişiye özel bir oyun eylemi; paylaşılan önbelleğe girmez (§7.9).
+    // Kişiye özel bir oyun eylemi; paylaşılan önbelleğe girmez (§7.9, BR-47).
     cacheable: false,
     run: async () => {
       const body: unknown = await request.json().catch(() => {
         throw new ValidationError("Gövde geçerli JSON olmalıdır.");
       });
 
-      const mode = gameModes.get(STAT_MATCH_MODE_ID);
-      if (mode === undefined) {
-        throw new Error(`Oyun modu kayıtlı değil: ${STAT_MATCH_MODE_ID} (§9).`);
+      const parsed = bodySchema.safeParse(body);
+      if (!parsed.success) {
+        // Zod'un ayrıntılı hatası yanıta girmez (§6.3).
+        throw new ValidationError("Gönderilen cevap geçersiz.");
       }
 
-      // Eylem SUNUCUDA sabitlenir; istemci "daily" gönderip bu uçtan günün
-      // oyuncusunu çekemesin.
-      return mode.run({ ...asRecord(body), action: "answer" }, repositories);
+      /**
+       * KİMLİK SUNUCUDAN OKUNUR. Gövdeden gelseydi istemci başkasının kimliğini
+       * gönderip onun turuna yazardı. Giriş yoksa `null` ve oyun anonim
+       * sürer — cevap puanlanır, hiçbir yere yazılmaz.
+       */
+      const user = await currentUserFromRequest(request);
+
+      return submitStatAnswer(
+        {
+          now: new Date(),
+          statKey: parsed.data.statKey,
+          playerId: parsed.data.playerId,
+          ...(parsed.data.targetId === undefined
+            ? {}
+            : { targetId: parsed.data.targetId }),
+          userId: user?.id ?? null,
+        },
+        {
+          statMatch: repositories.statMatch,
+          accounts: accountsRepository(),
+        },
+      );
     },
   });
-}
-
-/** Yayılım yalnızca nesnelere uygulanır; dizi/`null` açıkça daraltılır. */
-function asRecord(value: unknown): Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
 }
