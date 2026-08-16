@@ -13,13 +13,17 @@ import { datasets } from "@/infrastructure/db/repositories";
  * metni gerçeğe uymayan bir belgeye çevirir.
  *
  * Buradaki her cümlenin kodda bir karşılığı var ve §7.18'de ölçüldü:
- *   · çerez yok        → `document.cookie` kod tabanında hiç geçmiyor
  *   · izleyici yok     → `package.json`'da analitik paketi yok
  *   · IP loglanmıyor   → `api-handler.ts` yalnızca traceId/rota/durum/süre yazar
  *   · Wikimedia görür  → `club-mark.tsx` düz `<img>` kullanıyor, vekil yok
  *
  * BİR CÜMLE DEĞİŞTİRİLECEKSE önce §7.18 güncellenir. Metin ile davranış
  * ayrışırsa yanlış olan metindir ve yanlış beyan, beyan etmemekten kötüdür.
+ *
+ * 16 AĞUSTOS 2026'DA YENİDEN YAZILDI (§11.6). Hesap özelliği üç beyanı
+ * geçersiz kıldı: "hesap yok", "çerez yok" ve "size ait saklanan kayıt yok".
+ * Üçü de artık DOĞRU DEĞİL ve metin buna göre düzeltildi — kuralın kendisi
+ * (metin koddan türetilir, şablondan değil) korunarak.
  */
 
 export const metadata: Metadata = {
@@ -29,7 +33,7 @@ export const metadata: Metadata = {
 };
 
 /** Metnin son gözden geçirildiği tarih — §7.18 ölçümüyle aynı gün. */
-const LAST_REVIEWED = "11 Ağustos 2026";
+const LAST_REVIEWED = "16 Ağustos 2026";
 
 export default async function PrivacyPage() {
   const { CONTACT_EMAIL } = serverEnv();
@@ -42,9 +46,10 @@ export default async function PrivacyPage() {
           Gizlilik Bildirimi
         </h1>
         <p className="max-w-prose text-lg text-muted">
-          Bu sitede hesap yok, çerez yok, reklam yok ve ziyaretçi izleyen hiçbir
-          araç yok. Aşağıdaki metin genel bir şablon değil; sitenin gerçekten ne
-          yaptığının dökümü.
+          Bu sitede reklam yok ve ziyaretçi izleyen hiçbir araç yok. Hesap açmak{" "}
+          <strong>isteğe bağlıdır</strong>: oyunların tamamı hesapsız oynanır,
+          hesap yalnızca lider tablosunda yer almak için gerekir. Aşağıdaki
+          metin genel bir şablon değil; sitenin gerçekten ne yaptığının dökümü.
         </p>
         <p className="text-sm text-muted">
           Son gözden geçirme: <strong>{LAST_REVIEWED}</strong>
@@ -138,6 +143,42 @@ export default async function PrivacyPage() {
       </section>
 
       <section className="flex flex-col gap-3">
+        <h2 className="text-xl font-semibold">Hesap açarsanız</h2>
+        <p className="max-w-prose">
+          Hesap açmak isteğe bağlıdır ve yalnızca lider tablosunda yer almak
+          için gerekir. Giriş Google ile yapılır. Google&apos;dan{" "}
+          <strong>yalnızca kimlik bilgisi</strong> istenir; e-posta adresiniz,
+          adınız ve fotoğrafınız bize <strong>hiç gönderilmez</strong>.
+        </p>
+        <p className="max-w-prose">Hesabınızda tutulan veriler şunlardır:</p>
+        <ul className="flex max-w-prose list-disc flex-col gap-1 ps-5">
+          <li>
+            Google hesabınızın kimlik numarasının <strong>şifreli özeti</strong>{" "}
+            — numaranın kendisi saklanmaz ve özetten geri çıkarılamaz.
+          </li>
+          <li>
+            <strong>Kendi seçtiğiniz</strong> görünen ad. Google&apos;daki
+            adınız kullanılmaz; gerçek adınızı yazmak zorunda değilsiniz.
+          </li>
+          <li>Tamamladığınız günlük turların puanları ve tarihleri.</li>
+        </ul>
+        <p className="max-w-prose">
+          <strong>Görünen adınız lider tablosunda herkese açıktır.</strong>{" "}
+          Puanlarınız da öyle. Bunun dışındaki hiçbir bilgi yayımlanmaz.
+        </p>
+        <p className="max-w-prose">
+          Giriş yaptığınızda tarayıcınıza bir <strong>oturum çerezi</strong>{" "}
+          yazılır. Bu çerez zorunlu-teknik sınıftadır: sizi tanımak dışında bir
+          işi yoktur, siteler arası izleme yapmaz ve reklam için kullanılmaz.
+          Çıkış yaptığınızda silinir.
+        </p>
+        <p className="max-w-prose">
+          Hesap verileri, futbol verisinden <strong>ayrı</strong> bir
+          veritabanında (Turso, İrlanda) tutulur.
+        </p>
+      </section>
+
+      <section className="flex flex-col gap-3">
         <h2 className="text-xl font-semibold">Üçüncü taraflar</h2>
         <p className="max-w-prose">
           <strong>Wikimedia.</strong> Kulüp armaları Wikimedia Commons
@@ -161,9 +202,14 @@ export default async function PrivacyPage() {
       <section className="flex flex-col gap-3">
         <h2 className="text-xl font-semibold">Olmayanlar</h2>
         <ul className="flex max-w-prose list-disc flex-col gap-1 ps-5">
-          <li>Çerez kullanılmaz — hiçbir türü.</li>
-          <li>Üyelik, giriş veya kullanıcı hesabı yoktur.</li>
-          <li>Ad, e-posta, telefon gibi kişisel bilgi hiç istenmez.</li>
+          <li>
+            İzleme çerezi kullanılmaz. Yalnızca giriş yapanlarda bir
+            <strong> oturum çerezi</strong> vardır ve o zorunlu-tekniktir.
+          </li>
+          <li>
+            E-posta, telefon veya gerçek ad <strong>hiç istenmez</strong> —
+            hesap açarken bile.
+          </li>
           <li>Analitik, ısı haritası veya oturum kaydı aracı yoktur.</li>
           <li>Reklam gösterilmez, reklam profili çıkarılmaz.</li>
           <li>
@@ -180,10 +226,24 @@ export default async function PrivacyPage() {
           işlemeye itiraz etme haklarına sahipsiniz.
         </p>
         <p className="max-w-prose">
-          Pratikte bu sitede size ait saklanan bir kayıt yoktur: ilerlemeniz
-          yalnızca kendi tarayıcınızdadır ve tarayıcı ayarlarından
-          silebilirsiniz. IP adresiniz kalıcı olarak saklanmadığı için silinecek
-          bir kayıt da oluşmaz.
+          <strong>Hesabınız yoksa</strong> bu sitede size ait saklanan bir kayıt
+          da yoktur: ilerlemeniz yalnızca kendi tarayıcınızdadır ve tarayıcı
+          ayarlarından silebilirsiniz. IP adresiniz kalıcı olarak saklanmadığı
+          için silinecek bir kayıt oluşmaz.
+        </p>
+        <p className="max-w-prose">
+          <strong>Hesabınız varsa</strong> silme hakkınızı doğrudan
+          kullanabilirsiniz:{" "}
+          <Link
+            href="/hesap"
+            className="font-medium text-accent underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            Hesabım
+          </Link>{" "}
+          sayfasındaki silme düğmesi hesabınızı ve{" "}
+          <strong>bütün skorlarınızı</strong> kalıcı olarak siler; lider
+          tablosundaki satırlarınız da kaybolur. Başvuru beklemenize gerek
+          yoktur ve işlem geri alınamaz.
         </p>
         {CONTACT_EMAIL === undefined ? (
           <p className="max-w-prose text-sm text-muted">
