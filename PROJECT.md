@@ -434,7 +434,7 @@ büyümedikleri için yeniden ölçülmedi.
 | ------------------------------------ | ------------------------------------------------------------------------------- |
 | `.github/workflows/data-refresh.yml` | ETL → `db:verify` → `bench` → VACUUM → sürüm varlığı → dağıtım tetiği           |
 | `scripts/fetch-dataset.ts`           | Derleme öncesi veri kümesini indirir; inmezse derlemeyi DURDURUR                |
-| `npm run vercel-build`               | `dataset:fetch` → `prisma generate` → `next build`                              |
+| `npm run vercel-build`               | `dataset:fetch` → İKİ `prisma generate` (futbol + hesap) → `next build`         |
 | `outputFileTracingIncludes`          | `.db`'yi sunucu paketine dâhil eder — yol üzerinden açıldığı için izlenemiyor   |
 | `resolveDatabaseUrl()`               | Göreli yolu çalışma zamanında mutlaklaştırır; Prisma'nın şema-göreli çözümü yok |
 
@@ -4505,9 +4505,27 @@ içeri alınmıyordu. Paketteki gerçek etki dağıtımda ölçülecek (§11.9).
 > AYNI İŞLEMDE güncellenmek zorunda olması; ayrışırsa tablo sessizce yanlış
 > sıralar.
 >
-> **ŞEMA HENÜZ DERLEMEYE BAĞLI DEĞİL.** Bağlantı dizesi gelene kadar bu şemadan
-> üretilen istemciyi kullanan kod yok, bu yüzden `vercel-build` onu üretmiyor.
-> Depo uygulaması yazılırken `db:generate` ve `vercel-build` güncellenecek.
+> **~~ŞEMA HENÜZ DERLEMEYE BAĞLI DEĞİL.~~ BAĞLANDI (16 Ağustos 2026).** Şema
+> yazıldığında bu şemadan üretilen istemciyi kullanan kod yoktu, bu yüzden
+> `vercel-build` onu üretmiyordu; buraya "depo uygulaması yazılırken
+> `vercel-build` güncellenecek" diye not düşülmüştü.
+>
+> **O NOT ATLANDI ve üretim dağıtımı bu yüzden düştü.** Depo katmanı yazıldı,
+> `accounts-client.ts` `@/generated/prisma-accounts`'u içe aktarmaya başladı,
+> ama `vercel-build` hâlâ tek istemci üretiyordu. Sonuç: derleme
+> `Module not found: Can't resolve '@/generated/prisma-accounts'` ile 21
+> saniyede düştü.
+>
+> **YEREL DOĞRULAMA BUNU YAKALAYAMAZDI ve sebebi yapısaldır:** `/src/generated/`
+> `.gitignore`'dadır. Klasör geliştirici diskinde `db:generate:accounts`
+> çalıştırıldığı için DURUYOR; `npm run verify` onu bulur ve geçer. Vercel ise
+> temiz bir çıkış alır, klasör orada YOKTUR. Yani bu, yerelde geçip üretimde
+> düşen bir kusur sınıfıdır ve tek savunması derleme betiğinin doğruluğudur.
+>
+> Düzeltme: `vercel-build` artık İKİ istemciyi de üretiyor. Sınandı — hesap
+> ortam değişkenleri **yokken bile** üretim çalışıyor, çünkü `required()`
+> yalnızca bağdaştırıcı kurulurken çağrılıyor, `generate` sırasında değil.
+> Böylece hesap özelliği kapalı bir dağıtım da derlenebiliyor.
 
 ### 11.5 Lider tablosunun kapsamı
 
