@@ -56,6 +56,15 @@ export interface StatMatchGameProps {
   readonly header?: { readonly eyebrow?: string; readonly title: string };
   /** Tur bitince yeni hedef seçmek için — yalnızca "Sen seç" turunda. */
   onRestart?: () => void;
+  /**
+   * SUNUCUDA SAKLANAN tur — yalnızca giriş yapmış kullanıcının günlük turunda
+   * verilir (§11, BR-43).
+   *
+   * VERİLDİĞİNDE TEK GERÇEK KAYNAK ODUR: `localStorage` okunmaz ve yazılmaz.
+   * İkisini birden kullanmak, sunucunun "bu istatistik cevaplandı" dediği bir
+   * turu ekranda boş göstermek demekti — kullanıcı yeniden dener ve reddedilir.
+   */
+  readonly serverAnswers?: StatMatchState["answers"];
   /** Cevap gönderimi; testlerde sahte bir uygulama verilir. */
   submitAnswer(
     statKey: StatKey,
@@ -109,6 +118,7 @@ export function StatMatchGame({
   round,
   date,
   onRestart,
+  serverAnswers,
   submitAnswer,
   searchPlayers,
 }: StatMatchGameProps) {
@@ -126,13 +136,26 @@ export function StatMatchGame({
     {},
   );
 
-  const state = useMemo(
-    () =>
-      date === undefined
-        ? { date: "", answers: localAnswers }
-        : (parseStatMatch(raw, date) ?? emptyRound(date)),
-    [raw, date, localAnswers],
+  /**
+   * Sunucu turunun ekrandaki kopyası. İlk değeri sunucudan gelir; her
+   * cevaptan sonra sunucunun yanıtıyla güncellenir.
+   *
+   * SUNUCU HÂLÂ TEK OTORİTE: buradaki kopya yalnızca çizim içindir ve bir
+   * sonraki sayfa yüklemesinde yine sunucudan gelir.
+   */
+  const [serverState, setServerState] = useState<StatMatchState["answers"]>(
+    serverAnswers ?? {},
   );
+
+  const usesServer = serverAnswers !== undefined;
+
+  const state = useMemo(() => {
+    if (usesServer) return { date: date ?? "", answers: serverState };
+
+    return date === undefined
+      ? { date: "", answers: localAnswers }
+      : (parseStatMatch(raw, date) ?? emptyRound(date));
+  }, [raw, date, localAnswers, serverState, usesServer]);
 
   const [openStat, setOpenStat] = useState<StatKey | null>(null);
   const [isChecking, setIsChecking] = useState(false);
@@ -166,6 +189,13 @@ export function StatMatchGame({
           score: result.score,
         };
 
+        // Giriş yapılmışsa tur SUNUCUDA duruyor; tarayıcıya kopya yazmak
+        // iki gerçek kaynak yaratırdı.
+        if (usesServer) {
+          setServerState((current) => ({ ...current, [statKey]: entry }));
+          return;
+        }
+
         if (date === undefined) {
           // Saklanmayan tur: aynı yarış koşulu burada da var, bu yüzden
           // güncelleyici biçim kullanılıyor.
@@ -195,7 +225,7 @@ export function StatMatchGame({
         setIsChecking(false);
       }
     },
-    [submitAnswer, date],
+    [submitAnswer, date, usesServer],
   );
 
   const openStatDto =

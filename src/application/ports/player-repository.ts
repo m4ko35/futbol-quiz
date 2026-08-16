@@ -82,6 +82,19 @@ export interface PlayerRepository {
    * Ada göre eşleştirme bu projede dört kez yanılttı (§10.1).
    */
   search(query: PlayerSearchQuery): Promise<Player[]>;
+
+  /**
+   * Kimlikten ada çeviri — §11'in sakladığı turu ekrana geri getirmek için.
+   *
+   * NEDEN AD SAKLANMIYOR. Tur kayıtları hesap veritabanında durur ve orada
+   * yalnızca oyuncu KİMLİĞİ tutulur (§11.3). Adı da yazmak, iki veritabanı
+   * arasında elle senkron tutulan bir kopya yaratırdı; kimlikten çözmek ise
+   * gömülü veritabanından okuma olduğu için ağ turu içermez (§3.1).
+   *
+   * Bulunamayan kimlik SESSİZCE ATLANIR: veri kümesi yenilendiğinde bir
+   * oyuncu düşebilir ve o yüzden tüm turu göstermemek yanlış olurdu.
+   */
+  findNames(ids: readonly PlayerId[]): Promise<ReadonlyMap<string, string>>;
 }
 
 export interface PlayableCriteriaQuery {

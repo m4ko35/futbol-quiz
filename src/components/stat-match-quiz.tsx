@@ -9,7 +9,7 @@ import type {
 import type { StatKey } from "@/domain/services/stat-match";
 import { PlayerPicker } from "./player-picker";
 import { formatTurkishIsoDate } from "@/lib/format-date";
-import { StatMatchGame } from "./stat-match-game";
+import { StatMatchGame, type StatMatchGameProps } from "./stat-match-game";
 
 /**
  * `StatMatchGame`'i gerçek API uçlarına bağlayan ince katman.
@@ -25,6 +25,13 @@ import { StatMatchGame } from "./stat-match-game";
 
 export interface StatMatchQuizProps {
   readonly daily: DailyStatMatchDto;
+  /**
+   * Sunucuda saklanan günlük tur — yalnızca giriş yapmışsa (§11, BR-43).
+   *
+   * YALNIZCA GÜNLÜK TURA geçirilir. "Sen seç" turu kaydedilmiyor; oraya da
+   * vermek, kaydedilmeyen bir turu kaydedilmiş gibi göstermek olurdu.
+   */
+  readonly serverAnswers?: StatMatchGameProps["serverAnswers"];
 }
 
 /** API hata gövdesinden kullanıcıya gösterilebilir mesajı çıkarır (§6.3). */
@@ -46,7 +53,7 @@ async function readErrorMessage(response: Response): Promise<string> {
   return "İstek tamamlanamadı. Lütfen tekrar deneyin.";
 }
 
-export function StatMatchQuiz({ daily }: StatMatchQuizProps) {
+export function StatMatchQuiz({ daily, serverAnswers }: StatMatchQuizProps) {
   const [chosen, setChosen] = useState<StatMatchRoundDto | null>(null);
   const [isPicking, setIsPicking] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -152,6 +159,7 @@ export function StatMatchQuiz({ daily }: StatMatchQuizProps) {
       <StatMatchGame
         round={daily}
         date={daily.date}
+        {...(serverAnswers === undefined ? {} : { serverAnswers })}
         header={{
           // Yalnızca TARİH — gerekçe `grid-quiz.tsx`'teki ikiziyle aynı.
           eyebrow: formatTurkishIsoDate(daily.date),

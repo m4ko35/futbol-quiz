@@ -175,6 +175,20 @@ export class FakePlayerRepository implements PlayerRepository {
     this.#candidates = [...candidates];
   }
 
+  /** §11 — saklanan turu ekrana getirmek için kimlikten ada çeviri. */
+  findNames(ids: readonly string[]): Promise<ReadonlyMap<string, string>> {
+    const wanted = new Set<string>(ids);
+    const names = new Map<string, string>();
+
+    for (const candidate of this.#candidates) {
+      if (wanted.has(candidate.player.id)) {
+        names.set(candidate.player.id, candidate.player.name);
+      }
+    }
+
+    return Promise.resolve(names);
+  }
+
   findCommonPlayers(query: CommonPlayersQuery): Promise<PlayerSpells[]> {
     const result: PlayerSpells[] = [];
 

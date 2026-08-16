@@ -353,6 +353,19 @@ export class PrismaPlayerRepository implements PlayerRepository {
    * (Türkçe ı/İ dâhil). Kullanıcının yazdığı ham metin veritabanı alanına
    * doğrudan verilmez.
    */
+  async findNames(
+    ids: readonly PlayerId[],
+  ): Promise<ReadonlyMap<string, string>> {
+    if (ids.length === 0) return new Map();
+
+    const rows = await this.#prisma.player.findMany({
+      where: { id: { in: [...ids] } },
+      select: { id: true, name: true },
+    });
+
+    return new Map(rows.map((row) => [row.id, row.name]));
+  }
+
   async search(query: PlayerSearchQuery): Promise<Player[]> {
     const key = toSearchKey(query.term);
     if (key.length === 0) return [];
