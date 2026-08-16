@@ -4744,6 +4744,43 @@ oturum tablosuna bakmak §11.3'te hizaladığımız gecikme bütçesini iki kat�
 okunuyor (ad, tur, puan). **Silinmiş bir hesabın çerezi bu yüzden işe yaramaz**
 (BR-48) — kayıt yoksa istek reddedilir, çerezin ömrü dolmasa bile.
 
+#### Uygulanırken bulunanlar (16 Ağustos 2026)
+
+> **ÖLÇÜLEN KUSUR: imza gizli anahtara bağlı DEĞİLDİ.** HMAC anahtarı her
+> istekte yeniden türetilmesin diye önbelleğe alınıyor. Önbellek anahtarı ilk
+> yazımda `${etiket} ${secret.length}` idi — yani **gizli anahtarın kendisi
+> değil, uzunluğu**. Aynı uzunluktaki iki farklı anahtar aynı önbellek
+> girdisini paylaşıyordu; imza pratikte anahtardan bağımsız hâle geliyordu.
+>
+> Üretimde tek bir `AUTH_SECRET` olduğu için bu **hiç görünmezdi**: her şey
+> çalışıyor gibi durur, anahtar döndürüldüğünde eski imzalar geçerli kalırdı.
+> Kusuru "başka anahtarla imzalanmış çerez reddedilir" testi yakaladı — o test
+> yazılmasaydı kod böyle gidecekti.
+>
+> **Ders:** kriptografik bir önbelleğin anahtarı, korumaya çalıştığı sırrın
+> **kendisini** içermelidir; türevini değil.
+
+> **Kaynakta ham NUL baytı.** Etiket ayırıcısı olarak kullanılan bayt dosyaya
+> görünmez biçimde yazılmıştı. Ayırıcının kendisi doğru seçim (ne etikette ne
+> base64 anahtarda geçebilir) ama kaynakta **açık kaçış dizisi** olarak
+> durmalı: görünmez bayt, arama ve düzenleme araçlarını sessizce şaşırtır.
+
+**Denetim sırası kuralın parçası.** Dönüşte önce `state`, sonra jeton takası,
+sonra jeton denetimi yapılır. Takas önce yapılsaydı **saldırganın uydurduğu
+bir kodu Google'a göndermiş** olurduk — yani doğrulanmamış bir girdiyle ağa
+çıkardık.
+
+**Akışın ara çerezleri tek kullanımlık.** `state`, `nonce` ve PKCE
+doğrulayıcısı, sonuç ne olursa olsun dönüşte silinir. Kalsalardı aynı `state`
+ikinci bir dönüşte yeniden kullanılabilirdi.
+
+**`SameSite=Lax`, `Strict` değil.** Google'dan dönen istek çapraz sitedir;
+`Strict` olsaydı tarayıcı çerezi göndermez ve akış her seferinde "state
+uyuşmuyor" ile düşerdi. Oturum çerezi de aynı sebeple `Lax`.
+
+**Kapalı özellik `404` döner, `500` değil.** Yapılandırılmamış bir özellik bir
+arıza değildir (§11).
+
 #### Bu akışın YAPMADIKLARI
 
 Kayda geçiyor ki ileride "eksik" sanılmasın: ikinci bir sağlayıcı yok, hesap
