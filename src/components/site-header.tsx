@@ -59,7 +59,20 @@ export function SiteHeader() {
           </span>
         </Link>
 
-        <ThemeToggle className="order-2 ms-auto sm:order-3 sm:ms-0" />
+        {/*
+          LİDER TABLOSU MOD ŞERİDİNE KONMADI ve bu bilinçli: şerit dört OYUN
+          MODUNU taşıyor, tablo ise bir mod değil. Oraya beşinci bir öğe
+          eklemek hem yerleşimi bozardı (§7.17'de dört öğeyle ölçüldü) hem de
+          kullanıcıya "beşinci bir oyun" diye okunurdu.
+        */}
+        <Link
+          href="/lider-tablosu"
+          className="order-2 ms-auto rounded-md px-2 py-1 text-sm font-medium text-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:order-3 sm:ms-0"
+        >
+          Lider Tablosu
+        </Link>
+
+        <ThemeToggle className="order-2 sm:order-4" />
 
         <ModeNav
           current={modeFromPath(pathname)}
