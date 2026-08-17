@@ -4370,8 +4370,41 @@ Dublin, Frankfurt'a göre Türkiye'ye ~25 ms daha uzak ve bu bedel kabul edildi:
 futbol sayfaları zaten CDN'den kenardan servis ediliyor (§7.9), **hesap yolları
 ise her zaman işleve gidiyor** (BR-47 gereği `private, no-store`) ve her biri
 birden çok sorgu yapıyor. 25 ms bir kez ödenip her cevapta 4×90 ms'den
-kurtulunuyor. **Bu bir hesap, ölçüm değil** — gerçek p95 dağıtımdan sonra
-işlevin içinden ölçülecek (§11.9).
+kurtulunuyor.
+
+**HESAP DOĞRU ÇIKTI — 17 Ağustos 2026'da işlevin içinden ölçüldü.** Ölçüm
+`dub1`'deki bir önizleme dağıtımının içinde, uygulamanın kendi sorgularıyla ve
+sorgu başına 100 örneklemle yapıldı; ısınma turu dağılımın dışında tutuldu.
+Üretime hiçbir yüzey eklenmedi: ölçüm ucu `VERCEL_ENV=production` iken 404
+dönüyordu ve ölçüm biter bitmez dalı, önizleme dağıtımıyla birlikte silindi.
+
+| Sorgu (işlevin içinden, `dub1`) |     p50 |     p95 |     p99 | en kötü |
+| ------------------------------- | ------: | ------: | ------: | ------: |
+| Nokta araması (`findById`)      |  6,0 ms | 11,3 ms | 19,1 ms | 24,6 ms |
+| "Tüm zamanlar" okuması          | 10,4 ms | 16,0 ms | 35,6 ms | 60,6 ms |
+| Günlük okuma (süzgeçli)         |  5,4 ms |  7,0 ms | 13,1 ms | 25,8 ms |
+
+En kötü p95 **16 ms**, bütçe 150 ms (§10.2) — yaklaşık **9 kat** boşluk.
+Yukarıdaki 90 ms gerçekten yanıltıcıymış: aynı şehirde sorgu 5–10 ms sürüyor.
+
+**ASIL BULGU: MALİYET SORGUDA DEĞİL, BAĞLANTIDA.** Aynı işlevin içinde ilk
+sorgu **459 ms**, sonraki doksan dokuzu 6 ms sürdü. Yani yukarıdaki tablonun
+474 ms'lik satırı **mesafeden gelmiyor** — Dublin'in içinde de aynı. O sayı TLS
+el sıkışmasının maliyetidir ve konumla ilgisi yoktur. İki sonucu var:
+
+- `accounts-client.ts` içindeki küresel istemci önbelleği bir kolaylık değil,
+  **taşıyıcı** bir karardır: kaldırılırsa her istek 459 ms öder.
+- Vercel soğuk başlangıç oranını **%26,9** ölçüyor. Soğuk başlayan bir işlevde
+  ilk Turso sorgusu bütçeyi tek başına aşar. Bu bir sorgu gecikmesi değil,
+  bağlantı kurma maliyetidir — ama kullanıcı ikisini ayırt etmez. Ölçüldü ve
+  kayda geçti; bir işlem yapılmadı.
+
+**SAYILARIN SINIRI.** Hesap veritabanında ölçüm anında **1 kullanıcı ve 1
+tamamlanmış tur** vardı. Yani "tüm zamanlar" okuması TEK satır tarıyor ve
+ölçülen 10 ms sorgunun işi değil, ağ turunun kendisidir. O sorgu süzgeçsizdir
+(`findCompletedRounds(null)`) ve sıralama uygulama katmanında yapılır (§11.5),
+yani satır sayısıyla birlikte büyür. Kullanıcı sayısı anlamlı hâle geldiğinde
+yeniden ölçülmelidir.
 
 > **ÖLÇÜLEN KUSUR: göç komutu BAŞARIYLA yanlış veritabanına yazdı.**
 > `prisma.config.ts` içindeki `adapter` alanı **istemci ve Studio içindir**;
@@ -4739,11 +4772,13 @@ Kayda geçiyor ki yazarken "biliniyor" sanılmasın:
 - ~~Kimlik doğrulama kitaplığının paket maliyeti.~~ **ÖLÇÜLDÜ VE KARARA
   BAĞLANDI (§11.10):** Auth.js 7 paket / ~7,2 MB ekliyor, 2,6 MB'ı hiç
   kullanılmayacak hazır giriş sayfası. Akış kendimiz yazılıyor.
-- **Turso gecikmesi İŞLEVİN İÇİNDEN.** Geliştirici makinesinden ölçüldü
-  (sıcak medyan 90 ms, soğuk 474 ms — §11.3) ama **bu sayı yanıltıcıdır**:
-  gerçek sorgu Dublin'deki işlevden yine Dublin'deki veritabanına gidecek,
-  yani çok daha kısa olmalı. "Olmalı" ölçüm değildir. p95 bütçesi 150 ms
-  (§10.2) ve bu yollar dağıtımdan sonra işlevin içinden ölçülmelidir.
+- ~~**Turso gecikmesi İŞLEVİN İÇİNDEN.**~~ **ÖLÇÜLDÜ (17 Ağustos 2026); tablo
+  ve bulgular §11.3'te.** En kötü p95 **16 ms**, bütçe 150 ms. Tahmin doğru
+  çıktı: geliştirici makinesindeki 90 ms yanıltıcıymış, aynı şehirde sorgu
+  5–10 ms sürüyor. Ama asıl bulgu beklenen yerde değildi — **maliyet sorguda
+  değil, bağlantıda**: aynı işlevin içinde ilk sorgu 459 ms, sonrakiler 6 ms.
+  Soğuk başlangıç oranı %26,9 olduğundan bu, kapanmayan bir kuyruk bırakıyor;
+  ölçüldü ve kayda geçti, bir işlem yapılmadı.
 - ~~**Bağdaştırıcının fonksiyon paketine etkisi.**~~ **ÖLÇÜLDÜ (17 Ağustos
   2026): yerel ikili pakete GİRMİYOR.** Üretim derlemesinin 35 izleme dosyası
   çözüldü; libSQL adına pakete giren her şey **58 dosya / 0,16 MB** ve hepsi
