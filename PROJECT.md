@@ -4232,10 +4232,15 @@ Sayfalama kararı değişmedi: 500'ü aşan çift **0**.
 
 ## 11. Hesaplar ve Lider Tablosu
 
-**Durum: TASARIM. Hiçbir satırı yazılmadı** (15 Ağustos 2026). Ürün sahibi
-kararı: kullanıcılar hesap açsın, istatistik eşleştirme modunun günlük oyununu
-oynasın ve skorları herkese açık bir lider tablosunda sıralansın. Amaç, siteye
-düzenli dönüşü teşvik etmek.
+**Durum: YAYINDA (17 Ağustos 2026).** Ürün sahibi kararı: kullanıcılar hesap
+açsın, istatistik eşleştirme modunun günlük oyununu oynasın ve skorları herkese
+açık bir lider tablosunda sıralansın. Amaç, siteye düzenli dönüşü teşvik etmek.
+
+Hesap açma, tur kaydı, üç dönemli tablo, hesap silme ve görünen ad bildirimi
+üretimde çalışıyor ve uçtan uca doğrulandı. **Açık kalan tek şey teknik
+değil:** Google OAuth uygulaması hâlâ "Testing" kipinde, yani hesap açabilecek
+kişileri ürün sahibi tek tek ekliyor. Yayımlamanın önündeki şart (§11.9'un
+görünen ad maddesi) §11.12 ile kapandı.
 
 Bu bölüm kodun önünde gider (§12'nin kuralı). Aşağıdaki üç şey ölçüldü ve
 özelliğin şeklini belirliyor.
