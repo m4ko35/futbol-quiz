@@ -11,9 +11,10 @@
 //
 // Üretim komutu:  npm run db:generate:accounts
 //
-// DERLEMEYE HENÜZ BAĞLI DEĞİL. Bağlantı dizesi gelene kadar bu şemadan üretilen
-// istemciyi kullanan kod yok; `vercel-build` bu yüzden onu üretmiyor. Depo
-// uygulaması yazılırken hem `db:generate` hem `vercel-build` güncellenecek.
+// DERLEMEYE BAĞLI (16 Ağustos 2026). `vercel-build` bu istemciyi de üretiyor.
+// Bir süre üretmiyordu ve üretim dağıtımı "Module not found" ile düştü — sebebi
+// `/src/generated/`'in .gitignore'da olması: klasör geliştirici diskinde durduğu
+// için `npm run verify` geçiyor, Vercel ise temiz bir çıkış alıyordu (§11.3).
 
 generator client {
   provider = "prisma-client-js"
@@ -54,10 +55,10 @@ model User {
   /// Google OAuth `sub` değerinin ÖZETİ — ham değer saklanmaz.
   ///
   /// Özet, veritabanı sızarsa "bu Google hesabı burada oynuyor mu" sorusunu
-  /// yanıtlanamaz kılmak içindir. Yalın özet bunu TAM KAPATMAZ: elinde bir
-  /// `sub` olan biri özeti hesaplayıp karşılaştırabilir. Kapatmak için
-  /// sunucuya özel bir gizli anahtarla HMAC gerekir; anahtar yönetimi kimlik
-  /// doğrulama yazılırken kararlaştırılacak ve bu satır o zaman güncellenecek.
+  /// yanıtlanamaz kılmak içindir. Yalın özet bunu TAM KAPATMAZDI: elinde bir
+  /// `sub` olan biri özeti hesaplayıp karşılaştırabilirdi. Bu yüzden yalın
+  /// özet değil, `AUTH_SECRET` ile HMAC kullanılıyor (§11.10) — anahtar
+  /// sunucuda olduğu için karşılaştırma dışarıdan yapılamaz.
   subjectHash String @unique
 
   /// Kullanıcının SEÇTİĞİ ad (BR-46). Google'dan gelen gerçek ad değildir.
@@ -73,6 +74,12 @@ model User {
   createdAt DateTime @default(now())
 
   rounds DailyRound[]
+
+  /// BR-53 — yapılan ve alınan bildirimler. İKİ İLİŞKİ AYNI MODELE gittiği
+  /// için adlandırılmak zorunda; adsız bırakılsalardı Prisma hangi alanın
+  /// hangi tarafı olduğunu çözemezdi.
+  reportsMade     NameReport[] @relation("bildiren")
+  reportsReceived NameReport[] @relation("bildirilen")
 
   @@map("users")
 }
@@ -154,4 +161,49 @@ model RoundAnswer {
   /// BR-17 — bir oyuncu bir turda yalnızca bir istatistikte kullanılır.
   @@unique([roundId, playerId])
   @@map("round_answers")
+}
+
+/// Bir görünen ad hakkında bildirim — BR-53, §11.12.
+///
+/// BİLDİRİM OTOMATİK İŞLEM TETİKLEMEZ. Eşik koyup "üç bildirim alan ad
+/// gizlenir" demek, anlaşmış üç kişinin meşru bir adı sildirmesine izin
+/// verirdi: kötüye kullanımı önleyen mekanizma kendisi bir kötüye kullanım
+/// aracına dönüşürdü. Bu tablo yalnızca DİKKAT ÇEKER; karar insana aittir.
+model NameReport {
+  id String @id
+
+  /// Bildiren kullanıcı — giriş şart.
+  ///
+  /// Anonim bildirim sınırsız ve hesapsızdır; ayrıca aşağıdaki "bir kez"
+  /// kısıtının dayanacağı bir kimlik kalmazdı.
+  reporterId String
+  reporter   User   @relation("bildiren", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  /// Adı bildirilen kullanıcı.
+  reportedId String
+  reported   User   @relation("bildirilen", fields: [reportedId], references: [id], onDelete: Cascade)
+
+  /// Sabit sebep: `hakaret` | `taklit` | `reklam`.
+  ///
+  /// Üçü §11.2'nin T5 tehdidinden geliyor, uydurulmadı.
+  ///
+  /// SERBEST METİN ALANI YOK ve bu kararın kendisidir (§11.12): serbest metin,
+  /// adına küfredemeyen kişiye bildirim formunda küfretme imkânı verirdi —
+  /// yani kötüye kullanımı önleyecek araç, ikinci bir kötüye kullanım kanalı
+  /// olurdu. Alan hiç olmayınca o sınıfın tamamı kapanıyor.
+  reason String
+
+  createdAt DateTime @default(now())
+
+  /// BR-53 — bir kullanıcı bir hedefi BİR KEZ bildirir.
+  ///
+  /// KISIT UYGULAMA MANTIĞININ TEKRARI DEĞİL, GARANTİSİDİR (BR-17 ve BR-46 ile
+  /// aynı gerekçe): "önce bak sonra yaz" eşzamanlı iki istekte iki satır
+  /// üretir. Bu satır ayrıca sayımı anlamlı kılıyor — bildirim sayısı gerçek
+  /// kişi sayısıdır, tıklama sayısı değil.
+  @@unique([reporterId, reportedId])
+
+  /// İşletmecinin listesi hedefe göre gruplanır.
+  @@index([reportedId])
+  @@map("name_reports")
 }

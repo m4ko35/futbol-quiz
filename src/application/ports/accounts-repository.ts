@@ -1,5 +1,6 @@
 import type { RoundAnswer, RoundState } from "@/domain/services/daily-round";
 import type { CompletedRound } from "@/domain/services/leaderboard";
+import type { ReportReason } from "@/domain/value-objects/report-reason";
 
 /**
  * Hesap ve lider tablosu veri erişimi — PORT (PROJECT.md §4.1, §11).
@@ -40,6 +41,16 @@ export type SaveAnswerResult =
    */
   | { readonly kind: "zaten-var"; readonly round: StoredRound };
 
+/** Bildirim yazma girişiminin sonucu — BR-53. */
+export type SaveReportResult =
+  | "yazildi"
+  /**
+   * Aynı kullanıcı bu hedefi ZATEN bildirmiş. Veritabanı kısıtı durdurdu
+   * (`@@unique([reporterId, reportedId])`); "önce bak sonra yaz" eşzamanlı
+   * iki istekte iki satır üretirdi.
+   */
+  | "zaten-bildirdi";
+
 export interface AccountsRepository {
   /**
    * Google `sub` ÖZETİNDEN kullanıcıyı bulur — ham `sub` bu katmana hiç
@@ -49,6 +60,15 @@ export interface AccountsRepository {
   findBySubjectHash(subjectHash: string): Promise<Account | null>;
 
   findById(id: string): Promise<Account | null>;
+
+  /**
+   * Görünen adın TEKİLLİK ANAHTARINDAN kullanıcıyı bulur — BR-46, BR-53.
+   *
+   * Anahtar çağıran tarafından üretilir (`displayNameKey()`), çünkü
+   * normalleştirme bir DOMAIN kararıdır; port ham ad kabul etseydi "Mehmet"
+   * ile "mehmet" farklı kullanıcılara denk gelirdi.
+   */
+  findByDisplayNameKey(key: string): Promise<Account | null>;
 
   /**
    * Yeni hesap açar — BR-46.
@@ -108,4 +128,21 @@ export interface AccountsRepository {
       readonly to: number;
     } | null,
   ): Promise<readonly CompletedRound[]>;
+
+  /**
+   * Bir görünen adı bildirir — BR-53, §11.12.
+   *
+   * "zaten-bildirdi" BİR HATA DEĞİL: kural "bir kullanıcı bir hedefi bir kez
+   * bildirir" diyor ve ikinci deneme o kuralın beklenen sonucudur. Çağıran
+   * bunu kullanıcıya "bildirimin alındı" diye çevirir — ikisini ayırt
+   * ettirmek, kimin daha önce bildirdiğini sızdırırdı.
+   *
+   * KENDİ ADINI BİLDİRME denetimi burada DEĞİL: o bir kural kararıdır ve
+   * çağıranda duruyor. Port yalnızca depolamayı tarif eder.
+   */
+  saveNameReport(input: {
+    readonly reporterId: string;
+    readonly reportedId: string;
+    readonly reason: ReportReason;
+  }): Promise<SaveReportResult>;
 }

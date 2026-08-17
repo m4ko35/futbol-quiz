@@ -351,3 +351,107 @@ describe("hesap silme — BR-48", () => {
     expect(await repo.findCompletedRounds(null)).toHaveLength(0);
   });
 });
+
+/**
+ * BR-53 — görünen ad bildirimi (§11.12).
+ *
+ * "Bir kullanıcı bir hedefi BİR KEZ bildirir" kuralı veritabanı kısıtına
+ * dayanıyor; saf bir birim testi o kısıtın gerçekten var olduğunu söyleyemez.
+ * Cascade de öyle: BR-48'in "silme kullanıcının verisini kapsar" güvencesi
+ * şemadaki `onDelete` ile sağlanıyor, kodla değil.
+ */
+describe("bildirimler — BR-53", () => {
+  it("bildirimi yazar", async () => {
+    const bildiren = await newAccount("Bildiren");
+    const hedef = await newAccount("Hedef");
+
+    await expect(
+      repo.saveNameReport({
+        reporterId: bildiren.id,
+        reportedId: hedef.id,
+        reason: "hakaret",
+      }),
+    ).resolves.toBe("yazildi");
+  });
+
+  it("AYNI kullanıcı aynı hedefi ikinci kez bildiremez", async () => {
+    const bildiren = await newAccount("Bir");
+    const hedef = await newAccount("Iki");
+
+    await repo.saveNameReport({
+      reporterId: bildiren.id,
+      reportedId: hedef.id,
+      reason: "hakaret",
+    });
+
+    // Sebep farklı olsa bile: kısıt çifte bakıyor, sebebe değil.
+    await expect(
+      repo.saveNameReport({
+        reporterId: bildiren.id,
+        reportedId: hedef.id,
+        reason: "reklam",
+      }),
+    ).resolves.toBe("zaten-bildirdi");
+  });
+
+  it("FARKLI kullanıcılar aynı hedefi bildirebilir", async () => {
+    const ilk = await newAccount("Ilk");
+    const ikinci = await newAccount("Ikinci");
+    const hedef = await newAccount("Ortak Hedef");
+
+    await expect(
+      repo.saveNameReport({
+        reporterId: ilk.id,
+        reportedId: hedef.id,
+        reason: "taklit",
+      }),
+    ).resolves.toBe("yazildi");
+    await expect(
+      repo.saveNameReport({
+        reporterId: ikinci.id,
+        reportedId: hedef.id,
+        reason: "taklit",
+      }),
+    ).resolves.toBe("yazildi");
+  });
+
+  /** BR-48 — bildirilen silinirse hakkındaki bildirimler de gider. */
+  it("bildirilen hesap silinince bildirimleri de silinir", async () => {
+    const bildiren = await newAccount("Silinmeyen");
+    const hedef = await newAccount("Silinecek");
+
+    await repo.saveNameReport({
+      reporterId: bildiren.id,
+      reportedId: hedef.id,
+      reason: "hakaret",
+    });
+    await repo.deleteAccount(hedef.id);
+
+    expect(await db.prisma.nameReport.count()).toBe(0);
+  });
+
+  /** Bildiren silinirse YAPTIĞI bildirimler de gider — aynı çizgi. */
+  it("bildiren hesap silinince yaptığı bildirimler silinir", async () => {
+    const bildiren = await newAccount("Vazgecen");
+    const hedef = await newAccount("Kalan");
+
+    await repo.saveNameReport({
+      reporterId: bildiren.id,
+      reportedId: hedef.id,
+      reason: "reklam",
+    });
+    await repo.deleteAccount(bildiren.id);
+
+    expect(await db.prisma.nameReport.count()).toBe(0);
+  });
+
+  it("tekillik anahtarından kullanıcıyı bulur", async () => {
+    const hesap = await newAccount("Aranan");
+
+    await expect(repo.findByDisplayNameKey("aranan")).resolves.toEqual({
+      id: hesap.id,
+      displayName: "Aranan",
+    });
+    await expect(repo.findByDisplayNameKey("yok-boyle")).resolves.toBeNull();
+  });
+});

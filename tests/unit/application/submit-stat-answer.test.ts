@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type {
   Account,
   AccountsRepository,
+  SaveReportResult,
   SaveAnswerResult,
   StoredRound,
 } from "@/application/ports/accounts-repository";
@@ -55,8 +56,15 @@ class FakeAccounts implements AccountsRepository {
   findById(): Promise<Account | null> {
     return Promise.resolve(null);
   }
+  findByDisplayNameKey(): Promise<Account | null> {
+    return Promise.resolve(null);
+  }
   createAccount(): Promise<Account | null> {
     return Promise.resolve(null);
+  }
+  /** Bu testler bildirimle ilgilenmiyor; sözleşmeyi karşılamak için var. */
+  saveNameReport(): Promise<SaveReportResult> {
+    return Promise.resolve("yazildi");
   }
   deleteAccount(): Promise<void> {
     return Promise.resolve();

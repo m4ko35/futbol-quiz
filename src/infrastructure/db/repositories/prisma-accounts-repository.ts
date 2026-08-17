@@ -2,11 +2,13 @@ import type {
   Account,
   AccountsRepository,
   SaveAnswerResult,
+  SaveReportResult,
   StoredRound,
 } from "@/application/ports/accounts-repository";
 import type { RoundAnswer, RoundState } from "@/domain/services/daily-round";
 import type { CompletedRound } from "@/domain/services/leaderboard";
 import { isStatKey } from "@/domain/services/stat-match";
+import type { ReportReason } from "@/domain/value-objects/report-reason";
 import { Prisma, type PrismaClient } from "@/generated/prisma-accounts";
 
 /**
@@ -75,6 +77,15 @@ export class PrismaAccountsRepository implements AccountsRepository {
   async findById(id: string): Promise<Account | null> {
     const user = await this.prisma.user.findUnique({
       where: { id },
+      select: { id: true, displayName: true },
+    });
+
+    return user;
+  }
+
+  async findByDisplayNameKey(key: string): Promise<Account | null> {
+    const user = await this.prisma.user.findUnique({
+      where: { displayNameKey: key },
       select: { id: true, displayName: true },
     });
 
@@ -262,5 +273,33 @@ export class PrismaAccountsRepository implements AccountsRepository {
     }
 
     return completed;
+  }
+
+  async saveNameReport(input: {
+    readonly reporterId: string;
+    readonly reportedId: string;
+    readonly reason: ReportReason;
+  }): Promise<SaveReportResult> {
+    try {
+      await this.prisma.nameReport.create({
+        data: {
+          id: crypto.randomUUID(),
+          reporterId: input.reporterId,
+          reportedId: input.reportedId,
+          reason: input.reason,
+        },
+        select: { id: true },
+      });
+
+      return "yazildi";
+    } catch (error: unknown) {
+      /**
+       * ZATEN BİLDİRMİŞ. `createAccount` ile aynı biçim: önce bakıp sonra
+       * yazmak yerine yazıp yakalıyoruz, çünkü eşzamanlı iki istekte "önce
+       * bak" ikisine de yeşil ışık yakar ve sayım şişer.
+       */
+      if (isUniqueViolation(error)) return "zaten-bildirdi";
+      throw error;
+    }
   }
 }

@@ -5,6 +5,7 @@ import {
   getLeaderboard,
   type LeaderboardRowDto,
 } from "@/application/use-cases/leaderboard";
+import { ReportNameDialog } from "@/components/report-name-dialog";
 import { SiteFooter } from "@/components/site-footer";
 import { MAX_ROUND_POINTS } from "@/domain/services/daily-round";
 import {
@@ -56,7 +57,18 @@ interface PageProps {
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-function Row({ row }: { readonly row: LeaderboardRowDto }) {
+function Row({
+  row,
+  canReport,
+}: {
+  readonly row: LeaderboardRowDto;
+  /**
+   * Bildirim düğmesi YALNIZCA giriş yapmışa çizilir (BR-53): bildirmek için
+   * giriş şart, yani girişsiz kullanıcıya düğme göstermek onu çalışmayan bir
+   * eyleme davet etmek olurdu.
+   */
+  readonly canReport: boolean;
+}) {
   return (
     <tr
       className={
@@ -67,6 +79,10 @@ function Row({ row }: { readonly row: LeaderboardRowDto }) {
       <td className="px-3 py-2.5">
         {row.displayName}
         {row.isMe && <span className="ml-2 text-xs text-muted">(sen)</span>}
+        {/* Kendi adını bildirmek sayımı bozardı (§11.12) — düğme de çizilmez. */}
+        {canReport && !row.isMe && (
+          <ReportNameDialog displayName={row.displayName} />
+        )}
       </td>
       <td className="px-3 py-2.5 text-right tabular-nums">{row.points}</td>
       <td className="px-3 py-2.5 text-right tabular-nums text-muted">
@@ -159,7 +175,11 @@ export default async function LeaderboardPage({ searchParams }: PageProps) {
             </thead>
             <tbody>
               {board.rows.map((row) => (
-                <Row key={`${row.rank}-${row.displayName}`} row={row} />
+                <Row
+                  key={`${row.rank}-${row.displayName}`}
+                  row={row}
+                  canReport={user !== null}
+                />
               ))}
 
               {/* Kullanıcı ilk 50'de değilse kendi satırı ayrıca gösterilir:
@@ -174,7 +194,7 @@ export default async function LeaderboardPage({ searchParams }: PageProps) {
                       ⋯
                     </td>
                   </tr>
-                  <Row row={board.me} />
+                  <Row row={board.me} canReport={user !== null} />
                 </>
               )}
             </tbody>

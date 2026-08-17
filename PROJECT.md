@@ -1298,6 +1298,7 @@ Bunlar `domain/services/` içinde saf fonksiyon olarak yaşar ve birim testi ile
 - **BR-50 — Lider tablosu ÜÇ dönemde gösterilir: günlük, haftalık, tüm zamanlar.** _(§11 — UYGULANDI.)_ Kullanıcı aralarında geçiş yapar. Günlük tablo o bulmaca gününün puanıdır; haftalık, **pazartesi 06:00'dan** başlayan yedi bulmaca gününün **toplamıdır**; tüm zamanlar, tamamlanmış bütün günlerin toplamıdır. Oynanmayan gün **sıfır sayılır, eksik değil** — tablo katılımı ödüllendirir ve bu kasıtlıdır (§11.5). Üç dönemde de yalnızca TAMAMLANMIŞ turlar sayılır (BR-45). Eşit puanlar **aynı sırayı paylaşır** (1, 1, 3); eşitler arasındaki gösterim sırası turu önce tamamlayana göredir ve bu bir GÖSTERİM tercihidir, sıralama ölçütü değil — erken saatte oynamak sıra kazandırmaz.
 - **BR-51 — Kimlik jetonu YALNIZCA jeton ucundan kabul edilir.** _(§11.10 — UYGULANDI.)_ `id_token`, Google'ın jeton ucuna yaptığımız doğrudan TLS çağrısının yanıtından okunur; istemciden gelen, sorgu parametresinde taşınan ya da başka bir yerden devralınan jeton hiçbir koşulda kabul edilmez. Kural, **imza doğrulamasının atlanmasını geçerli kılan tek koşuldur**: jeton güvenilmeyen bir yoldan gelmediği için imzayla kanıtlanacak bir şey kalmıyor. İhlal edilirse doğrulanmamış jeton kabul etmiş oluruz ve bu doğrudan hesap ele geçirmedir. İki karar kenetlidir — biri değişirse diğeri de değişmelidir.
 - **BR-52 — Google'dan gelen erişim jetonları SAKLANMAZ.** _(§11.10 — UYGULANDI.)_ Jeton takasından yalnızca `sub` alınır; `access_token` ve `refresh_token` kullanılmadan atılır ve girişten sonra Google'a bir daha çağrı yapılmaz. Saklanmayan sır sızmaz, yenilenmesi gerekmez ve KVKK kapsamında açıklanacak bir veri olmaz.
+- **BR-53 — Görünen ad bildirilebilir; bildirimin kendisi kötüye kullanılamaz.** _(§11.12 — UYGULANDI.)_ Lider tablosundaki her ad, giriş yapmış bir kullanıcı tarafından bildirilebilir. Sebep sabit bir listeden seçilir (hakaret, taklit, reklam — T5'in üç kötüye kullanımı); **serbest metin alanı yoktur**, çünkü serbest metin bildirimi ikinci bir hakaret kanalına çevirirdi. Bir kullanıcı bir hedefi **bir kez** bildirir ve bunu veritabanı kısıtı güvence altına alır. Kendi adını bildirmek reddedilir. Bildirim **hiçbir otomatik işlem tetiklemez**: eşik koyup adı gizlemek, anlaşmış bir grubun meşru bir adı sildirmesine izin verirdi — karar insana aittir.
 
 ---
 
@@ -4436,6 +4437,16 @@ içeri alınmıyordu. Paketteki gerçek etki dağıtımda ölçülecek (§11.9).
   atılır. Girişten sonra Google'a bir daha çağrı yapılmaz. Saklanmayan sır
   sızmaz ve yenilenmesi gerekmez.
 
+- **BR-53 — Görünen ad bildirilebilir; bildirimin kendisi kötüye
+  kullanılamaz.** Lider tablosundaki her ad, giriş yapmış bir kullanıcı
+  tarafından bildirilebilir. Sebep **sabit bir listeden** seçilir (hakaret,
+  taklit, reklam — T5'in adlandırdığı üç kötüye kullanım); **serbest metin
+  alanı YOKTUR**, çünkü serbest metin bildirimi ikinci bir hakaret kanalına
+  çevirirdi. Bir kullanıcı bir hedefi **bir kez** bildirir ve bu veritabanı
+  kısıtıyla güvence altındadır. Kendi adını bildirmek reddedilir. Bildirim
+  **hiçbir otomatik işlem tetiklemez**: eşik koyup adı gizlemek, anlaşmış bir
+  grubun meşru bir adı sildirmesine izin verirdi. Karar insana aittir.
+
 > **BR-46 UYGULANDI (15 Ağustos 2026) — kapı kara liste değil BEYAZ LİSTEDİR.**
 > Herkese açık bir tabloda asıl tehdit T5'in "hakaret" kısmı değil **taklit**:
 > Kiril "М" (U+041C) Latin "M" ile ekranda ayırt edilemez, sıfır genişlikli
@@ -4690,10 +4701,11 @@ Kayda geçiyor ki yazarken "biliniyor" sanılmasın:
   **üretimde ölçülmedi**: sınırdan hemen önce gelen istek saniyeler ömürlü bir
   yanıt alır, yani sınır civarında fonksiyona daha çok istek ulaşır. Bugün
   trafik ölçüm yapılamayacak kadar az.
-- **Görünen adda hakaret.** Beyaz liste taklidi kapatır, hakareti **kapatmaz**
-  (§11.4 notu) ve bildirim akışı yazılmadı. Tablo herkese açılmadan önce bu
-  boşluk bir karar gerektirir: ya bildirim akışı yazılır ya da ilk gösterim
-  elle onaylanır.
+- ~~**Görünen adda hakaret.**~~ **KARARA BAĞLANDI (§11.12):** bildirim akışı
+  yazıldı. Beyaz liste taklidi kapatıyor, hakareti kapatmıyor ve kapatamaz;
+  kalan dürüst mekanizma insandı. Kullanıcı bildirir, işletmeci karar verir.
+  Otomatik işlem YOK — eşik koymak, anlaşmış bir grubun meşru bir adı
+  sildirmesine izin verirdi.
 - **"Tüm zamanlar" tablosunun uzun vadeli davranışı** — toplam seçildi (§11.5)
   ama sonradan katılanın tabloyu nasıl deneyimlediği ölçülmedi. Haftalık tablo
   bunun onarımı olarak konuldu; işe yarayıp yaramadığı ancak kullanımla görülür.
@@ -4906,6 +4918,76 @@ orada kayıttan söz etmek, kaydedilebileceği izlenimi verirdi.
 > kalmıştı** — kullanıcıya üç saat yanlış bilgi veriliyordu. Testler bunu
 > yakalamadı çünkü hiçbiri metni saatle karşılaştırmıyordu; artık saat
 > `PUZZLE_ROLLOVER_HOUR` sabitinden türetiliyor, yani ikinci kez ayrışamaz.
+
+### 11.12 Görünen ad bildirimi
+
+**Bu bölüm §11.9'daki bir açık maddeyi kapatıyor.** Orada şu yazıyordu: _"Tablo
+herkese açılmadan önce bu boşluk bir karar gerektirir: ya bildirim akışı
+yazılır ya da ilk gösterim elle onaylanır."_ Karar (16 Ağustos 2026): **bildirim
+akışı yazıldı.**
+
+BR-46'nın beyaz listesi **taklidi** kapatıyor ama **hakareti** kapatmıyor ve
+kapatamaz: kelime listesi eksiktir, dile bağlıdır ve araya boşluk konarak
+aşılır. Kalan tek dürüst mekanizma insandır — kullanıcı bildirir, işletmeci
+karar verir.
+
+#### Serbest metin YOK
+
+Bildirim yalnızca **sabit bir sebep** taşır: `hakaret`, `taklit`, `reklam`.
+Bu üçü uydurulmadı — §11.2'nin T5 tehdidi zaten tam olarak bu üçünü
+adlandırıyor.
+
+Serbest metin alanı eklemek, bildirimi **ikinci bir hakaret kanalına**
+çevirirdi: birinin adına küfredemeyen kişi, o kişiyi bildirirken küfreder ve
+metni işletmeci okur. Dahası, o metin bir gün bir yönetim ekranında
+gösterilecek olsa depolanmış bir XSS yüzeyi olurdu. Alan hiç olmayınca bu
+sınıfın tamamı kapanıyor.
+
+Bedeli kabul edildi: "başka bir sebep" diyemeyen kullanıcı en yakın sebebi
+seçer. Üç kategori, işletmecinin adı görüp karar vermesi için yeterli bağlam
+veriyor — asıl kanıt zaten **adın kendisi**.
+
+#### Bildirim otomatik işlem YAPMAZ
+
+Eşik koyup "üç bildirim alan ad gizlenir" demek çekiciydi ve **reddedildi**:
+anlaşmış üç kişi, hoşlanmadıkları meşru bir adı tablodan sildirebilirdi. Yani
+kötüye kullanımı önlemek için konan mekanizma, kendisi bir kötüye kullanım
+aracına dönüşürdü. Karar insana ait; bildirim yalnızca **dikkat çeker**.
+
+#### Kısıt uygulama mantığında değil, veritabanında
+
+`@@unique([reporterId, reportedId])` — bir kullanıcı bir hedefi bir kez
+bildirir. Uygulama tarafında "önce bak, sonra yaz" yapmak eşzamanlı iki istekte
+iki satır üretirdi; proje boyunca izlenen yol (BR-17, BR-46) burada da geçerli:
+**kısıt kuralı taşır, kod yalnızca onu tercüme eder.**
+
+Aynı satırdan ikinci bir güvence daha geliyor: bildirim sayısı gerçek kişi
+sayısıdır, tıklama sayısı değil.
+
+#### Bildirim için giriş şart
+
+Anonim bildirim sınırsız ve hesapsızdır. Giriş şartı, yukarıdaki kısıtın
+dayanacağı bir kimlik de sağlıyor — kimliksiz "bir kez" diye bir şey yok.
+
+#### Silinen hesap bildirimlerini de götürür
+
+İki yabancı anahtar da `onDelete: Cascade`. Bildiren silinirse yaptığı
+bildirimler, bildirilen silinirse hakkındaki bildirimler gider. BR-48'in
+"silme skorları da kapsar" kuralıyla aynı çizgi: kullanıcının verisi
+kullanıcıyla birlikte gider.
+
+#### İşletmecinin eylemi: ADI SIFIRLAMAK, hesabı silmek değil
+
+`npm run isle:bildirimler` bildirimleri hedef başına gruplanmış olarak listeler
+ve bir adı **yansız bir değerle** değiştirir. Hesap, puanlar ve turlar durur —
+kötüye kullanılan şey addı, oyuncunun geçmişi değil.
+
+> **BİLİNEN PÜRÜZ VE AÇIK KARAR: adı sıfırlanan kullanıcı yeni ad seçemiyor.**
+> Bugün ad değiştirme özelliği yok; kullanıcının tek çıkışı hesabını silip
+> yeniden açmak ve bu, puanlarını kaybetmek demek. Bu bilinçli olarak
+> ertelendi — ad değiştirme kendi başına bir kötüye kullanım yüzeyi (sürekli
+> ad değiştirerek bildirimden kaçmak) ve tasarımı ayrı bir karar gerektiriyor.
+> Bugünkü ölçekte bir kullanıcı bile sıfırlanmadı; gerektiğinde yazılacak.
 
 ---
 
