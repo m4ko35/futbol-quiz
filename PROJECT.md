@@ -419,12 +419,18 @@ gerçek boyutudur (`dataset-latest/dev.db`, 156.471.296 bayt, VACUUM sonrası);
 diğer üç satır 78,4 MB'lik ölçümden devralındı ve veri kümesiyle birlikte
 büyümedikleri için yeniden ölçülmedi.
 
+> **Bu tablo 17 Ağustos 2026'da YENİDEN ÖLÇÜLDÜ ve artık §11.8 geçerlidir.**
+> Hesap özelliği ikinci bir Prisma istemcisi getirdi; güncel toplam
+> **212,2 / 250 MB**. Yukarıdaki üç devralınan satırın en az biri şişkin
+> çıktı: `src/generated/` içinde yarıda kalmış `prisma generate`
+> koşularından kalma ~20 MB'lik `.tmp` kopyaları bulundu.
+
 > **Bu tablo 125,4 MB'de "yaklaşık iki kat marj" diyordu.** O ifade lig kapsamı
 > 6'dan 24'e çıkarken geçersizleşti; sayı burada dört kez güncellendi
 > (78,4 → 100 → 115 → 145 → 156,5 MB). Marjın hangi genişlemede biteceği
 > tahmin edilmiyor, her genişlemede yeniden ölçülüyor.
 
-**Büyümeye karşı elde ne var — valf kurulup TARTILDI.** `spells.wikidataStatementId` sütunu ve benzersizlik indeksi yalnızca ETL'in idempotanlığı için gerekli; uygulama hiç okumuyor. Kazanç tahmin değil, ölçüm: yalnızca o sütun düşünce **109,8 MB**, tamsayı birincil anahtarla birlikte **34,8 MB** (%78 küçülme, **kayıpsız** — sorgu sonuçları birebir aynı). Yani paket 203,6 MB'den ~82 MB'ye iner ve marj 3 katın üstüne çıkar. Şimdi uygulanmadı: ölçüm bir arıza göstermiyor ve yayın öncesi şema göçü karşılıksız risk. Bu yetmezse Postgres'e geçiş `PlayerRepository` port'unun arkasında kalır (§4.1) ve tek uygulama dosyasını etkiler — ki bu durumda Prisma motorunun 42,5 MB'ı ortadan kalkmaz ama veritabanı payı sıfırlanır.
+**Büyümeye karşı elde ne var — valf kurulup TARTILDI.** `spells.wikidataStatementId` sütunu ve benzersizlik indeksi yalnızca ETL'in idempotanlığı için gerekli; uygulama hiç okumuyor. Kazanç tahmin değil, ölçüm: yalnızca o sütun düşünce **109,8 MB**, tamsayı birincil anahtarla birlikte **34,8 MB** (%78 küçülme, **kayıpsız** — sorgu sonuçları birebir aynı). Yani paket 212,2 MB'den (§11.8) ~90 MB'ye iner ve marj 2,7 katın üstüne çıkar. Şimdi uygulanmadı: ölçüm bir arıza göstermiyor ve yayın öncesi şema göçü karşılıksız risk. Bu yetmezse Postgres'e geçiş `PlayerRepository` port'unun arkasında kalır (§4.1) ve tek uygulama dosyasını etkiler — ki bu durumda Prisma motorunun 42,5 MB'ı ortadan kalkmaz ama veritabanı payı sıfırlanır.
 
 **Ne zaman değişir — DEĞİŞTİ (§11, 15 Ağustos 2026).** Lider tablosu onaylandı; yazma ve kimlik geliyor. Karar öngörüldüğü gibi: **ayrı bir veri kümesi** (Turso). Buradaki mimari korunuyor — futbol verisi salt-okunur derleme çıktısı olarak kalır, ağ turu içermez ve `db:verify` geçmeden dağıtılmaz. Yeni bağlantı yalnızca hesap ve skor yollarında açılır.
 
@@ -4184,7 +4190,7 @@ Bunun süreçteki karşılığı `npm run db:verify`. Faz 1 boyunca doğrulama "
 | Konu                                      | Şimdiki karar                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Ne zaman değişir                                                                                                                |
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
 | SQLite                                    | Salt-okunur derleme çıktısı (§3.1); ölçüldü, yazma yolu yok                                                                                                                                                                                                                                                                                                                                                                                                                                            | **Tetiklendi (§11, 15 Ağustos 2026):** lider tablosu onaylandı. Karar: Turso, AYRI veri kümesi; futbol verisi salt-okunur kalır |
-| Fonksiyon paketi ~203,6 MB                | **Yayımlanan varlıkla ölçüldü:** sınır 250 MB, marj **1,23 kat** (46 MB boşluk). Veri 156,5 MB (VACUUM sonrası, `dataset-latest/dev.db`), Prisma motoru ~42,5 MB. Sıkıştırma valfi KURULUP TARTILDI: yalnızca ETL sütunu düşürülünce 109,8 MB, tamsayı birincil anahtarla birlikte **34,8 MB** (%78 küçülme, kayıpsız; §3.1) — uygulanırsa paket ~82 MB'ye iner                                                                                                                                        | Sınıra yaklaşılırsa uygulanır. Şimdi yapılmadı: ölçüm bir arıza göstermiyor ve yayın öncesi şema göçü karşılıksız risk          |
+| Fonksiyon paketi ~212,2 MB                | **Yayımlanan varlıkla ölçüldü, 17 Ağu 2026'da yenilendi (§11.8):** sınır 250 MB, marj **1,18 kat** (37,8 MB boşluk). Veri 156,5 MB (VACUUM sonrası, `dataset-latest/dev.db`; boyut Vercel derleme günlüğünden doğrulandı), Prisma motoru 49,2 MB — İKİ istemci. Sıkıştırma valfi KURULUP TARTILDI: yalnızca ETL sütunu düşürülünce 109,8 MB, tamsayı birincil anahtarla birlikte **34,8 MB** (%78 küçülme, kayıpsız; §3.1) — uygulanırsa paket ~90 MB'ye iner                                          | Sınıra yaklaşılırsa uygulanır. Şimdi yapılmadı: ölçüm bir arıza göstermiyor ve yayın öncesi şema göçü karşılıksız risk          |
 | Derlemede NFT uyarısı                     | Kabul — `resolveDatabaseUrl` içindeki `path.resolve` tetikliyor; iz ÖLÇÜLDÜ, şişme yok (280 dosya)                                                                                                                                                                                                                                                                                                                                                                                                     | Turbopack daha dar analiz sunarsa                                                                                               |
 | Bellek içi hız sınırlama                  | Sunucusuzda örnek başına çalışır; katmanlardan biri, tek savunma değil (§7.5)                                                                                                                                                                                                                                                                                                                                                                                                                          | **Tetiklendi (§11):** paylaşımlı sayaç artık zorunlu — BR-43 tek-deneme kuralının değeri doğrudan buna bağlı                    |
 | Wikidata tek kaynak                       | **Çözüldü (Faz 4.7):** Vikipedi ikinci kaynak olarak devrede, 5 dil; elle düzeltme kaldırıldı (§4.3)                                                                                                                                                                                                                                                                                                                                                                                                   | Kadro keşfi ayrı bir borç olarak aşağıda                                                                                        |
@@ -4676,11 +4682,55 @@ N örnek, N kat deneme demektir ve BR-43'ün değeri doğrudan buna bağlıdır.
 
 ### 11.8 Paket bütçesi
 
-Fonksiyon paketi bugün **203,6 / 250 MB** (§10.2). Turso istemcisi ve kimlik
-doğrulama kitaplığı kalan 46 MB'lik marja girer. Ölçülmüş sıkıştırma valfi
-hazır: veri kümesi 156,5 → **34,8 MB** (kayıpsız), paket ~82 MB'ye iner.
-Bu özellik marjı daraltırsa valf uygulanır — karar ölçümle verilir, tahminle
-değil.
+Fonksiyon paketi **212,2 / 250 MB** — marj **1,18 kat** (37,8 MB boşluk). Ölçüm
+17 Ağustos 2026'da yenilendi; yöntem §3.1'inkiyle aynı: en ağır rotanın
+`*.nft.json` izlemesi çözülür, veritabanı satırına yayımlanan sürüm varlığının
+gerçek boyutu konur. Bu kez varlığın boyutu Vercel'in kendi derleme günlüğünden
+doğrulandı — 149,2 MiB, yani 156.471.296 bayt.
+
+| Bileşen                   |        Boyut | Pay          |
+| ------------------------- | -----------: | ------------ |
+| Veritabanı                |     156,5 MB | %73,7        |
+| Prisma motoru (2 istemci) |      49,2 MB | %23,2        |
+| Uygulama kodu             |       1,5 MB | %0,7         |
+| `node_modules`            |       1,6 MB | %0,7         |
+| Artık                     |       3,5 MB | %1,7         |
+| **Toplam**                | **212,2 MB** | sınır 250 MB |
+
+**Sayı bir ÜST SINIRDIR.** Motor satırı Windows ikilisinden ölçüldü ve dağıtılan
+Linux karşılığı biraz küçüktür; "artık" satırındaki `coverage/` raporları ise
+Vercel'de hiç oluşmaz. Gerçek paket bundan küçüktür.
+
+**Eski 203,6 MB ile doğrudan karşılaştırılamaz.** O tablonun 42,5 MB'lik motor
+satırı TEK istemci içindi ve §3.1'in kendi notuna göre daha eski bir ölçümden
+devralınmış, yeniden ölçülmemişti. Bugün aynı klasörde, yarıda kalmış
+`prisma generate` koşularından kalma altı adet ~20 MB'lik `.tmp` kopyası bulundu
+— devralınan sayı büyük olasılıkla bunlardan biriyle şişmişti. Dolayısıyla
+artışın tamamını hesap özelliğine yazmak yanlış olur.
+
+**Ölçüm sırasında iki tuzak görüldü.**
+
+1. **`src/generated/` içinde unutulan her şey pakete girer.** Prisma, üretilmiş
+   istemciye "bu dosyayı da paketle" diyen açıklama satırları koyuyor
+   (`path.join(__dirname, …)`) ve Next'in izleyicisi klasörü olduğu gibi alıyor.
+   Yereldeki altı `.tmp` kopyası (121 MB) bu yüzden izleniyordu. Üretimi
+   etkilemez — orada istemci temiz bir dizine üretilir — ama yerel ölçümü bozar.
+2. **Kaynak ve belgeler de pakete giriyor.** Açıklama satırlarının biri
+   `process.cwd()` kullanıyor; izleyici bunu çözemeyince kök dizinden fazlasını
+   topluyor. Bugün pakette `PROJECT.md`, `package-lock.json`,
+   `ARAYUZ-TASARIM.html`, `scripts/etl/` kaynakları ve `coverage/` raporları var
+   — 354 dosya, 3,5 MB. Zararsız (fonksiyon rastgele dosya sunmaz) ve
+   `outputFileTracingExcludes` ile kapatılabilir. Marj 37,8 MB'ken yapılmadı.
+
+**Hesap istemcisinin Prisma motoru ÖLÜ AĞIRLIK DEĞİL — ölçüldü.** Sorgular
+sürücü bağdaştırıcısından gittiği için 20 MB'lık ikilinin gereksiz olduğu
+sanılmıştı. İkili kenara alınıp gerçek bir sorgu çalıştırıldı: istemci açılmıyor
+bile ("could not locate the Query Engine"). Yani hesap özelliğinin asıl paket
+maliyeti libSQL değil, **ikinci Prisma motorudur**.
+
+Sıkıştırma valfi yerinde duruyor: veri kümesi 156,5 → **34,8 MB** (kayıpsız),
+paket ~90 MB'ye iner (§3.1). Marj daralırsa uygulanır — karar ölçümle verilir,
+tahminle değil.
 
 ### 11.9 Ölçülmemiş olanlar
 
@@ -4694,10 +4744,14 @@ Kayda geçiyor ki yazarken "biliniyor" sanılmasın:
   gerçek sorgu Dublin'deki işlevden yine Dublin'deki veritabanına gidecek,
   yani çok daha kısa olmalı. "Olmalı" ölçüm değildir. p95 bütçesi 150 ms
   (§10.2) ve bu yollar dağıtımdan sonra işlevin içinden ölçülmelidir.
-- **Bağdaştırıcının fonksiyon paketine etkisi.** `/web` girişi seçilerek 7 MB'lık
-  yerel ikilinin dışarıda kalması AMAÇLANDI (§11.3) ama Vercel'in dosya izleme
-  adımının onu gerçekten dışarıda bıraktığı doğrulanmadı; yalnızca dağıtımda
-  görülebilir.
+- ~~**Bağdaştırıcının fonksiyon paketine etkisi.**~~ **ÖLÇÜLDÜ (17 Ağustos
+  2026): yerel ikili pakete GİRMİYOR.** Üretim derlemesinin 35 izleme dosyası
+  çözüldü; libSQL adına pakete giren her şey **58 dosya / 0,16 MB** ve hepsi
+  JavaScript — `web.js`, `http.js`, `hrana.js`, `ws.js`, yani web girişi.
+  Hiçbir izlemede `.node` uzantılı libSQL ikilisi yok ve ikiliyi yükleyen
+  `libsql` paketi hiç izlenmiyor. İkili diskte duruyor (7 MB), yani girebilirdi;
+  girmedi. `/web` kararı işini gördü ve korkulan 7 MB'ın gerçek karşılığı
+  0,16 MB çıktı (§11.8).
 - **Göç motorunun kararlılığı.** `engine: "js"` Prisma tarafından "kararsız"
   işaretli. Bugün çalışıyor; bir sürüm yükseltmesinde bozulursa göç SQL'i elle
   uygulanabilir — `accounts-migrations/` altındaki dosyalar bunun için yeterli.
@@ -4733,7 +4787,7 @@ Kayda geçiyor ki yazarken "biliniyor" sanılmasın:
 
 **2,6 MB'ı baştan ölü ağırlık:** Preact yalnızca Auth.js'in hazır giriş ve hata
 sayfalarını çizmek için var, bizim kendi arayüzümüz olduğu için o sayfalar hiç
-kullanılmayacak. Paket bütçesi 203,6 / 250 MB (§11.8), yani 7,2 MB ölümcül
+kullanılmayacak. Paket bütçesi 212,2 / 250 MB (§11.8), yani 7,2 MB ölümcül
 değil — karar boyuttan çok **kapsam uyumsuzluğuna** dayanıyor: onlarca
 sağlayıcı ve iki oturum stratejisi taşıyan bir kitaplıktan **tek sağlayıcı, tek
 kapsam** kullanacaktık.
