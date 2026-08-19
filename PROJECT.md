@@ -4389,8 +4389,17 @@ Yukarıdaki 90 ms gerçekten yanıltıcıymış: aynı şehirde sorgu 5–10 ms 
 
 **ASIL BULGU: MALİYET SORGUDA DEĞİL, BAĞLANTIDA.** Aynı işlevin içinde ilk
 sorgu **459 ms**, sonraki doksan dokuzu 6 ms sürdü. Yani yukarıdaki tablonun
-474 ms'lik satırı **mesafeden gelmiyor** — Dublin'in içinde de aynı. O sayı TLS
-el sıkışmasının maliyetidir ve konumla ilgisi yoktur. İki sonucu var:
+474 ms'lik satırı **mesafeden gelmiyor** — Dublin'in içinde de aynı.
+
+**Bu maliyetin ADI KONMADI ve konmamalı.** İlk yazımda "TLS el sıkışması"
+denmişti; o iddia ölçümden fazlasıydı ve kendi kanıtıyla da çelişiyordu — TLS
+el sıkışması mesafeye bağlıdır, oysa iki ayrı kıtadan aynı sayı çıktı.
+Bilinen şu: maliyet **Prisma'nın motorunda değil**. Ham libSQL istemcisi
+(Prisma hiç devrede değilken) aynı deseni gösteriyor — ilk sorgu 339–625 ms,
+sonrakiler ~230 ms. Yani suç bağlantı katmanında; katmanın içi (DNS, TCP, TLS,
+ilk HTTP isteği) **ayrıştırılmadı**. Ayrıştırmadan bir çare seçilmemeli.
+
+İki sonucu var:
 
 - `accounts-client.ts` içindeki küresel istemci önbelleği bir kolaylık değil,
   **taşıyıcı** bir karardır: kaldırılırsa her istek 459 ms öder.

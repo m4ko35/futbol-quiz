@@ -18,8 +18,16 @@ import { accountsEnv } from "../config/env";
 
 /**
  * Geliştirmede sıcak yenileme her seferinde modülü yeniden değerlendirir;
- * `client.ts` ile aynı gerekçe. Burada bedeli daha yüksek: her örnek yeni bir
- * TLS el sıkışması demek ve o el sıkışma ölçüldü — 474 ms (§11.3).
+ * `client.ts` ile aynı gerekçe. Burada bedeli daha yüksek ve bedel ÜRETİMDE
+ * ÖLÇÜLDÜ: yeni bir istemcinin ilk sorgusu **459 ms**, aynı istemcinin
+ * sonraki sorguları 6 ms (§11.3). Yani bu önbellek bir geliştirme kolaylığı
+ * değil, TAŞIYICI bir karardır — kaldırılırsa her istek 459 ms öder.
+ *
+ * Maliyetin ADI KONMUŞ DEĞİL. Önceki yorum "TLS el sıkışması" diyordu; o
+ * iddia ölçümden fazlasıydı ve çürüdü — el sıkışma mesafeye bağlıdır, oysa
+ * aynı sayı hem Türkiye'den hem Dublin'in içinden çıktı. Bilinen: maliyet
+ * Prisma'nın motorunda değil (ham libSQL de aynı deseni gösteriyor), bağlantı
+ * katmanında; katmanın içi ayrıştırılmadı.
  */
 const globalForAccounts = globalThis as unknown as {
   accountsPrisma: PrismaClient | undefined;
