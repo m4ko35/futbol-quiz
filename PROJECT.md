@@ -1305,6 +1305,15 @@ Bunlar `domain/services/` içinde saf fonksiyon olarak yaşar ve birim testi ile
 - **BR-51 — Kimlik jetonu YALNIZCA jeton ucundan kabul edilir.** _(§11.10 — UYGULANDI.)_ `id_token`, Google'ın jeton ucuna yaptığımız doğrudan TLS çağrısının yanıtından okunur; istemciden gelen, sorgu parametresinde taşınan ya da başka bir yerden devralınan jeton hiçbir koşulda kabul edilmez. Kural, **imza doğrulamasının atlanmasını geçerli kılan tek koşuldur**: jeton güvenilmeyen bir yoldan gelmediği için imzayla kanıtlanacak bir şey kalmıyor. İhlal edilirse doğrulanmamış jeton kabul etmiş oluruz ve bu doğrudan hesap ele geçirmedir. İki karar kenetlidir — biri değişirse diğeri de değişmelidir.
 - **BR-52 — Google'dan gelen erişim jetonları SAKLANMAZ.** _(§11.10 — UYGULANDI.)_ Jeton takasından yalnızca `sub` alınır; `access_token` ve `refresh_token` kullanılmadan atılır ve girişten sonra Google'a bir daha çağrı yapılmaz. Saklanmayan sır sızmaz, yenilenmesi gerekmez ve KVKK kapsamında açıklanacak bir veri olmaz.
 - **BR-53 — Görünen ad bildirilebilir; bildirimin kendisi kötüye kullanılamaz.** _(§11.12 — UYGULANDI.)_ Lider tablosundaki her ad, giriş yapmış bir kullanıcı tarafından bildirilebilir. Sebep sabit bir listeden seçilir (hakaret, taklit, reklam — T5'in üç kötüye kullanımı); **serbest metin alanı yoktur**, çünkü serbest metin bildirimi ikinci bir hakaret kanalına çevirirdi. Bir kullanıcı bir hedefi **bir kez** bildirir ve bunu veritabanı kısıtı güvence altına alır. Kendi adını bildirmek reddedilir. Bildirim **hiçbir otomatik işlem tetiklemez**: eşik koyup adı gizlemek, anlaşmış bir grubun meşru bir adı sildirmesine izin verirdi — karar insana aittir.
+- **BR-54 — Oda iki kişiliktir; iki taraf da giriş yapmış olmalıdır.** _(§12 — TASARIM.)_ Sonuç ekranı iki görünen ad gösterir; adsız bir taraf sonucu okunamaz kılardı. Dolu bir odaya gelen üçüncü katılma isteği **reddedilir**, sessizce izleyiciye çevrilmez.
+- **BR-55 — Oda kodu okunabilir, karışmaz ve tahmin edilemez.** _(§12 — TASARIM.)_ Altı karakter; karışan harfler alfabeden çıkarılır (`0/O`, `1/I/L` yok). Asıl gerekçe estetik değil kullanım: kod telefonda **sesli söylenecek**. Kod kriptografik rastgeleliktendir, tekilliğini veritabanı kısıtı garanti eder ve çakışmada yeniden üretilir.
+- **BR-56 — Oda hedefini SUNUCU seçer; istemci hedef gönderemez.** _(§12 — TASARIM.)_ Havuz §9.2'nin aday havuzudur (altı istatistiği de dolu olanlar, BR-15 ile aynı ölçüt). "Kurucu seçsin" bilerek **ertelendi**: seçen kişi hedefin altı istatistiğini görür ve arkadaşı kodu girene kadar istediği kadar düşünebilir — yani seçim hakkı, hazırlık avantajına dönüşür. Özellik geri gelecekse hedefin iki tarafa da **aynı anda** açılmasıyla birlikte gelmelidir.
+- **BR-57 — Oda hedefi, ikinci oyuncu katılmadan hiç kimseye gönderilmez.** _(§12 — TASARIM.)_ Oda kurma ve katılma yanıtlarının ikisi de hedefi taşımaz; iki taraf da onu bir sonraki **durum okumasından** alır. Kurucuya erken vermek, BR-56'nın kapattığı avantajı arka kapıdan geri açardı.
+- **BR-58 — Oda turunda da istatistik başına tek deneme.** _(§12 — TASARIM.)_ BR-43'ün oda karşılığı; `@@unique([roomPlayerId, statKey])` ile uygulanır. **Kısıt, uygulama mantığının tekrarı değil garantisidir** — eşzamanlı iki istek "bu istatistik boş" görüp ikisi de yazabilir, o yarışı yalnızca veritabanı durdurur. Yarışı kaybeden istek, kendi hesapladığı puanı değil **saklanan cevabı** döndürür.
+- **BR-59 — Oda turu lider tablosuna girmez ve `DailyRound`'a dokunmaz.** _(§12 — TASARIM.)_ Girseydi iki arkadaş sırayla birbirine puan kasabilirdi. §11.2'nin T3'ü ("çoklu hesap") kabul edilebilir sayılmıştı; oda aynı kötüye kullanımı **bedava** hâle getirirdi. Ayrı tablo, ayrı yol, tablonun sorgusuyla hiç kesişmez.
+- **BR-60 — Oda sonucu birikmez; oda söner.** _(§12 — TASARIM.)_ Galibiyet sayacı, oda geçmişi, profil istatistiği yoktur. Katılım olmazsa 30 dakika, tur bitmezse 60 dakika sonra oda "süresi doldu" olur ve satırları silinir; kod yeniden kullanılabilir hâle gelir. Biriken bir sayı olmadığı için T7'nin ("oda adaleti kapatılamaz") bedeli de birikmez.
+- **BR-61 — Tur yarım kalırsa galip yoktur.** _(§12 — TASARIM.)_ Rakip bırakıp gittiğinde hükmen galip ilan edilmez; ekran "yarım kaldı" der. BR-45'in gerekçesiyle aynı: kişi kötü oynadığı için değil, **bitirmediği** için sonuç yok. Ürün kararıdır ve ilk odalardan sonra yeniden bakılacaktır.
+- **BR-62 — Eşit toplam beraberliktir.** _(§12 — TASARIM.)_ Süreye, hıza ya da ilk bitirene bakılmaz. §11.5'in "eşit puanlar aynı sırayı paylaşır" kuralıyla aynı hat; hızı ödüllendirmek oyunun sorusunu ("kimi biliyorsun") sessizce değiştirirdi.
 
 ---
 
@@ -1866,7 +1875,39 @@ Her API ucunda IP başına token bucket: **60 istek / dakika**, patlama tolerans
 - **Korunacak bir yazma yolu veya kişisel veri yok.** Uygulama veritabanına yazmıyor (§3.1) ve kimlik tutmuyor; sınırlayıcının koruduğu şey bütünlük değil, kaynak tüketimidir.
 - Bu hâliyle sınırlayıcı **tek savunma değil, katmanlardan biridir**.
 
-Paylaşımlı bir sayaca (Vercel KV / Upstash vb.) geçiş, `RateLimiter` port'u arkasında olduğu için tek dosyalık değişikliktir. **ARTIK ZORUNLU (§11, 15 Ağustos 2026):** lider tablosu onaylandı, yazma yolu ve kimlik geliyor. Sınırlayıcı bundan sonra yalnızca kaynak tüketimini değil **bütünlüğü** de korur: BR-43'ün "istatistik başına tek deneme" kuralı, sayaç örnek başına çalıştığı sürece N kat gevşer.
+Paylaşımlı bir sayaca (Vercel KV / Upstash vb.) geçiş, `RateLimiter` port'u arkasında olduğu için tek dosyalık değişikliktir. ~~**ARTIK ZORUNLU (§11, 15 Ağustos 2026):** lider tablosu onaylandı, yazma yolu ve kimlik geliyor. Sınırlayıcı bundan sonra yalnızca kaynak tüketimini değil **bütünlüğü** de korur: BR-43'ün "istatistik başına tek deneme" kuralı, sayaç örnek başına çalıştığı sürece N kat gevşer.~~
+
+> **GEREKÇE GEÇERSİZ — 20 Ağustos 2026. Cümle uygulamadan ÖNCE yazıldı;
+> uygulama deliği başka bir yerden kapattı ve buraya geri dönülmedi.**
+>
+> BR-43'ü koruyan şey hız sınırlayıcı **değil**, veritabanı kısıtıdır:
+> `RoundAnswer @@unique([roundId, statKey])`. Kod iki yolu da kapatıyor
+> (`submit-stat-answer.ts`):
+>
+> - **İkinci deneme** → `judgeSubmission` `"tekrar"` döner ve saklanan cevap
+>   geri verilir; yeni bir puan hesaplanmaz.
+> - **Eşzamanlı yarış** → yazma `"zaten-var"` ile döner ve yanıt yine
+>   SAKLANAN cevabın değeri ve puanıdır, denenen oyuncununki değil.
+>
+> Yani aynı anda bin istek atılsa bile: biri yazılır, kalanları çağırana
+> _zaten yazılmış olanı_ söyler. Denenen oyuncunun puanı **öğrenilemez**.
+> Kaç fonksiyon örneği çalıştığının bir önemi yok — kısıt küreseldir.
+>
+> **ASIL AÇIK BAŞKA YERDE VE SINIRLAYICI ONU DA KAPATMIYOR.**
+> `POST /api/stat-match/answer` girişsiz de çalışır (anonim oyun bilinçli bir
+> üründür) ve `targetId` gövdeden gelebildiği için **herhangi bir hedefe**
+> karşı sınırsız bir puan kâhinidir. Ama bunun bir değeri yok: §11.2'nin T4'ü
+> zaten kayıtta — veri kümesi herkese açık ve bu depoda yayımlanmış bir sürüm
+> varlığı olarak **doğrudan indirilebilir** (§3.1). Kararlı biri dosyayı indirip
+> en iyi cevabı tek istek atmadan hesaplar. Sınırlayıcı bu saldırıyı
+> yavaşlatmaz, **es geçer**.
+>
+> **SINIRLAYICININ GERÇEK İŞİ, §7.5'in en baştaki gerekçesidir: KAYNAK
+> TÜKETİMİ.** Bütünlük değil. Paylaşımlı sayaca geçiş hâlâ değerli ama artık
+> bir ön koşul değil, sıradan bir altyapı kararı — ve bedeli var: Upstash gibi
+> bir sayaç §7.4'ün sabit adres listesine **üçüncü adresi** ekler, Turso'yu
+> sayaç yapmak ise **her isteğe bir yazma** demektir. Karar, gerçek yoklama
+> trafiği ölçüldükten sonra verilir (§12).
 
 ### 7.6 Sır Yönetimi
 
@@ -4378,6 +4419,17 @@ beş varsayımın ölçülmesi — bunların yalnızca biri güvenlik etkili
 `process.cwd()` yerleşimi (§3.1), üretimde CSP nonce ölçümü ve gerçek
 tarayıcıda yerleşime bağlı erişilebilirlik ölçütleri (§7.10).
 
+> **BU PARAGRAF GERİDE KALDI — 20 Ağustos 2026.** Faz 4.5 yayına çıktı ve
+> ardından §11 (hesaplar + lider tablosu) da yayına girdi. Kalan yayın maddesi
+> tek: `CONTACT_EMAIL` (§7.18). Sıradaki **özellik** artık §12 — oda ile
+> arkadaşa karşı oynama. Durumu TASARIM: kurallar (BR-54…BR-62), veri modeli,
+> uçlar ve kabul edilen tehdit (T7) yazıldı; kod yazılmadı.
+>
+> §12'nin bir yan çıktısı şudur: **paylaşımlı hız sınırlayıcı ön koşul olmaktan
+> çıktı.** Gerekçesi §7.5'te düzeltildi — BR-43'ü veritabanı kısıtı koruyor,
+> sınırlayıcı değil. Karar, odanın yoklama trafiği gerçekten ölçüldükten sonra
+> verilecek.
+
 Doğrulanabilir taban (Faz 4.9 kapanışı, 2026-08-06):
 
 | Komut                  | Sonuç                                                                    |
@@ -4416,35 +4468,35 @@ Bunun süreçteki karşılığı `npm run db:verify`. Faz 1 boyunca doğrulama "
 
 ### 10.2 Bilinen Teknik Borç / İleri Kararlar
 
-| Konu                                      | Şimdiki karar                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Ne zaman değişir                                                                                                                |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
-| SQLite                                    | Salt-okunur derleme çıktısı (§3.1); ölçüldü, yazma yolu yok                                                                                                                                                                                                                                                                                                                                                                                                                                            | **Tetiklendi (§11, 15 Ağustos 2026):** lider tablosu onaylandı. Karar: Turso, AYRI veri kümesi; futbol verisi salt-okunur kalır |
-| Fonksiyon paketi ~212,2 MB                | **Yayımlanan varlıkla ölçüldü, 17 Ağu 2026'da yenilendi (§11.8):** sınır 250 MB, marj **1,18 kat** (37,8 MB boşluk). Veri 156,5 MB (VACUUM sonrası, `dataset-latest/dev.db`; boyut Vercel derleme günlüğünden doğrulandı), Prisma motoru 49,2 MB — İKİ istemci. Sıkıştırma valfi KURULUP TARTILDI: yalnızca ETL sütunu düşürülünce 109,8 MB, tamsayı birincil anahtarla birlikte **34,8 MB** (%78 küçülme, kayıpsız; §3.1) — uygulanırsa paket ~90 MB'ye iner                                          | Sınıra yaklaşılırsa uygulanır. Şimdi yapılmadı: ölçüm bir arıza göstermiyor ve yayın öncesi şema göçü karşılıksız risk          |
-| Derlemede NFT uyarısı                     | Kabul — `resolveDatabaseUrl` içindeki `path.resolve` tetikliyor; iz ÖLÇÜLDÜ, şişme yok (280 dosya)                                                                                                                                                                                                                                                                                                                                                                                                     | Turbopack daha dar analiz sunarsa                                                                                               |
-| Bellek içi hız sınırlama                  | Sunucusuzda örnek başına çalışır; katmanlardan biri, tek savunma değil (§7.5)                                                                                                                                                                                                                                                                                                                                                                                                                          | **Tetiklendi (§11):** paylaşımlı sayaç artık zorunlu — BR-43 tek-deneme kuralının değeri doğrudan buna bağlı                    |
-| Wikidata tek kaynak                       | **Çözüldü (Faz 4.7):** Vikipedi ikinci kaynak olarak devrede, 5 dil; elle düzeltme kaldırıldı (§4.3)                                                                                                                                                                                                                                                                                                                                                                                                   | Kadro keşfi ayrı bir borç olarak aşağıda                                                                                        |
-| Gençlerbirliği ikizi (yukarı akış)        | **ERTELENDİ — kullanıcı kararı (9 Ağustos 2026).** Boru hattı tarafı bitti; kalan iş Wikidata'da iki İFADE EKLEMEK: `Q20473364 P361 Q641373` (öğenin kendi açıklaması zaten bunu yazıyor) ve `Q641373 P31 += Q13580678` (kanıt: `Q19611326` kadın voleybol takımı `P127` ile bu kulübe ait). İkisi de ekleme, hiçbir şey silinmiyor. Yapılmadı: dışa dönük, kalıcı ve herkese açık bir düzenleme ve 906 kulüpten birinin listede çift görünmesi kabul edildi — BR-36 uyarısı kullanıcıyı zaten koruyor | Yayın sonrası, ya da kulüp seçicide karışıklık bildirilirse. Araştırma tamam: yeniden ölçüm gerekmez                            |
-| i18n                                      | Yalnızca TR metinler                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | İngilizce talep edilirse (yapı hazır)                                                                                           |
-| Tümüyle dinamik render                    | Nonce'lu CSP için kabul edildi (§7.3)                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Next kararlı SRI sunarsa statik + hash tabanlı CSP'ye geçilir                                                                   |
-| `brace-expansion` açığı                   | Dev-only, izleniyor (§7.7)                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | `eslint-config-next` eslint 10 uyumlu eklentilerle çıkarsa                                                                      |
-| Yalnızca erkek ligleri                    | Kapsam kararı (BR-7)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Kadın futbolu kendi lig kümesiyle ayrı kapsam olarak eklenebilir                                                                |
-| Kulüp sınıfı beyaz listesi                | 6 sınıf, ölçülerek belirlendi                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Yeni bir kulüp farklı `P31` ile listeden düşerse genişletilir                                                                   |
-| Tam kariyer verisi yok                    | Faz 1 kapsam sınırı (§1.3)                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Kariyer bilmecesi / bağlantı zinciri modları için gerekli olacak                                                                |
-| `isYouth` hiç tetiklenmiyor               | Kabul — veri kümesinde altyapı takımı yok (383 kulübün 0'ı)                                                                                                                                                                                                                                                                                                                                                                                                                                            | Alt lig kapsamı eklenirse altyapı/rezerv takımlar girer, BR-2 devreye girer                                                     |
-| Kulüp kuruluş yılı gürültülü              | Uyarı, bloklamıyor (§8.2)                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | 10.166 dönem kulüp kuruluşundan önce; `P571` sık sık selef kulübü gösteriyor                                                    |
-| `db:verify` elle çalışır                  | Faz 1'de yeterli                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Dağıtım ardışık düzenine girince veri yükleme adımının parçası olur                                                             |
-| Tarihsiz dönemler yanlış pozitif üretiyor | **Çözüldü (Faz 4):** elenmiyor, BR-8 ile etiketleniyor; oran `db:verify`'da tavanlı                                                                                                                                                                                                                                                                                                                                                                                                                    | İkinci bir veri kaynağı eklenirse kayıtlar teker teker doğrulanabilir hâle gelir                                                |
-| Ortak oyuncu sayısı sınırsız              | Kabul — yeniden ölçüldü: en büyük **377**, 500'ü aşan çift **0** (§10.2 notu)                                                                                                                                                                                                                                                                                                                                                                                                                          | Sayfalama, arayüz gerektirdiğinde veya sonuç 500'ü aştığında                                                                    |
-| Altın veri seti elle bakımlı              | 31 olgu, elle doğrulandı                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | Kapsam genişledikçe büyütülür; otomatik türetme yapılMAZ (kendini doğrular)                                                     |
-| Kulüp armaları gösterilmiyor              | **Çözüldü (Faz 4):** ETL normalize ediyor, `ClubCrest` gösteriyor; 114/114 izinli kökende                                                                                                                                                                                                                                                                                                                                                                                                              | —                                                                                                                               |
-| `P154` bazı kulüplerde arma DEĞİL         | Kabul — ölçüldü: Barcelona'nın değeri tesis fotoğrafı, Middlesbrough'nunki sokak fotoğrafı                                                                                                                                                                                                                                                                                                                                                                                                             | İkinci kaynak (Vikipedi) armaları da taşırsa                                                                                    |
-| CDN önbellek geçersizleştirme             | Varsayım; bu yüzden `s-maxage` temkinli (300 sn) tutuluyor (§7.9)                                                                                                                                                                                                                                                                                                                                                                                                                                      | Faz 4.5'te ölçülür; doğrulanırsa süre uzatılır                                                                                  |
-| p95 gecikme                               | **Ölçüldü (Faz 4):** 16,8 ms, bütçe 150 ms; `npm run bench` kalıcı kapı                                                                                                                                                                                                                                                                                                                                                                                                                                | Kapsam genişleyince yeniden ölçülür (betik zaten var)                                                                           |
-| Erişilebilirlik: yerleşime bağlı ölçütler | Yapısal denetim (axe-core) ve kontrast ölçüldü; görünürlük, odak sırası ve hedef boyutu ölçülMEDİ (§7.10)                                                                                                                                                                                                                                                                                                                                                                                              | Faz 4.5: gerçek tarayıcıda elle denetim                                                                                         |
-| Bağsız kulüp ikizi (Gençlerbirliği)       | Kabul — ölçüldü, eşik tabanlı kural GÜVENLİ DEĞİL: %80 eşiği Barcelona'yı yedek takımıyla birleştirirdi (§5.3)                                                                                                                                                                                                                                                                                                                                                                                         | Doğru düzeltme yeri kaynağın kendisi: Wikidata'da iki öğenin birleştirilmesi                                                    |
-| Kadro keşfi: güncel kadro %26 eksik       | Kabul — yapısal; oyuncu evrenini `P54` tanımlıyor, bağı olmayan oyuncuya Vikipedi katmanı da ULAŞAMIYOR (§4.7)                                                                                                                                                                                                                                                                                                                                                                                         | Kadro şablonlarından oyuncu keşfi ayrı bir çekim katmanı olarak yazılırsa                                                       |
-| Kaleci golleri kaynakta kirli             | Kabul — Vikipedi YENEN golü negatif yazıyor (`-87`), bu değerler Wikidata'ya pozitif gol olarak girmiş olabiliyor (Ottavio Bugatti 256 maç / 329 "gol"). BR-22 mutabakatı bunları düşürüyor ama kaynağı temizlemiyor                                                                                                                                                                                                                                                                                   | Kaleci dönemleri ayrı bir alanla (yenen gol) modellenirse; şu an oyunun hiçbir ekseni kaleci golü sormuyor                      |
-| Izgara havuzu 18 ligi kapsamıyor          | **Kısmen ödendi (2026-08-07):** "Sen kur" turunda kullanıcı 906 kulübün hepsini kullanabiliyor (BR-25); günlük ızgara ertelenmiş kararla 82 kulüpte kaldı — Ajax/Porto/Benfica, LA Galaxy ve Al-Hilal ızgarada ve günün oyuncusu havuzunda YOK (§9.1)                                                                                                                                                                                                                                                  | Ürün sahibi yeni lig kulüplerini görüp seçtiğinde; ölçüm değil KARAR                                                            |
+| Konu                                      | Şimdiki karar                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Ne zaman değişir                                                                                                                                                                                                                                                         |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| SQLite                                    | Salt-okunur derleme çıktısı (§3.1); ölçüldü, yazma yolu yok                                                                                                                                                                                                                                                                                                                                                                                                                                            | **Tetiklendi (§11, 15 Ağustos 2026):** lider tablosu onaylandı. Karar: Turso, AYRI veri kümesi; futbol verisi salt-okunur kalır                                                                                                                                          |
+| Fonksiyon paketi ~212,2 MB                | **Yayımlanan varlıkla ölçüldü, 17 Ağu 2026'da yenilendi (§11.8):** sınır 250 MB, marj **1,18 kat** (37,8 MB boşluk). Veri 156,5 MB (VACUUM sonrası, `dataset-latest/dev.db`; boyut Vercel derleme günlüğünden doğrulandı), Prisma motoru 49,2 MB — İKİ istemci. Sıkıştırma valfi KURULUP TARTILDI: yalnızca ETL sütunu düşürülünce 109,8 MB, tamsayı birincil anahtarla birlikte **34,8 MB** (%78 küçülme, kayıpsız; §3.1) — uygulanırsa paket ~90 MB'ye iner                                          | Sınıra yaklaşılırsa uygulanır. Şimdi yapılmadı: ölçüm bir arıza göstermiyor ve yayın öncesi şema göçü karşılıksız risk                                                                                                                                                   |
+| Derlemede NFT uyarısı                     | Kabul — `resolveDatabaseUrl` içindeki `path.resolve` tetikliyor; iz ÖLÇÜLDÜ, şişme yok (280 dosya)                                                                                                                                                                                                                                                                                                                                                                                                     | Turbopack daha dar analiz sunarsa                                                                                                                                                                                                                                        |
+| Bellek içi hız sınırlama                  | Sunucusuzda örnek başına çalışır; katmanlardan biri, tek savunma değil (§7.5)                                                                                                                                                                                                                                                                                                                                                                                                                          | ~~**Tetiklendi (§11):** paylaşımlı sayaç artık zorunlu — BR-43 tek-deneme kuralının değeri doğrudan buna bağlı~~ **GEREKÇE GEÇERSİZ (20 Ağu 2026, §7.5):** BR-43'ü veritabanı kısıtı koruyor. Sayaç kaynak tüketimi işi; karar §12'nin yoklama trafiği ölçüldükten sonra |
+| Wikidata tek kaynak                       | **Çözüldü (Faz 4.7):** Vikipedi ikinci kaynak olarak devrede, 5 dil; elle düzeltme kaldırıldı (§4.3)                                                                                                                                                                                                                                                                                                                                                                                                   | Kadro keşfi ayrı bir borç olarak aşağıda                                                                                                                                                                                                                                 |
+| Gençlerbirliği ikizi (yukarı akış)        | **ERTELENDİ — kullanıcı kararı (9 Ağustos 2026).** Boru hattı tarafı bitti; kalan iş Wikidata'da iki İFADE EKLEMEK: `Q20473364 P361 Q641373` (öğenin kendi açıklaması zaten bunu yazıyor) ve `Q641373 P31 += Q13580678` (kanıt: `Q19611326` kadın voleybol takımı `P127` ile bu kulübe ait). İkisi de ekleme, hiçbir şey silinmiyor. Yapılmadı: dışa dönük, kalıcı ve herkese açık bir düzenleme ve 906 kulüpten birinin listede çift görünmesi kabul edildi — BR-36 uyarısı kullanıcıyı zaten koruyor | Yayın sonrası, ya da kulüp seçicide karışıklık bildirilirse. Araştırma tamam: yeniden ölçüm gerekmez                                                                                                                                                                     |
+| i18n                                      | Yalnızca TR metinler                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | İngilizce talep edilirse (yapı hazır)                                                                                                                                                                                                                                    |
+| Tümüyle dinamik render                    | Nonce'lu CSP için kabul edildi (§7.3)                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Next kararlı SRI sunarsa statik + hash tabanlı CSP'ye geçilir                                                                                                                                                                                                            |
+| `brace-expansion` açığı                   | Dev-only, izleniyor (§7.7)                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | `eslint-config-next` eslint 10 uyumlu eklentilerle çıkarsa                                                                                                                                                                                                               |
+| Yalnızca erkek ligleri                    | Kapsam kararı (BR-7)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Kadın futbolu kendi lig kümesiyle ayrı kapsam olarak eklenebilir                                                                                                                                                                                                         |
+| Kulüp sınıfı beyaz listesi                | 6 sınıf, ölçülerek belirlendi                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Yeni bir kulüp farklı `P31` ile listeden düşerse genişletilir                                                                                                                                                                                                            |
+| Tam kariyer verisi yok                    | Faz 1 kapsam sınırı (§1.3)                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Kariyer bilmecesi / bağlantı zinciri modları için gerekli olacak                                                                                                                                                                                                         |
+| `isYouth` hiç tetiklenmiyor               | Kabul — veri kümesinde altyapı takımı yok (383 kulübün 0'ı)                                                                                                                                                                                                                                                                                                                                                                                                                                            | Alt lig kapsamı eklenirse altyapı/rezerv takımlar girer, BR-2 devreye girer                                                                                                                                                                                              |
+| Kulüp kuruluş yılı gürültülü              | Uyarı, bloklamıyor (§8.2)                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | 10.166 dönem kulüp kuruluşundan önce; `P571` sık sık selef kulübü gösteriyor                                                                                                                                                                                             |
+| `db:verify` elle çalışır                  | Faz 1'de yeterli                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Dağıtım ardışık düzenine girince veri yükleme adımının parçası olur                                                                                                                                                                                                      |
+| Tarihsiz dönemler yanlış pozitif üretiyor | **Çözüldü (Faz 4):** elenmiyor, BR-8 ile etiketleniyor; oran `db:verify`'da tavanlı                                                                                                                                                                                                                                                                                                                                                                                                                    | İkinci bir veri kaynağı eklenirse kayıtlar teker teker doğrulanabilir hâle gelir                                                                                                                                                                                         |
+| Ortak oyuncu sayısı sınırsız              | Kabul — yeniden ölçüldü: en büyük **377**, 500'ü aşan çift **0** (§10.2 notu)                                                                                                                                                                                                                                                                                                                                                                                                                          | Sayfalama, arayüz gerektirdiğinde veya sonuç 500'ü aştığında                                                                                                                                                                                                             |
+| Altın veri seti elle bakımlı              | 31 olgu, elle doğrulandı                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | Kapsam genişledikçe büyütülür; otomatik türetme yapılMAZ (kendini doğrular)                                                                                                                                                                                              |
+| Kulüp armaları gösterilmiyor              | **Çözüldü (Faz 4):** ETL normalize ediyor, `ClubCrest` gösteriyor; 114/114 izinli kökende                                                                                                                                                                                                                                                                                                                                                                                                              | —                                                                                                                                                                                                                                                                        |
+| `P154` bazı kulüplerde arma DEĞİL         | Kabul — ölçüldü: Barcelona'nın değeri tesis fotoğrafı, Middlesbrough'nunki sokak fotoğrafı                                                                                                                                                                                                                                                                                                                                                                                                             | İkinci kaynak (Vikipedi) armaları da taşırsa                                                                                                                                                                                                                             |
+| CDN önbellek geçersizleştirme             | Varsayım; bu yüzden `s-maxage` temkinli (300 sn) tutuluyor (§7.9)                                                                                                                                                                                                                                                                                                                                                                                                                                      | Faz 4.5'te ölçülür; doğrulanırsa süre uzatılır                                                                                                                                                                                                                           |
+| p95 gecikme                               | **Ölçüldü (Faz 4):** 16,8 ms, bütçe 150 ms; `npm run bench` kalıcı kapı                                                                                                                                                                                                                                                                                                                                                                                                                                | Kapsam genişleyince yeniden ölçülür (betik zaten var)                                                                                                                                                                                                                    |
+| Erişilebilirlik: yerleşime bağlı ölçütler | Yapısal denetim (axe-core) ve kontrast ölçüldü; görünürlük, odak sırası ve hedef boyutu ölçülMEDİ (§7.10)                                                                                                                                                                                                                                                                                                                                                                                              | Faz 4.5: gerçek tarayıcıda elle denetim                                                                                                                                                                                                                                  |
+| Bağsız kulüp ikizi (Gençlerbirliği)       | Kabul — ölçüldü, eşik tabanlı kural GÜVENLİ DEĞİL: %80 eşiği Barcelona'yı yedek takımıyla birleştirirdi (§5.3)                                                                                                                                                                                                                                                                                                                                                                                         | Doğru düzeltme yeri kaynağın kendisi: Wikidata'da iki öğenin birleştirilmesi                                                                                                                                                                                             |
+| Kadro keşfi: güncel kadro %26 eksik       | Kabul — yapısal; oyuncu evrenini `P54` tanımlıyor, bağı olmayan oyuncuya Vikipedi katmanı da ULAŞAMIYOR (§4.7)                                                                                                                                                                                                                                                                                                                                                                                         | Kadro şablonlarından oyuncu keşfi ayrı bir çekim katmanı olarak yazılırsa                                                                                                                                                                                                |
+| Kaleci golleri kaynakta kirli             | Kabul — Vikipedi YENEN golü negatif yazıyor (`-87`), bu değerler Wikidata'ya pozitif gol olarak girmiş olabiliyor (Ottavio Bugatti 256 maç / 329 "gol"). BR-22 mutabakatı bunları düşürüyor ama kaynağı temizlemiyor                                                                                                                                                                                                                                                                                   | Kaleci dönemleri ayrı bir alanla (yenen gol) modellenirse; şu an oyunun hiçbir ekseni kaleci golü sormuyor                                                                                                                                                               |
+| Izgara havuzu 18 ligi kapsamıyor          | **Kısmen ödendi (2026-08-07):** "Sen kur" turunda kullanıcı 906 kulübün hepsini kullanabiliyor (BR-25); günlük ızgara ertelenmiş kararla 82 kulüpte kaldı — Ajax/Porto/Benfica, LA Galaxy ve Al-Hilal ızgarada ve günün oyuncusu havuzunda YOK (§9.1)                                                                                                                                                                                                                                                  | Ürün sahibi yeni lig kulüplerini görüp seçtiğinde; ölçüm değil KARAR                                                                                                                                                                                                     |
 
 **En büyük ortak oyuncu sonucu yeniden ölçüldü ve ölçüm bir şey daha söyledi.**
 Faz 3'te kaydedilen 128 değeri eskimişti; 363 seçilebilir kulübün tüm çiftleri
@@ -4477,7 +4529,7 @@ değil:** Google OAuth uygulaması hâlâ "Testing" kipinde, yani hesap açabile
 kişileri ürün sahibi tek tek ekliyor. Yayımlamanın önündeki şart (§11.9'un
 görünen ad maddesi) §11.12 ile kapandı.
 
-Bu bölüm kodun önünde gider (§12'nin kuralı). Aşağıdaki üç şey ölçüldü ve
+Bu bölüm kodun önünde gider (§14'ün kuralı). Aşağıdaki üç şey ölçüldü ve
 özelliğin şeklini belirliyor.
 
 ### 11.1 Neden bu özellik mimariyi değiştiriyor
@@ -4540,6 +4592,24 @@ hakaret, taklit veya reklam taşıyabilir. → BR-46.
 oturum yok: _"yanıtlar yalnızca sorgu parametrelerine bağlı"_. Oturumlu bir
 yanıt paylaşılan CDN önbelleğine girerse bir kullanıcının verisi başkasına
 servis edilir. → BR-47.
+
+**T7 — Oda adaleti. Kapatılamaz ve KABUL EDİLİR (§12).** Odadaki rakip,
+`POST /api/stat-match/answer` ucunu girişsiz çağırıp odanın hedefine karşı
+bütün adayları yoklayabilir; uç anonim çalışıyor ve `targetId` gövdeden
+geliyor. Yoklamasa bile kazanır: T4 gereği veri kümesi herkese açık ve bu
+depoda yayımlanmış bir sürüm varlığı olarak indirilebilir (§3.1), yani en iyi
+cevap tek istek atmadan hesaplanabilir.
+
+**Kapatmanın yolu yok.** Hedefin istatistikleri oyunun kendisi gereği açıkça
+gösteriliyor (§9.2'nin sızıntı kuralı: gizlenen şey aday havuzu, hedef değil).
+Hız sınırı da işe yaramaz — hesaplama bizim sunucumuzda değil, hilekârın
+diskinde yapılıyor.
+
+**Bu yüzden makine kurulmadı, kayda geçirildi.** Oda iki arkadaş arasında bir
+oyundur, turnuva değil; sonuç hiçbir yerde birikmez (BR-60) ve lider tablosuna
+dokunmaz (BR-59). Hile yapan yalnızca kendi oyununu bozar — T3'ün ("çoklu
+hesap") kabul edilme gerekçesiyle aynı. **Ödül dağıtılacaksa bu karar yeniden
+gözden geçirilmelidir**, tıpkı T3'te olduğu gibi.
 
 ### 11.3 Veri nerede durur
 
@@ -4920,10 +4990,14 @@ açıklamadır ve o zaten §7.18'de beyan edilmişti.
 
 ### 11.7 Hız sınırlama ve önbellek
 
-**Paylaşımlı sayaç ZORUNLU olur.** §10.2 bunu öngörmüştü. Bugünkü bellek içi
+~~**Paylaşımlı sayaç ZORUNLU olur.** §10.2 bunu öngörmüştü. Bugünkü bellek içi
 kova sunucusuzda örnek başına çalışıyor ve bu, korunacak bir yazma yolu
 olmadığı için kabul edilebilirdi (§7.5). Yazma yolu gelince kabul edilemez:
-N örnek, N kat deneme demektir ve BR-43'ün değeri doğrudan buna bağlıdır.
+N örnek, N kat deneme demektir ve BR-43'ün değeri doğrudan buna bağlıdır.~~
+
+**Gerekçe geçersiz çıktı; ayrıntı §7.5'te.** Kısacası: BR-43'ü koruyan şey
+sınırlayıcı değil `@@unique([roundId, statKey])` kısıtıdır ve kısıt küreseldir.
+Sınırlayıcının işi kaynak tüketimi olarak kalıyor.
 
 **Önbellek politikası ikiye ayrılır:** lider tablosu herkes için aynıdır ve
 önbelleklenir; kimliğe bağlı her şey `private, no-store` (BR-47).
@@ -5323,7 +5397,157 @@ kötüye kullanılan şey addı, oyuncunun geçmişi değil.
 
 ---
 
-## 12. Sözlük
+## 12. Oda: Arkadaşla Karşılaşma
+
+**Durum: TASARIM (20 Ağustos 2026).** Bu bölüm kodun önünde gider; henüz tek
+satır yazılmadı.
+
+§1.2 "çok oyunculu mod"u ilk sürümün dışına koymuştu. Hesap altyapısı (§11)
+yayına girince ön koşulları oluştu: kimlik, oturum ve **sunucu tarafında tur
+durumu** zaten var. Oda bunların üstüne kuruluyor, yanlarına değil.
+
+**Oyun:** giriş yapmış bir kullanıcı istatistik modu için bir oda kurar, oda
+kodunu arkadaşına söyler, arkadaşı kodu girer. İkisi de aynı hedef oyuncuya
+karşı §9.2'nin altı istatistiğini oynar; toplamı yüksek olan kazanır.
+
+**Ürün sahibi kararları (20 Ağustos 2026):**
+
+1. **Hedefi sunucu rastgele seçer.** "Kurucu seçsin" sonraki adım — ve şu anda
+   seçilmemesinin bir sebebi var, aşağıda (BR-56).
+2. **Sonuç hiçbir yerde birikmez.** Galibiyet sayacı, oda geçmişi, profil
+   istatistiği yok; sonuç o an görünür ve oda sönünce kaybolur.
+
+### 12.1 Gerçek zamanlı altyapı YOK — ve bu bir eksiklik değil
+
+**İstatistik modu sıra tabanlı değildir.** Her oyuncu altı istatistiği bağımsız
+cevaplar; sıranın devrettiği, birinin diğerini beklediği bir an yoktur. İki
+oyuncunun canlı olarak paylaştığı **tek** bilgi şudur: _"rakibim bitirdi mi?"_
+
+Bir soruluk bu bilgi, saniyede güncellenen bir kanal gerektirmez. **Yoklama
+yeter** — ve yoklama seçildiği için:
+
+- **WebSocket yok.** Vercel'in sunucusuz fonksiyonları uzun ömürlü bağlantı
+  tutamaz; tutabilseydi bile bu oyun için gereksizdi.
+- **Üçüncü taraf gerçek zaman servisi yok** (Pusher, Ably, Supabase Realtime).
+  Yani **§7.4'ün sabit adres listesi iki adres olarak kalıyor.** Oda özelliği o
+  listeye dokunmadan tasarlandı; dokunsaydı yeni bir sır, yeni bir bağımlılık ve
+  yeni bir SSRF yüzeyi tartışması açılırdı.
+- **Yeni abonelik yok.**
+
+**Yoklama SÜREKLİ DEĞİLDİR** ve bu ayrım maliyetin tamamını belirliyor. Kendi
+turunu oynarken yoklamaya gerek yok — ekranda değişen bir şey yok. Yoklama
+yalnızca **iki bekleme durumunda** açılır:
+
+| Durum                          | Aralık                       | Biter                       |
+| ------------------------------ | ---------------------------- | --------------------------- |
+| Lobide arkadaş bekleniyor      | 3 sn → 5 → 10 (geri çekmeli) | katılınca / 30 dk sonra     |
+| Turunu bitirdin, rakip oynuyor | 3 sn → 5 → 10                | rakip bitince / oda sönünce |
+
+Geri çekme bilinçli: bekleyiş uzadıkça haberin bir saniye geç gelmesinin bedeli
+düşer, ama sabit 3 saniye boş yere çağrı üretir.
+
+### 12.2 Kurallar
+
+- **BR-54 — Oda İKİ kişiliktir ve iki taraf da giriş yapmış olmalıdır.** Sonuç
+  ekranı iki görünen ad gösterir; adsız bir taraf sonucu okunamaz kılardı. Dolu
+  bir odaya üçüncü bir katılma isteği reddedilir — sessizce izleyiciye
+  çevrilmez.
+- **BR-55 — Oda kodu okunabilir, karışmaz ve tahmin edilemez.** Altı karakter,
+  karışan harfler alfabeden **çıkarılmış** olarak (`0/O`, `1/I/L` yok). Kod
+  kriptografik rastgeleliktendir ve tekilliği veritabanı kısıtı garanti eder;
+  çakışmada yeniden üretilir. Kod telefonda **sesli söylenecek** — alfabenin
+  asıl gerekçesi budur, estetik değil.
+- **BR-56 — Hedefi SUNUCU seçer, istemci hedef gönderemez.** Havuz §9.2'nin aday
+  havuzudur (altı istatistiği de dolu olanlar; BR-15 ile aynı ölçüt). _"Kurucu
+  seçsin"_ ertelendi çünkü **haksız avantaj yaratıyor**: seçen kişi hedefin altı
+  istatistiğini görür ve arkadaşı kodu girene kadar istediği kadar
+  düşünebilir. Özellik geri gelecekse, hedefin **iki tarafa da aynı anda**
+  açılmasıyla birlikte gelmelidir.
+- **BR-57 — Hedef, ikinci oyuncu katılmadan HİÇ KİMSEYE gönderilmez.** Oda kurma
+  yanıtı da, katılma yanıtı da hedefi taşımaz; ikisi de onu bir sonraki durum
+  okumasından alır. Böylece iki taraf hedefi **simetrik** öğrenir — kurucuya
+  erken vermek BR-56'nın kapattığı avantajı arka kapıdan geri açardı.
+- **BR-58 — Oda turunda da istatistik başına TEK deneme.** BR-43'ün oda
+  karşılığı ve aynı şekilde uygulanır: `@@unique([roomPlayerId, statKey])`.
+  **Kısıt uygulama mantığının tekrarı değil, garantisidir** — eşzamanlı iki istek
+  "bu istatistik boş" görüp ikisi de yazabilir; o yarışı yalnızca veritabanı
+  durdurur. Yarışı kaybeden istek, kendi hesapladığı puanı değil **saklanan
+  cevabı** döndürür (§7.5'in düzelttiği yer).
+- **BR-59 — Oda turu lider tablosuna GİRMEZ ve `DailyRound`'a hiç dokunmaz.**
+  Girseydi iki arkadaş sırayla birbirine puan kasabilirdi; §11.2'nin T3'ü
+  ("çoklu hesap") kabul edilebilir sayılmıştı ama oda bunu **bedava** yapardı.
+  Ayrı tablo, ayrı yol, tablonun sorgusuyla hiç kesişmiyor.
+- **BR-60 — Sonuç birikmez, oda söner.** Galibiyet sayacı, geçmiş, profil
+  istatistiği yok. Katılım olmazsa **30 dakika**, tur bitmezse **60 dakika**
+  sonra oda "süresi doldu" olur ve satırları silinir. Süresi dolan oda yeniden
+  açılmaz — kod tekrar kullanılabilir hâle gelir.
+- **BR-61 — Tur yarım kalırsa GALİP YOKTUR.** Rakip bırakıp gittiğinde "hükmen
+  galip" ilan edilmiyor; ekran "yarım kaldı" der. BR-45'in ("tamamlanmamış tur
+  listeye girmez") aynı gerekçesi: kişi kötü oynadığı için değil, bitirmediği
+  için sonuç yok. **Bu bir ürün kararıdır ve tartışmaya açıktır** — oynanan ilk
+  odalardan sonra yeniden bakılmalı.
+- **BR-62 — Eşit toplam BERABERLİKTİR.** Süreye, hıza ya da ilk bitirene
+  bakılmaz. §11.5'in "eşit puanlar aynı sırayı paylaşır" kuralıyla aynı hat;
+  hızı ödüllendirmek oyunun sorusunu ("kimi biliyorsun") değiştirirdi.
+
+### 12.3 Veri modeli
+
+Üç tablo, hesap veritabanında (Turso). Futbol verisine yabancı anahtar **yok** —
+`RoundAnswer`'ın gerekçesiyle aynı: oyuncu tablosu başka bir veritabanında.
+
+| Tablo        | Ne tutar                                                        |
+| ------------ | --------------------------------------------------------------- |
+| `Room`       | kod, kurucu, hedef oyuncu kimliği, durum, sönme anı             |
+| `RoomPlayer` | oda–kullanıcı bağı, biriken puan, bitiş anı (`@@unique` ikili)  |
+| `RoomAnswer` | `RoundAnswer` ile aynı şekil + BR-58 ve BR-17'nin oda kısıtları |
+
+**Durum bir dizedir, dört değerlidir:** `bekliyor` → `oynaniyor` → `bitti`, ve
+her ikisinden `suresi-doldu`. Geçişleri saf bir alan servisi yönetir
+(`domain/services/room.ts`) — `next` bilmez, `@prisma/client` bilmez (§2.1).
+
+**Göç Turso'ya elle doğrulanacak.** §11.3 kayda geçirmiş: `prisma migrate` bir
+kez "başarılı" deyip tabloları **yerel bir dosyaya** kurdu, Turso'da hiçbir şey
+oluşmadı. Bu adımda tabloların gerçekten Turso'da olduğu ayrıca sayılacak;
+"komut hata vermedi" bir kanıt değildir.
+
+### 12.4 API uçları
+
+Hepsi `cacheable: false` — kimliğe bağlı oyun eylemleri paylaşılan önbelleğe
+giremez (BR-47).
+
+| Uç                          | Ne yapar                                                                          |
+| --------------------------- | --------------------------------------------------------------------------------- |
+| `POST /api/oda`             | Oda kurar, kodu döner. **Hedefi dönmez** (BR-57)                                  |
+| `POST /api/oda/{kod}/katil` | Odaya katılır. **Hedefi dönmez** (BR-57)                                          |
+| `GET /api/oda/{kod}`        | Durum — yoklamanın hedefi. Hedef yalnızca `oynaniyor` durumunda ve yalnızca üyeye |
+| `POST /api/oda/{kod}/cevap` | Bir istatistiğin cevabı; puanı sunucu hesaplar                                    |
+
+Sonuç ayrı bir uç değildir: iki oyuncu da bitince durum yanıtı `bitti` olur ve
+iki tarafın puanlarını taşır. Ayrı bir "sonuç" ucu, aynı bilgiyi ikinci bir
+yerden vermek olurdu.
+
+### 12.5 Ölçülmemiş olanlar — dürüstçe
+
+- **Yoklamanın gerçek maliyeti.** Kaba hesap: oyun başına ~70 Vercel çağrısı,
+  ~150 Turso satır okuması, ~18 yazma. Günde 100 oyunda rahat, 1.000 oyunda
+  Hobby'nin çağrı sınırına yaklaşılır. **Sayılar tahmin, ölçüm değil** — ilk
+  odalar oynandıktan sonra ölçülecek. Paylaşımlı hız sınırlayıcı kararı da
+  (§7.5) o ölçüme bağlandı.
+- **Yoklama, hız sınırının kendisine takılabilir.** Sınır dakikada 60 istek; 3
+  saniyelik yoklama dakikada 20 eder. İki sekme açan bir kullanıcı sınıra
+  yaklaşır. Ölçülmedi.
+- **Soğuk açılışın katılma anına etkisi.** §11.3 fonksiyon açılışını ~2,2 sn
+  ölçmüştü. Yoklama fonksiyonu sıcak tutar, ama odaya katılan ilk isteği
+  ödeyebilir. Ölçülmedi.
+- **Kod çakışma oranı.** Alfabe ve uzunluk seçildi, gerçek çakışma sıklığı
+  ölçülmedi — kısıt zaten garanti ediyor, ölçüm yalnızca yeniden üretme
+  sıklığını gösterirdi.
+- **30/60 dakikalık sönme süreleri seçildi, ölçülmedi.** Gerçek bir turun ne
+  kadar sürdüğü bilinmiyor; ilk odalardan sonra ayarlanmalı.
+
+---
+
+## 13. Sözlük
 
 | Terim         | Anlam                                                                       |
 | ------------- | --------------------------------------------------------------------------- |
@@ -5336,7 +5560,7 @@ kötüye kullanılan şey addı, oyuncunun geçmişi değil.
 
 ---
 
-## 13. Belge Bakımı
+## 14. Belge Bakımı
 
 Bu belge kodla birlikte yaşar. Aşağıdaki durumlarda **kod yazmadan önce** güncellenir:
 
