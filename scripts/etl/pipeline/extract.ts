@@ -25,7 +25,10 @@ import {
 } from "../sources/wikidata/queries";
 import { int, qid, str, type SparqlBinding } from "../sources/wikidata/schemas";
 import type { CareerTotal } from "../sources/wikipedia/career-total";
-import { checkCareerTotals } from "./career-total-check";
+import {
+  checkCareerTotals,
+  type CareerTotalConflict,
+} from "./career-total-check";
 import { disambiguateShortNames } from "./club-labels";
 import { mergeDuplicateClubs } from "./merge-clubs";
 import { findContradictions } from "./cross-check";
@@ -63,6 +66,14 @@ export interface ExtractedDataset {
    * "çelişki yok" ile "sorulamadı" karıştırılmamalıdır.
    */
   readonly contradictions: Contradiction[];
+  /**
+   * §9.2 — çapraz denetimin DÜŞÜRDÜĞÜ kariyer toplamları.
+   *
+   * Kapı bunları zaten siliyor (aritmetik olarak imkânsızlar) ama sayı ilk
+   * gerçek koşuda 2.089 çıktı; o kadar kaydın neden imkânsız olduğu ancak
+   * listesine bakılarak anlaşılır. Günlük beşini basıyor.
+   */
+  readonly careerTotalConflicts: CareerTotalConflict[];
   /**
    * §9.2 — kulüp kariyerinin tamamı (lig + kupa + Avrupa), oyuncu QID başına.
    *
@@ -489,6 +500,7 @@ export async function extractDataset(
   let contradictions: Contradiction[] = [];
   /** §9.2 — çapraz denetimi geçen kulüp kariyer toplamları. */
   let careerTotals: ReadonlyMap<string, CareerTotal> = new Map();
+  let careerTotalConflicts: CareerTotalConflict[] = [];
 
   if (options.skipWikipedia === true) {
     console.log("\n[5/5] Vikipedi katmanı atlandı (--skip-wikipedia).");
@@ -613,6 +625,7 @@ export async function extractDataset(
       spells: finalSpells,
     });
     careerTotals = checked.accepted;
+    careerTotalConflicts = [...checked.conflicts];
 
     const missed = pass.stats.careerTotalsMissed;
     const read = pass.stats.careerTotalsParsed;
@@ -689,5 +702,6 @@ export async function extractDataset(
     fetchedClubIds,
     contradictions,
     careerTotals,
+    careerTotalConflicts,
   };
 }

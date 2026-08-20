@@ -44,6 +44,9 @@ yarn-error.log*
 # ETL ham yanit onbellegi — buyuk ve yeniden uretilebilir (§4.2)
 /scripts/etl/.cache/
 
+# ETL tani raporu — tek bir kosunun fotografi, kaynak degil (§8.2)
+/etl-raporu/
+
 # test ciktilari
 /coverage
 /test-results

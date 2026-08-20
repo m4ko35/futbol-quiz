@@ -24,9 +24,31 @@ import type {
  *      o zaman durulur.
  */
 
+/**
+ * Kırpılmamış tanı listesi — PROJECT.md §8.2.
+ *
+ * NEDEN VAR. Günlükteki her liste sekiz satırda kesiliyor (`MAX_REPORTED`) ve
+ * bu, log'u boğmamak için doğru. Ama BR-42 kapısı "her biri elle incelenmeli"
+ * diyor ve ilk gerçek koşuda 383 çelişki çıkardı — yani kapının kendi
+ * reçetesi, kendi çıktısıyla UYGULANAMAZ hâldeydi: incelenecek listenin
+ * %98'i hiç basılmıyordu.
+ *
+ * Özet günlükte kalıyor, kanıt dosyaya yazılıyor. İkisi ayrı iş.
+ */
+export interface ValidationDetail {
+  /** Dosya adı olacak — kısa, tireli. */
+  readonly key: string;
+  readonly label: string;
+  /** TSV sütun başlıkları; yoksa satırlar düz metindir. */
+  readonly header?: string;
+  readonly items: readonly string[];
+}
+
 export interface ValidationReport {
   readonly errors: string[];
   readonly warnings: string[];
+  /** Günlükte kırpılan listelerin TAMAMI. */
+  readonly details: ValidationDetail[];
 }
 
 export interface RejectedSpell {
@@ -264,8 +286,28 @@ export function validateDataset(input: {
     yükseltmek DEĞİL, listeye bakıp sebebi anlamaktır: her satır ifade
     kimliğiyle basılıyor, tek tek Wikidata'da açılabilir.
   */
+  const details: ValidationDetail[] = [];
+
   const contradictions = input.contradictions ?? [];
   if (contradictions.length > 0) {
+    // TAM LİSTE — sınıflandırma ancak tamamı görülerek yapılabilir.
+    details.push({
+      key: "br42-celiskiler",
+      label: "BR-42 — Vikipedi ile Wikidata aynı yıllar için farklı kulüp",
+      header: "oyuncu	wikidata_kulup	baslangic	bitis	mac	vikipedi_kulupler	ifade",
+      items: contradictions.map((c) =>
+        [
+          c.playerWikidataId,
+          c.clubWikidataId,
+          c.startYear ?? "",
+          c.endYear ?? "",
+          c.appearances ?? "",
+          c.wikipediaClubs.join(","),
+          c.spellId,
+        ].join("	"),
+      ),
+    });
+
     const detay = contradictions
       .slice(0, MAX_REPORTED)
       .map(
@@ -287,22 +329,49 @@ export function validateDataset(input: {
     );
   }
 
-  pushIssue(warnings, beforeFounding, "dönem kulüp kuruluşundan önce");
-  pushIssue(warnings, overlaps, "örtüşen kalıcı dönem");
   pushIssue(
     warnings,
+    details,
+    "donem-kulup-kurulusundan-once",
+    beforeFounding,
+    "dönem kulüp kuruluşundan önce",
+  );
+  pushIssue(
+    warnings,
+    details,
+    "ortusen-kalici-donem",
+    overlaps,
+    "örtüşen kalıcı dönem",
+  );
+  pushIssue(
+    warnings,
+    details,
+    "ince-kulupler",
     thinClubs,
     `kulüpten ${MIN_SPELLS_FOR_SELECTABLE}'den az dönem geldi (seçilebilir sayılmayacak)`,
   );
 
-  return { errors, warnings };
+  return { errors, warnings, details };
 }
 
-function pushIssue(target: string[], items: string[], label: string): void {
+/**
+ * Günlüğe KIRPILMIŞ özet, rapora TAM liste.
+ *
+ * İkisi aynı çağrıdan çıkıyor ki biri güncellenip diğeri unutulmasın.
+ */
+function pushIssue(
+  target: string[],
+  details: ValidationDetail[],
+  key: string,
+  items: string[],
+  label: string,
+): void {
   if (items.length === 0) return;
 
   const shown = items.slice(0, MAX_REPORTED).join("; ");
   const more =
     items.length > MAX_REPORTED ? ` … (+${items.length - MAX_REPORTED})` : "";
   target.push(`${label} — ${items.length} kayıt: ${shown}${more}`);
+
+  details.push({ key, label, items });
 }

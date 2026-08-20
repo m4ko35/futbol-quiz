@@ -6,6 +6,7 @@ import { loadEtlConfig } from "./config";
 import { TARGET_LEAGUES } from "./leagues";
 import { extractDataset, verifyLeagueIds } from "./pipeline/extract";
 import { loadDataset } from "./pipeline/load";
+import { REPORT_DIR, writeEtlReport } from "./pipeline/report";
 import { sanitizeSpells, validateDataset } from "./pipeline/validate";
 import { WikidataClient } from "./sources/wikidata/client";
 import { WikipediaClient } from "./sources/wikipedia/client";
@@ -127,6 +128,31 @@ async function main(): Promise<void> {
   });
 
   for (const warning of report.warnings) console.warn(`  ⚠ ${warning}`);
+
+  /**
+   * TANI RAPORU HATADAN ÖNCE YAZILIYOR ve sıra kuralın kendisi: raporun asıl
+   * değeri BAŞARISIZ koşuda. Aşağıdaki `throw`'dan sonra yazılsaydı, tam da
+   * ihtiyaç duyulan durumda hiç yazılmazdı (§8.2).
+   *
+   * YAZMA HATASI ETL'İ DURDURMAZ. Rapor bir teşhis aracıdır, kapı değil;
+   * kapılar kararlarını zaten verdi. Diski dolu bir koşucuda raporu
+   * yazamamak, doğru veriyi yüklememek için bir sebep değil.
+   */
+  try {
+    const files = await writeEtlReport({
+      details: report.details,
+      careerTotalConflicts: dataset.careerTotalConflicts,
+    });
+    if (files.length > 0) {
+      console.log(`
+  Tanı raporu → ${REPORT_DIR}/`);
+      for (const file of files) console.log(`    ${file}`);
+    }
+  } catch (error: unknown) {
+    console.warn(
+      `  ⚠ tanı raporu yazılamadı: ${error instanceof Error ? error.message : "bilinmeyen"}`,
+    );
+  }
 
   if (report.errors.length > 0) {
     for (const error of report.errors) console.error(`  ✗ ${error}`);

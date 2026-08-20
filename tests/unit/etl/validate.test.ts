@@ -163,6 +163,51 @@ describe("BR-42 — çapraz kaynak kapısı", () => {
     expect(report.errors[0]).toContain("Q1543");
   });
 
+  /**
+   * KIRPILMA GÜNLÜĞE AİT, RAPORA DEĞİL — 20 Ağustos 2026 koşusunun dersi.
+   *
+   * O koşu 383 çelişkiyle durdu ve günlük yalnızca 8'ini bastı; kapının kendi
+   * reçetesi ("her biri elle incelenmeli") kendi çıktısıyla uygulanamıyordu.
+   * Bu test kırpmanın geri gelmesini engelliyor.
+   */
+  it("TAM listeyi detayda taşır, günlük özetini kırpsa bile", () => {
+    const cok = Array.from({ length: 20 }, (_, i) => ({
+      ...celiski,
+      playerWikidataId: `Q${String(i)}`,
+      spellId: `Q${String(i)}-abc`,
+    }));
+
+    const report = validateDataset({
+      clubs: [club("QA")],
+      spells: [spell("s1")],
+      rejected: [],
+      fetchedClubIds,
+      contradictions: cok,
+    });
+
+    // Günlük kırpıyor…
+    expect(report.errors[0]).toContain("+12");
+
+    // …rapor kırpmıyor.
+    const detay = report.details.find((d) => d.key === "br42-celiskiler");
+    expect(detay?.items).toHaveLength(20);
+    expect(detay?.header).toContain("ifade");
+    // Son satır da orada: kırpma sınırının ötesindeki kayıt kaybolmamalı.
+    expect(detay?.items.at(-1)).toContain("Q19-abc");
+  });
+
+  it("çelişki yoksa detay da üretmez", () => {
+    const report = validateDataset({
+      clubs: [club("QA")],
+      spells: [spell("s1")],
+      rejected: [],
+      fetchedClubIds,
+      contradictions: [],
+    });
+
+    expect(report.details.some((d) => d.key === "br42-celiskiler")).toBe(false);
+  });
+
   it("çelişki yoksa sessizdir", () => {
     const report = validateDataset({
       clubs: [club("QA")],

@@ -126,6 +126,23 @@ jobs:
           WIKIDATA_SPARQL_ENDPOINT: https://query.wikidata.org/sparql
           ETL_REQUESTS_PER_SECOND: "1"
 
+      # ─── TANI RAPORU ────────────────────────────────────────────────────
+      # `if: always()` VE BU ŞART KURALIN KENDİSİ: raporun bütün değeri
+      # BAŞARISIZ koşuda. 20 Ağustos 2026 koşusu BR-42 kapısında 383 çelişkiyle
+      # durdu ve günlük bunların yalnızca 8'ini bastı — kapının kendi reçetesi
+      # ("her biri elle incelenmeli") uygulanamaz hâldeydi.
+      #
+      # Yükleme, rapor hiç üretilmemiş olabileceği için `if-no-files-found`
+      # ile sessizleştirilmiyor: dosya beklendiği hâlde yoksa bu bir bulgudur.
+      - name: Tanı raporunu yükle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: etl-tani-raporu
+          path: etl-raporu/
+          if-no-files-found: warn
+          retention-days: 30
+
       # BAŞARISIZLIKTA DA KAYDEDİLİR (`always()`) — önbelleğin bütün değeri
       # zaten budur: başarısız bir koşunun yarım önbelleği, bir sonraki
       # `resume` koşusunun sermayesidir.
