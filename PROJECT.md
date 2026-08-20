@@ -1306,7 +1306,7 @@ Bunlar `domain/services/` içinde saf fonksiyon olarak yaşar ve birim testi ile
 - **BR-52 — Google'dan gelen erişim jetonları SAKLANMAZ.** _(§11.10 — UYGULANDI.)_ Jeton takasından yalnızca `sub` alınır; `access_token` ve `refresh_token` kullanılmadan atılır ve girişten sonra Google'a bir daha çağrı yapılmaz. Saklanmayan sır sızmaz, yenilenmesi gerekmez ve KVKK kapsamında açıklanacak bir veri olmaz.
 - **BR-53 — Görünen ad bildirilebilir; bildirimin kendisi kötüye kullanılamaz.** _(§11.12 — UYGULANDI.)_ Lider tablosundaki her ad, giriş yapmış bir kullanıcı tarafından bildirilebilir. Sebep sabit bir listeden seçilir (hakaret, taklit, reklam — T5'in üç kötüye kullanımı); **serbest metin alanı yoktur**, çünkü serbest metin bildirimi ikinci bir hakaret kanalına çevirirdi. Bir kullanıcı bir hedefi **bir kez** bildirir ve bunu veritabanı kısıtı güvence altına alır. Kendi adını bildirmek reddedilir. Bildirim **hiçbir otomatik işlem tetiklemez**: eşik koyup adı gizlemek, anlaşmış bir grubun meşru bir adı sildirmesine izin verirdi — karar insana aittir.
 - **BR-54 — Oda iki kişiliktir; iki taraf da giriş yapmış olmalıdır.** _(§12 — TASARIM.)_ Sonuç ekranı iki görünen ad gösterir; adsız bir taraf sonucu okunamaz kılardı. Dolu bir odaya gelen üçüncü katılma isteği **reddedilir**, sessizce izleyiciye çevrilmez.
-- **BR-55 — Oda kodu okunabilir, karışmaz ve tahmin edilemez.** _(§12 — TASARIM.)_ Altı karakter; karışan harfler alfabeden çıkarılır (`0/O`, `1/I/L` yok). Asıl gerekçe estetik değil kullanım: kod telefonda **sesli söylenecek**. Kod kriptografik rastgeleliktendir, tekilliğini veritabanı kısıtı garanti eder ve çakışmada yeniden üretilir.
+- **BR-55 — Oda kodu okunabilir, karışmaz ve tahmin edilemez.** _(§12 — ALFABE UYGULANDI.)_ Altı karakter, **25 işaretlik** bir alfabeden: on yedi ünsüz ve sekiz rakam. Üç eleme birden yapılıyor — karışan işaretler (`0/O`, `1/I/L`), **bütün sesliler** ve Türk alfabesinde olmayan harfler (`Q/W/X`). Sesli elemesi bir üslup değil sınıf kapatmasıdır: seslisi olmayan bir dizi okunabilir kelimeye dönüşemez, dolayısıyla kazara hakaret üretemez — yasak listesi ancak saydığı kelimeleri çözerdi (§11.12'deki "serbest metin alanı hiç açılmasın" kararının aynısı). Eşleme **yanlılık elemesi** yapar: 256 = 10 × 25 + 6 olduğu için sınırın üstündeki baytlar atılır, yoksa ilk altı işaret diğerlerinden bir kez fazla çıkardı. Tekilliği veritabanı kısıtı garanti eder; çakışmada yeniden üretilir.
 - **BR-56 — Oda hedefini SUNUCU seçer; istemci hedef gönderemez.** _(§12 — TASARIM.)_ Havuz §9.2'nin aday havuzudur (altı istatistiği de dolu olanlar, BR-15 ile aynı ölçüt). "Kurucu seçsin" bilerek **ertelendi**: seçen kişi hedefin altı istatistiğini görür ve arkadaşı kodu girene kadar istediği kadar düşünebilir — yani seçim hakkı, hazırlık avantajına dönüşür. Özellik geri gelecekse hedefin iki tarafa da **aynı anda** açılmasıyla birlikte gelmelidir.
 - **BR-57 — Oda hedefi, ikinci oyuncu katılmadan hiç kimseye gönderilmez.** _(§12 — TASARIM.)_ Oda kurma ve katılma yanıtlarının ikisi de hedefi taşımaz; iki taraf da onu bir sonraki **durum okumasından** alır. Kurucuya erken vermek, BR-56'nın kapattığı avantajı arka kapıdan geri açardı.
 - **BR-58 — Oda turunda da istatistik başına tek deneme.** _(§12 — TASARIM.)_ BR-43'ün oda karşılığı; `@@unique([roomPlayerId, statKey])` ile uygulanır. **Kısıt, uygulama mantığının tekrarı değil garantisidir** — eşzamanlı iki istek "bu istatistik boş" görüp ikisi de yazabilir, o yarışı yalnızca veritabanı durdurur. Yarışı kaybeden istek, kendi hesapladığı puanı değil **saklanan cevabı** döndürür.
@@ -5453,10 +5453,30 @@ düşer, ama sabit 3 saniye boş yere çağrı üretir.
   bir odaya üçüncü bir katılma isteği reddedilir — sessizce izleyiciye
   çevrilmez.
 - **BR-55 — Oda kodu okunabilir, karışmaz ve tahmin edilemez.** Altı karakter,
-  karışan harfler alfabeden **çıkarılmış** olarak (`0/O`, `1/I/L` yok). Kod
-  kriptografik rastgeleliktendir ve tekilliği veritabanı kısıtı garanti eder;
-  çakışmada yeniden üretilir. Kod telefonda **sesli söylenecek** — alfabenin
-  asıl gerekçesi budur, estetik değil.
+  **25 işaretlik** alfabeden. Kod telefonda **sesli söylenecek** — alfabenin
+  gerekçesi budur, estetik değil — ve üç eleme birden yapılıyor:
+
+  1. **Karışan işaretler yok** (`0/O`, `1/I/L`). Biri kalsaydı yanlış yazılan
+     her kod "oda bulunamadı" olurdu ve kullanıcı hatanın kendisinde mi bizde
+     mi olduğunu bilemezdi.
+  2. **Hiç sesli harf yok.** Altı harflik rastgele bir dizi, sesli içerdiği an
+     okunabilir bir kelimeye dönüşebilir ve o kelimenin hakaret olma ihtimali
+     sıfır değildir. Yasak listesi yalnızca saydığı kelimeleri çözer; sesliyi
+     hiç vermemek **sınıfın tamamını** kapatır — §11.12'de serbest metin
+     alanının hiç açılmamasıyla aynı biçimde alınmış karar.
+  3. **Türk alfabesinde olmayan harf yok** (`Q`, `W`, `X`). Kod iki Türkçe
+     konuşan arasında sesli söyleniyor; adı üzerinde anlaşılmamış bir harf işi
+     zorlaştırır.
+
+  Geriye on yedi ünsüz ve sekiz rakam kalıyor: 25⁶ = **244.140.625** olasılık.
+  Eşleme **yanlılık elemesi** yapar — 256 = 10 × 25 + 6 olduğu için `bayt % 25`
+  doğrudan kullanılsaydı ilk altı işaret diğerlerinden bir kez fazla çıkardı;
+  sınırın üstündeki baytlar atılıyor. Rastgeleliğin kendisi alan katmanında
+  ÜRETİLMEZ (§2.1): `roomCodeFromBytes` saf bir eşlemedir, baytları çağıran
+  verir ve bayt yetmezse `null` döner — sessizce yanlı bir koda düşmektense bir
+  tur daha dönmek yeğdir. Tekilliği veritabanı kısıtı garanti eder; çakışmada
+  yeniden üretilir.
+
 - **BR-56 — Hedefi SUNUCU seçer, istemci hedef gönderemez.** Havuz §9.2'nin aday
   havuzudur (altı istatistiği de dolu olanlar; BR-15 ile aynı ölçüt). _"Kurucu
   seçsin"_ ertelendi çünkü **haksız avantaj yaratıyor**: seçen kişi hedefin altı
@@ -5501,9 +5521,27 @@ düşer, ama sabit 3 saniye boş yere çağrı üretir.
 | `RoomPlayer` | oda–kullanıcı bağı, biriken puan, bitiş anı (`@@unique` ikili)  |
 | `RoomAnswer` | `RoundAnswer` ile aynı şekil + BR-58 ve BR-17'nin oda kısıtları |
 
-**Durum bir dizedir, dört değerlidir:** `bekliyor` → `oynaniyor` → `bitti`, ve
-her ikisinden `suresi-doldu`. Geçişleri saf bir alan servisi yönetir
-(`domain/services/room.ts`) — `next` bilmez, `@prisma/client` bilmez (§2.1).
+**DURUM SAKLANMAZ, TÜRETİLİR** — ve bu uygularken netleşti. Dört değeri var
+(`bekliyor`, `oynaniyor`, `bitti`, `suresi-doldu`) ama bir `status` sütunu
+**yok**: sütun ile olgular (oyuncu sayısı, cevaplar, saat) ayrışabilir ve
+ayrıştığında hangisinin doğru olduğunu kimse bilemez. `roomStatus(room, now)`
+onu tek yerde hesaplıyor; ayrışacak ikinci bir kaynak hiç yok.
+`DailyRound.points` türetilmiş olduğu hâlde saklanıyor çünkü lider tablosu
+sorgusu ona bağlı — burada öyle bir gerekçe yok.
+
+**Aynı sebeple `RoomPlayer.completedAt` de yok.** Bitmişlik turun kendisinden
+okunuyor (`isRoundFinished`). BR-62 zaten süreye bakmıyor: eşit toplam
+beraberliktir, ilk bitiren kazanmaz — yani bitiş ANI hiçbir kuralın girdisi
+değil.
+
+**SIRA KURALIN PARÇASI:** `roomStatus` önce bitmişliğe, sonra saate bakar. Ters
+sırada, altmışıncı dakikada bitirilmiş bir tur altmış birinci dakikada "süresi
+doldu" olurdu — oyun oynanıp bittikten sonra sonucu kaybolurdu.
+
+Geçişleri saf bir alan servisi yönetir (`domain/services/room.ts`) — `next`
+bilmez, `@prisma/client` bilmez (§2.1). Zaman da bir **parametredir**, okunmuş
+bir değer değil; aksi hâlde sönme kuralları ancak gerçek zaman beklenerek
+sınanabilirdi.
 
 **Göç Turso'ya elle doğrulanacak.** §11.3 kayda geçirmiş: `prisma migrate` bir
 kez "başarılı" deyip tabloları **yerel bir dosyaya** kurdu, Turso'da hiçbir şey
