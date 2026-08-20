@@ -81,6 +81,12 @@ model User {
   reportsMade     NameReport[] @relation("bildiren")
   reportsReceived NameReport[] @relation("bildirilen")
 
+  /// §12 — kurduğu odalar ve oturduğu koltuklar. İkisi AYRI: kurduğu oda
+  /// onun sorumluluğundadır (yeni oda kurunca eskisi silinir), katıldığı oda
+  /// başkasınındır ve onu silmek arkadaşının odasını elinden almak olurdu.
+  hostedRooms Room[]
+  roomSeats   RoomPlayer[]
+
   @@map("users")
 }
 
@@ -202,8 +208,129 @@ model NameReport {
   /// üretir. Bu satır ayrıca sayımı anlamlı kılıyor — bildirim sayısı gerçek
   /// kişi sayısıdır, tıklama sayısı değil.
   @@unique([reporterId, reportedId])
-
   /// İşletmecinin listesi hedefe göre gruplanır.
   @@index([reportedId])
   @@map("name_reports")
+}
+
+/// Oda — PROJECT.md §12, BR-54/BR-55/BR-56/BR-57/BR-60.
+///
+/// DURUM SÜTUNU YOK ve bu bilinçli (§12.3). `bekliyor`/`oynaniyor`/`bitti`/
+/// `suresi-doldu` buradaki OLGULARDAN türetilir (`domain/services/room.ts`).
+/// Sütun tutulsaydı olgularla ayrışabilirdi ve ayrıştığında hangisinin doğru
+/// olduğunu kimse bilemezdi.
+model Room {
+  id String @id
+
+  /// BR-55 — 25 işaretlik alfabeden altı karakter.
+  ///
+  /// TEKİLLİK KISITI GARANTİDİR, süsleme değil: kod rastgele üretiliyor ve
+  /// "önce bak, boşsa yaz" iki eşzamanlı kurulumda aynı kodu iki odaya
+  /// verebilir. O yarışı yalnızca veritabanı durdurur.
+  code String @unique
+
+  /// Odayı kuran. TÜRETİLEBİLİR DEĞİL: "ilk katılan" diye hesaplansaydı,
+  /// ileride yeniden katılmaya izin veren bir değişiklik sahipliği sessizce
+  /// başkasına geçirebilirdi. Sahiplik bir OLGUDUR ve yazılı durur.
+  hostId String
+  host   User   @relation(fields: [hostId], references: [id], onDelete: Cascade)
+
+  /// BR-56 — hedefi SUNUCU seçti; istemci hedef gönderemez.
+  ///
+  /// YABANCI ANAHTAR YOK ve olamaz: oyuncu tablosu BAŞKA bir veritabanında
+  /// (pakete gömülü SQLite). `RoundAnswer.playerId` ile aynı gerekçe.
+  targetPlayerId String
+
+  /// BR-57 — ikinci oyuncunun katıldığı an.
+  ///
+  /// `null` olduğu sürece hedef HİÇ KİMSEYE gönderilmez, kurucuya da. Erken
+  /// verilseydi kurucu, arkadaşı kodu girene kadar hazırlanabilirdi — BR-56
+  /// tam olarak o avantajı kapatıyor.
+  startedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  players RoomPlayer[]
+
+  /// BR-60 — sönmüş odaların temizliği bu sütunlardan okur. Tablo yapısı
+  /// gereği küçük kalıyor (oda en fazla bir saat yaşar), bu yüzden tek bir
+  /// dizin yeterli.
+  @@index([createdAt])
+  @@map("rooms")
+}
+
+/// Odadaki bir koltuk — BR-54.
+///
+/// `points` SAKLANMIYOR, `DailyRound`'un aksine. Orada saklanmasının sebebi
+/// lider tablosu sorgusunun tek bir dizin taramasına inmesiydi; oda sonucu
+/// hiçbir yerde sıralanmıyor (BR-60), yani türetilmiş bir sütunu bakma
+/// külfetine sokacak bir kazanç yok. Toplam cevaplardan hesaplanıyor.
+///
+/// `completedAt` de yok: bitmişlik altı cevabın varlığından okunuyor ve BR-62
+/// zaten süreye bakmıyor — eşit toplam beraberliktir, ilk bitiren kazanmaz.
+model RoomPlayer {
+  id String @id
+
+  roomId String
+  room   Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// BR-54'ün SAYI kısıtı — 0 kurucu, 1 katılan. Başka değer yazılmaz.
+  ///
+  /// NEDEN AYRI BİR SÜTUN: `@@unique([roomId, userId])` "aynı kişi iki kez
+  /// oturamaz" der ama KAÇ KİŞİ oturduğunu söylemez. Eşzamanlı iki katılma
+  /// isteği (kodu iki arkadaşına birden söyleyen bir kurucu) ikisi de "odada
+  /// bir kişi var" görüp ikisi de yazabilirdi ve oda üç kişilik olurdu.
+  /// Koltuk numarası bu yarışı veritabanına taşıyor: ikinci koltuğu yalnızca
+  /// biri alabilir.
+  ///
+  /// `hostId` ile bu sütunun 0'ıncı koltuğu AYNI kişiyi göstermek zorunda.
+  /// İkisi tek işlemde yazılıyor ve hiçbir zaman güncellenmiyor; `hostId`
+  /// yine de duruyor çünkü hesap silindiğinde odayı düşüren şey o (BR-48).
+  seat Int
+
+  createdAt DateTime @default(now())
+
+  answers RoomAnswer[]
+
+  /// BR-54 — bir kullanıcı bir odada TEK koltuk tutar.
+  @@unique([roomId, userId])
+  /// BR-54 — bir odada EN FAZLA İKİ koltuk vardır.
+  @@unique([roomId, seat])
+  @@map("room_players")
+}
+
+/// Oda turundaki tek bir cevap — BR-58, BR-17.
+///
+/// Şekli `RoundAnswer` ile birebir aynıdır ve bu kasıtlı: oda oyunu yeniden
+/// tanımlamıyor, §11'in turunu başka bir bağlamda oynatıyor. Puanlama kuralı
+/// da tek yerde kalıyor (`domain/services/daily-round.ts`).
+model RoomAnswer {
+  id String @id
+
+  roomPlayerId String
+  player       RoomPlayer @relation(fields: [roomPlayerId], references: [id], onDelete: Cascade)
+
+  statKey String
+
+  /// Seçilen oyuncunun futbol veritabanındaki kimliği; yabancı anahtar yok.
+  playerId String
+
+  value Int
+  score Int
+
+  createdAt DateTime @default(now())
+
+  /// BR-58 — istatistik başına TEK deneme.
+  ///
+  /// KISIT UYGULAMA MANTIĞININ TEKRARI DEĞİL, GARANTİSİDİR (BR-43 ile aynı
+  /// gerekçe): karar önce okuyup sonra yazar; aynı anda gelen iki istek ikisi
+  /// de "bu istatistik boş" görüp ikisi de yazabilir. O yarışı yalnızca
+  /// veritabanı durdurur.
+  @@unique([roomPlayerId, statKey])
+  /// BR-17'nin oda karşılığı — bir oyuncu bir turda tek istatistikte kullanılır.
+  @@unique([roomPlayerId, playerId])
+  @@map("room_answers")
 }

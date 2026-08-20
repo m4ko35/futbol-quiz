@@ -1314,6 +1314,7 @@ Bunlar `domain/services/` içinde saf fonksiyon olarak yaşar ve birim testi ile
 - **BR-60 — Oda sonucu birikmez; oda söner.** _(§12 — TASARIM.)_ Galibiyet sayacı, oda geçmişi, profil istatistiği yoktur. Katılım olmazsa 30 dakika, tur bitmezse 60 dakika sonra oda "süresi doldu" olur ve satırları silinir; kod yeniden kullanılabilir hâle gelir. Biriken bir sayı olmadığı için T7'nin ("oda adaleti kapatılamaz") bedeli de birikmez.
 - **BR-61 — Tur yarım kalırsa galip yoktur.** _(§12 — TASARIM.)_ Rakip bırakıp gittiğinde hükmen galip ilan edilmez; ekran "yarım kaldı" der. BR-45'in gerekçesiyle aynı: kişi kötü oynadığı için değil, **bitirmediği** için sonuç yok. Ürün kararıdır ve ilk odalardan sonra yeniden bakılacaktır.
 - **BR-62 — Eşit toplam beraberliktir.** _(§12 — TASARIM.)_ Süreye, hıza ya da ilk bitirene bakılmaz. §11.5'in "eşit puanlar aynı sırayı paylaşır" kuralıyla aynı hat; hızı ödüllendirmek oyunun sorusunu ("kimi biliyorsun") sessizce değiştirirdi.
+- **BR-63 — Rakibin puanı tur biterken gizlidir.** _(§12.6 — UYGULANDI.)_ Yoklama yanıtı rakibin KAÇ istatistik cevapladığını taşır, kaç puan aldığını taşımaz. Rakibinin 420 puanda olduğunu bilen oyuncu artık "bu değere en yakın kimi biliyorum" sorusunu çözmez, "kaç puan lazım" hesabını yapar — oyunun sorusu sessizce değişirdi. Kendi puanın her zaman görünür (günlük turda da öyle). İki tarafın puanı oda `bitti` durumuna geçtiğinde birden açılır. Kural tek yerde (`present()`) uygulanıyor: dört uç da aynı DTO'yu döndürdüğü için sorunun dört ayrı cevabı olamaz.
 
 ---
 
@@ -5509,6 +5510,13 @@ düşer, ama sabit 3 saniye boş yere çağrı üretir.
 - **BR-62 — Eşit toplam BERABERLİKTİR.** Süreye, hıza ya da ilk bitirene
   bakılmaz. §11.5'in "eşit puanlar aynı sırayı paylaşır" kuralıyla aynı hat;
   hızı ödüllendirmek oyunun sorusunu ("kimi biliyorsun") değiştirirdi.
+- **BR-63 — Rakibin puanı tur biterken gizlidir.** Yoklama yanıtı rakibin KAÇ
+  istatistik cevapladığını taşır — "bitirdi mi" sorusunun cevabı odur ve
+  yoklamanın var olma sebebi (§12.1) — ama **kaç puan aldığını taşımaz.**
+  Rakibinin 420 puanda olduğunu bilen oyuncu artık "bu değere en yakın kimi
+  biliyorum" sorusunu çözmüyor, "kaç puan lazım" hesabını yapıyor; oyunun
+  sorusu sessizce değişirdi. Kendi puanın her zaman görünür. İki tarafınki
+  oda `bitti` durumuna geçtiğinde birden açılır.
 
 ### 12.3 Veri modeli
 
@@ -5517,9 +5525,14 @@ düşer, ama sabit 3 saniye boş yere çağrı üretir.
 
 | Tablo        | Ne tutar                                                        |
 | ------------ | --------------------------------------------------------------- |
-| `Room`       | kod, kurucu, hedef oyuncu kimliği, durum, sönme anı             |
-| `RoomPlayer` | oda–kullanıcı bağı, biriken puan, bitiş anı (`@@unique` ikili)  |
+| `Room`       | kod, kurucu, hedef oyuncu kimliği, başlangıç anı                |
+| `RoomPlayer` | oda–kullanıcı bağı ve **koltuk numarası** (0 kurucu, 1 katılan) |
 | `RoomAnswer` | `RoundAnswer` ile aynı şekil + BR-58 ve BR-17'nin oda kısıtları |
+
+`RoomPlayer` **puan sütunu taşımıyor**, `DailyRound`'un aksine. Orada
+saklanmasının sebebi lider tablosu sorgusunun tek bir dizin taramasına
+inmesiydi; oda sonucu hiçbir yerde sıralanmıyor (BR-60), yani türetilmiş bir
+sütunu tutarlı tutma külfetini ödemek için sebep yok.
 
 **DURUM SAKLANMAZ, TÜRETİLİR** — ve bu uygularken netleşti. Dört değeri var
 (`bekliyor`, `oynaniyor`, `bitti`, `suresi-doldu`) ama bir `status` sütunu
@@ -5584,6 +5597,91 @@ yerden vermek olurdu.
   kadar sürdüğü bilinmiyor; ilk odalardan sonra ayarlanmalı.
 
 ---
+
+### 12.6 Uygularken çıkanlar (20 Ağustos 2026)
+
+Alan ve uygulama katmanları yazıldı. Üç şey tasarımda yoktu ve kod yazılırken
+ortaya çıktı; üçü de buraya alındı çünkü belge kodun önünde gider.
+
+##### BR-54'ün kısıtı YETMİYORDU: `@@unique([roomId, userId])` sayıyı zorlamaz
+
+İlk şema odadaki koltuğu `(oda, kullanıcı)` ikilisiyle tekilleştiriyordu. O
+kısıt "aynı kişi iki kez oturamaz" der ama **kaç kişi oturduğunu söylemez.**
+
+Açık gerçek: kurucu kodu iki arkadaşına birden söyler, ikisi de aynı anda
+katılır. `judgeJoin` ikisine de "katıl" der — çünkü karar önce okuyup sonra
+yazıyor ve ikisi de "odada bir kişi var" görür. İki farklı kullanıcı olduğu
+için tekillik kısıtı da ikisini birden kabul eder. **Oda üç kişilik olur.**
+
+Çözüm, BR-43'ün çözümüyle aynı sınıftan: kuralı veritabanına taşımak.
+`RoomPlayer.seat` sütunu eklendi (0 kurucu, 1 katılan) ve `@@unique([roomId,
+seat])` ikinci koltuğu tek bir isteğe veriyor. Kaybeden istek `dolu` alıyor.
+
+**Ders tekrar aynı:** "önce bak sonra yaz" kararları eşzamanlılıkta yeterli
+değildir; kısıt uygulama mantığının tekrarı değil garantisidir.
+
+##### BR-63 (YENİ) — rakibin puanı tur biterken gizlidir
+
+Yoklama yanıtı tasarlanırken çıktı: rakibin ilerlemesi gösterilecek, ama **ne
+kadarı**? İlk hâl iki tarafın puanını da taşıyordu ve yanlıştı.
+
+Rakibinin 420 puanda olduğunu bilen oyuncu artık "bu değere en yakın kimi
+biliyorum" sorusunu çözmüyor; "kaç puan lazım" hesabını yapıyor. Oyunun sorusu
+sessizce değişirdi.
+
+**Görünen tek şey rakibin KAÇ İSTATİSTİK cevapladığı.** O bilgi gerekli —
+"bitirdi mi" sorusunun cevabı odur ve yoklamanın var olma sebebi (§12.1) —
+ama hiçbir puan sızdırmaz. Kendi puanın her zaman görünür; günlük turda da
+öyle.
+
+Puanlar oda `bitti` durumuna geçtiğinde iki tarafa da birden açılır. Kural
+`present()` içinde TEK yerde uygulanıyor: dört uç da aynı DTO'yu döndürüyor,
+yani "ne zaman aç" sorusunun dört ayrı cevabı olamaz.
+
+##### Oda cevap ucu hedef kimliği KABUL ETMEZ
+
+`/api/stat-match/answer` gövdede `targetId` alabiliyor çünkü "Sen seç" turu
+öyle çalışıyor (BR-24). Oda ucu almıyor ve bu ayrım BR-56'nın kendisi: hedef
+odanın satırında yazılı. Gövdeden gelen bir hedef, kolay bir oyuncu seçip tam
+puan toplamanın kapısı olurdu — üstelik odada bu, rakibe karşı bir avantaj
+demekti.
+
+##### Rastgelelik bir PORT oldu
+
+`crypto.getRandomValues` doğrudan çağrılsaydı kod üretimi test edilemez
+olurdu: hangi kodun çıkacağı bilinmediği için ne çakışma yolu ne yanlılık
+elemesi sınanabilirdi. `RandomSource` port'u tek metotlu ve bilerek dar —
+"rastgele eleman", "karıştır" gibi kolaylıklar eklendiğinde her biri kendi
+yanlılık sorusunu getirir.
+
+`Math.random` KULLANILAMAZ ve bu üslup değil: ardışık birkaç çıktısını gören
+biri sonrakini hesaplayabilir, oysa oda kodu tahmin edilemez olmak zorunda
+(BR-55).
+
+**MODULO YANLILIĞI KODDA ELENDİ, HEDEF SEÇİMİNDE ELENMEDİ** — ve bu tutarsızlık
+değil, ölçüte dayalı bir ayrım. Kod bir **sırdır**; yanlı bir sır tahmin
+edilmeyi kolaylaştırır, o yüzden sınırın üstündeki baytlar atılıyor. Hedef
+oyuncu sır değil: hangi futbolcunun çıktığı zaten herkese gösteriliyor ve
+milyonda birlik bir eğilimin oyuna etkisi yok. İkisi de kod içinde gerekçesiyle
+yazılı.
+
+##### Sönmüş odaları ZAMANLANMIŞ BİR İŞ süpürmüyor
+
+BR-60 satırların silinmesini istiyor. Bir cron kurmak yeni bir altyapı parçası
+demekti; oda kurulumu zaten seyrek bir işlem, bu yüzden temizlik oraya
+bindirildi: yeni oda kuran kullanıcı hem kendi eski odalarını sildiriyor hem
+sönmüşleri süpürüyor (tek `DELETE`).
+
+**Bunun bilinen sınırı:** hiç oda kurulmayan bir dönemde sönmüş odalar durur.
+Zararsız — durum saklanmıyor, türetiliyor (§12.3), yani duran satır kimseye
+açık bir oda göstermiyor. Tabloyu şişirmesi de yapı gereği sınırlı.
+
+##### Ölçülmedi
+
+Bu turda yazılanların hiçbiri gerçek Turso'ya karşı koşulmadı; göç ürün
+sahibinin elinde. Kısıtların gerçekten kurulduğu — özellikle
+`@@unique([roomId, seat])` — göçten sonra ayrıca sayılacak. "Komut hata
+vermedi" bir kanıt değildir (§11.3).
 
 ## 13. Sözlük
 

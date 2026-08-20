@@ -1,5 +1,6 @@
 import type { AccountsRepository } from "@/application/ports/accounts-repository";
 import type { DatasetRepository } from "@/application/ports/dataset-repository";
+import type { RoomsRepository } from "@/application/ports/rooms-repository";
 import type { GameModeDeps } from "@/application/game-modes";
 import { accountsPrisma } from "../accounts-client";
 import { prisma } from "../client";
@@ -7,12 +8,14 @@ import { PrismaAccountsRepository } from "./prisma-accounts-repository";
 import { PrismaClubRepository } from "./prisma-club-repository";
 import { PrismaDatasetRepository } from "./prisma-dataset-repository";
 import { PrismaPlayerRepository } from "./prisma-player-repository";
+import { PrismaRoomsRepository } from "./prisma-rooms-repository";
 import { PrismaStatMatchRepository } from "./prisma-stat-match-repository";
 import { PrismaWhichMoreRepository } from "./prisma-which-more-repository";
 
 export { PrismaClubRepository } from "./prisma-club-repository";
 export { PrismaDatasetRepository } from "./prisma-dataset-repository";
 export { PrismaPlayerRepository } from "./prisma-player-repository";
+export { PrismaRoomsRepository } from "./prisma-rooms-repository";
 export { PrismaStatMatchRepository } from "./prisma-stat-match-repository";
 export { PrismaWhichMoreRepository } from "./prisma-which-more-repository";
 
@@ -57,4 +60,22 @@ export function accountsRepository(): AccountsRepository | null {
   if (client === null) return null;
 
   return new PrismaAccountsRepository(client);
+}
+
+/**
+ * Oda deposu — §12. Hesap özelliği kapalıysa `null`.
+ *
+ * `accountsRepository` ile AYNI KAPIDAN geçiyor ve bu tesadüf değil: oda
+ * giriş yapmış iki kullanıcı gerektiriyor (BR-54), yani hesaplar kapalıyken
+ * odanın bir anlamı yok. Ayrı bir bayrak, "hesaplar kapalı ama odalar açık"
+ * gibi hiçbir zaman geçerli olmayacak bir durumu temsil edilebilir kılardı.
+ *
+ * SABİT DEĞİL İŞLEV — `accountsRepository` ile aynı gerekçe: odaya hiç
+ * dokunmayan bir istek Turso bağlantısını kurmuş olmamalı (§11.3).
+ */
+export function roomsRepository(): RoomsRepository | null {
+  const client = accountsPrisma();
+  if (client === null) return null;
+
+  return new PrismaRoomsRepository(client);
 }

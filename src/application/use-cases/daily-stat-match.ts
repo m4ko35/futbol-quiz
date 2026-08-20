@@ -111,7 +111,14 @@ async function playerFor(
   return chosen;
 }
 
-function toRound(target: StatMatchTarget): StatMatchRoundDto {
+/**
+ * Hedefi sunulan tur şekline çevirir.
+ *
+ * DIŞA AÇIK çünkü §12'nin odası da aynı şekli döndürüyor: oda oyunu yeniden
+ * tanımlamıyor, aynı turu iki kişiye birden oynatıyor. İkinci bir çevirici
+ * yazılsaydı istatistik etiketleri iki yerde ayrı ayrı tutulurdu.
+ */
+export function toStatMatchRound(target: StatMatchTarget): StatMatchRoundDto {
   return {
     player: {
       id: target.id,
@@ -133,7 +140,7 @@ export async function getDailyStatMatch(
 ): Promise<DailyStatMatchDto> {
   const player = await playerFor(dailySeed(now), deps);
 
-  return { date: isoDate(now), ...toRound(player) };
+  return { date: isoDate(now), ...toStatMatchRound(player) };
 }
 
 /**
@@ -154,7 +161,7 @@ export async function getChosenStatMatch(
     );
   }
 
-  return toRound(chosen);
+  return toStatMatchRound(chosen);
 }
 
 export interface CheckStatAnswerInput {
