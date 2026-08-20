@@ -39,6 +39,24 @@ jobs:
       # (`src/generated/` gitignore'da). Tip denetimi buna bağlı.
       - run: npm run db:generate
 
+      # İKİ İSTEMCİ VAR, İKİSİ DE ÜRETİLMELİ (§11.3). Bu satır 17 Ağustos
+      # 2026'dan 20 Ağustos'a kadar EKSİKTİ ve CI o süre boyunca her push'ta
+      # düştü: `tsc` "Cannot find module '@/generated/prisma-accounts'"
+      # diyordu. Kapı kırıkken kimse kapıya bakmadığı için fark edilmesi
+      # üç gün aldı.
+      #
+      # AYNI KUSURUN İKİNCİ KEZ YAŞANMASI: `vercel-build` de bir süre bu
+      # istemciyi üretmiyordu ve üretim dağıtımı "Module not found" ile
+      # düşmüştü (16 Ağustos, prisma/accounts.schema.prisma başındaki not).
+      # Orada düzeltildi, buraya taşınmadı. Sebep ikisinde de aynı:
+      # `src/generated/` .gitignore'da olduğu için klasör geliştiricinin
+      # diskinde DURUYOR — yerel `npm run verify` geçiyor, temiz bir çıkış
+      # alan her ortam düşüyor.
+      #
+      # ORTAM DEĞİŞKENİ GEREKMİYOR ve bu ölçüldü: hesap şemasının datasource
+      # adresi `env()` değil, sabit bir yer tutucu; üretim bağlantı kurmuyor.
+      - run: npm run db:generate:accounts
+
       # Testler geçici veritabanlarını migration'lardan kurar; şema dosyası
       # yeterli, veri gerekmez.
       - run: npm run verify
