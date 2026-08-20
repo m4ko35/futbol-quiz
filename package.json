@@ -25,6 +25,7 @@
     "db:migrate": "prisma migrate dev",
     "db:migrate:accounts": "prisma migrate dev --config prisma/accounts.config.ts",
     "db:deploy:accounts": "prisma migrate deploy --config prisma/accounts.config.ts",
+    "db:verify:accounts": "tsx scripts/verify-accounts-schema.ts",
     "db:studio": "prisma studio",
     "etl": "tsx scripts/etl/index.ts",
     "db:verify": "tsx scripts/etl/verify-data.ts",
