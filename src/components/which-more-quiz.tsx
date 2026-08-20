@@ -713,7 +713,7 @@ function PlayerCard({
         {chain !== null && (
           <span
             className={
-              "shrink-0 rounded-full border px-2 py-0.5 text-[0.6rem] font-extrabold tracking-[0.1em] uppercase " +
+              "shrink-0 rounded-full border px-2 py-0.5 text-[0.65rem] font-extrabold tracking-[0.13em] uppercase " +
               (chain === "kept"
                 ? "border-accent bg-accent-soft text-accent"
                 : "border-line-strong text-muted")
@@ -1015,7 +1015,7 @@ function StatPicker({
         animasyon yeniden koşuyor.
       */}
       <div className="animate-duel-enter rounded-2xl border-2 border-line-strong bg-surface px-5 py-6 shadow-card sm:px-7">
-        <p className="text-[0.65rem] font-extrabold tracking-[0.15em] text-muted uppercase">
+        <p className="text-[0.65rem] font-extrabold tracking-[0.13em] text-muted uppercase">
           Sorulacak soru
         </p>
         <p

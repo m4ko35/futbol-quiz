@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getDailyStatMatch } from "@/application/use-cases/daily-stat-match";
 import { getStoredRound } from "@/application/use-cases/stored-round";
+import { PageShell } from "@/components/page-shell";
 import { SiteFooter } from "@/components/site-footer";
 import type { RoundRecording } from "@/components/stat-match-game";
 import { StatMatchQuiz } from "@/components/stat-match-quiz";
@@ -86,7 +87,7 @@ export default async function StatMatchPage() {
         : { kind: "kayitli", displayName: user.displayName };
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-5 py-10 sm:px-6 sm:py-14">
+    <PageShell>
       <StatMatchQuiz
         daily={daily}
         {...(serverAnswers === undefined ? {} : { serverAnswers })}
@@ -94,6 +95,6 @@ export default async function StatMatchPage() {
       />
 
       <SiteFooter dataGeneratedAt={dataGeneratedAt} />
-    </main>
+    </PageShell>
   );
 }

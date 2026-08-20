@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PageShell } from "@/components/page-shell";
 import { SiteFooter } from "@/components/site-footer";
 import { serverEnv } from "@/infrastructure/config/env";
 import { datasets } from "@/infrastructure/db/repositories";
@@ -40,7 +41,7 @@ export default async function PrivacyPage() {
   const dataGeneratedAt = await datasets.getGeneratedAt();
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-5 py-10 sm:px-6 sm:py-14">
+    <PageShell>
       <header className="flex flex-col gap-3">
         <h1 className="text-4xl font-bold tracking-tight text-balance sm:text-5xl">
           Gizlilik Bildirimi
@@ -297,6 +298,6 @@ export default async function PrivacyPage() {
       </p>
 
       <SiteFooter dataGeneratedAt={dataGeneratedAt} />
-    </main>
+    </PageShell>
   );
 }

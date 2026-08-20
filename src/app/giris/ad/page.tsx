@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { DisplayNameForm } from "@/components/display-name-form";
+import { PageShell } from "@/components/page-shell";
 import { SiteFooter } from "@/components/site-footer";
 import { accountsEnv } from "@/infrastructure/config/env";
 import { datasets } from "@/infrastructure/db/repositories";
@@ -47,7 +48,7 @@ export default async function ChooseNamePage() {
   const dataGeneratedAt = await datasets.getGeneratedAt();
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-5 py-10 sm:px-6 sm:py-14">
+    <PageShell>
       <header className="flex flex-col gap-3">
         <h1 className="text-4xl font-bold tracking-tight text-balance sm:text-5xl">
           Bir ad seç
@@ -61,6 +62,6 @@ export default async function ChooseNamePage() {
       <DisplayNameForm />
 
       <SiteFooter dataGeneratedAt={dataGeneratedAt} />
-    </main>
+    </PageShell>
   );
 }

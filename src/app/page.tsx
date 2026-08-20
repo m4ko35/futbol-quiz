@@ -1,5 +1,6 @@
 import { listLeagues, searchClubs } from "@/application/use-cases/search-clubs";
 import { CommonPlayersQuiz } from "@/components/common-players-quiz";
+import { PageShell } from "@/components/page-shell";
 import { SiteFooter } from "@/components/site-footer";
 import { datasets, repositories } from "@/infrastructure/db/repositories";
 
@@ -25,7 +26,7 @@ export default async function Home() {
     ]);
 
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 px-5 py-10 sm:px-6 sm:py-14">
+    <PageShell>
       {/*
         KÜNYE VE KAPSAM BANDI BİLEŞENİN İÇİNDE (§7.15). Tabela, sonuç
         geldiğinde veri kümesi sayılarından sonucun kendisine geçiyor; yani
@@ -40,6 +41,6 @@ export default async function Home() {
       />
 
       <SiteFooter dataGeneratedAt={dataGeneratedAt} />
-    </main>
+    </PageShell>
   );
 }

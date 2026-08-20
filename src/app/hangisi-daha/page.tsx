@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PageShell } from "@/components/page-shell";
 import { SiteFooter } from "@/components/site-footer";
 import { WhichMoreQuiz } from "@/components/which-more-quiz";
 import { datasets } from "@/infrastructure/db/repositories";
@@ -25,10 +26,10 @@ export default async function WhichMorePage() {
   const dataGeneratedAt = await datasets.getGeneratedAt();
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-5 py-10 sm:px-6 sm:py-14">
+    <PageShell>
       <WhichMoreQuiz />
 
       <SiteFooter dataGeneratedAt={dataGeneratedAt} />
-    </main>
+    </PageShell>
   );
 }

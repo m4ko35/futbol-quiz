@@ -2339,6 +2339,65 @@ vermek onu vermemektir.
 Rozet puntosu da 10 pikselden (`text-[0.625rem]`) 12 piksele çıktı — kod iki
 harfti, ad değil.
 
+##### Sayfa kabı iki farklı genişlikteydi ve kimse böyle karar vermemişti
+
+Aynı `<main>` sınıf dizesi **on sayfada birebir** tekrarlanıyordu. Tekrar ettiği
+için de ayrışmıştı: sekiz sayfa `max-w-3xl` (768 px), ikisi `max-w-4xl`
+(896 px). Site başlığı ise `max-w-4xl`.
+
+**Sonucu ekranda görünüyordu:** 896 pikselden geniş her ekranda marka işareti,
+sayfa başlığının **64 piksel solunda** duruyordu. Şartnamede bu genişliklere
+dair tek satır yok — yani bir karar değil, kopyalandıkça kayan bir değer.
+
+`PageShell` bileşeni yazıldı ve on sayfa da onu kullanıyor. Genişlik artık tek
+yerde.
+
+**4XL'de birleşti, 3XL'de değil.** Bu bir oyun: ızgaranın hücreleri ve
+anasayfadaki yan yana iki seçici geniş kaptan kazanıyor, hesap ve gizlilik
+sayfaları ise zaten uzun metin taşımıyor. Uzun metnin ölçüsü kabın değil
+**bloğun** işi — `max-w-prose` bu depoda yerleşik bir alışkanlık (gizlilik
+bildiriminde 23 paragrafın 23'ünde). Kaptan payını alan üç blok da o kuralı
+aldı.
+
+**Hata ve 404 ekranları `PageShell` KULLANMIYOR** ve bu bilinçli: onlar dikeyde
+ortalanmış dar birer mesaj, gezinilen bir sayfa değil.
+
+##### Mikro etiket: altı ölçü, dört harf aralığı, tek rol
+
+Ürünün en çok tekrarlanan tipografik birimi — büyük harfli, aralıklı, kalın
+küçük etiket (künye üst satırı, tabela hücre adı, "Kapsam", "kiralık", "Oyuncu")
+— **tanımsızdı**. Sekiz kullanımda **dört ayrı punto** (0,6 / 0,625 / 0,65 /
+0,6875 rem) ve **dört ayrı harf aralığı** (0,025 / 0,1 / 0,11 / 0,13 / 0,15 em)
+vardı. Kapla aynı hikâye: kopyalandıkça kaydı.
+
+Tek ölçüde birleşti: **`text-[0.65rem]` + `tracking-[0.13em]` + `font-extrabold`
+
+- `uppercase`.** Renk role göre değişmeye devam ediyor (`muted`, `warn`, `accent`).
+
+**İKİ GRUP BİLEREK DIŞARIDA BIRAKILDI.**
+
+`stat-match`'in dağılım çizgisindeki dört uç etiketi (`0.5625rem`, yani 9 px)
+bir çizimin ölçek işaretleri, etiket değil. Konumları mutlak ve bileşenin kendi
+yorumu "üçü sabit konumlu olduğu için birbirlerine hiçbir genişlikte
+değmiyorlar" diyor — yani **çakışmaya karşı ölçülerek** ayarlanmışlar. Puntoyu
+büyütmek o ayarı bozardı ve jsdom yerleşim hesaplamadığı için **hiçbir test
+bunu yakalayamazdı**.
+
+`0.7rem`/`font-medium` üçlüsü (seçicilerdeki sessiz alt yazı) ayrı bir rol:
+etiket değil, alt yazı. Zaten kendi içinde tutarlı.
+
+##### Ölçüldü ama DEĞİŞTİRİLMEDİ — boşluk ölçeği
+
+Boşluk değerlerinin dağılımı da sayıldı: `gap-2` (32), `gap-3` (29), `gap-4`
+(13), `gap-1.5` (10), `gap-1` (7), `gap-6` (5), `gap-8` (3). Yani hâkim ölçek
+4/8/12/16/24/32 px ve zaten tutarlı. Kuyrukta üç tekil değer var (`gap-5`,
+`gap-7`, `gap-0.5`) ve **düzeltilmedi**: üç kullanım için elle ayarlanmış
+yerleşimleri riske atmak, kullanıcıya hiçbir şey kazandırmayan bir düzeltme
+olurdu.
+
+Ham renk taraması da yapıldı: bileşenlerde **tek bir hex ya da `rgb()` yok**.
+Jeton sistemi sızdırmıyor.
+
 ### 7.13 Kulüp İşareti (BR-35)
 
 Kulüp adının yanındaki işaret **sabit ölçülü bir yuvadır** ve hep doludur:

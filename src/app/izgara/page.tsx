@@ -3,6 +3,7 @@ import { CURATED_CLUB_QIDS } from "@/application/curated-clubs";
 import { toClubDto } from "@/application/dto/club-dto";
 import { getDailyGrid } from "@/application/use-cases/daily-grid";
 import { GridQuiz } from "@/components/grid-quiz";
+import { PageShell } from "@/components/page-shell";
 import { SiteFooter } from "@/components/site-footer";
 import { datasets, repositories } from "@/infrastructure/db/repositories";
 
@@ -46,10 +47,10 @@ export default async function GridPage() {
     .sort((a, b) => a.shortName.localeCompare(b.shortName, "tr"));
 
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 px-5 py-10 sm:px-6 sm:py-14">
+    <PageShell>
       <GridQuiz grid={grid} curatedClubs={curatedClubs} />
 
       <SiteFooter dataGeneratedAt={dataGeneratedAt} />
-    </main>
+    </PageShell>
   );
 }

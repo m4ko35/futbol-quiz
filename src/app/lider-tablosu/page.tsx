@@ -5,6 +5,7 @@ import {
   getLeaderboard,
   type LeaderboardRowDto,
 } from "@/application/use-cases/leaderboard";
+import { PageShell } from "@/components/page-shell";
 import { ReportNameDialog } from "@/components/report-name-dialog";
 import { SiteFooter } from "@/components/site-footer";
 import { MAX_ROUND_POINTS } from "@/domain/services/daily-round";
@@ -141,7 +142,7 @@ export default async function LeaderboardPage({ searchParams }: PageProps) {
   const active = PERIODS.find((p) => p.key === period) ?? PERIODS[0];
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-5 py-10 sm:px-6 sm:py-14">
+    <PageShell>
       <header className="flex flex-col gap-3">
         <h1 className="text-4xl font-bold tracking-tight text-balance sm:text-5xl">
           Lider Tablosu
@@ -260,6 +261,6 @@ export default async function LeaderboardPage({ searchParams }: PageProps) {
       </p>
 
       <SiteFooter dataGeneratedAt={dataGeneratedAt} />
-    </main>
+    </PageShell>
   );
 }

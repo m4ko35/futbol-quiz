@@ -86,7 +86,7 @@ function SpellBadges({ spells }: { spells: readonly SpellDto[] }) {
 
           {spell.isLoan && (
             // BR-3: kiralık dönemler sayılır ama açıkça işaretlenir.
-            <span className="text-[0.625rem] font-extrabold tracking-wide text-warn uppercase">
+            <span className="text-[0.65rem] font-extrabold tracking-[0.13em] text-warn uppercase">
               kiralık
             </span>
           )}
@@ -173,7 +173,7 @@ function ClubCell({
     <div
       className={"px-4 py-3 " + (bordered ? "sm:border-r sm:border-line" : "")}
     >
-      <p className="mb-1.5 text-[0.625rem] font-extrabold tracking-[0.11em] text-muted uppercase sm:sr-only sm:mb-0">
+      <p className="mb-1.5 text-[0.65rem] font-extrabold tracking-[0.13em] text-muted uppercase sm:sr-only sm:mb-0">
         {club}
       </p>
       <SpellBadges spells={spells} />
@@ -200,7 +200,7 @@ function LedgerHead({
       aria-hidden="true"
       className="hidden border-b-2 border-foreground bg-surface-2 sm:grid sm:grid-cols-[1.05fr_1fr_1fr]"
     >
-      <div className="border-r border-line px-4 py-2 text-[0.6875rem] font-extrabold tracking-[0.1em] text-muted uppercase">
+      <div className="border-r border-line px-4 py-2 text-[0.65rem] font-extrabold tracking-[0.13em] text-muted uppercase">
         Oyuncu
       </div>
       {[clubA, clubB].map((club, index) => (

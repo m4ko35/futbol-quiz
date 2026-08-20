@@ -274,7 +274,7 @@ export function CommonPlayersQuiz({
       */}
       <section aria-label="Veri kapsamı" className="flex flex-col gap-2.5">
         <p className="text-sm text-note">
-          <span className="mr-2 text-[0.6rem] font-extrabold tracking-[0.13em] uppercase">
+          <span className="mr-2 text-[0.65rem] font-extrabold tracking-[0.13em] uppercase">
             Kapsam
           </span>
           Yirmi dört üst ligin{" "}

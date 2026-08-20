@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PageShell } from "@/components/page-shell";
 import { SiteFooter } from "@/components/site-footer";
 import { datasets, repositories } from "@/infrastructure/db/repositories";
 
@@ -32,7 +33,7 @@ export default async function CreditsPage() {
   const needingAuthor = credits.filter((one) => one.author !== null).length;
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-5 py-10 sm:px-6 sm:py-14">
+    <PageShell>
       <header className="flex flex-col gap-3">
         <h1 className="text-4xl font-bold tracking-tight text-balance sm:text-5xl">
           Arma Kaynakları ve Lisanslar
@@ -48,7 +49,7 @@ export default async function CreditsPage() {
           duruyor ve yeniden kullanılamadığı için burada yer almaz. Bu yüzden
           bazı kulüplerin arması eksiktir.
         </p>
-        <p className="text-sm text-muted">
+        <p className="max-w-prose text-sm text-muted">
           Armalar ilgili kulüplerin <strong>tescilli markalarıdır</strong> ve
           burada yalnızca kulübü tanıtmak için kullanılır; bu site hiçbir
           kulüple bağlantılı değildir.
@@ -150,6 +151,6 @@ export default async function CreditsPage() {
       </p>
 
       <SiteFooter dataGeneratedAt={dataGeneratedAt} />
-    </main>
+    </PageShell>
   );
 }

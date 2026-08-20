@@ -54,7 +54,7 @@ export function ModeHeader({
         {/* Boşluk etiketin ÜZERİNDE değil ALTINDA: etiket yokken başlık
             künyenin tepesine oturuyor, ölü bir aralık kalmıyor. */}
         {eyebrow !== undefined && (
-          <p className="mb-1 text-[0.65rem] font-extrabold tracking-[0.15em] text-muted uppercase">
+          <p className="mb-1 text-[0.65rem] font-extrabold tracking-[0.13em] text-muted uppercase">
             {eyebrow}
           </p>
         )}
@@ -130,7 +130,7 @@ export function Scoreboard({ cells, lit = false, label }: ScoreboardProps) {
           // küçülüyor. Sayı KISALTILMIYOR (§2.7) — yalnızca punto iniyor.
           className="min-w-[3.5rem] border-r border-line px-2.5 py-2 text-right last:border-r-0 sm:min-w-[4.75rem] sm:px-4"
         >
-          <p className="text-[0.6rem] font-extrabold tracking-[0.13em] text-muted uppercase">
+          <p className="text-[0.65rem] font-extrabold tracking-[0.13em] text-muted uppercase">
             {cell.label}
           </p>
           <p
