@@ -5787,12 +5787,35 @@ ikisi de açık bir düğmeye basmayı gerektiriyor. Yanlışlıkla açılan bir
 bağlantı odayı doldurup gerçek oyuncuyu dışarıda bırakırdı (BR-54, ikinci
 koltuk tektir) — ve GET bir isteğin yan etkisi olmamalı.
 
-##### ODA MOD ŞERİDİNE KONMADI
+##### ODA MOD ŞERİDİNE KONMADI — ama sayfanın DİBİNE de konmamalıydı
 
-Giriş noktası `/istatistik` sayfasının altında. Oda beşinci bir oyun modu
-değil, **istatistik modunun bir oynanış biçimi**: aynı oyun, aynı kurallar, tek
-fark karşında birinin olması. Şeride koymak onu ayrı bir oyun gibi gösterirdi
-ve şerit zaten dört öğeyle ölçülmüştü (§7.17).
+Oda beşinci bir oyun modu değil, **istatistik modunun bir oynanış biçimi**:
+aynı oyun, aynı kurallar, tek fark karşında birinin olması. Mod şeridine
+koymak onu ayrı bir oyun gibi gösterirdi ve şerit zaten dört öğeyle
+ölçülmüştü (§7.17). Bu karar değişmedi.
+
+**Değişen, sayfa içindeki yeri.** İlk hâli `/istatistik`'in en altında,
+"Sen seç" bölümünün de ardında duran başlıklı bir karttı ve orada
+**görünmüyordu**: altı istatistik satırı ve sayı doğrularıyla birlikte
+yaklaşık 1.200 piksel aşağıda kalıyordu. Servis edilen HTML'de ölçüldü —
+künye 9.755. bayt, kart 21.000'in ötesinde.
+
+Yeni yeri **kayıt şeridi ile istatistik satırları arasında**: kullanıcının
+"bu oyun ne, bugünün oyuncusu kim" sorularını yanıtlamış ama **henüz
+oynamaya başlamamış** olduğu an. Ölçülen sıra: künye 9.755 → kayıt şeridi
+11.696 → **oda şeridi 12.172** → ilk istatistik 12.860.
+
+Künyenin ÜSTÜNE konmadı ve bu ayrı bir karar: orada kullanıcı henüz neyin
+alternatifi olduğunu bilmiyor, üstelik sayfanın `h1`'inden önce gelen bir
+çağrı ekran okuyucu kullanıcısına da yanlış sırayla ulaşırdı.
+
+**Ölçü de değişti.** Yukarı taşınan bir kart oyunun önüne geçerdi; asıl iş
+hâlâ günün turu. Başlıklı, paragraflı kart tek satırlık bir şeride indi.
+
+Yerleşim `StatMatchGame`'e eklenen **konumsal bir yuvayla** çözüldü
+(`beforeStats`). Adı konumu söylüyor, içeriğini değil: oyun bileşeni odayı —
+ya da buraya bir gün konacak başka bir duyuruyu — tanımak zorunda değil.
+Yuvanın tek sözleşmesi olan sıra, testle sabitlendi.
 
 ##### Arayüz yazarken ÇIKAN KUSUR: `RoomDto` kendi cevaplarımı taşımıyordu
 

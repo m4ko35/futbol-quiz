@@ -41,12 +41,21 @@ export interface StatMatchQuizProps {
    * seç" turunda kayıttan söz etmek, kaydedilebileceği izlenimi verirdi.
    */
   readonly recording?: StatMatchGameProps["recording"];
+  /**
+   * Günlük turun istatistik satırlarının üstüne giren şerit — bugün odaya
+   * çağrı (§12.7).
+   *
+   * YALNIZCA GÜNLÜK TURA geçirilir. "Sen seç" turunda ikinci kez göstermek,
+   * aynı çağrıyı aynı sayfada tekrarlamak olurdu.
+   */
+  readonly beforeStats?: StatMatchGameProps["beforeStats"];
 }
 
 export function StatMatchQuiz({
   daily,
   serverAnswers,
   recording,
+  beforeStats,
 }: StatMatchQuizProps) {
   const [chosen, setChosen] = useState<StatMatchRoundDto | null>(null);
   const [isPicking, setIsPicking] = useState(false);
@@ -111,6 +120,7 @@ export function StatMatchQuiz({
         date={daily.date}
         {...(serverAnswers === undefined ? {} : { serverAnswers })}
         {...(recording === undefined ? {} : { recording })}
+        {...(beforeStats === undefined ? {} : { beforeStats })}
         header={{
           // Yalnızca TARİH — gerekçe `grid-quiz.tsx`'teki ikiziyle aynı.
           eyebrow: formatTurkishIsoDate(daily.date),

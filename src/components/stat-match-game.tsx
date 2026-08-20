@@ -1,7 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import type { PlayerDto } from "@/application/dto/player-dto";
 import type {
   StatDto,
@@ -80,6 +86,22 @@ export interface StatMatchGameProps {
   /** Tur bitince yeni hedef seçmek için — yalnızca "Sen seç" turunda. */
   onRestart?: () => void;
   /**
+   * Hedef kartı ile istatistik satırları arasına giren şerit.
+   *
+   * ADI KONUMU SÖYLÜYOR, İÇERİĞİNİ DEĞİL ve bu kasıtlı: oyun bileşeni odayı
+   * — ya da buraya bir gün konacak başka bir şeyi — tanımak zorunda değil.
+   * `recording` gibi anlamlı bir prop eklemek, `StatMatchGame`'i her yeni
+   * duyuru için yeniden düzenlemek demekti.
+   *
+   * NEDEN TAM BURASI. Bu nokta kullanıcının "bu oyun ne, bugünün oyuncusu
+   * kim" sorularını yanıtlamış ama HENÜZ OYNAMAYA BAŞLAMAMIŞ olduğu an.
+   * Künyenin üstüne konsaydı henüz neyin alternatifi olduğu bilinmezdi;
+   * altı istatistik satırının ARDINA konduğunda ise — ki ilk hâli öyleydi —
+   * sayı doğrularıyla birlikte yaklaşık 1.200 piksel aşağıda kalıp pratikte
+   * hiç görülmüyordu.
+   */
+  readonly beforeStats?: ReactNode;
+  /**
    * SUNUCUDA SAKLANAN tur — yalnızca giriş yapmış kullanıcının günlük turunda
    * verilir (§11, BR-43).
    *
@@ -147,6 +169,7 @@ export function StatMatchGame({
   round,
   date,
   onRestart,
+  beforeStats,
   serverAnswers,
   recording,
   submitAnswer,
@@ -411,6 +434,8 @@ export function StatMatchGame({
           {answers.length > 0 && ` · ortalama %${String(total)}`}
         </p>
       )}
+
+      {beforeStats}
 
       <ul className="flex flex-col gap-3">
         {round.stats.map((stat) => (

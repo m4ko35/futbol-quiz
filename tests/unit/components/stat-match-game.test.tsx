@@ -536,3 +536,30 @@ describe("StatMatchGame — yayın saati (BR-49)", () => {
     expect(screen.getByRole("status")).toHaveTextContent(expected);
   });
 });
+
+describe("beforeStats yuvası — §12.7", () => {
+  /**
+   * YUVANIN TEK SÖZLEŞMESİ KONUMU. İçeriği bileşeni ilgilendirmiyor ama
+   * NEREDE çizildiği ilgilendiriyor: odaya çağrı ilk hâlinde sayfanın en
+   * altındaydı ve altı istatistik satırıyla birlikte ~1.200 piksel aşağıda
+   * kalıp görülmüyordu. Bu test o gerilemeyi yakalar.
+   */
+  it("verilen şeridi istatistik satırlarının ÜSTÜNE çizer", () => {
+    setup({ beforeStats: <p data-testid="serit">Arkadaşına karşı oyna</p> });
+
+    const serit = screen.getByTestId("serit");
+    const ilkSatir = screen.getAllByRole("listitem")[0];
+
+    // `DOCUMENT_POSITION_FOLLOWING` = ilk satır, şeridin ARDINDA geliyor.
+    expect(
+      serit.compareDocumentPosition(ilkSatir as HTMLElement) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("verilmezse hiçbir şey çizmez", () => {
+    setup();
+
+    expect(screen.queryByTestId("serit")).not.toBeInTheDocument();
+  });
+});
