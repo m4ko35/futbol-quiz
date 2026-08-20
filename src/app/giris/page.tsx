@@ -57,7 +57,7 @@ export default async function LoginPage({ searchParams }: PageProps) {
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-5 py-10 sm:px-6 sm:py-14">
       <header className="flex flex-col gap-3">
-        <h1 className="text-3xl font-bold tracking-tight text-balance sm:text-4xl">
+        <h1 className="text-4xl font-bold tracking-tight text-balance sm:text-5xl">
           Giriş
         </h1>
         <p className="max-w-prose text-lg text-muted">
@@ -80,7 +80,7 @@ export default async function LoginPage({ searchParams }: PageProps) {
       <section className="flex flex-col gap-4 rounded-xl border border-line bg-surface p-6 shadow-card">
         <a
           href="/api/auth/google"
-          className="inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="inline-flex items-center justify-center rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           Google ile gir
         </a>

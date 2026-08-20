@@ -83,7 +83,7 @@ export function SiteHeader({ showLeaderboard }: SiteHeaderProps) {
         {showLeaderboard && (
           <Link
             href="/lider-tablosu"
-            className="order-2 ms-auto rounded-md px-2 py-1 text-sm font-medium text-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:order-3 sm:ms-0"
+            className="order-2 ms-auto rounded-md px-2 py-3 text-sm font-medium text-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:order-3 sm:ms-0"
           >
             Lider Tablosu
           </Link>

@@ -63,10 +63,33 @@ export function ReportNameDialog({ displayName }: ReportNameDialogProps) {
         type="button"
         onClick={() => dialogRef.current?.showModal()}
         title="Bu adı bildir"
-        className="rounded-md px-1.5 py-0.5 text-xs text-muted transition-colors hover:text-wrong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        className="ms-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md align-middle text-muted transition-colors hover:text-wrong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
-        {/* Simge süsleme; anlamı aşağıdaki gizli metinde. */}
-        <span aria-hidden="true">⚑</span>
+        {/*
+          SİMGE SVG, GLİF DEĞİL — ve bu bir üslup tercihi değil, ölçülmüş bir
+          kusurun onarımı. Eskiden `⚑` (U+2691) yazıyordu; o karakter gövde
+          fontunda YOK, dolayısıyla her platformda başka bir yedek fontla
+          çiziliyordu. Depodaki tek glif-simge buydu, geri kalan her yer zaten
+          SVG kullanıyor (`brand-mark`, `theme-toggle`).
+
+          KUTU 44×44. Öncekinde `px-1.5 py-0.5 text-xs` vardı: yaklaşık 28×20
+          piksel, yani parmakla ıskalanan bir hedef. Görsel ağırlık değişmiyor
+          — büyüyen şey yalnızca tıklanabilir alan.
+        */}
+        <svg
+          viewBox="0 0 16 16"
+          aria-hidden="true"
+          focusable="false"
+          className="h-4 w-4"
+          stroke="currentColor"
+          fill="none"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M4 14.5V2" />
+          <path d="M4 3.2h7.6l-1.8 2.6 1.8 2.6H4" />
+        </svg>
         <span className="sr-only">{displayName} adını bildir</span>
       </button>
 
@@ -96,7 +119,7 @@ export function ReportNameDialog({ displayName }: ReportNameDialogProps) {
               <button
                 type="button"
                 onClick={kapat}
-                className="self-start rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="self-start rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
                 Kapat
               </button>
@@ -108,7 +131,7 @@ export function ReportNameDialog({ displayName }: ReportNameDialogProps) {
                 {REPORT_REASONS.map((secenek) => (
                   <label
                     key={secenek}
-                    className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-line px-3 py-2 text-sm has-checked:border-accent has-checked:bg-accent-soft"
+                    className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-line px-3 py-3 text-sm has-checked:border-accent has-checked:bg-accent-soft"
                   >
                     <input
                       type="radio"
@@ -134,14 +157,14 @@ export function ReportNameDialog({ displayName }: ReportNameDialogProps) {
                   type="button"
                   disabled={durum === "gonderiliyor"}
                   onClick={() => void gonder()}
-                  className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-40"
+                  className="rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-40"
                 >
                   {durum === "gonderiliyor" ? "Gönderiliyor…" : "Bildir"}
                 </button>
                 <button
                   type="button"
                   onClick={kapat}
-                  className="rounded-lg px-4 py-2 text-sm font-medium underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  className="rounded-lg px-4 py-3 text-sm font-medium underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                 >
                   Vazgeç
                 </button>

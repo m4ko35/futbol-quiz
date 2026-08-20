@@ -41,7 +41,7 @@ export function AccountActions() {
         type="button"
         disabled={busy}
         onClick={() => void post("/api/auth/cikis")}
-        className="self-start rounded-lg border border-line-strong px-4 py-2.5 text-sm font-semibold transition-colors hover:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-40"
+        className="self-start rounded-lg border border-line-strong px-4 py-3 text-sm font-semibold transition-colors hover:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-40"
       >
         Çıkış yap
       </button>
@@ -59,7 +59,7 @@ export function AccountActions() {
               type="button"
               disabled={busy}
               onClick={() => void post("/api/auth/hesap-sil")}
-              className="rounded-lg bg-wrong px-4 py-2 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-40"
+              className="rounded-lg bg-wrong px-4 py-3 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-40"
             >
               {busy ? "Siliniyor…" : "Evet, hesabımı sil"}
             </button>
@@ -67,7 +67,7 @@ export function AccountActions() {
               type="button"
               disabled={busy}
               onClick={() => setConfirming(false)}
-              className="rounded-lg px-4 py-2 text-sm font-medium underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              className="rounded-lg px-4 py-3 text-sm font-medium underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             >
               Vazgeç
             </button>
@@ -76,7 +76,7 @@ export function AccountActions() {
           <button
             type="button"
             onClick={() => setConfirming(true)}
-            className="self-start rounded-lg border border-wrong px-4 py-2 text-sm font-semibold text-wrong transition-colors hover:bg-wrong-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="self-start rounded-lg border border-wrong px-4 py-3 text-sm font-semibold text-wrong transition-colors hover:bg-wrong-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             Hesabımı sil
           </button>

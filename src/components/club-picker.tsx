@@ -412,7 +412,7 @@ export function ClubPicker({
                   <button
                     type="button"
                     tabIndex={-1}
-                    className="flex min-w-0 flex-1 items-center gap-1.5 rounded-lg px-2 py-1 text-left text-sm font-semibold hover:bg-accent-soft"
+                    className="flex min-w-0 flex-1 items-center gap-1.5 rounded-lg px-2 py-3 text-left text-sm font-semibold hover:bg-accent-soft"
                     onMouseDown={(event) => {
                       event.preventDefault();
                       leaveLeague();
@@ -440,7 +440,7 @@ export function ClubPicker({
                 <button
                   type="button"
                   tabIndex={-1}
-                  className="shrink-0 rounded-lg px-2 py-1 text-sm font-medium text-muted hover:bg-accent-soft hover:text-foreground"
+                  className="shrink-0 rounded-lg px-2 py-3 text-sm font-medium text-muted hover:bg-accent-soft hover:text-foreground"
                   onMouseDown={(event) => {
                     event.preventDefault();
                     cancel();
@@ -489,7 +489,7 @@ export function ClubPicker({
                       id={`${listboxId}-${String(index)}`}
                       role="option"
                       aria-selected={index === highlighted}
-                      className={`cursor-pointer rounded-lg px-3 py-2 text-sm ${
+                      className={`cursor-pointer rounded-lg px-3 py-3 text-sm ${
                         index === highlighted ? "bg-accent-soft" : ""
                       }`}
                       // `onMouseDown`, `onClick` değil: `onClick` girdi alanının
@@ -602,7 +602,7 @@ export function ClubPicker({
           </span>
           <button
             type="button"
-            className="shrink-0 rounded-md px-2 py-1 text-sm font-medium text-accent underline underline-offset-2 hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="shrink-0 rounded-md px-2 py-3 text-sm font-medium text-accent underline underline-offset-2 hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             onClick={() => {
               onSelect(null);
               // Seçim kaldırıldığında odak arama kutusuna dönmeli; aksi hâlde

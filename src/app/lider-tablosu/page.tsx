@@ -75,8 +75,32 @@ function Row({
         row.isMe ? "bg-accent-soft font-semibold" : "odd:bg-surface-2/40"
       }
     >
-      <td className="px-3 py-2.5 text-right tabular-nums">{row.rank}</td>
-      <td className="px-3 py-2.5">
+      {/*
+        PODYUM TİPOGRAFİYLE KURULUYOR, RENKLE DEĞİL.
+
+        İlk üçü `accent` ile boyamak akla geldi ve reddedildi: §7.12 o rolü
+        "kaydın dili" olarak tanımlıyor — seçici, gezinme, birincil eylem,
+        odak konturu. Sırayı onunla boyamak, kullanıcının öğrendiği anlamı
+        sulandırırdı. Ağırlık ve ölçü aynı hiyerarşiyi rol karıştırmadan
+        kuruyor.
+
+        ERİŞİLEBİLİRLİK AÇISINDAN SÜSLEME: sıra bilgisi zaten sayının
+        kendisinde. Buradaki vurgu bir bilgi taşımıyor, yalnızca onu
+        pekiştiriyor — yani WCAG 1.4.1'in "renk tek gösterge olmasın"
+        kuralına konu değil.
+      */}
+      <td className="px-3 py-3 text-right">
+        <span
+          className={
+            row.rank <= 3
+              ? "font-display text-2xl leading-none font-bold tabular-nums"
+              : "text-base tabular-nums text-muted"
+          }
+        >
+          {row.rank}
+        </span>
+      </td>
+      <td className={row.rank <= 3 ? "px-3 py-3 font-semibold" : "px-3 py-3"}>
         {row.displayName}
         {row.isMe && <span className="ml-2 text-xs text-muted">(sen)</span>}
         {/* Kendi adını bildirmek sayımı bozardı (§11.12) — düğme de çizilmez. */}
@@ -84,8 +108,10 @@ function Row({
           <ReportNameDialog displayName={row.displayName} />
         )}
       </td>
-      <td className="px-3 py-2.5 text-right tabular-nums">{row.points}</td>
-      <td className="px-3 py-2.5 text-right tabular-nums text-muted">
+      <td className="px-3 py-3 text-right text-base font-semibold tabular-nums">
+        {row.points}
+      </td>
+      <td className="px-3 py-3 text-right tabular-nums text-muted">
         {row.days}
       </td>
     </tr>
@@ -117,7 +143,7 @@ export default async function LeaderboardPage({ searchParams }: PageProps) {
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-5 py-10 sm:px-6 sm:py-14">
       <header className="flex flex-col gap-3">
-        <h1 className="text-3xl font-bold tracking-tight text-balance sm:text-4xl">
+        <h1 className="text-4xl font-bold tracking-tight text-balance sm:text-5xl">
           Lider Tablosu
         </h1>
         <p className="max-w-prose text-lg text-muted">
@@ -137,8 +163,8 @@ export default async function LeaderboardPage({ searchParams }: PageProps) {
               aria-current={selected ? "page" : undefined}
               className={
                 selected
-                  ? "rounded-lg bg-accent px-3.5 py-2 text-sm font-semibold text-accent-fg"
-                  : "rounded-lg border border-line px-3.5 py-2 text-sm font-medium text-muted hover:border-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  ? "inline-flex min-h-11 items-center rounded-lg bg-accent px-4 text-sm font-semibold text-accent-fg"
+                  : "inline-flex min-h-11 items-center rounded-lg border border-line px-4 text-sm font-medium text-muted hover:border-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               }
             >
               {option.label}

@@ -101,7 +101,7 @@ export function GridBuilder({
         {GRID_SIZES.map((option) => (
           <label
             key={option}
-            className={`cursor-pointer rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent ${
+            className={`cursor-pointer rounded-lg border px-3 py-3 text-sm font-medium transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent ${
               option === size
                 ? "border-accent bg-accent-soft"
                 : "border-line-strong bg-background hover:border-accent"
@@ -202,7 +202,7 @@ export function GridBuilder({
         <button
           type="button"
           disabled={!columnsReady || rows.length !== size}
-          className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40"
           onClick={() => {
             onBuilt({ rows, columns });
           }}
@@ -286,7 +286,7 @@ function Axis({
                   </span>
                   <button
                     type="button"
-                    className="shrink-0 rounded-md px-2 py-1 text-sm font-medium text-muted underline underline-offset-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    className="shrink-0 rounded-md px-2 py-3 text-sm font-medium text-muted underline underline-offset-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                     onClick={() => {
                       onClear(index);
                     }}

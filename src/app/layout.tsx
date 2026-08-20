@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Barlow, Barlow_Condensed, Geist_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import { connection } from "next/server";
 import { SiteHeader } from "@/components/site-header";
@@ -8,14 +8,39 @@ import { THEME_BOOT_SCRIPT } from "@/lib/theme";
 
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+/**
+ * `latin-ext` ZORUNLU, tercih değil — PROJECT.md §7.12.
+ *
+ * Türkçenin `ı`, `İ`, `ğ`, `ş` harfleri Latin Extended-A'dadır (U+0100–017F)
+ * ve `latin` alt kümesi onları İÇERMEZ. Yalnızca `latin` istendiğinde tarayıcı
+ * o dört harfi yedek bir sistem fontundan tamamlıyor: Türkçe metnin çoğu
+ * kelimesi iki ayrı fontla çiziliyor. Kusur uzun süre gözden kaçtı çünkü
+ * sayfa "çalışıyor" görünüyor — bozulan şey yalnızca harflerin biçimi.
+ */
+const bodyFont = Barlow({
+  variable: "--font-body",
+  subsets: ["latin", "latin-ext"],
+  weight: ["400", "500", "600", "700"],
 });
 
+/**
+ * Başlık fontu AYRI bir rol. Sıkıştırılmış bir gramotesk, spor basınının
+ * kendi dilidir: aynı genişlikte daha çok harf, daha güçlü bir dikey ritim.
+ * Gövdede kullanılmaz — dar harfler uzun metinde okumayı yavaşlatır.
+ */
+const displayFont = Barlow_Condensed({
+  // Ad `--font-display` DEĞİL: Tailwind'in `@theme` bloğu o adı kendi
+  // belirteci için kullanıyor ve `--font-display: var(--font-display)`
+  // kendine referans verip sessizce çökerdi.
+  variable: "--font-condensed",
+  subsets: ["latin", "latin-ext"],
+  weight: ["600", "700"],
+});
+
+/** Tek yerde kullanılıyor: hata kimliği (`error.tsx`). Değişmedi. */
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
-  subsets: ["latin"],
+  subsets: ["latin", "latin-ext"],
 });
 
 /** Tek satırda kalması için ayrı: lint istisnası yalnızca o satırı kapsıyor. */
@@ -89,7 +114,7 @@ export default async function RootLayout({
     <html
       lang="tr"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${bodyFont.variable} ${displayFont.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>
         {/*

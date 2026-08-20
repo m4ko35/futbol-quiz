@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ClubDto } from "@/application/dto/club-dto";
 import type { CommonPlayersResultDto } from "@/application/dto/common-players-dto";
 import type { LeagueSummary } from "@/application/ports/club-repository";
 import { MAX_CLUB_RESULTS } from "@/application/use-cases/search-clubs";
+import { countryName } from "@/lib/country-name";
 import { ClubPicker } from "./club-picker";
 import { CommonPlayersResult } from "./common-players-result";
 import { ModeHeader, Scoreboard } from "./mode-header";
@@ -195,6 +196,21 @@ export function CommonPlayersQuiz({
     bir kez öğreniyor. Sonuç geldiğinde tabela ayrıca VURGULANIYOR (`lit`);
     bugünkü arayüzün en çok eleştirilen yanı sonucun sessizce belirmesiydi.
   */
+  /**
+   * Kapsam şeridindeki ülkeler — koddan ada, tekrarsız, Türkçe sırayla.
+   *
+   * `useMemo`: liste sunucudan gelen sabit bir dizi ama `countryName` her
+   * çağrıda `Intl.DisplayNames`e gidiyor ve bileşen her tuş vuruşunda yeniden
+   * çiziliyor.
+   */
+  const countries = useMemo(
+    () =>
+      [...new Set(leagues.map((league) => countryName(league.country)))].sort(
+        (a, b) => a.localeCompare(b, "tr"),
+      ),
+    [leagues],
+  );
+
   const found = state.status === "success" ? state.result : undefined;
   const scoreboard =
     found === undefined ? (
@@ -269,14 +285,30 @@ export function CommonPlayersQuiz({
           </strong>{" "}
           kulüp. Bu liglerin dışındaki kariyerler yer almaz.
         </p>
-        <ul className="flex flex-wrap gap-1">
-          {leagues.map((league) => (
+        {/*
+          KUSUR: BURADA HAM ISO KODU YAZIYORDU. Şerit `league.country`
+          basıyordu, yani kullanıcı `GB`, `SA`, `CZ`, `PT` görüyordu. Aynı
+          kusur kulüp seçicisinde bir kez bulunup düzeltilmişti (§7.14);
+          ikinci nüshası burada kalmış. `countryName` (§7.12) aynı depoda
+          duruyor ve 170 kodun tamamını Türkçeye çeviriyor.
+
+          LİG DEĞİL ÜLKE LİSTELENİYOR. Şerit ligler üzerinden dönüyordu ve
+          İngiltere ile İskoçya veride aynı `GB` kodunu taşıdığı için aynı
+          rozet İKİ KEZ çıkıyordu — bir listede iki özdeş öğe bilgi taşımaz.
+          Lig SAYISI zaten üstteki cümlede yazılı; şeridin söyleyebileceği
+          yeni şey hangi ülkeler olduğu.
+
+          `title` KALDIRILDI. Ad yalnızca ipucu balonunda duruyordu: klavyeyle
+          erişilemez, dokunmatikte hiç açılmaz. Bilgi artık görünen metnin
+          kendisi.
+        */}
+        <ul aria-label="Kapsanan ülkeler" className="flex flex-wrap gap-1.5">
+          {countries.map((name) => (
             <li
-              key={league.wikidataId}
-              className="rounded border border-line bg-surface px-1.5 py-0.5 text-[0.625rem] font-bold tracking-wide text-muted"
-              title={league.name}
+              key={name}
+              className="rounded-md border border-line bg-surface px-2 py-1 text-xs font-semibold text-muted"
             >
-              {league.country}
+              {name}
             </li>
           ))}
         </ul>

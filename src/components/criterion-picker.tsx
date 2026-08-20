@@ -143,7 +143,7 @@ export function CriterionPicker({
         </label>
         <button
           type="button"
-          className="shrink-0 rounded-md px-2 py-1 text-sm font-medium text-muted underline underline-offset-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="shrink-0 rounded-md px-2 py-3 text-sm font-medium text-muted underline underline-offset-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           onClick={onCancel}
         >
           Vazgeç
@@ -193,7 +193,7 @@ export function CriterionPicker({
             id={`${listboxId}-${String(index)}`}
             role="option"
             aria-selected={index === highlighted}
-            className={`flex cursor-pointer items-baseline justify-between gap-3 rounded-lg px-3 py-2 text-sm ${
+            className={`flex cursor-pointer items-baseline justify-between gap-3 rounded-lg px-3 py-3 text-sm ${
               index === highlighted ? "bg-accent-soft" : ""
             }`}
             // `onMouseDown`, `onClick` değil: `onClick` girdi alanının blur

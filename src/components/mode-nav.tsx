@@ -80,7 +80,7 @@ export function ModeNav({ current, className }: ModeNavProps) {
               İÇERİYOR ("Ortak" ⊂ "Ortak Oyuncu").
             */
             aria-label={mode.title}
-            className={`rounded-full px-2.5 py-1.5 text-sm whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:px-3 ${
+            className={`rounded-full px-2.5 py-3 text-sm whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:px-3 ${
               isCurrent
                 ? "bg-accent font-semibold text-accent-fg shadow-card"
                 : "font-medium text-muted hover:bg-surface hover:text-foreground"

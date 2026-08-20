@@ -17,7 +17,7 @@ export default function GlobalError({
 }) {
   return (
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center gap-5 px-6 py-16">
-      <h1 className="text-2xl font-bold tracking-tight">
+      <h1 className="text-3xl font-bold tracking-tight">
         Bir şeyler ters gitti
       </h1>
 
@@ -39,7 +39,7 @@ export default function GlobalError({
         <button
           type="button"
           onClick={reset}
-          className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           Yeniden dene
         </button>

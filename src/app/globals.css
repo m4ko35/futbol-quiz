@@ -21,39 +21,39 @@
      `surface-2` kartın İÇİNDEKİ ikinci kattır (hücre, satır zemini) ve
      saydamlık yerine kendi tonunu taşır — her saydamlık ayrı bir kontrast
      ölçümü borcudur (§7.10'daki beş ihlal tam olarak böyle oluştu). */
-  --background: #f2f4f8;
+  --background: #edf1f8;
   --surface: #ffffff;
-  --surface-2: #e7ebf2;
+  --surface-2: #e0e7f3;
 
   /* Metin */
-  --foreground: #111823;
-  --muted: #5a6575;
+  --foreground: #0c1420;
+  --muted: #54617a;
 
   /* Kenarlıklar — İKİ AYRI ROL. `line` bir AYIRICIDIR; WCAG 1.4.11 süsleme
      sınırlarını kapsamaz, kontrast şartı yoktur. `line-strong` bir ARAYÜZ
      BİLEŞENİNİN sınırıdır (girdi kutusu, düğme) ve 3:1'i karşılamak
      ZORUNDADIR. Tek değişkende toplansaydı ya ayırıcılar gereksiz koyu
      olurdu ya da girdi kenarlıkları ölçüsüz kalırdı. */
-  --line: #d9e0ea;
-  --line-strong: #7a8595;
+  --line: #d2dbe9;
+  --line-strong: #6e7c94;
 
   /* Vurgu — KAYDIN dili: seçici, gezinme, birincil eylem, odak konturu.
      SONUÇ dilinden (yeşil/kırmızı/amber) çıkmak ZORUNDA. Önceki palette
      `--accent` ile `--correct` birebir aynı tondu (`#15803d`) ve ızgarada
      "doğru hücre" ile "birincil düğme" ayırt edilemiyordu. Kontrast kapısı
      bunu görmedi: her çift eşiği geçiyordu, çakışan olan rollerin kendisiydi. */
-  --accent: #2b41c4;
+  --accent: #1d34d1;
   --accent-fg: #ffffff;
-  --accent-soft: #e3e8ff;
+  --accent-soft: #dee4ff;
 
   /* Durum. Renk TEK gösterge değildir (WCAG 1.4.1): her durum ayrıca ✓/✗
      işareti ve ekran okuyucuya giden bir sözcük taşır. */
-  --correct: #0b6e3f;
-  --correct-soft: #d9f2e3;
-  --wrong: #b3242f;
-  --wrong-soft: #fbe2e4;
-  --warn: #7a5200;
-  --warn-soft: #faedcf;
+  --correct: #076b3a;
+  --correct-soft: #d2f2e0;
+  --wrong: #bb1b28;
+  --wrong-soft: #fcdfe2;
+  --warn: #7d5300;
+  --warn-soft: #fbecc8;
 
   /* Kenar notu — §5.2'nin gerektirdiği dürüstlük metinleri: kesme uyarısı,
      "kaynakta ayrıntı yok", kapsam cümlesi. `warn`DAN AYRI: bunlar bir alarm
@@ -92,34 +92,34 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --background: #0d1117;
-    --surface: #151b24;
-    --surface-2: #1d2530;
+    --background: #070c14;
+    --surface: #111925;
+    --surface-2: #1a2431;
 
-    --foreground: #e7ecf3;
-    --muted: #98a3b3;
+    --foreground: #e9eff7;
+    --muted: #96a3b6;
 
-    --line: #232c38;
+    --line: #202a37;
     /* Tasarımın önerdiği `#5a6879`, EN AÇIK koyu yüzeyde (`surface-2`) 2,71
        veriyordu — arayüz sınırı için 3:1 zorunlu. Ton, üç zeminin en darına
        göre seçildi: 4,15 / 3,79 / 3,39. */
-    --line-strong: #6a7788;
+    --line-strong: #6b7a8d;
 
     /* Koyu zeminde `#2b41c4` okunmuyor (1,8:1). Açık mavi hem metin hem dolgu
        olarak çalışıyor; dolgu ÜZERİNDEKİ metin bu yüzden koyu. */
-    --accent: #7b93ff;
-    --accent-fg: #0a0e15;
-    --accent-soft: #1a2242;
+    --accent: #8aa0ff;
+    --accent-fg: #070c14;
+    --accent-soft: #182147;
 
-    --correct: #4fd98c;
-    --correct-soft: #0e2a1d;
-    --wrong: #ff7a82;
-    --wrong-soft: #301418;
-    --warn: #f2b950;
-    --warn-soft: #2c2011;
+    --correct: #3ede8f;
+    --correct-soft: #0b2c1c;
+    --wrong: #ff7d86;
+    --wrong-soft: #31131a;
+    --warn: #f5bd4f;
+    --warn-soft: #2d2110;
 
-    --note: #b3a794;
-    --note-soft: #23201a;
+    --note: #b5a996;
+    --note-soft: #24211b;
 
     /* Koyu zeminde açık renkli gölge derinlik vermez; yüzey zaten koyu.
        Daha güçlü bir siyah kullanılıyor ki kenar yine de ayrışsın. */
@@ -131,29 +131,29 @@
 /* Kullanıcının ELLE seçtiği koyu tema. Yukarıdaki blokla birebir aynı olmak
    ZORUNDA; kontrast kapısı bunu doğruluyor. */
 :root[data-theme="dark"] {
-  --background: #0d1117;
-  --surface: #151b24;
-  --surface-2: #1d2530;
+  --background: #070c14;
+  --surface: #111925;
+  --surface-2: #1a2431;
 
-  --foreground: #e7ecf3;
-  --muted: #98a3b3;
+  --foreground: #e9eff7;
+  --muted: #96a3b6;
 
-  --line: #232c38;
-  --line-strong: #6a7788;
+  --line: #202a37;
+  --line-strong: #6b7a8d;
 
-  --accent: #7b93ff;
-  --accent-fg: #0a0e15;
-  --accent-soft: #1a2242;
+  --accent: #8aa0ff;
+  --accent-fg: #070c14;
+  --accent-soft: #182147;
 
-  --correct: #4fd98c;
-  --correct-soft: #0e2a1d;
-  --wrong: #ff7a82;
-  --wrong-soft: #301418;
-  --warn: #f2b950;
-  --warn-soft: #2c2011;
+  --correct: #3ede8f;
+  --correct-soft: #0b2c1c;
+  --wrong: #ff7d86;
+  --wrong-soft: #31131a;
+  --warn: #f5bd4f;
+  --warn-soft: #2d2110;
 
-  --note: #b3a794;
-  --note-soft: #23201a;
+  --note: #b5a996;
+  --note-soft: #24211b;
 
   --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 1px 3px rgb(0 0 0 / 0.3);
   --shadow-pop: 0 4px 12px rgb(0 0 0 / 0.5), 0 2px 4px rgb(0 0 0 / 0.4);
@@ -241,17 +241,52 @@
   --animate-duel-verdict: duel-verdict 0.3s cubic-bezier(0.2, 0.9, 0.3, 1) both;
   --animate-duel-swap: duel-swap 0.28s cubic-bezier(0.2, 0.9, 0.3, 1) both;
 
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-condensed);
   --font-mono: var(--font-geist-mono);
+}
+
+/*
+  BAŞLIKLAR SİSTEMDE, BİLEŞENDE DEĞİL — §7.12'nin kuralı renkte neyse burada
+  da o: bileşenler rolü kullanır, tonu değil. Yirmi iki bileşene `font-display`
+  sınıfı serpiştirmek, bir sonraki başlık eklendiğinde unutulacak bir borç
+  yaratırdı. Tek yerden verilen bu kural o borcu doğurmuyor.
+
+  Sıkıştırılmış yüz, normal harf aralığıyla fazla seyrek duruyor; `-0.01em`
+  ölçüyle sıkıştırıldığında spor basınının dikey ritmi çıkıyor.
+*/
+h1,
+h2,
+h3 {
+  font-family: var(--font-condensed), var(--font-body), sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/*
+  RAKAMLAR SÜTUNDA HİZALANIR. Lider tablosunda puanlar alt alta gelir ve
+  orantılı rakamlar sütunu tırtıklı gösterir; `tabular-nums` her rakama eşit
+  genişlik verir. Barlow bu özelliği taşıyor.
+*/
+table {
+  font-variant-numeric: tabular-nums;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  /* Yedek yığın, `layout.tsx` içindeki Geist değişkeni çözülemezse devreye
-     girer. İskeletten kalan sabit `Arial` bildirimi, yüklenen yazı tipini
-     sessizce geçersiz kılıyordu. */
-  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  /*
+    ADI `--font-body`, `--font-geist-sans` DEĞİL — ve bu satır bir kez SESSİZCE
+    yanlış çalıştı. Gövde fontu Geist'ten Barlow'a geçtiğinde `layout.tsx`
+    değişkeni yeniden adlandırdı ama buradaki bildirim eski adı okumaya devam
+    etti. Tanımsız bir `var()` hata vermez: bildirim geçersiz sayılır ve yedeğe
+    düşer, yani sayfa "çalışır" görünürken bütün gövde metni sistem fontuyla
+    çiziliyordu. Derleme, lint ve 1472 testin hiçbiri bunu göremez — CSS
+    değişkeninin var olup olmadığını denetleyen bir kapı yok.
+
+    Yedek yığın yine de duruyor: font ağı üzerinden gelir, gelmediği an
+    gövdenin okunur kalması gerekir.
+  */
+  font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
 }
 
 /* Hareket duyarlılığı (WCAG 2.3.3). Tasarımdaki geçişler süslemedir; sistemde

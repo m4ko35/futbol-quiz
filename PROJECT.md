@@ -1977,7 +1977,9 @@ Saydamlık düzenindeki ilk ölçüm beş ihlal buldu ve beşi de düzeltildi:
 
 **Armalar süslemedir (1.1.1).** `alt=""` ve `aria-hidden` taşırlar; yanlarındaki kulüp adı zaten okunuyor, "Galatasaray arması" demek aynı bilgiyi ikinci kez seslendirmek olurdu.
 
-**Bu denetimin DIŞINDA kalanlar — dürüstçe.** jsdom yerleşim hesaplamadığı için görünürlük, gerçek odak sırası, hedef boyutu (2.5.5) ve yeniden akış (1.4.10) ölçülmedi. Bunlar gerçek tarayıcı gerektirir ve ilk dağıtımdan sonra elle denetlenecektir (Faz 4.5).
+**Bu denetimin DIŞINDA kalanlar — dürüstçe.** jsdom yerleşim hesaplamadığı için görünürlük, gerçek odak sırası ve yeniden akış (1.4.10) ölçülmedi. Bunlar gerçek tarayıcı gerektirir ve ilk dağıtımdan sonra elle denetlenecektir (Faz 4.5).
+
+> **HEDEF BOYUTU (2.5.5) ARTIK BU LİSTEDE DEĞİL — 20 Ağustos 2026.** Gerekçe ("yerleşim gerekir") bu arayüz için geçersiz çıktı: kutu yüksekliği Tailwind sınıflarından geliyor ve sınıflar sabit piksellere karşılık geliyor, yani tarayıcı olmadan hesaplanabiliyor. Ölçüldü, 69 hedefin 34'ü eşiğin altında bulundu, tamamı düzeltildi (§7.12). Ölçülen şey yalnızca kutunun yüksekliği; hedeflerin gerçekten görünür ve erişilebilir olduğu hâlâ tarayıcıda denetlenecek.
 
 ### 7.11 Site Kimliği ve İndeksleme
 
@@ -2074,20 +2076,20 @@ Karanlık mod uzun süre **yalnızca** işletim sistemi tercihini izledi ve bu b
 
 | Rol               | Ne için                                | Açık                  | Koyu                  |
 | ----------------- | -------------------------------------- | --------------------- | --------------------- |
-| `background`      | Sayfa zemini                           | `#f2f4f8`             | `#0d1117`             |
-| `surface`         | Kart, panel, açılır liste              | `#ffffff`             | `#151b24`             |
-| `surface-2`       | Kart içi ikinci kat (hücre, satır)     | `#e7ebf2`             | `#1d2530`             |
-| `foreground`      | Ana metin                              | `#111823`             | `#e7ecf3`             |
-| `muted`           | İkincil metin, etiket                  | `#5a6575`             | `#98a3b3`             |
-| `line`            | Ayırıcı (süsleme — kontrast şartı yok) | `#d9e0ea`             | `#232c38`             |
-| `line-strong`     | Arayüz bileşeni sınırı (girdi, hücre)  | `#7a8595`             | `#6a7788`             |
-| `accent`          | Marka, odak konturu, birincil düğme    | `#2b41c4`             | `#7b93ff`             |
-| `accent-fg`       | Vurgu dolgusu üzerindeki metin         | `#ffffff`             | `#0a0e15`             |
-| `accent-soft`     | Vurgulu zemin (seçili kulüp, seçenek)  | `#e3e8ff`             | `#1a2242`             |
-| `correct`/`-soft` | Doğru hücre                            | `#0b6e3f` / `#d9f2e3` | `#4fd98c` / `#0e2a1d` |
-| `wrong`/`-soft`   | Yanlış hücre, hata kutusu              | `#b3242f` / `#fbe2e4` | `#ff7a82` / `#301418` |
-| `warn`/`-soft`    | Kiralık rozeti, orta puan bandı        | `#7a5200` / `#faedcf` | `#f2b950` / `#2c2011` |
-| `note`/`-soft`    | Kesme uyarısı, "kaynakta ayrıntı yok"  | `#6a6153` / `#efebe3` | `#b3a794` / `#23201a` |
+| `background`      | Sayfa zemini                           | `#edf1f8`             | `#070c14`             |
+| `surface`         | Kart, panel, açılır liste              | `#ffffff`             | `#111925`             |
+| `surface-2`       | Kart içi ikinci kat (hücre, satır)     | `#e0e7f3`             | `#1a2431`             |
+| `foreground`      | Ana metin                              | `#0c1420`             | `#e9eff7`             |
+| `muted`           | İkincil metin, etiket                  | `#54617a`             | `#96a3b6`             |
+| `line`            | Ayırıcı (süsleme — kontrast şartı yok) | `#d2dbe9`             | `#202a37`             |
+| `line-strong`     | Arayüz bileşeni sınırı (girdi, hücre)  | `#6e7c94`             | `#6b7a8d`             |
+| `accent`          | Marka, odak konturu, birincil düğme    | `#1d34d1`             | `#8aa0ff`             |
+| `accent-fg`       | Vurgu dolgusu üzerindeki metin         | `#ffffff`             | `#070c14`             |
+| `accent-soft`     | Vurgulu zemin (seçili kulüp, seçenek)  | `#dee4ff`             | `#182147`             |
+| `correct`/`-soft` | Doğru hücre                            | `#076b3a` / `#d2f2e0` | `#3ede8f` / `#0b2c1c` |
+| `wrong`/`-soft`   | Yanlış hücre, hata kutusu              | `#bb1b28` / `#fcdfe2` | `#ff7d86` / `#31131a` |
+| `warn`/`-soft`    | Kiralık rozeti, orta puan bandı        | `#7d5300` / `#fbecc8` | `#f5bd4f` / `#2d2110` |
+| `note`/`-soft`    | Kesme uyarısı, "kaynakta ayrıntı yok"  | `#6a6153` / `#efebe3` | `#b5a996` / `#24211b` |
 
 **İki ayrı kenarlık rolü, bilinçli.** `line` bir ayırıcıdır ve WCAG 1.4.11 süsleme sınırlarını kapsamaz. `line-strong` bir arayüz bileşeninin sınırıdır ve 3:1'i karşılamak **zorundadır**. Tek değişkende toplansaydı ya ayırıcılar gereksiz koyu olurdu ya da girdi kenarlıkları ölçüsüz kalırdı.
 
@@ -2168,6 +2170,174 @@ Geçişler (`transition-colors`) süslemedir. `prefers-reduced-motion: reduce` s
 `SiteHeader` `layout.tsx`'e taşındı: aynı gezinme üç sayfada birebir tekrarlanıyordu ve her sayfa bulunduğu modu elle bildiriyordu. Artık yol adresinden türetiliyor ve 404 ile hata ekranı da gezinmeye kavuşuyor.
 
 `SiteFooter` **taşınmadı ve bu bilinçli.** Altbilgi veri kümesinin tarihini gösteriyor, yani veritabanına gidiyor. Düzene konsaydı hata sayfası da o sorguya bağımlı olurdu ve veritabanı bozulduğunda hata ekranının kendisi çökerdi — kullanıcıya gösterilecek son sayfa tam da o an kaybolurdu.
+
+#### Görsel kimlik yenilendi — "gece maçı" (18–20 Ağustos 2026)
+
+**Ürün sahibi kararı.** Gerekçe tek cümleyle: arayüz bir oyun gibi değil, bir
+belge gibi duruyordu. Dış bir tasarım veritabanı da bağımsız olarak aynı şeyi
+söyledi ("kaçınılacak: muted colors + low energy").
+
+**Kusurun yeri şaşırtıcı çıktı: vurgu değil, NÖTRLER.** İlk tepki vurgu rengini
+canlandırmaktı; ölçüm başka yeri gösterdi. Zemin `#f2f4f8` neredeyse beyaz-gri,
+ikincil metin `#5a6575` idi. Enerji paletin sıcak ucundan değil, **zeminin
+sönüklüğünden** kaçıyordu. Yeni zeminler hem açık hem koyu temada derinleşti.
+
+**VURGU RENGİ MAVİ AİLESİNDE KALMAK ZORUNDA — bu bir zevk değil, kısıt.**
+Öneri turuncuydu (`#EA580C`) ve reddedildi: kontrast kapısının `DISTINCT`
+listesi `accent`'in `correct` (yeşil), `wrong` (kırmızı), `warn` (amber) ve
+`note` (sıcak gri) ile çakışmasını yasaklıyor. Turuncu, amber'in komşusudur.
+Kapıya takılmasa bile §7.12'nin bir kez ödediği bedeli — `accent` ile `correct`
+aynı tondu, ızgarada birincil düğme ile doğru hücre ayırt edilemiyordu —
+yeniden yaratırdı. Geriye mavi, mor ve camgöbeği kalıyor; mürekkep mavisi
+korundu ve elektriklendirildi (`#2b41c4` → `#1d34d1`).
+
+**ANLAMSAL RENKLER FUTBOLA ÇEKİLDİ.** Bu üründe yeşil–kırmızı–amber üçlüsünün
+gerçek dünyada zaten karşılığı var: çim, kırmızı kart, sarı kart. Eski tonlar
+kurumsaldı; yenileri o karşılığa yaklaşıyor. Roller değişmedi, yalnızca
+söyleyişleri.
+
+**Ölçüm: yeni palet eskisinden SAĞLAM.** Kapı bir eşiği geçmeyi ister ama
+"kıl payı geçmek" kırılganlıktır — bir sonraki dokunuş onu kırar. Açık temada
+en dar marj **+0,13'ten +0,40'a** çıktı (üç kat pay), koyuda **+0,39'dan
++0,58'e**. En dar yer iki temada da `line-strong` / `surface-2`.
+
+Palet göz kararıyla seçilip kapıya çarptırılmadı: kapının matematiği aday
+paletlere uygulanarak **tasarımın içine alındı**. Kapı ilk denemede geçti
+(88 ölçüm).
+
+##### Tipografi: Barlow Condensed / Barlow
+
+Geist bırakıldı. **Sıkıştırılmış bir başlık yüzü + geniş bir gövde yüzü** spor
+basınının kendi dilidir: aynı genişlikte daha çok harf, daha güçlü bir dikey
+ritim.
+
+**Russo One önerildi ve elendi.** Güzel olmadığı için değil: bir _başlık_ yüzü
+ve tek ağırlığı var (400). Lider tablosu gibi veri yoğun bir ekranda okumayı
+yavaşlatırdı.
+
+**Başlık kuralı SİSTEMDE, bileşende değil.** `globals.css` içindeki tek bir
+`h1, h2, h3` kuralı yüzü ve harf aralığını veriyor. Yirmi iki bileşene
+`font-display` sınıfı serpiştirmek, bir sonraki başlıkta unutulacak bir borç
+yaratırdı — renkte `dark:` varyantı taşımama kararının aynısı.
+
+**Rakamlar `tabular-nums`.** Lider tablosunda puanlar alt alta gelir; orantılı
+rakamlar sütunu tırtıklı gösterir.
+
+##### Ölçülen kusur: Türkçe harfler yedek fonttan çiziliyordu
+
+Fontlar `subsets: ["latin"]` ile yükleniyordu. Türkçenin `ı`, `İ`, `ğ`, `ş`
+harfleri **Latin Extended-A**'dadır (U+0100–017F) ve `latin` alt kümesi onları
+**içermez**. Tarayıcı o dört harfi yedek bir sistem fontundan tamamlıyordu:
+Türkçe metnin çoğu kelimesi iki ayrı fontla çiziliyordu.
+
+Kusur uzun süre gözden kaçtı çünkü sayfa "çalışıyor" görünüyor — bozulan tek
+şey harflerin biçimi. `latin-ext` eklendi; derleme çıktısından doğrulandı
+(`unicode-range: U+100-2BA…` iniyor).
+
+##### Podyum tipografiyle kuruldu, renkle değil
+
+Lider tablosunda ilk üç sıra ayırt ediliyor. `accent` ile boyamak akla geldi ve
+**reddedildi**: o rol "kaydın dili" (seçici, gezinme, birincil eylem, odak) ve
+sırayı onunla boyamak kullanıcının öğrendiği anlamı sulandırırdı. Ağırlık ve
+ölçü aynı hiyerarşiyi rol karıştırmadan kuruyor.
+
+Vurgu **bilgi taşımıyor** — sıra zaten sayının kendisinde yazıyor — yani
+WCAG 1.4.1'in konusu değil.
+
+##### İki küçük kusur yol üstünde onarıldı
+
+- **Bildirim düğmesi ~28×20 pikseldi** (`px-1.5 py-0.5 text-xs`): parmakla
+  ıskalanan bir hedef. Kutu 44×44'e çıkarıldı; görsel ağırlık değişmedi,
+  büyüyen yalnızca tıklanabilir alan.
+- **Simge glifti, SVG değil.** `⚑` (U+2691) gövde fontunda yok; her platformda
+  başka bir yedek fontla çiziliyordu. Depodaki tek glif-simge oydu — geri kalan
+  her yer zaten SVG kullanıyor. Yeni yüz bunu daha da görünür kıldı.
+- Dönem sekmeleri ~36 pikseldi, 44'e çıkarıldı.
+
+##### Ölçülen kusur: gövde fontu hiç uygulanmıyordu
+
+Yüz değiştirildi, `globals.css`'teki bildirim eski adı okumaya devam etti:
+
+```css
+body {
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+```
+
+`--font-geist-sans` artık **hiçbir yerde tanımlı değil**. Tanımsız bir `var()`
+hata vermez — bildirim geçersiz sayılır ve yedeğe düşer. Yani sayfa "çalışır"
+görünürken **bütün gövde metni sistem fontuyla** çiziliyordu; değişen tek şey
+başlıklardı, çünkü `h1, h2, h3` kuralı doğru adı okuyor.
+
+**Hiçbir kapı bunu göremez** ve bu kusurun asıl dersi budur: derleme geçer,
+lint geçer, 1472 test geçer. CSS değişkeninin var olup olmadığını denetleyen
+bir araç yok; `var()`'ın sessiz düşme davranışı tam olarak buna izin veriyor.
+Doğrulama derleme çıktısından yapıldı — üretilen CSS'te
+`body{…font-family:var(--font-body), ui-sans-serif…}` ve
+`--font-body:"Barlow", "Barlow Fallback"` yan yana duruyor.
+
+##### Dokunma hedefleri ölçüldü: 34 hedef eşiğin altındaydı
+
+§7.10 hedef boyutunu (2.5.5) "jsdom yerleşim hesaplamıyor" gerekçesiyle
+Faz 4.5'e ertelemişti. **Gerekçe bu arayüz için geçersiz çıktı:** kutu
+yüksekliği burada yerleşimden değil Tailwind sınıflarından geliyor ve sınıflar
+sabit piksellere karşılık geliyor. `px-4 py-2 text-sm` her zaman
+8 + 20 + 8 = **36 pikseldir**. Ölçüm tarayıcı olmadan yapılabilir.
+
+Bir betik `src/**/*.tsx` içindeki her etkileşimli öğeyi (`button`, `Link`, `a`,
+`label`, `role="option"` taşıyan `li`, `input`, `select`) buldu ve sınıf
+dizesinden yüksekliği hesapladı. Koşullu sınıflarda **en küçük** dal alındı.
+
+| Ölçülen yükseklik | Kaç hedef | Nereler                                                |
+| ----------------- | --------- | ------------------------------------------------------ |
+| 28 px             | 8         | "temizle"/"değiştir" bağları, görünüm seçicisi (28×28) |
+| 32 px             | 1         | Mod şeridinin segmentleri                              |
+| 34 px             | 1         | Izgara boyu seçeneği                                   |
+| 36 px             | 15        | Birincil düğme kalıbı, açılır liste satırları          |
+| 38 px             | 3         | Kenarlıklı ikincil düğmeler                            |
+| 40 px             | 5         | `py-2.5` taşıyan düğmeler                              |
+| 42 px             | 1         | Hesap sayfasının kenarlıklı düğmesi                    |
+
+**69 hedefin 34'ü eşiğin altındaydı.** Tamamı düzeltildi; ölçüm yeniden
+koşuldu, **eşiğin altında kalan yok**.
+
+**Düzeltme dolgudan geldi, kutu sınıfından değil.** `min-h-11` + `inline-flex`
+aynı sonucu verirdi ama `display` değerini değiştirmek metin satırındaki
+öğelerin taban hizasını da değiştirir. `py-2 → py-3` (12 + 20 + 12 = 44) hiçbir
+akışa dokunmuyor: değişen tek şey kutunun kendisi.
+
+**25 öğe ölçüm dışında bırakıldı ve bu bir eksik değil.** Hepsi cümle içindeki
+metin bağlantıları ("…için **giriş yap** ve…"); 2.5.5'in `inline` istisnası tam
+olarak bunları kapsıyor. Dolgusu olmayan bir bağlantının yüksekliği zaten
+satırın kendisidir.
+
+**BEDELİ ÖDENDİ VE BURAYA YAZILIYOR:** görünüm seçicisinin üç düğmesi 28×28'den
+44×44'e çıktı, yani şerit ~92 pikselden ~144 piksele genişledi. Site başlığı
+buna bağlı olarak yükseldi. Dokunmatikte kazanılan şey gerçek; masaüstünde
+görsel ağırlık arttı. Geri almak tek satır (`h-11 w-11` → `h-7 w-7`) ve bu
+kaydın var olma sebebi o.
+
+Bu ölçüm **tarayıcı denetiminin yerine geçmez.** Ölçülen şey kutunun yüksekliği;
+odak sırası, gerçek görünürlük ve yeniden akış (1.4.10) hâlâ Faz 4.5'te.
+
+##### Kapsam şeridinde ham ülke kodu yazıyordu
+
+Anasayfanın kapsam bandı ligleri rozet olarak diziyor ve rozetin üstünde
+`league.country` — yani **ISO 3166-1 kodunun kendisi** — yazıyordu: `GB`, `SA`,
+`CZ`, `PT`. Aynı kusur kulüp seçicisinde bir kez bulunup düzeltilmişti (§7.14);
+bu ikinci nüsha kalmış. `countryName()` aynı depoda duruyor.
+
+**Şerit ligleri değil ÜLKELERİ listeliyor artık.** İngiltere ile İskoçya veride
+aynı `GB` kodunu taşıyor, dolayısıyla rozet iki kez çıkıyordu — bir listede iki
+özdeş öğe bilgi taşımaz. Lig sayısı zaten üstteki cümlede yazılı; şeridin
+söyleyebileceği yeni şey hangi ülkeler olduğu.
+
+**`title` özniteliği kaldırıldı.** Lig adı yalnızca ipucu balonunda duruyordu:
+klavyeyle erişilemez, dokunmatikte hiç açılmaz. Bilgiyi yalnızca `title` ile
+vermek onu vermemektir.
+
+Rozet puntosu da 10 pikselden (`text-[0.625rem]`) 12 piksele çıktı — kod iki
+harfti, ad değil.
 
 ### 7.13 Kulüp İşareti (BR-35)
 
@@ -4081,7 +4251,7 @@ Kod tarafı hazır. Kalanlar hesap açmayı ve dağıtımda ölçüm yapmayı ge
 - [x] Üretimde CSP nonce ölçümünün tekrarı — 20 `<script>` etiketinin **tamamı** başlıktaki nonce'u taşıyor, nonce'suz `<style>` yok, ve iki ardışık istek **farklı** nonce alıyor (tekrar kullanılan nonce koruma sağlamaz). Dokuz güvenlik başlığının dokuzu da beklenen değerde; `X-Powered-By` yok.
 - [x] `process.cwd()` yerleşimi ve `.db` yolu (§3.1) — dolaylı ama kesin: üretim `Fenerbahçe ∩ Beşiktaş → 55` ve `Galatasaray ∩ Arsenal → 4` döndürdü, yani `db:verify`'ın yereldeki sayılarıyla **birebir** aynı. Yol yanlış olsa uygulama açılmazdı.
 - [x] **CDN önbellek geçersizleştirme DOĞRULANDI (§7.9) — `s-maxage` uzatıldı.** Kod `s-maxage` gönderiyor ama istemciye yalnızca `public` ulaşıyor: Vercel `s-maxage`'ı kendi kenar önbelleği için tüketip başlıktan siliyor; `X-Vercel-Cache` `HIT`/`MISS` ayrımı bunu doğruluyor. Asıl soru — **yeni dağıtımın eski yanıtları geçersiz kılıp kılmadığı** — İKİ BAĞIMSIZ dağıtımda ölçüldü (elle `Redeploy` ve kancayla tetiklenen dağıtım): her ikisinde de dağıtımdan önce `HIT` dönen adres sonrasında `MISS` döndü. Varsayım doğrulandığı için `s-maxage` **300 sn → 86.400 sn**, `stale-while-revalidate` **86.400 → 604.800** yapıldı. Tavan 1 gün, çünkü iki gözlem bir garanti değil: sayı, geçersizleştirme bir gün bozulursa bayat veri yayınının ne kadar sürebileceğini sınırlıyor.
-- [ ] Gerçek tarayıcıda erişilebilirlik: odak sırası, hedef boyutu, yeniden akış (§7.10)
+- [ ] Gerçek tarayıcıda erişilebilirlik: odak sırası, yeniden akış (§7.10) — hedef boyutu (2.5.5) listeden ÇIKTI, sınıf dizesinden ölçüldü ve düzeltildi (§7.12)
 
 > **Listede olmayan bir şey ölçüldü ve DÜZELTİLDİ: fonksiyon yanlış kıtadaydı.**
 > İlk dağıtımda `X-Vercel-Id` `fra1::iad1::…` diyordu — kenar Frankfurt, kaynak

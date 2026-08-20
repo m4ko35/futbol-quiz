@@ -156,7 +156,7 @@ export function PlayerPicker({
         </label>
         <button
           type="button"
-          className="shrink-0 rounded-md px-2 py-1 text-sm font-medium text-muted underline underline-offset-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="shrink-0 rounded-md px-2 py-3 text-sm font-medium text-muted underline underline-offset-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           onClick={onCancel}
         >
           Vazgeç
@@ -216,7 +216,7 @@ export function PlayerPicker({
             id={`${listboxId}-${String(index)}`}
             role="option"
             aria-selected={index === highlighted}
-            className={`cursor-pointer rounded-lg px-3 py-2 text-sm ${
+            className={`cursor-pointer rounded-lg px-3 py-3 text-sm ${
               index === highlighted ? "bg-accent-soft" : ""
             }`}
             // `onMouseDown`, `onClick` değil: `onClick` girdi alanının blur

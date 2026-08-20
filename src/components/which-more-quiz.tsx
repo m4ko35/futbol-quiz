@@ -863,7 +863,7 @@ function VerdictBar({
 
       <button
         type="button"
-        className="rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        className="rounded-lg bg-accent px-5 py-3 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         onClick={onContinue}
       >
         Devam
@@ -919,7 +919,7 @@ function OverPanel({ title, detail, streak, tone, onRestart }: OverPanelProps) {
       <div>
         <button
           type="button"
-          className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           onClick={onRestart}
         >
           Yeniden başla
@@ -942,7 +942,7 @@ function ErrorPanel({
       <div>
         <button
           type="button"
-          className="rounded-lg border border-line-strong px-4 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="rounded-lg border border-line-strong px-4 py-3 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           onClick={onRestart}
         >
           Yeniden başla

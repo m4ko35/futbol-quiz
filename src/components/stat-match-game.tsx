@@ -473,7 +473,7 @@ export function StatMatchGame({
           {recording?.kind === "kayitli" && (
             <Link
               href="/lider-tablosu"
-              className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              className="rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             >
               Lider tablosunu gör
             </Link>
@@ -481,7 +481,7 @@ export function StatMatchGame({
           {onRestart !== undefined && (
             <button
               type="button"
-              className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              className="rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               onClick={onRestart}
             >
               Başka oyuncu seç
@@ -666,7 +666,7 @@ function StatRow({ stat, answer, disabled, isOpen, onOpen }: StatRowProps) {
           type="button"
           disabled={disabled}
           aria-expanded={isOpen}
-          className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40"
           onClick={onOpen}
         >
           Oyuncu seç
