@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import type { PlayerRepository } from "@/application/ports/player-repository";
 import type { RandomSource } from "@/application/ports/random-source";
 import type {
   CreateRoomResult,
@@ -15,6 +16,7 @@ import {
   createRoom,
   getRoom,
   joinRoom,
+  peekRoom,
   submitRoomAnswer,
   type RoomDeps,
 } from "@/application/use-cases/rooms";
@@ -193,6 +195,20 @@ class SahteOdaDeposu implements RoomsRepository {
   }
 }
 
+/**
+ * Oyuncu adlarını çözen sahte depo.
+ *
+ * ADI OLMAYAN KİMLİK DE SINANIYOR: `withPlayerNames` bulunamayan adı
+ * kimliğiyle gösterir ve o yedek kuralı burada da geçerli olmalı.
+ */
+class SahteOyuncuDeposu implements Partial<PlayerRepository> {
+  findNames(ids: readonly PlayerId[]): Promise<Map<string, string>> {
+    return Promise.resolve(
+      new Map(ids.map((id) => [id, `${id} adı`] as const)),
+    );
+  }
+}
+
 /** Sırayla verilen baytları döner; bittiğinde başa sarar. */
 class SahteRastgele implements RandomSource {
   private imlec = 0;
@@ -215,6 +231,7 @@ beforeEach(() => {
   deps = {
     rooms: depo,
     statMatch: new SahteIstatistik() as unknown as StatMatchRepository,
+    players: new SahteOyuncuDeposu() as unknown as PlayerRepository,
     random: new SahteRastgele([3, 11, 19, 2, 24, 8]),
   };
 });
@@ -563,5 +580,141 @@ describe("sonuç — BR-61, BR-62", () => {
 
     expect(ev.status).toBe("suresi-doldu");
     expect(ev.outcome).toBe("yarim");
+  });
+});
+
+describe("peekRoom — sayfanın dört ekranı", () => {
+  it("var olmayan kod için `yok` der", async () => {
+    const sonuc = await peekRoom(
+      { now: SIMDI, userId: "ev", code: "ZZZZZZ" },
+      deps,
+    );
+
+    expect(sonuc.kind).toBe("yok");
+  });
+
+  it("üyeye odanın kendisini verir", async () => {
+    const kod = await kurVeKatil();
+
+    const sonuc = await peekRoom(
+      { now: ileri(2), userId: "konuk", code: kod },
+      deps,
+    );
+
+    expect(sonuc.kind).toBe("uye");
+    if (sonuc.kind !== "uye") return;
+    expect(sonuc.room.code).toBe(kod);
+    expect(sonuc.room.target).not.toBeNull();
+  });
+
+  it("boş odaya gelen yabancıya `katilabilir` der", async () => {
+    const kurulan = await createRoom({ now: SIMDI, userId: "ev" }, deps);
+
+    const sonuc = await peekRoom(
+      { now: ileri(1), userId: "yabanci", code: kurulan.code },
+      deps,
+    );
+
+    expect(sonuc.kind).toBe("katilabilir");
+  });
+
+  /**
+   * ÜÇÜNCÜ KİŞİ "KATIL" DÜĞMESİ GÖRMEMELİ. Gerekçe kullanıcı tarafında:
+   * çalışmayacağı baştan belli bir düğmeyi göstermek, tıklattıktan sonra
+   * hayal kırıklığı yaratmak demek.
+   */
+  it("dolu odaya gelen yabancıya gerekçesiyle `kapali` der (BR-54)", async () => {
+    const kod = await kurVeKatil();
+
+    const sonuc = await peekRoom(
+      { now: ileri(2), userId: "ucuncu", code: kod },
+      deps,
+    );
+
+    expect(sonuc.kind).toBe("kapali");
+    if (sonuc.kind !== "kapali") return;
+    // Tur başladığı için kapı `oda-kapali`; doluluk ikinci savunma hattı.
+    expect(sonuc.reason).toBe("oda-kapali");
+  });
+
+  it("sönmüş odaya gelen yabancıya `kapali` der, `yok` demez (BR-60)", async () => {
+    const kurulan = await createRoom({ now: SIMDI, userId: "ev" }, deps);
+
+    const sonuc = await peekRoom(
+      { now: ileri(31), userId: "yabanci", code: kurulan.code },
+      deps,
+    );
+
+    expect(sonuc.kind).toBe("kapali");
+    if (sonuc.kind !== "kapali") return;
+    expect(sonuc.reason).toBe("oda-kapali");
+  });
+});
+
+describe("cevaplar DTO'da — BR-63", () => {
+  const dolu = (puanlar: readonly number[]): { answers: RoundAnswer[] } => ({
+    answers: puanlar.map((score, index) => ({
+      statKey: STAT_KEYS[index] as StatKey,
+      playerId: `secim-${String(index)}`,
+      value: 1,
+      score,
+    })),
+  });
+
+  const odaKur = (
+    evRound: { answers: RoundAnswer[] },
+    konukRound: { answers: RoundAnswer[] },
+  ): string => {
+    depo.seed({
+      id: "oda-C",
+      code: "CCCCCC",
+      hostId: "ev",
+      targetPlayerId: "h1",
+      state: {
+        createdAt: SIMDI,
+        startedAt: SIMDI,
+        players: [
+          { userId: "ev", displayName: "EV", round: evRound },
+          { userId: "konuk", displayName: "KONUK", round: konukRound },
+        ],
+      },
+    });
+    return "CCCCCC";
+  };
+
+  /**
+   * SAYFA YENİLENDİĞİNDE TAHTA BOŞ KALMAMALI. Kusur arayüz yazılırken çıktı:
+   * DTO yalnızca "kaç istatistik cevaplandı" sayısını taşıyordu, cevapların
+   * kendisini değil.
+   */
+  it("kendi cevaplarım ADLARIYLA gelir, tur bitmemiş olsa da", async () => {
+    const kod = odaKur(dolu([90, 40]), { answers: [] });
+
+    const ev = await getRoom({ now: ileri(5), userId: "ev", code: kod }, deps);
+
+    expect(ev.status).toBe("oynaniyor");
+    expect(ev.me.answers).toHaveLength(2);
+    expect(ev.me.answers?.[0]?.playerName).toBe("secim-0 adı");
+  });
+
+  it("RAKİBİN cevapları tur biterken GİZLİDİR", async () => {
+    const kod = odaKur(dolu([90, 40]), dolu([70]));
+
+    const ev = await getRoom({ now: ileri(5), userId: "ev", code: kod }, deps);
+
+    expect(ev.opponent?.answered).toBe(1);
+    expect(ev.opponent?.answers).toBeNull();
+    expect(ev.opponent?.points).toBeNull();
+  });
+
+  it("oda bitince rakibin cevapları da AÇILIR — karşılaştırma ekranı", async () => {
+    const tam = STAT_KEYS.map(() => 60);
+    const kod = odaKur(dolu(tam), dolu(tam));
+
+    const ev = await getRoom({ now: ileri(5), userId: "ev", code: kod }, deps);
+
+    expect(ev.status).toBe("bitti");
+    expect(ev.opponent?.answers).toHaveLength(STAT_KEYS.length);
+    expect(ev.me.answers).toHaveLength(STAT_KEYS.length);
   });
 });

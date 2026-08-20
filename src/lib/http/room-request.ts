@@ -7,7 +7,7 @@ import {
   roomsRepository,
 } from "@/infrastructure/db/repositories";
 import { WebCryptoRandomSource } from "@/infrastructure/random/web-crypto-random";
-import { currentUserFromRequest } from "@/lib/auth/current-user";
+import { currentUser, currentUserFromRequest } from "@/lib/auth/current-user";
 
 /**
  * Oda uçlarının ortak girişi — PROJECT.md §12.4.
@@ -54,7 +54,52 @@ export async function roomRequestContext(
 
   return {
     userId: user.id,
-    deps: { rooms, statMatch: repositories.statMatch, random },
+    deps: {
+      rooms,
+      statMatch: repositories.statMatch,
+      players: repositories.players,
+      random,
+    },
+  };
+}
+
+/**
+ * Sayfalar için aynı bağlam — PROJECT.md §12.4.
+ *
+ * İKİ GİRİŞ, TEK ÇEKİRDEK: `current-user.ts`'teki ayrımın aynısı. Sayfalar
+ * `cookies()` ile okur, uçlar isteğin kendisiyle; ikisini tek işlevde
+ * birleştirmenin yolu, sayfaya sahte bir `NextRequest` uydurmaktan geçerdi.
+ *
+ * İSTİSNA DEĞİL `null` DÖNER ve fark uçla sayfanın doğru davranışından
+ * geliyor: uç için giriş yokluğu bir HATA'dır ve `400` ile anlatılır, sayfa
+ * için bir YÖN'dür — kullanıcı `/giris`'e gönderilir.
+ *
+ * HESAP ÖZELLİĞİNİN KAPALI OLMASINI SAYFA AYRICA DENETLER (`accountsEnabled`
+ * → `notFound`), çünkü o durumun cevabı 404'tür, yönlendirme değil: olmayan
+ * bir özelliğe giriş sayfası göstermek, girdikten sonra yine hiçbir şey
+ * bulamayacak kullanıcıyı boşuna dolaştırmak olurdu. Buradaki `null` o
+ * denetimden SONRA yalnızca "giriş yapılmamış" demektir.
+ */
+export interface RoomPageContext {
+  readonly userId: string;
+  readonly deps: RoomDeps;
+}
+
+export async function roomPageContext(): Promise<RoomPageContext | null> {
+  const rooms = roomsRepository();
+  if (rooms === null) return null;
+
+  const user = await currentUser();
+  if (user === null) return null;
+
+  return {
+    userId: user.id,
+    deps: {
+      rooms,
+      statMatch: repositories.statMatch,
+      players: repositories.players,
+      random,
+    },
   };
 }
 

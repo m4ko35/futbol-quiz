@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { getDailyStatMatch } from "@/application/use-cases/daily-stat-match";
 import { getStoredRound } from "@/application/use-cases/stored-round";
 import { PageShell } from "@/components/page-shell";
@@ -93,6 +94,40 @@ export default async function StatMatchPage() {
         {...(serverAnswers === undefined ? {} : { serverAnswers })}
         {...(recording === undefined ? {} : { recording })}
       />
+
+      {/*
+        ODAYA GİRİŞ BURADA, MOD ŞERİDİNDE DEĞİL — §12.
+        Oda beşinci bir oyun modu değil, İSTATİSTİK MODUNUN bir oynanış
+        biçimi: aynı oyun, aynı kurallar, tek fark karşında birinin olması.
+        Şeride koymak onu ayrı bir oyun gibi gösterirdi ve şerit zaten dört
+        öğeyle ölçülmüştü (§7.17). Doğal yeri, aynı oyunu tek başına oynadığın
+        sayfanın altı.
+
+        HESAP KAPALIYKEN HİÇ GÖSTERİLMİYOR: `/oda` o kurulumda 404 döner ve
+        çalışmayan bir kapıyı tanıtmak, §11.11'de düzeltilen kusurun aynısı
+        olurdu.
+      */}
+      {accounts !== null && (
+        <section className="flex flex-col gap-3 rounded-2xl border border-line bg-surface p-5 shadow-card">
+          <h2 className="text-xl font-bold tracking-tight">
+            Arkadaşına karşı oyna
+          </h2>
+          <p className="max-w-prose text-sm text-muted">
+            Bir oda kur, kodu arkadaşına gönder.{" "}
+            <strong className="font-semibold text-foreground">
+              İkinize de aynı futbolcu
+            </strong>{" "}
+            açılır; altı istatistikte daha çok puan toplayan kazanır.
+          </p>
+
+          <Link
+            href={user === null ? "/giris" : "/oda"}
+            className="w-fit rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            {user === null ? "Giriş yap ve oda kur" : "Oda kur veya koda katıl"}
+          </Link>
+        </section>
+      )}
 
       <SiteFooter dataGeneratedAt={dataGeneratedAt} />
     </PageShell>

@@ -14,14 +14,17 @@ import {
   roomStatus,
   ROOM_JOIN_WINDOW_MS,
   ROOM_PLAY_WINDOW_MS,
+  type RoomJoinRejection,
   type RoomStatus,
 } from "@/domain/services/room";
 import type { StatKey } from "@/domain/services/stat-match";
 import type { PlayerId } from "@/domain/value-objects/identifiers";
 import { roomCodeFromBytes } from "@/domain/value-objects/room-code";
+import type { PlayerRepository } from "../ports/player-repository";
 import type { RandomSource } from "../ports/random-source";
 import type { RoomsRepository, StoredRoom } from "../ports/rooms-repository";
 import type { StatMatchRepository } from "../ports/stat-match-repository";
+import { withPlayerNames, type ScoredAnswerDto } from "./answer-names";
 import {
   checkStatAnswer,
   toStatMatchRound,
@@ -40,6 +43,17 @@ export interface RoomDeps {
   readonly rooms: RoomsRepository;
   readonly statMatch: StatMatchRepository;
   readonly random: RandomSource;
+  /**
+   * Oyuncu adlarını çözmek için — §12.3.
+   *
+   * SONRADAN EKLENDİ ve gerekçesi arayüzü yazarken çıktı: `RoomDto` yalnızca
+   * "kaç istatistik cevaplandı" sayısını taşıyordu, cevapların KENDİSİNİ
+   * değil. Sayfayı yenileyen oyuncu boş bir tahta görüyordu — oysa sunucu o
+   * istatistikleri kapalı sayıyor. Aynı kusur §11'de de yaşanmıştı
+   * (`stored-round.ts`); orada olduğu gibi burada da adlar gömülü futbol
+   * veritabanından okunuyor, hesap veritabanına kopyalanmıyor.
+   */
+  readonly players: PlayerRepository;
 }
 
 /** Kendi tarafım — cevaplarım ve puanım her zaman görünür. */
@@ -52,6 +66,19 @@ export interface RoomSideDto {
    * `null` yalnızca rakip tarafında ve yalnızca oda bitmeden görülür.
    */
   readonly points: number | null;
+  /**
+   * Cevapların kendisi — `points` ile AYNI KAPIDAN geçer (BR-63).
+   *
+   * Kendi tarafımda her zaman dolu: ekran yenilendiğinde tahtanın hangi
+   * istatistiklerinin kapalı olduğunu buradan çiziyor. Rakip tarafında oda
+   * bitene kadar `null`, bitince dolu — ve dolması sonuç ekranının kendisi:
+   * iki tarafın aynı hedefe kimi yazdığını YAN YANA görmek, odanın tek
+   * kalıcı olmayan ödülü (BR-60: sonuç hiçbir yerde birikmez).
+   *
+   * Puan sızdırmaz, çünkü ikisi aynı `revealPoints` kapısında: cevap
+   * göründüğü an puan da görünüyor.
+   */
+  readonly answers: readonly ScoredAnswerDto[] | null;
 }
 
 export type RoomOutcomeKind =
@@ -90,15 +117,22 @@ const CODE_ATTEMPTS = 5;
  */
 const CODE_BYTES = 16;
 
-function sideFor(
+async function sideFor(
   displayName: string,
   round: { readonly answers: readonly RoundAnswer[] },
-  revealPoints: boolean,
-): RoomSideDto {
+  reveal: boolean,
+  deps: RoomDeps,
+): Promise<RoomSideDto> {
+  /**
+   * SAYI HER ZAMAN GÖRÜNÜR, CEVAPLAR DEĞİL. "Rakibim kaçta kaç" bilgisi
+   * yoklamanın var olma sebebi (§12.1) ve hiçbir puan sızdırmıyor; cevapların
+   * kendisi ise hem puanı hem de kullanılmış isimleri açık ederdi.
+   */
   return {
     displayName,
     answered: answeredCount(round),
-    points: revealPoints ? roundPoints(round) : null,
+    points: reveal ? roundPoints(round) : null,
+    answers: reveal ? await withPlayerNames(round.answers, deps.players) : null,
   };
 }
 
@@ -156,11 +190,11 @@ async function present(
     status,
     expiresAt: roomDeadline(room.state).toISOString(),
     target,
-    me: sideFor(me.displayName, me.round, true),
+    me: await sideFor(me.displayName, me.round, true, deps),
     opponent:
       other === undefined
         ? null
-        : sideFor(other.displayName, other.round, finished),
+        : await sideFor(other.displayName, other.round, finished, deps),
     outcome: outcomeFor(room, userId, now),
   };
 }
@@ -338,6 +372,59 @@ export async function joinRoom(
       return present(result.room, input.userId, input.now, deps);
     }
   }
+}
+
+/**
+ * Sayfanın odaya BAKIŞI — dört sonuç, tek istisna değil.
+ *
+ * NEDEN `getRoom`'DAN AYRI. `getRoom` bir uçtur ve uç için doğru davranış
+ * istisnadır: üye olmayan `400` alır, olmayan oda `400` alır, bitti. Sayfa
+ * ise dört ayrı EKRAN çizmek zorunda — odaya gir, odaya katıl, oda dolu, oda
+ * yok — ve bunları ayırt etmenin tek yolu istisna mesajlarını karşılaştırmak
+ * olurdu. Mesaj dizisiyle dallanan bir arayüz, metin düzeltilir düzeltilmez
+ * sessizce yanlış ekranı çizer.
+ *
+ * KATILMA KARARI DA BURADA VERİLİYOR ve sebebi kullanıcı tarafında: dolu bir
+ * odanın bağlantısına tıklayan kişiye çalışmayacak bir "Katıl" düğmesi
+ * göstermek, tıklattıktan sonra hayal kırıklığı yaratmak demek. `judgeJoin`
+ * cevabı zaten biliyor.
+ */
+export type RoomEntry =
+  | { readonly kind: "uye"; readonly room: RoomDto }
+  | { readonly kind: "katilabilir" }
+  | { readonly kind: "kapali"; readonly reason: RoomJoinRejection }
+  | { readonly kind: "yok" };
+
+export async function peekRoom(
+  input: RoomByCodeInput,
+  deps: RoomDeps,
+): Promise<RoomEntry> {
+  const room = await deps.rooms.findByCode(input.code);
+
+  /**
+   * BURADA "YOK" İLE "SÖNDÜ" AYRIMI YAPILMIYOR ve `requireRoom`'daki ayrımla
+   * çelişmiyor: sönmüş oda hâlâ bulunuyor, `judgeJoin` onu `oda-kapali` diye
+   * reddediyor. `yok` yalnızca gerçekten var olmayan kod.
+   */
+  if (room === null) return { kind: "yok" };
+
+  if (isMember(room.state, input.userId)) {
+    return {
+      kind: "uye",
+      room: await present(room, input.userId, input.now, deps),
+    };
+  }
+
+  const verdict = judgeJoin(room.state, input.userId, input.now);
+
+  /**
+   * `zaten-uye` BURAYA GELEMEZ — üyelik hemen yukarıda elendi. Yine de
+   * `katilabilir`'e katlanıyor: `judgeJoin`'in üç dalını ikiye indirmek için
+   * bir istisna atmak, imkânsız bir durumu çalışma zamanı hatasına çevirirdi.
+   */
+  return verdict.kind === "ret"
+    ? { kind: "kapali", reason: verdict.reason }
+    : { kind: "katilabilir" };
 }
 
 export async function getRoom(

@@ -6,6 +6,7 @@ import type { CommonPlayersResultDto } from "@/application/dto/common-players-dt
 import type { LeagueSummary } from "@/application/ports/club-repository";
 import { MAX_CLUB_RESULTS } from "@/application/use-cases/search-clubs";
 import { countryName } from "@/lib/country-name";
+import { readErrorMessage } from "@/lib/http/error-message";
 import { ClubPicker } from "./club-picker";
 import { CommonPlayersResult } from "./common-players-result";
 import { ModeHeader, Scoreboard } from "./mode-header";
@@ -69,25 +70,6 @@ function countSpells(result: CommonPlayersResultDto): number {
   );
 }
 
-/** API hata gövdesinden kullanıcıya gösterilebilir mesajı çıkarır (§6.3). */
-async function readErrorMessage(response: Response): Promise<string> {
-  try {
-    const body: unknown = await response.json();
-    if (
-      typeof body === "object" &&
-      body !== null &&
-      "error" in body &&
-      typeof (body as { error: unknown }).error === "object"
-    ) {
-      const error = (body as { error: { message?: unknown } }).error;
-      if (typeof error.message === "string") return error.message;
-    }
-  } catch {
-    // Gövde JSON değilse aşağıdaki genel mesaja düşülür.
-  }
-  return "Sonuçlar alınamadı. Lütfen tekrar deneyin.";
-}
-
 export function CommonPlayersQuiz({
   initialClubs,
   leagues,
@@ -133,7 +115,13 @@ export function CommonPlayersQuiz({
       const query = params.size === 0 ? "" : `?${params.toString()}`;
       const response = await fetch(`/api/clubs${query}`, { signal });
 
-      if (!response.ok) throw new Error(await readErrorMessage(response));
+      if (!response.ok)
+        throw new Error(
+          await readErrorMessage(
+            response,
+            "Sonuçlar alınamadı. Lütfen tekrar deneyin.",
+          ),
+        );
 
       const body = (await response.json()) as { data: ClubDto[] };
       return body.data;
@@ -156,7 +144,10 @@ export function CommonPlayersQuiz({
             pairKey,
             state: {
               status: "error",
-              message: await readErrorMessage(response),
+              message: await readErrorMessage(
+                response,
+                "Sonuçlar alınamadı. Lütfen tekrar deneyin.",
+              ),
             },
           });
           return;

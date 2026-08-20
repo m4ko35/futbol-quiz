@@ -9,6 +9,8 @@ import type {
 import type { StatKey } from "@/domain/services/stat-match";
 import { PlayerPicker } from "./player-picker";
 import { formatTurkishIsoDate } from "@/lib/format-date";
+import { readErrorMessage } from "@/lib/http/error-message";
+import { searchPlayersForStat, searchTargets } from "@/lib/http/player-search";
 import { StatMatchGame, type StatMatchGameProps } from "./stat-match-game";
 
 /**
@@ -41,25 +43,6 @@ export interface StatMatchQuizProps {
   readonly recording?: StatMatchGameProps["recording"];
 }
 
-/** API hata gövdesinden kullanıcıya gösterilebilir mesajı çıkarır (§6.3). */
-async function readErrorMessage(response: Response): Promise<string> {
-  try {
-    const body: unknown = await response.json();
-    if (
-      typeof body === "object" &&
-      body !== null &&
-      "error" in body &&
-      typeof (body as { error: unknown }).error === "object"
-    ) {
-      const error = (body as { error: { message?: unknown } }).error;
-      if (typeof error.message === "string") return error.message;
-    }
-  } catch {
-    // Gövde JSON değilse aşağıdaki genel mesaja düşülür.
-  }
-  return "İstek tamamlanamadı. Lütfen tekrar deneyin.";
-}
-
 export function StatMatchQuiz({
   daily,
   serverAnswers,
@@ -69,50 +52,6 @@ export function StatMatchQuiz({
   const [isPicking, setIsPicking] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
-
-  /**
-   * BR-16 — arama, AÇIK OLAN istatistikte puanlanabilir oyuncularla sınırlanır.
-   *
-   * Süzgeç olmadan seçici, verisi olmayan oyuncuları da listeliyordu: "Buffon"
-   * araması alfabetik sırayla önce "Armando Buffon"u getiriyor, kullanıcı onu
-   * seçiyor ve sunucu haklı olarak reddediyordu. Oyun bir duvara dönüşüyordu.
-   */
-  const searchPlayers = useCallback(
-    async (
-      term: string,
-      signal: AbortSignal,
-      statKey: StatKey,
-    ): Promise<PlayerDto[]> => {
-      const params = new URLSearchParams({ q: term, stat: statKey });
-      const response = await fetch(`/api/players?${params.toString()}`, {
-        signal,
-      });
-      if (!response.ok) throw new Error(await readErrorMessage(response));
-
-      const body = (await response.json()) as { data: PlayerDto[] };
-      return body.data;
-    },
-    [],
-  );
-
-  /**
-   * BR-24 — hedef arayışı. `target=true` olmadan ilk 20 sonucun yalnızca
-   * %18–50'si seçilebilir çıkıyordu (§9.2'de ölçüldü); süzgeç, sunucunun
-   * reddedeceği isimleri listeden baştan çıkarır.
-   */
-  const searchTargets = useCallback(
-    async (term: string, signal: AbortSignal): Promise<PlayerDto[]> => {
-      const params = new URLSearchParams({ q: term, target: "true" });
-      const response = await fetch(`/api/players?${params.toString()}`, {
-        signal,
-      });
-      if (!response.ok) throw new Error(await readErrorMessage(response));
-
-      const body = (await response.json()) as { data: PlayerDto[] };
-      return body.data;
-    },
-    [],
-  );
 
   const submitDaily = useCallback(
     async (
@@ -178,7 +117,7 @@ export function StatMatchQuiz({
           title: "Günün Oyuncusu",
         }}
         submitAnswer={submitDaily}
-        searchPlayers={searchPlayers}
+        searchPlayers={searchPlayersForStat}
       />
 
       <section className="flex flex-col gap-4 border-t border-line pt-8">
@@ -227,7 +166,7 @@ export function StatMatchQuiz({
           <StatMatchGame
             round={chosen}
             submitAnswer={submitChosen}
-            searchPlayers={searchPlayers}
+            searchPlayers={searchPlayersForStat}
             onRestart={() => {
               setChosen(null);
               setIsPicking(true);

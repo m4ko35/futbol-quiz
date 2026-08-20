@@ -403,6 +403,12 @@ describe("StatMatchGame — saklanmayan tur", () => {
    * Tur GERÇEKTEN bitirilir. Depo kullanılmadığı için altı cevap önceden
    * kurulamaz; altısı da arayüzden verilir ve düğmenin varlığı öyle sınanır.
    */
+  /**
+   * BÜTÇE ÖLÇÜLDÜ — `grid-game.test.tsx`'teki ikiziyle aynı gerekçe: altı
+   * istatistiğin hepsi sırayla cevaplanıyor, izole koşumda 3,2 sn sürüyor ve
+   * 87 dosya paralel koşarken 5 sn'lik varsayılana sığmayabiliyor. Sınır
+   * yalnızca bu test için büyütüldü.
+   */
   it("tur bitince yeni hedef seçme düğmesi verir", async () => {
     const onRestart = vi.fn();
     const submitAnswer = vi.fn().mockResolvedValue({ value: 180, score: 93 });
@@ -442,7 +448,7 @@ describe("StatMatchGame — saklanmayan tur", () => {
     });
     await user.click(restart);
     expect(onRestart).toHaveBeenCalled();
-  });
+  }, 20_000);
 });
 
 /**

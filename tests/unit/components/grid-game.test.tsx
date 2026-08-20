@@ -533,6 +533,19 @@ describe("saklanmayan ızgara — §9.1", () => {
     expect(saved.guessesUsed).toBe(3);
   });
 
+  /**
+   * BU TESTİN BÜTÇESİ ÖLÇÜLDÜ — vitest'in 5 sn varsayılanı yetmiyor.
+   *
+   * Test dokuz hücreyi SIRAYLA cevaplıyor ve her hücre tam bir etkileşim
+   * turu: seçiciyi aç, yaz, sonuçları bekle, seç, ızgaranın güncellenmesini
+   * bekle. İzole koşumda 3,6 sn sürüyor, yani varsayılanla marj 1,4 kat;
+   * 87 test dosyası paralel koşarken bu marj düzenli olarak tükeniyordu ve
+   * `verify` ara sıra burada düşüyordu (20 Ağustos 2026).
+   *
+   * SINIR KALDIRILMADI, bu teste özel olarak ölçüye oturtuldu: diğer 1.572
+   * testin bütçesi 5 sn olarak duruyor. Genel `testTimeout`'u büyütmek,
+   * gerçekten kilitlenen bir testi de yirmi saniye bekletirdi.
+   */
   it("bitince yeni ızgara kurma yolu sunar", async () => {
     const { user, onRestart } = setupCustom();
 
@@ -556,7 +569,7 @@ describe("saklanmayan ızgara — §9.1", () => {
     });
     await user.click(restart);
     expect(onRestart).toHaveBeenCalledTimes(1);
-  });
+  }, 20_000);
 });
 
 /** BR-27 — oyun bileşeni boyutu IZGARADAN okur, sabitten değil. */

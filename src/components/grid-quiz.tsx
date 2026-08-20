@@ -7,6 +7,7 @@ import type { GridCriterionRefDto } from "@/application/use-cases/custom-grid";
 import type { DailyGridDto } from "@/application/use-cases/daily-grid";
 import type { CellRef } from "@/domain/services/grid";
 import { formatTurkishIsoDate } from "@/lib/format-date";
+import { readErrorMessage } from "@/lib/http/error-message";
 import { GridBuilder, type BuiltGrid } from "./grid-builder";
 import { GridGame } from "./grid-game";
 
@@ -47,25 +48,6 @@ export interface GridQuizProps {
 /** Kulüp kaydı → ızgara ölçütü. Etiket KISA ad: başlık hücresine sığmalı. */
 function toColumnRef(club: ClubDto): GridCriterionRefDto {
   return { kind: "club", id: club.id, label: club.shortName };
-}
-
-/** API hata gövdesinden kullanıcıya gösterilebilir mesajı çıkarır (§6.3). */
-async function readErrorMessage(response: Response): Promise<string> {
-  try {
-    const body: unknown = await response.json();
-    if (
-      typeof body === "object" &&
-      body !== null &&
-      "error" in body &&
-      typeof (body as { error: unknown }).error === "object"
-    ) {
-      const error = (body as { error: { message?: unknown } }).error;
-      if (typeof error.message === "string") return error.message;
-    }
-  } catch {
-    // Gövde JSON değilse aşağıdaki genel mesaja düşülür.
-  }
-  return "İstek tamamlanamadı. Lütfen tekrar deneyin.";
 }
 
 export function GridQuiz({ grid, curatedClubs }: GridQuizProps) {

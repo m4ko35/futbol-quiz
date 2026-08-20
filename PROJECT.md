@@ -2789,6 +2789,37 @@ Kimlikler kulüp ve oyuncu için **QID ile** sabitlenir. Gerekçe ölçülmüşt
 
 Bu testler veritabanı yoksa **atlanır** (ETL çıktısı depoya girmez). Sessizce geçmezler — "çalıştı" ile "çalışmadı ama ses çıkarmadı" karıştırılmamalıdır.
 
+#### Zaman aşımı bütçeleri ÖLÇÜLDÜ (20 Ağustos 2026)
+
+`npm run verify` bir süredir ara sıra düşüyordu ve düşme biçimi kafa
+karıştırıcıydı: tek bir iddia bile başarısız olmuyor, **dosyalar kurulum
+aşamasında** ölüyordu (`Hook timed out in 10000ms`). Aynı dosyalar tek başına
+koşturulduğunda hep geçiyordu, bu yüzden uzun süre "kararsızlık" diye
+kaydedildi.
+
+**Teşhis:** kancalar yavaş değil, bütçe hiç ölçülmemişti. `beforeAll` içinde
+gömülü SQLite veritabanı açılıyor (34,8 MB) ve **87 test dosyası paralel**
+koşarken disk ile CPU paylaşılıyor. Üç bütünleşme dosyası birlikte izole
+koşturulduğunda 2,74 saniyede bitiyor; tam koşuda 10 saniyeyi aşıyordu.
+Vitest'in 10 saniyelik varsayılanı çerçevenin genel varsayımıydı, bu projenin
+ölçüsü değil.
+
+İki ayrı düzeltme yapıldı ve **ayrı olmaları kasıtlı**:
+
+| Ne                       | Yeni bütçe | Neden ayrı                                             |
+| ------------------------ | ---------- | ------------------------------------------------------ |
+| `hookTimeout` (genel)    | 30 sn      | Düşen şey kurulumdu ve her dosyada aynı iş yapılıyor   |
+| İki yavaş testin kendisi | 20 sn      | Tek tek işaretlendi; `testTimeout` 5 sn olarak DURUYOR |
+
+İşaretlenen iki test, tasarımı gereği süitin en uzunları: biri dokuz ızgara
+hücresini, öteki altı istatistiği **sırayla** cevaplıyor ve her adım tam bir
+etkileşim turu (seçiciyi aç, yaz, sonucu bekle, seç, güncellemeyi bekle).
+İzole süreleri 3,6 sn ve 3,2 sn — yani 5 sn'lik varsayılanla marj 1,4 kat.
+
+**Genel `testTimeout` BÜYÜTÜLMEDİ.** Gerçekten kilitlenen bir testi yirmi
+saniye beklemek, buradaki düzeltmenin tam tersi olurdu: sınır kaldırılmadı,
+ölçüye oturtuldu.
+
 ### 8.2 Veri Doğruluğu Denetimleri
 
 Denetim **iki aşamalıdır**. Tek aşamalı ilk tasarım kullanılamaz çıktı: 78.236 kaydın 11'i bozuk olduğu için tüm yükleme durmuştu. Kaynak açık veriyse birkaç hatalı kayıt kaçınılmazdır; anlamlı sinyal tek kaydın bozukluğu değil, bozukluk **oranıdır**.
@@ -5682,6 +5713,115 @@ Bu turda yazılanların hiçbiri gerçek Turso'ya karşı koşulmadı; göç ür
 sahibinin elinde. Kısıtların gerçekten kurulduğu — özellikle
 `@@unique([roomId, seat])` — göçten sonra ayrıca sayılacak. "Komut hata
 vermedi" bir kanıt değildir (§11.3).
+
+##### Ölçüldü — göç uygulandı ve SAYILDI (20 Ağustos 2026)
+
+Yukarıdaki "ölçülmedi" notu **kapandı**. Göç Turso'ya uygulandı ve
+`npm run db:verify:accounts` yedi tabloyu, kural taşıyan on bir kısıtı tek tek
+saydı — `room_players_roomId_seat_key` dâhil, yani BR-54'ün iki koltuk sınırı
+artık uygulama mantığının değil **veritabanının** garantisi.
+
+### 12.7 Arayüz
+
+##### DÖRT EKRAN, TEK ADRES
+
+`/oda/{kod}` adresi kullanıcının odayla ilişkisine göre dört ayrı şey
+gösteriyor: üyeysen tahta, değilsen katılma çağrısı, oda dolu/kapalıysa
+gerekçe, kod yoksa 404.
+
+Bu ayrımı `getRoom` veremezdi: o bir uçtur ve uç için doğru davranış hepsini
+`400`'e indirmektir. Sayfa istisna mesajlarını karşılaştırarak dallansaydı,
+metin düzeltilir düzeltilmez sessizce yanlış ekranı çizerdi. Bu yüzden
+**`peekRoom`** eklendi — ayrımı ayrık bir birlik tipiyle döndürüyor.
+
+Katılma kararı da orada veriliyor: dolu bir odanın bağlantısına tıklayan kişi
+çalışmayacağı baştan belli bir "Katıl" düğmesi görmüyor.
+
+##### YOKLAMA HIZI ÜÇ AYRI BEKLEYİŞE GÖRE DEĞİŞİR
+
+Tek bir aralık üçüne birden yanlış gelirdi:
+
+| Düzen                     | İlk aralık | Neden                                               |
+| ------------------------- | ---------- | --------------------------------------------------- |
+| Lobi (arkadaş bekleniyor) | 3 sn       | Katılma anı ekranın tek olayı                       |
+| Oynarken                  | 12 sn      | Her cevap odanın tamamını zaten geri getiriyor      |
+| Rakip bekleniyor          | 3 sn       | Ekranda yapacak bir şey yok, beklenen tek şey sonuç |
+
+**Değişiklik gelmedikçe aralık 1,5 katına çıkıyor, tavan 15 sn:** 3; 4,5; 6,75;
+10,1; 15… Yaklaşık kırk saniyede tavana varıyor.
+
+Sebep aritmetik: katılma penceresi otuz dakika (BR-60) ve sabit üç saniye tek
+bir lobide **600 istek** ederdi. Hız sınırı dakikada 60 ve istemci anahtarı
+IP'dir (§7.8) — **aynı evden oynayan iki arkadaş o bütçeyi paylaşıyor.** Büyüme
+otuz dakikalık beklemeyi ~125 isteğe indiriyor ve bu sayı testle sabitlendi.
+Rakip bir cevap yazdığı an sayaç sıfırlanıp ekran yeniden hızlanıyor.
+
+İki şey daha: **bitmiş ve sönmüş odada yoklama tamamen duruyor** (durum artık
+değişemez) ve **görünmeyen sekme yoklamıyor**, sekmeye dönülünce hemen bir kez
+yoklanıyor.
+
+##### SONUÇ EKRANI ÖZET DEĞİL, KARŞILAŞTIRMA
+
+BR-60 sonucun hiçbir yerde birikmemesini istiyor: lider tablosuna girmiyor,
+geçmişte durmuyor, bir saat sonra satır siliniyor. Geriye kalan tek şey iki
+oyuncunun o an gördüğü ekran — bu yüzden bir skordan ibaret olamaz.
+"Kaybettim" hiçbir şey öğretmez; "aynı 435 maça sen Xavi yazdın, o Iniesta
+yazdı" öğretir. Altı istatistiğin her biri iki tarafın seçimiyle yan yana
+duruyor ve ekranda sonucun saklanmadığı **yazılı**.
+
+##### DAVET GİRİŞ TURUNDAN SAĞ ÇIKIYOR
+
+Bağlantıyla gelen kişi giriş yapmamış olabilir. Google akışı onu
+`/istatistik`'e bırakıyor (§11.10) ve kod kayboluyordu.
+
+Kodu OAuth `state`'ine iliştirmek de mümkündü; reddedildi. Üç dosyaya ve ad
+seçme adımına dokunmayı gerektirirdi — çalışan bir kimlik akışını, tamamen
+istemcide çözülebilen bir kolaylık için genişletmek. Kod **sekme deposuna**
+yazılıyor ve lobide alan hazır dolu geliyor. `localStorage` değil
+`sessionStorage`: davet o sekmeye ve o ana ait.
+
+##### KATILMA HİÇBİR ZAMAN KENDİLİĞİNDEN OLMUYOR
+
+Ne bağlantıya tıklamak ne de lobide dolu bir alan görmek koltuğa oturtuyor;
+ikisi de açık bir düğmeye basmayı gerektiriyor. Yanlışlıkla açılan bir
+bağlantı odayı doldurup gerçek oyuncuyu dışarıda bırakırdı (BR-54, ikinci
+koltuk tektir) — ve GET bir isteğin yan etkisi olmamalı.
+
+##### ODA MOD ŞERİDİNE KONMADI
+
+Giriş noktası `/istatistik` sayfasının altında. Oda beşinci bir oyun modu
+değil, **istatistik modunun bir oynanış biçimi**: aynı oyun, aynı kurallar, tek
+fark karşında birinin olması. Şeride koymak onu ayrı bir oyun gibi gösterirdi
+ve şerit zaten dört öğeyle ölçülmüştü (§7.17).
+
+##### Arayüz yazarken ÇIKAN KUSUR: `RoomDto` kendi cevaplarımı taşımıyordu
+
+Sunucu tarafı bitmiş sayılıyordu ama DTO yalnızca "kaç istatistik cevaplandı"
+sayısını taşıyordu, **cevapların kendisini değil.** Sayfayı yenileyen oyuncu
+boş bir tahta görürdü; üstelik yeniden denediğinde BR-58 saklanan cevabı geri
+verir, yani kullanıcı başka bir oyuncu seçip eski puanını alırdı.
+
+Aynı kusur §11'de de yaşanmıştı (`stored-round.ts`) ve çözümü oradan
+geliyor: adlar gömülü futbol veritabanından okunuyor, hesap veritabanına
+kopyalanmıyor. Ortak iş `answer-names.ts` içinde tek yerde.
+
+**Rakibin cevapları BR-63'ün aynı kapısından geçiyor:** oda bitene kadar
+`null`, bitince dolu. Cevap göründüğü an puan da görünüyor; ikisi ayrı ayrı
+karar verilemiyor.
+
+##### 12.7'de ölçülmemiş olanlar
+
+- **Uçtan uca gerçek bir maç oynanmadı.** İki tarayıcı, iki hesap, tek oda —
+  yapılmadı. Yoklamanın gerçekten sonucu açtığı, kopyalanan bağlantının karşı
+  tarafta çalıştığı ve sekme gizlenip geri gelince ekranın tazelendiği
+  **ölçülmedi**; hepsi birim testiyle değil ancak elle doğrulanabilir.
+- **Yoklamanın gerçek trafiği ölçülmedi.** Yukarıdaki 125 istek hesabı
+  aritmetik; üretimde iki kullanıcının hız sınırına ne kadar yaklaştığı
+  bilinmiyor. Paylaşılan hız sınırlayıcı kararı (§10.2) bu ölçümden sonra
+  verilmeli.
+- **Kopyalama düğmesi gerçek cihazlarda denenmedi.** `navigator.clipboard`
+  güvenli bağlam istiyor; başarısızlık yakalanıyor ve kullanıcıya söyleniyor
+  ama hangi tarayıcılarda düştüğü ölçülmedi.
 
 ## 13. Sözlük
 
