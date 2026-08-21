@@ -358,12 +358,41 @@ describe("örtüşen kalıcı dönem — açık uçlu olanlar dâhil", () => {
   });
 
   it("SINIRA DEĞEN iki dönem örtüşme sayılmaz", () => {
-    // Normal transfer: 2016–2019 ve 2019–2022 aynı sezonu paylaşmaz.
+    // DEĞERLER 21 Ağustos 2026'da DÜZELTİLDİ. Test "normal transfer örtüşme
+    // sayılmaz" kuralını tutuyor ama sayıları AZALTMA ÖNCESİ yazılmıştı:
+    // `seasonYearAt` bitiş ucunu zaten bir azaltıyor ("bitiş 2019 → 2018"),
+    // yani 2019'da ayrılan oyuncunun `endYear`'ı 2018'dir. 2016–2019 ile
+    // 2019–2022 aslında 2019 sezonunu PAYLAŞIYOR ve örtüşme sayılmalı.
+    // Normal transfer: son sezon 2018, yeni kulüp 2019'da başlıyor.
     const report = validateDataset({
       clubs: [club("QA"), club("QB")],
       spells: [
-        spell("s1", { clubWikidataId: "QA", startYear: 2016, endYear: 2019 }),
+        spell("s1", { clubWikidataId: "QA", startYear: 2016, endYear: 2018 }),
         spell("s2", { clubWikidataId: "QB", startYear: 2019, endYear: 2022 }),
+      ],
+      rejected: [],
+      fetchedClubIds,
+    });
+
+    expect(
+      report.warnings.some((w) => w.includes("örtüşen kalıcı dönem")),
+    ).toBe(false);
+  });
+
+  it("TEK SEZONLUK iki dönem örtüşme SAYILMAZ — kabul edilmiş sınır", () => {
+    // BU BİR EKSİKLİK VE BİLEREK BÖYLE. Kapsayıcı kıyaslamaya geçirilse bu
+    // uyarı 4.143'ten 16.258'e çıkıyor ve artışın tamamı DEVRE ARASI
+    // TRANSFER: sezon çözünürlüğünde "2018'de A'dan B'ye geçti" ile "2018'de
+    // iki kulüpte birden görünüyor" ayırt edilemiyor (BR-6 — tarihlerin
+    // %93,7'si yıl hassasiyetinde).
+    //
+    // BR-42 aynı tuzağa düşmüyor çünkü kulübün bilgi kutusunda HİÇ
+    // geçmemesini de şart koşuyor; bu uyarının öyle bir koruması yok.
+    const report = validateDataset({
+      clubs: [club("QA"), club("QB")],
+      spells: [
+        spell("s1", { clubWikidataId: "QA", startYear: 2018, endYear: 2018 }),
+        spell("s2", { clubWikidataId: "QB", startYear: 2018, endYear: 2018 }),
       ],
       rejected: [],
       fetchedClubIds,

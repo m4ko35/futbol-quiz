@@ -2,10 +2,12 @@ import { isPlausibleSeasonYear } from "../../../src/domain/value-objects/season"
 import type { Contradiction, Undecided } from "./cross-check";
 import type { RejectionCandidate } from "./wikipedia-verdict";
 import { MIN_SPELLS_FOR_SELECTABLE } from "../leagues";
-import type {
-  NormalizedClub,
-  NormalizedPlayer,
-  NormalizedSpell,
+import {
+  OPEN_SEASON_END,
+  overlapsBeyondTransfer,
+  type NormalizedClub,
+  type NormalizedPlayer,
+  type NormalizedSpell,
 } from "./normalize";
 
 /**
@@ -64,14 +66,6 @@ export interface SanitizeResult {
 
 /** Bu oranın üstünde ayıklama sistemik hataya işaret eder; yükleme durur. */
 const MAX_REJECT_RATIO = 0.01;
-
-/**
- * Açık uçlu dönemin bitişi — `cross-check.ts` ile AYNI değer, aynı gerekçe.
- *
- * `null` bitiş "bilinmiyor VEYA hâlâ orada" demek; örtüşme sorusunda ikisi de
- * kaydı AÇIK sayar.
- */
-const OPEN_END = 9999;
 
 /** Uyarı listeleri log'u boğmasın diye kırpılır. */
 const MAX_REPORTED = 8;
@@ -268,10 +262,17 @@ export function validateDataset(input: {
       if (prev === undefined || curr === undefined) continue;
       if (curr.startYear === null) continue;
 
-      // Sınıra değmek örtüşme değildir; transfer yılı iki kayıtta da geçer.
-      const prevEnd = prev.endYear ?? (prev.isCurrent ? OPEN_END : null);
+      // DIŞLAYICI kıyaslama, ölçülerek: kapsayıcıya geçirilince bu uyarı
+      // 4.143'ten 16.258'e çıkıyor ve artışın tamamı devre arası transfer.
+      // Gerekçe `overlapsBeyondTransfer` üstünde.
+      const prevEnd = prev.endYear ?? (prev.isCurrent ? OPEN_SEASON_END : null);
       if (prevEnd === null) continue;
-      if (curr.startYear < prevEnd) {
+      if (
+        overlapsBeyondTransfer(
+          { start: prev.startYear ?? curr.startYear, end: prevEnd },
+          { start: curr.startYear, end: curr.endYear ?? OPEN_SEASON_END },
+        )
+      ) {
         overlaps.push(
           `${playerId}: ${prev.startYear}–${prev.endYear ?? "…"} ve ${curr.startYear}–${curr.endYear ?? "…"}`,
         );

@@ -737,6 +737,27 @@ Bütçe **150**: tabanın ~1,75 katı, yani normal dalgalanmaya yer var; ama bir
 
 Bütçenin altında kalmak "sorun yok" demek değil, "yükleme durmasın" demek: liste hâlâ tam yazılıyor, her satır ifade kimliğiyle.
 
+#### Tek sezonluk dönem kör noktası (21 Ağustos 2026)
+
+Leão'nun vandalizminin **ikinci yarısı** ilk koşuda düzelmedi. Real Madrid düştü ama sahte `FC Porto 2018–2018, 24 maç` kaydı, Vikipedi doğrusunu (`Lille OSC 2018–2018`) yazdığı hâlde çelişki sayılmadı.
+
+**Sebep tek bir kayıt değil, sistemikti.** Örtüşme kıyaslaması üç dosyada ayrı ayrı `a.start < b.end && b.start < a.end` biçiminde yazılmıştı — yani bitişi **dışlayıcı** sayıyordu. Oysa bitiş zaten kapsayıcıdır: `seasonYearAt` bitiş ucunu bir azaltıyor ("bitiş 2025 → 2024") ve §4.3 aynısını Vikipedi için yapıyor. Bir kez daha kısaltmak **çift düzeltmeydi** ve tek sezonluk dönemde aralığı **sıfır genişlikte** bırakıyordu.
+
+Ölçüldü: iki ucu bilinen 320.383 kalıcı dönemin **145.524'ü (%45,4)** tek sezonluk.
+
+**Düzeltme yalnızca BR-42'ye uygulandı, ve bu ölçülerek karar verildi.** Kapsayıcı kıyaslama her yere konsaydı:
+
+| Denetim                           | Dışlayıcı | Kapsayıcı  |
+| --------------------------------- | --------- | ---------- |
+| §8.2 örtüşen kalıcı dönem uyarısı | 4.143     | **16.258** |
+| Kulüp akrabalığı çifti            | 69        | **1.766**  |
+
+Artışın tamamı **devre arası transfer**: sezon çözünürlüğünde "2018'de A'dan B'ye geçti" ile "2018'de iki kulüpte birden görünüyor" ayırt edilemiyor (BR-6 — tarihlerin %93,7'si yıl hassasiyetinde). Veri bu ayrımı taşımıyor ve uydurulmuyor (§2.7).
+
+**BR-42 bu tuzağa düşmüyor** çünkü kendi 2. koşulu kulübün bilgi kutusunda **hiç geçmemesini** şart koşuyor: devre arası transferde Vikipedi iki kulübü de yazar, koşul düşer. Akrabalık ölçümünün ve §8.2 uyarısının böyle bir koruması yok — ikisi dışlayıcı kıyaslamada kaldı ve tek sezonluk dönemleri görmemeye devam ediyor. Bu, **kabul edilmiş bir sınırdır**; kapatılması sezon değil tarih çözünürlüğü ister.
+
+İki yüklem `normalize.ts` içinde ayrı adlarla duruyor: `sharesSeason` (kapsayıcı, BR-42) ve `overlapsBeyondTransfer` (dışlayıcı, akrabalık ve §8.2). Üç kopyanın aynı hatayı üçe katlamasının sebebi, kuralın hiçbir yerde tek başına yazılmamış olmasıydı.
+
 #### Bitiş yılının okunuşu
 
 Bilgi kutusundaki yıllar tarih değil kariyer aralığıdır ve **iki ucu farklı okunur**. Başlangıç olduğu gibi alınır, bitişten **bir çıkarılır**:

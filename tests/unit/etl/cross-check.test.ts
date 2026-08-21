@@ -109,14 +109,32 @@ describe("BR-42 — Vikipedi'nin çürüttüğü Wikidata dönemi", () => {
   });
 
   it("SINIRA DEĞMEK örtüşme değildir", () => {
-    // 2016–2019 ile 2019–2022 aynı sezonu paylaşmaz; transfer yılı ortaktır.
+    // DEĞERLER 21 Ağustos 2026'da DÜZELTİLDİ. Test "normal transfer örtüşme
+    // sayılmaz" kuralını tutuyor ama sayıları AZALTMA ÖNCESİ yazılmıştı:
+    // `seasonYearAt` bitiş ucunu zaten bir azaltıyor ("bitiş 2019 → 2018"),
+    // yani 2019'da ayrılan oyuncunun `endYear`'ı 2018'dir. 2016–2019 ile
+    // 2019–2022 aslında 2019 sezonunu PAYLAŞIYOR ve örtüşme sayılmalı.
     // Bunu örtüşme saymak her normal transferi çelişki yapardı.
     const found = celiskiler({
-      spells: [wd({ startYear: 2016, endYear: 2019 })],
+      spells: [wd({ startYear: 2016, endYear: 2018 })],
       wikipedia: [wp({ startYear: 2019, endYear: 2022 })],
     });
 
     expect(found).toEqual([]);
+  });
+
+  it("TEK SEZONLUK dönem de görülür", () => {
+    // LEÃO'NUN İKİNCİ YARISI. Vandalizm Lille'i Porto yaptı; Vikipedi
+    // doğrusunu yazdı ama iki kayıt da tek sezonluk (2018–2018) olduğu için
+    // eski kıyaslama (`start < end`) sıfır genişlikte aralık üretiyor ve
+    // hiçbir şey örtüşmüyordu. Kalıcı dönemlerin %45,4'ü bu sınıftan.
+    const found = celiskiler({
+      spells: [wd({ startYear: 2018, endYear: 2018, appearances: 24 })],
+      wikipedia: [wp({ startYear: 2018, endYear: 2018, appearances: 24 })],
+    });
+
+    expect(found).toHaveLength(1);
+    expect(found[0]?.wikipediaClubs).toEqual(["Q-milan"]);
   });
 
   it("KİRALIK dönemler iki tarafta da dışarıda", () => {

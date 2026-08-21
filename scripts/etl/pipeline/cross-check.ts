@@ -1,5 +1,9 @@
 import type { WikipediaSpell } from "./merge-wikipedia";
-import type { NormalizedSpell } from "./normalize";
+import {
+  OPEN_SEASON_END,
+  sharesSeason,
+  type NormalizedSpell,
+} from "./normalize";
 import type { WikiSite } from "../sources/wikipedia/client";
 import { kinshipKey } from "./club-kinship";
 import type { UnresolvedClubRow } from "./wikipedia-pass";
@@ -122,27 +126,26 @@ interface Span {
   readonly end: number;
 }
 
-/**
- * Açık uçlu dönemin bitişi.
- *
- * `null` bitiş "bilinmiyor VEYA hâlâ orada" demek (§5.1). Örtüşme sorusunda
- * ikisi de aynı yöne bakar: kayıt hâlâ AÇIK sayılır. Leão'nun iki kaydı da
- * buradan geçiyor — kapatılan boşluk tam olarak bu.
- */
-const OPEN_END = 9999;
-
 function spanOf(spell: {
   startYear: number | null;
   endYear: number | null;
 }): Span | null {
   if (spell.startYear === null) return null;
-  return { start: spell.startYear, end: spell.endYear ?? OPEN_END };
+  // Açık uçlu kayıt hâlâ sürüyor sayılır (§5.1). Leão'nun iki kaydı da
+  // buradan geçiyor — 13 Ağustos'ta kapatılan boşluk tam olarak buydu.
+  return { start: spell.startYear, end: spell.endYear ?? OPEN_SEASON_END };
 }
 
-/** İki aralık gerçekten örtüşüyor mu — sınıra DEĞMEK örtüşme değildir. */
+/**
+ * Ortak SEZON var mı — kural `normalize.ts`'te, tek kopya.
+ *
+ * KAPSAYICI KIYASLAMA BURADA GÜVENLİ, akrabalık ölçümünde değil. Farkı bu
+ * denetimin 2. koşulu yaratıyor: kulüp bilgi kutusunda HİÇ geçmemeli. Devre
+ * arası transferde Vikipedi iki kulübü de yazar, dolayısıyla koşul düşer ve
+ * transfer çelişki sayılmaz (`overlapsBeyondTransfer` gerekçesi).
+ */
 function overlaps(a: Span, b: Span): boolean {
-  // 2019–2020 ile 2020–2022 aynı sezonu paylaşmaz; transfer yılı ortaktır.
-  return a.start < b.end && b.start < a.end;
+  return sharesSeason(a, b);
 }
 
 /**

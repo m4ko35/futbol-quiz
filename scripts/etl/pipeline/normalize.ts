@@ -226,6 +226,73 @@ export function seasonYearAt(
 }
 
 /**
+ * Açık uçlu dönemin bitişi — sezon karşılaştırmalarında kullanılır.
+ *
+ * `null` bitiş "bilinmiyor VEYA hâlâ orada" demek (§5.1). Örtüşme sorusunda
+ * ikisi de aynı yöne bakar: kayıt hâlâ AÇIK sayılır.
+ */
+export const OPEN_SEASON_END = 9999;
+
+/**
+ * İki dönem ortak bir SEZON paylaşıyor mu — BR-6.
+ *
+ * TEK YERDE DURUYOR, ÇÜNKÜ ÜÇ KOPYASI AYNI HATAYI ÜÇE KATLAMIŞTI. Kural
+ * `cross-check.ts`, `club-kinship.ts` ve `validate.ts` içinde ayrı ayrı
+ * yazılmıştı ve üçü de bitişi DIŞLAYICI sayıyordu.
+ *
+ * OYSA BİTİŞ ZATEN KAPSAYICI. `seasonYearAt` bitiş ucunu bir azaltıyor
+ * ("bitiş 2025 → 2024/25 sezonunun sonu → 2024"), §4.3 aynısını Vikipedi
+ * için yapıyor ("kulüpyıl 2011-2022 → 2011 … 2021"). Yani `endYear`
+ * oyuncunun kulüpte geçirdiği SON SEZONDUR.
+ *
+ * BEDELİ ÖLÇÜLDÜ (21 Ağustos 2026): tek sezonluk dönemde `start == end`
+ * olduğu için dışlayıcı kıyaslamada aralık SIFIR GENİŞLİKTE kalıyor ve
+ * hiçbir şeyle örtüşmüyor. Kalıcı dönemlerin **%45,4'ü** tek sezonluk.
+ * Belirti Leão'da göründü: vandalizmin ikinci yarısı (Lille yerine FC Porto,
+ * 2018–2018, 24 maç) Vikipedi doğrusunu yazdığı hâlde çelişki sayılmadı.
+ */
+export function sharesSeason(
+  a: { readonly start: number; readonly end: number },
+  b: { readonly start: number; readonly end: number },
+): boolean {
+  return a.start <= b.end && b.start <= a.end;
+}
+
+/**
+ * İki dönem, bir transferin açıklayabileceğinden FAZLA örtüşüyor mu.
+ *
+ * NEDEN İKİNCİ BİR YÜKLEM VAR — ölçüm gerektirdi. `sharesSeason` "aynı sezon"
+ * sorusunun doğru cevabı, ama her soru o değil. DEVRE ARASI TRANSFER sezon
+ * çözünürlüğünde iki kaydı da AYNI tek sezona indiriyor:
+ *
+ *   A kulübü  2017 → 2018   ⇒  2017–2017
+ *   B kulübü  2018 → 2019   ⇒  2018–2018     (ayrı, sorun yok)
+ *   A kulübü  2018 → 2018   ⇒  2018–2018
+ *   B kulübü  2018 → 2019   ⇒  2018–2018     (aynı sezon — ama transfer)
+ *
+ * Yani "aynı sezonda iki kulüpte görünmek" ile "sezon ortasında transfer
+ * olmak" kaynaktan AYIRT EDİLEMİYOR. Ölçüldü: `sharesSeason`'a geçildiğinde
+ * kulüp akrabalığı çiftleri **69'dan 1.766'ya**, §8.2 örtüşme uyarısı
+ * **4.143'ten 16.258'e** çıkıyor — ikisi de gürültü.
+ *
+ * BR-42 BU TUZAĞA DÜŞMÜYOR ve sebebi kendi 2. koşulu: kulübün bilgi
+ * kutusunda HİÇ geçmemesini şart koşuyor. Devre arası transferde Vikipedi
+ * İKİ kulübü de yazar, dolayısıyla koşul düşer. Akrabalık ölçümünün ve §8.2
+ * uyarısının böyle bir koruması yok; onlar dışlayıcı kıyaslamada kalıyor.
+ *
+ * Bedeli açıkça yazılıyor: bu iki denetim tek sezonluk dönemleri görmemeye
+ * devam ediyor. Kapatılması sezon değil TARİH çözünürlüğü ister ve Wikidata
+ * tarihlerin %93,7'sini yıl hassasiyetinde tutuyor (BR-6) — yani veri bu
+ * ayrımı taşımıyor. Uydurulmuyor (§2.7).
+ */
+export function overlapsBeyondTransfer(
+  a: { readonly start: number; readonly end: number },
+  b: { readonly start: number; readonly end: number },
+): boolean {
+  return a.start < b.end && b.start < a.end;
+}
+
+/**
  * `.../statement/Q161089-AD66DA21-...` → `Q161089-AD66DA21-...`
  *
  * Bu kimlik Spell'in doğal anahtarıdır; biçim beklenmedikse kayıt atlanır.

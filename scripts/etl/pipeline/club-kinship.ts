@@ -1,4 +1,4 @@
-import type { NormalizedSpell } from "./normalize";
+import { overlapsBeyondTransfer, type NormalizedSpell } from "./normalize";
 
 /**
  * AYNI KULÜBÜN İKİ KAYDI — PROJECT.md §5.3, §4.3 (3. aşama önkoşulu).
@@ -69,9 +69,14 @@ function spanOf(spell: NormalizedSpell): Span | null {
   return { start: spell.startYear, end: spell.endYear };
 }
 
+/**
+ * DIŞLAYICI kalıyor, ölçülerek. Kapsayıcıya geçirildiğinde akraba çift sayısı
+ * 69'dan 1.766'ya çıkıyor: sezon çözünürlüğünde devre arası transfer, iki
+ * kaydı da aynı tek sezona indiriyor ve akrabalıktan ayırt edilemiyor.
+ * Gerekçenin tamamı `overlapsBeyondTransfer` üstünde.
+ */
 function overlaps(a: Span, b: Span): boolean {
-  // Sınıra değmek örtüşme değildir — transfer yılı ortaktır.
-  return a.start < b.end && b.start < a.end;
+  return overlapsBeyondTransfer(a, b);
 }
 
 /**

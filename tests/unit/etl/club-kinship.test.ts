@@ -75,18 +75,19 @@ describe("aynı kulübün iki kaydı", () => {
   });
 
   it("ÖRTÜŞMEYEN dönemler akrabalık üretmez", () => {
-    // Normal transfer: 2010-2014 sonra 2014-2018. Sınıra değmek örtüşme
-    // değildir, yoksa her kariyer akrabalık sayılırdı.
+    // Normal transfer: son sezon 2013, yeni kulüp 2014'te başlıyor. Bitiş ucu
+    // zaten bir azaltılmış durumda (`seasonYearAt`), o yüzden ardışık
+    // dönemler ortak sezon paylaşmaz — yoksa her kariyer akrabalık sayılırdı.
     const kin = findKinClubPairs({
       spells: [
-        donem({ playerWikidataId: "P1", clubWikidataId: "A" }),
+        donem({ playerWikidataId: "P1", clubWikidataId: "A", endYear: 2013 }),
         donem({
           playerWikidataId: "P1",
           clubWikidataId: "B",
           startYear: 2014,
           endYear: 2018,
         }),
-        donem({ playerWikidataId: "P2", clubWikidataId: "A" }),
+        donem({ playerWikidataId: "P2", clubWikidataId: "A", endYear: 2013 }),
         donem({
           playerWikidataId: "P2",
           clubWikidataId: "B",
