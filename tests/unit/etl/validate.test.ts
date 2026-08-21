@@ -133,9 +133,11 @@ describe("BR-42 — çapraz kaynak kapısı", () => {
     wikipediaSites: ["tr", "en"] as const,
   };
 
-  it("TEK BİR çelişki bile yüklemeyi durdurur", () => {
-    // Oran değil SAYI: 78 bin dönemde tek bir vandalizm hiçbir oranı eşiğin
-    // üstüne çıkarmaz, ama kullanıcı onu oyun içinde görür — nitekim gördü.
+  it("tekil çelişki UYARIDIR, yüklemeyi durdurmaz", () => {
+    // 21 Ağustos 2026'da değişti. Kural "tek çelişkide dur" diye konmuştu ve
+    // ölçülen bedeli şuydu: kapı 12 Ağustos'tan beri kapalıydı ve o gün
+    // yüklenen veri kümesi Leão'nun vandalize edilmiş kaydını taşıyordu.
+    // Yani kural, korumaya çalıştığı şeyin tersini yapıyordu.
     const report = validateDataset({
       clubs: [club("QA")],
       spells: [spell("s1")],
@@ -144,11 +146,32 @@ describe("BR-42 — çapraz kaynak kapısı", () => {
       contradictions: [celiski],
     });
 
-    expect(report.errors).toHaveLength(1);
-    expect(report.errors[0]).toContain("BR-42");
+    expect(report.errors).toEqual([]);
+    expect(report.warnings.some((w) => w.includes("BR-42"))).toBe(true);
   });
 
-  it("hata mesajı İFADE KİMLİĞİNİ taşır", () => {
+  it("BÜTÇEYİ AŞAN sayı yüklemeyi durdurur", () => {
+    // Bütçe sistemik bozulmayı ölçer: bir korumanın sessizce devre dışı
+    // kalması sayıyı 85'ten 341'e çıkarıyor (ölçüldü). 151 satır o dünyanın
+    // içinde ve durmalı.
+    const cok = Array.from({ length: 151 }, (_, i) => ({
+      ...celiski,
+      spellId: `Q${String(i)}-abc`,
+    }));
+
+    const report = validateDataset({
+      clubs: [club("QA")],
+      spells: [spell("s1")],
+      rejected: [],
+      fetchedClubIds,
+      contradictions: cok,
+    });
+
+    expect(report.errors).toHaveLength(1);
+    expect(report.errors[0]).toContain("BÜTÇEYİ AŞTI");
+  });
+
+  it("uyarı mesajı İFADE KİMLİĞİNİ taşır", () => {
     // İnceleme ancak kimlikle yapılabilir: kayıt Wikidata'da tek tek açılıp
     // geçmişine bakılacak. Kimliksiz bir uyarı "bir yerde bir sorun var" der.
     const report = validateDataset({
@@ -159,9 +182,10 @@ describe("BR-42 — çapraz kaynak kapısı", () => {
       contradictions: [celiski],
     });
 
-    expect(report.errors[0]).toContain("Q30055335-390ce6af");
-    expect(report.errors[0]).toContain("Q8682");
-    expect(report.errors[0]).toContain("Q1543");
+    const uyari = report.warnings.find((w) => w.includes("BR-42")) ?? "";
+    expect(uyari).toContain("Q30055335-390ce6af");
+    expect(uyari).toContain("Q8682");
+    expect(uyari).toContain("Q1543");
   });
 
   /**
@@ -187,7 +211,7 @@ describe("BR-42 — çapraz kaynak kapısı", () => {
     });
 
     // Günlük kırpıyor…
-    expect(report.errors[0]).toContain("+12");
+    expect(report.warnings.find((w) => w.includes("BR-42"))).toContain("+12");
 
     // …rapor kırpmıyor.
     const detay = report.details.find((d) => d.key === "br42-celiskiler");

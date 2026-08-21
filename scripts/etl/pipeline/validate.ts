@@ -77,6 +77,38 @@ const OPEN_END = 9999;
 const MAX_REPORTED = 8;
 
 /**
+ * BR-42 — çözülemeyen çelişki BÜTÇESİ (§8.2, 21 Ağustos 2026).
+ *
+ * KAPI NEDEN "TEK ÇELİŞKİDE DUR"DAN ÇIKTI. Kural konulurken beklenen değer
+ * SIFIRDI ve gerekçesi sağlamdı: iki bağımsız kaynağın anlaşmazlığı normal
+ * gürültü değildir. Ama ilk gerçek koşu bunu yalanladı — üç koruma
+ * eklendikten sonra bile **85** çelişki kalıyor ve bunların çoğu tek tek
+ * incelenmesi gereken, birbirinden bağımsız kaynak hatası.
+ *
+ * ÖLÇÜLEN BEDEL: kapı 12 Ağustos'tan beri kapalı ve o gün yüklenen veri
+ * kümesi Leão'nun vandalize edilmiş kaydını taşıyor. Yani kural, korumaya
+ * çalıştığı şeyin tam tersini yapıyordu — **62 şüpheli kayıt yüzünden
+ * 132.357 oyuncunun tamamı bayat tutuluyordu**, bilinen bir hatayla birlikte.
+ *
+ * BÜTÇE SİSTEMİK BOZULMAYI ÖLÇER, TEKİL HATAYI DEĞİL. Tekil kaynak hatası
+ * her koşuda birkaç düzine çıkar ve raporla ele alınır; ANİ SIÇRAMA ise
+ * bizim bir şeyi bozduğumuz anlamına gelir. Ölçülen çapalar:
+ *
+ *   85   üç koruma da çalışırken (bugünkü taban)
+ *   341  kulüp akrabalığı koruması bozulursa
+ *   383  körlük koruması da bozulursa
+ *
+ * 150 bu iki dünyanın arasında: tabanın ~1,75 katı, yani normal dalgalanmaya
+ * yer var; ama bir korumanın sessizce devre dışı kalması (341) bütçeyi
+ * KESİNLİKLE aşar ve koşu durur. Sayı tahminle değil, kırılma noktalarıyla
+ * konuldu.
+ *
+ * LİSTE HÂLÂ TAM YAZILIYOR. Bütçenin altında kalmak "sorun yok" demek değil,
+ * "yükleme durmasın" demek. Her satır ifade kimliğiyle rapora düşüyor.
+ */
+const MAX_UNRESOLVED_CONTRADICTIONS = 150;
+
+/**
  * Kullanılamaz dönem kayıtlarını ayıklar.
  *
  * Atılma sebepleri kayıt kayıt saklanır; sessiz veri kaybı olmaz (§2.7).
@@ -286,7 +318,11 @@ export function validateDataset(input: {
   /*
     ─── Bloklayıcı denetim: çapraz kaynak çelişkisi (BR-42) ───────────────
 
-    KAPI KAPALI BAŞLAR. Ayıklama oranının aksine burada beklenen değer SIFIR:
+    KAPI ARTIK BÜTÇELİ (21 Ağustos 2026). Aşağıdaki gerekçe kuralın DOĞUŞUNU
+    anlatıyor ve hâlâ geçerli; değişen tek şey eşiğin sıfır olmaktan çıkması.
+    Sebebi `MAX_UNRESOLVED_CONTRADICTIONS` üstünde ölçümüyle yazılı.
+
+    KAPI KAPALI BAŞLAMIŞTI. Ayıklama oranının aksine burada beklenen değer SIFIRDI:
     iki bağımsız kaynağın aynı yıllar için farklı kulüp söylemesi normal bir
     gürültü değil, birinin yanlış olmasıdır. Bir tanesi bile üretime çıkarsa
     kullanıcı onu oyun içinde görür — nitekim öyle oldu (Real Madrid ∩ Milan
@@ -338,11 +374,20 @@ export function validateDataset(input: {
         ? ` … (+${contradictions.length - MAX_REPORTED})`
         : "";
 
-    errors.push(
+    const satir =
       `${contradictions.length} dönemde Vikipedi ile Wikidata AYNI YILLAR için ` +
-        `farklı kulüp söylüyor (BR-42): ${detay}${more}. ` +
-        `Her biri elle incelenmeli — kaynaktaki kayıt düzeltilmeden yüklenmemeli.`,
-    );
+      `farklı kulüp söylüyor (BR-42): ${detay}${more}. ` +
+      `Her biri elle incelenmeli — tam liste br42-celiskiler.tsv'de.`;
+
+    if (contradictions.length > MAX_UNRESOLVED_CONTRADICTIONS) {
+      errors.push(
+        `${satir} SAYI BÜTÇEYİ AŞTI ` +
+          `(${MAX_UNRESOLVED_CONTRADICTIONS}) — bu tekil kaynak hatası değil, ` +
+          `sistemik bir bozulmadır: bir korumanın devre dışı kalıp kalmadığına bakın.`,
+      );
+    } else {
+      warnings.push(satir);
+    }
   }
 
   /*
