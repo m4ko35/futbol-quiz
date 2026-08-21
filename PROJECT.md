@@ -681,6 +681,44 @@ Sıra tercih değil zorunluluk: 4. kural bir kez ölçülmeden uygulanmış ve 6
 
 **Dil kanıtı nereden geliyor.** Aynı dönemi iki dil yazdığında ikincisi kopya sayılıp atılıyordu (`duplicateRows`) — atılan şey yalnızca kopya değil **kanıttı**. Kayıt artık kendisini üreten dilleri taşıyor (`WikipediaSpell.sites`); değerlere dokunulmuyor, yalnızca dil ekleniyor. Birleştirme kuralları (1–4) dil saymaz; alan yalnızca bu kapı için var.
 
+#### Gölge modun ilk koşusu: kapı bir felaketi durdurdu (21 Ağustos 2026)
+
+3. aşama gölge modda koştu ve **tam olarak var olma sebebini kanıtladı.**
+
+| Ölçüm                               | Sonuç              |
+| ----------------------------------- | ------------------ |
+| BR-42 çelişkisi (1. aşamadan sonra) | **341** (önce 383) |
+| — körlük yüzünden karar verilemedi  | 42                 |
+| Vikipedi **reddet**                 | 51                 |
+| Vikipedi **karantina**              | 290                |
+
+Reddedilecek 51'in tamamı elle incelendi ve **28'i aynı kulübün iki adıydı:**
+
+```
+Mario Maraschi   Wikidata: "Vicenza Calcio" 1965-66, 59 maç
+                 Vikipedi: "LR Vicenza"
+```
+
+Uygulansaydı **gerçek bir kariyer kaydı silinecekti.** Aynısı Toulouse FC (1937/1970), Troyes AC / AS Troyes, ACS Poli Timișoara / FC Timişoara, Dukla Prag / Dukla Prague, Austria Kärnten / ASKÖ Pasching, Zulte Waregem / KSV Waregem, Swarovski Tirol / Tirol Innsbruck için de geçerliydi. §4.3'ün 4. kuralı bir kez ölçmeden uygulanıp 66 sağlam dönemi ayıklamıştı; bu, **aynı hatanın yeni kılığıydı**.
+
+**Eksik olan koşul bulundu ve ölçüldü.** İki kaydın aynı kulüp olup olmadığını söyleyen sinyal veri kümesinin kendi içinde: bir oyuncu aynı anda iki kulüpte kalıcı olarak bulunamaz (§8.2). O hâlde iki kulüp kaydı arasında **örtüşen kalıcı dönem** varsa ya veri hatasıdır ya da iki kayıt aynı kulüptür. Ayrımı TEKRAR yapıyor:
+
+| Kulüp çifti                       | Bağımsız oyuncuda örtüşme |
+| --------------------------------- | ------------------------- |
+| Vicenza Calcio / LR Vicenza       | 72                        |
+| Toulouse FC (1937) / (1970)       | 31                        |
+| Troyes AC / AS Troyes             | 28                        |
+| ACS Poli Timișoara / FC Timişoara | 18                        |
+| …                                 |                           |
+| Trapattoni: Juventus / Milan      | **1**                     |
+| Leão: Real Madrid / Milan         | **0**                     |
+
+Gerçek veri hatalarının hepsi 0–1'de, aynı kulüp çiftlerinin hepsi 2 ve üstünde. Eşik **2**: "örüntü" sözcüğünün en dar hâli — bir kez rastlantı, iki kez tekrar. Aynı oyuncu bir çifti yalnızca **bir kez** sayar; aranan şey bağımsız oyuncularda tekrarlamak.
+
+**Bu bir BİRLEŞTİRME DEĞİL.** §5.3 kulüpleri birleştirmeyi ölçerek reddetti ve o karar duruyor: hiçbir kulüp birleşmiyor, hiçbir dönem taşınmıyor. Kural yalnızca BR-42'ye "bu ikisi aynı şeyin iki adı olabilir, çelişki sayma" diyor. Riskin yönü de bunu destekliyor — yanlış silme veriye yayılır ve geri alınamaz, yanlış susma bir kaydı kapıda tutar (§5.3'ün BR-36'da kurduğu asimetrinin aynısı).
+
+`club-kinship.ts`, veriden hesaplıyor: bütün dönemler zaten bellekte, yeni istek yok.
+
 #### Bitiş yılının okunuşu
 
 Bilgi kutusundaki yıllar tarih değil kariyer aralığıdır ve **iki ucu farklı okunur**. Başlangıç olduğu gibi alınır, bitişten **bir çıkarılır**:

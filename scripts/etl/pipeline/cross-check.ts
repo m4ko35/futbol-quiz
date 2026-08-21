@@ -1,6 +1,7 @@
 import type { WikipediaSpell } from "./merge-wikipedia";
 import type { NormalizedSpell } from "./normalize";
 import type { WikiSite } from "../sources/wikipedia/client";
+import { kinshipKey } from "./club-kinship";
 import type { UnresolvedClubRow } from "./wikipedia-pass";
 
 /**
@@ -90,6 +91,16 @@ export interface Undecided {
 export interface CrossCheckResult {
   readonly contradictions: Contradiction[];
   readonly undecided: Undecided[];
+  /**
+   * Rakip kulüp, tartışmalı kulübün BAŞKA ADI olduğu için çelişki
+   * sayılmayan kayıt sayısı — §5.3, `club-kinship.ts`.
+   *
+   * Ayrı bir liste değil, bir SAYAÇ: bunlar bilinen ve kabul edilmiş bir
+   * durum (kulüp ikizleri, §5.3) ve her koşuda yüzlerce satır yazmak raporu
+   * boğardı. Sayının kendisi yine de görünmeli — büyümesi, kulüp kimliği
+   * sorununun büyüdüğü anlamına gelir.
+   */
+  readonly kinSuppressed: number;
 }
 
 /**
@@ -177,6 +188,14 @@ export function findContradictions(input: {
    * körlük senaryosunu ayrıca kuruyor, gerçek koşuda `extract.ts` dolduruyor.
    */
   readonly unresolved?: readonly UnresolvedClubRow[];
+  /**
+   * Aynı kulübün iki kaydı olabilecek kulüp çiftleri (`club-kinship.ts`).
+   *
+   * VERİLMEZSE KAPI ESKİ GİBİ DAVRANIR. Verildiğinde, rakip kulüp
+   * tartışmalı kulübün başka adıysa çelişki İDDİA EDİLMEZ: "Vicenza Calcio"
+   * ile "LR Vicenza" iki kaynağın anlaşmazlığı değil, aynı şeyin iki yazımı.
+   */
+  readonly kinClubPairs?: ReadonlySet<string>;
   readonly minAppearances?: number;
 }): CrossCheckResult {
   const floor = input.minAppearances ?? MIN_CONTRADICTION_APPEARANCES;
@@ -199,8 +218,11 @@ export function findContradictions(input: {
     unreadByPlayer.set(row.playerWikidataId, list);
   }
 
+  const kin = input.kinClubPairs ?? new Set<string>();
+
   const contradictions: Contradiction[] = [];
   const undecided: Undecided[] = [];
+  let kinSuppressed = 0;
 
   for (const spell of input.spells) {
     if (spell.isYouth || spell.isLoan) continue;
@@ -218,11 +240,28 @@ export function findContradictions(input: {
     if (span === null) continue;
 
     // KOŞUL 3 — aynı yılları başka bir kulüp mü dolduruyor?
-    const rivals = records.filter((record) => {
+    const allRivals = records.filter((record) => {
       const other = spanOf(record);
       return other !== null && overlaps(span, other);
     });
-    if (rivals.length === 0) continue;
+    if (allRivals.length === 0) continue;
+
+    /*
+      KOŞUL 3b — rakip, aynı kulübün BAŞKA ADI olabilir mi?
+
+      "Vicenza Calcio" ile "LR Vicenza" iki kaynağın anlaşmazlığı değil, aynı
+      kulübün iki kaydı (§5.3). Bunu çelişki saymak bir yana, 3. aşamada
+      REDDEDİLİRSE gerçek bir kariyer kaydı silinir — ölçüldü, 51 reddin 28'i
+      bu sınıftandı (`club-kinship.ts`).
+    */
+    const rivals = allRivals.filter(
+      (record) =>
+        !kin.has(kinshipKey(spell.clubWikidataId, record.clubWikidataId)),
+    );
+    if (rivals.length === 0) {
+      kinSuppressed++;
+      continue;
+    }
 
     const wikipediaClubs = [...new Set(rivals.map((r) => r.clubWikidataId))];
     const wikipediaSites = [...new Set(rivals.flatMap((r) => r.sites))];
@@ -267,5 +306,5 @@ export function findContradictions(input: {
     });
   }
 
-  return { contradictions, undecided };
+  return { contradictions, undecided, kinSuppressed };
 }

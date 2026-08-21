@@ -5,6 +5,7 @@ import {
 } from "../../../scripts/etl/pipeline/cross-check";
 import type { WikipediaSpell } from "../../../scripts/etl/pipeline/merge-wikipedia";
 import type { NormalizedSpell } from "../../../scripts/etl/pipeline/normalize";
+import { kinshipKey } from "../../../scripts/etl/pipeline/club-kinship";
 import type { UnresolvedClubRow } from "../../../scripts/etl/pipeline/wikipedia-pass";
 
 /**
@@ -297,5 +298,62 @@ describe("BR-42 — okunamayan bağlantı varsa karar verilmez", () => {
 
     expect(sonuc.contradictions).toHaveLength(1);
     expect(sonuc.undecided).toEqual([]);
+  });
+});
+
+/**
+ * 5. koruma — rakip, aynı kulübün BAŞKA ADI olabilir (§5.3).
+ *
+ * ÖLÇÜTÜ yine gerçek bir felakete dönüş: 3. aşama gölge modda 51 dönemi
+ * reddetmeye hazırlandı ve 28'i bu sınıftandı. Mario Maraschi'nin "Vicenza
+ * Calcio 1965-66, 59 maç" kaydı, Vikipedi ona "LR Vicenza" dediği için
+ * silinecekti.
+ */
+describe("BR-42 — aynı kulübün iki adı çelişki değildir", () => {
+  it("VICENZA VAKASI: akraba kulüp çelişki saymaz", () => {
+    const sonuc = findContradictions({
+      spells: [wd({ clubWikidataId: "Q-vicenza-eski" })],
+      wikipedia: [wp({ clubWikidataId: "Q-vicenza-yeni" })],
+      kinClubPairs: new Set([kinshipKey("Q-vicenza-eski", "Q-vicenza-yeni")]),
+    });
+
+    expect(sonuc.contradictions).toEqual([]);
+    expect(sonuc.undecided).toEqual([]);
+    expect(sonuc.kinSuppressed).toBe(1);
+  });
+
+  it("İLGİSİZ kulüp hâlâ çelişkidir — kapı gevşemez", () => {
+    // Leão: Real Madrid ile Milan akraba değil ve olmamalı.
+    const sonuc = findContradictions({
+      spells: [wd()],
+      wikipedia: [wp()],
+      kinClubPairs: new Set([kinshipKey("Q-baska", "Q-bambaska")]),
+    });
+
+    expect(sonuc.contradictions).toHaveLength(1);
+    expect(sonuc.kinSuppressed).toBe(0);
+  });
+
+  it("rakiplerden YALNIZCA BİRİ akrabaysa çelişki DURUR", () => {
+    // Akraba olan eleniyor, ilgisiz olan iddiayı ayakta tutuyor. Aksi hâlde
+    // tek bir akraba ad bütün çelişkiyi susturur ve gerçek hata kaçardı.
+    const sonuc = findContradictions({
+      spells: [wd({ startYear: 2019, endYear: 2023 })],
+      wikipedia: [
+        wp({ clubWikidataId: "Q-akraba", startYear: 2019, endYear: 2023 }),
+        wp({ clubWikidataId: "Q-ilgisiz", startYear: 2020, endYear: 2022 }),
+      ],
+      kinClubPairs: new Set([kinshipKey("Q-real", "Q-akraba")]),
+    });
+
+    expect(sonuc.contradictions).toHaveLength(1);
+    expect(sonuc.contradictions[0]?.wikipediaClubs).toEqual(["Q-ilgisiz"]);
+  });
+
+  it("`kinClubPairs` verilmezse kapı eskisi gibi davranır", () => {
+    const sonuc = findContradictions({ spells: [wd()], wikipedia: [wp()] });
+
+    expect(sonuc.contradictions).toHaveLength(1);
+    expect(sonuc.kinSuppressed).toBe(0);
   });
 });

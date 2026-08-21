@@ -31,6 +31,7 @@ import {
 } from "./career-total-check";
 import { disambiguateShortNames } from "./club-labels";
 import { mergeDuplicateClubs } from "./merge-clubs";
+import { findKinClubPairs } from "./club-kinship";
 import { findContradictions } from "./cross-check";
 import type { Contradiction, Undecided } from "./cross-check";
 import {
@@ -629,13 +630,32 @@ export async function extractDataset(
 
       Denetim SİLMEZ; kararı `validateDataset` verir (§4.3'ün 4. kuralı).
     */
+    /*
+      §5.3 — aynı kulübün iki kaydı, çelişki sayılmadan ÖNCE bulunur.
+
+      VERİDEN HESAPLANIYOR, ağdan değil: bütün dönemler zaten bellekte ve
+      ölçüt de onların içinde (aynı oyuncunun iki kulüpte örtüşen kalıcı
+      dönemi). Yeni istek, yeni kaynak, yeni lisans yüzeyi yok.
+    */
+    const kinClubPairs = findKinClubPairs({ spells: finalSpells });
+    console.log(
+      `      ${kinClubPairs.size} kulüp çifti "aynı kulüp olabilir" sayıldı (§5.3)`,
+    );
+
     const crossCheck = findContradictions({
       spells: finalSpells,
       wikipedia: pass.spells,
       unresolved: pass.unresolved,
+      kinClubPairs,
     });
     contradictions = crossCheck.contradictions;
     undecided = crossCheck.undecided;
+    if (crossCheck.kinSuppressed > 0) {
+      console.log(
+        `      · ${crossCheck.kinSuppressed} kayıt çelişki SAYILMADI: ` +
+          `Vikipedi'nin yazdığı kulüp aynı kulübün başka adı`,
+      );
+    }
     console.log(
       contradictions.length === 0
         ? "      ✓ çapraz kaynak denetimi temiz (BR-42)"
