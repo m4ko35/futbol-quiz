@@ -1141,6 +1141,27 @@ Boşluğu kapatmak için dört ayırt edici sırayla denendi; **dördü de ölç
 | Kuruluş yılı (`P571`)        | Gölge kayıtta `P571` hiç yok — karşılaştırılacak değer bulunmuyor.                                                                                 |
 | Vikipedi madde sayısı        | Gölgelerin **gerçek maddeleri var**: `Q20473364` → tr.wikipedia "Gençlerbirliği (futbol takımı)", `Q108001798` → sv.wikipedia "IFK Norrköping FK". |
 
+**BEŞİNCİ AYIRT EDİCİ DENENDİ VE O DA ELENDİ (21 Ağustos 2026).** BR-42'nin ilk gerçek koşusu 383 çelişki çıkarınca çoğunun kulüp ikizlerinden geldiği görüldü ve akla şu geldi: eksik olan ilişki `P361`/`P831` değil, **halefiyet** olabilir mi? Wikidata `P1365`/`P1366` (yerine geçer/yerini alır) ve `P155`/`P156` (önce/sonra gelen) ile ardışık kulüpleri bağlıyor; `clubDuplicates` bunlara hiç bakmıyor.
+
+Ölçüldü (`npm run clubs:lineage`, 992 kulüp): **iki ucu da evrende olan yalnızca 4 zincir var.**
+
+| Zincir                                   | Üye | Dönem | Ne olduğu                 |
+| ---------------------------------------- | --- | ----- | ------------------------- |
+| Vicenza Calcio → LR Vicenza              | 2   | 1.272 | ad değişikliği            |
+| A.C. Ancona → SSC Ancona                 | 2   | 841   | yeniden kuruluş           |
+| SC Fives + Olympique Lillois → Lille OSC | 3   | 809   | **BİRLEŞME**              |
+| Příbram / Dukla Prag / Dukla Prague      | 3   | 740   | taşınma + yeniden kuruluş |
+
+Dördü de birleştirilseydi **3.662 dönem** etkilenirdi ve üçüncü satır bunun neden yapılamayacağını tek başına gösteriyor: SC Fives ile Olympique Lillois 1932–1943 arasında **aynı anda var olan iki ayrı kulüptü**, 1944'te birleşip Lille OSC'yi kurdular. Ölçüm bunu doğruluyor — ikisinin **sıfır** örtüşen kalıcı dönemi var (Vicenza'da 72, Ancona'da 57). Halefiyet bağı, gerçek ikizle gerçek birleşmeyi **aynı özellikle** işaretliyor; tıpkı `P361`'in selef kulüpleri de bağlaması gibi.
+
+Yani kapsam hem dar (161 çelişki çiftinin yalnızca 4'ü) hem de ayırt edici değil. Karar değişmedi.
+
+**Ham örtüşme SAYISI da denendi — oran değil, sayı.** Yukarıdaki tabloda örtüşme _yüzde_ olarak ölçülmüştü; belki ham sayı ayırırdı. 992 kulüp, 333.708 kalıcı dönem tarandı: aynı oyuncunun iki kulüpte **zaman olarak örtüşen** kalıcı dönemi 663 çiftte, toplam 1.447 kez görülüyor. Dağılım keskin — 582 çiftte yalnızca **1** örtüşme (tekil veri hatası), 6 çiftte **30+**. Üst bant sıralamayı iyi yapıyor ama sınıflandırmayı yine yapamıyor: aynı bantta Gençlerbirliği (gerçek ikiz, 193) ile Ancona (yeniden kuruluş, 57) yan yana duruyor, ve 5–9 bandında **Dundee FC / Dundee United**, **Club Brugge / Cercle Brugge**, **AC Ajaccio / Gazélec Ajaccio** çıkıyor — üçü de aynı şehrin farklı kulüpleri.
+
+Bu sayı zaten §8.2'nin "örtüşen kalıcı dönem" uyarısının ölçtüğü şey. Yeni bir kusur değil, aynı kusurun kulüp çiftine göre gruplanmış hâli.
+
+**Sonuç: §5.3'ün kararı üç bağımsız ölçümle ayakta.** Doğru düzeltme yeri hâlâ kaynağın kendisi. `measure-club-lineage.ts` bu yüzden depoda duruyor — kaynakta ilişki eklendiğinde bunu **görecek** olan araç odur.
+
 Son satır bir varsayım olarak kurulup **uygulandıktan sonra** çürüdü: kural yazıldı, birim testleri geçti, gerçek veri üzerinde 15 ad çakışmasının **hiçbirinde** tetiklenmedi. Ölçüm varsayımı yalanlayınca çalışan kod geri alındı — eşiği 1'e çekmek kuralı veriden değil sonuçtan türetmek olurdu.
 
 Ortak oyuncu oranı ikizleri yakalardı. **Birleştirme için kullanılmadı** ve gerekçesi ölçüldü: 906 seçilebilir kulübün 409.965 çiftinden en az bir oyuncu paylaşan 118.247'si tarandığında, üst banttaki çiftlerin bir kısmının ikiz DEĞİL akraba olduğu görüldü.

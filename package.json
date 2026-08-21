@@ -32,6 +32,7 @@
     "db:crests": "tsx scripts/etl/crests.ts",
     "db:crest-audit": "tsx scripts/etl/crest-audit.ts",
     "stats:measure": "tsx scripts/measure-stats.ts",
+    "clubs:lineage": "tsx scripts/measure-club-lineage.ts",
     "bench": "tsx scripts/benchmark.ts",
     "dataset:fetch": "tsx scripts/fetch-dataset.ts",
     "isle:bildirimler": "tsx scripts/name-reports.ts",

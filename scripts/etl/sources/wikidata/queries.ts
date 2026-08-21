@@ -397,6 +397,39 @@ SELECT DISTINCT ?club ?parent WHERE {
 }`.trim();
 }
 
+/**
+ * Halefiyet bağları — PROJECT.md §5.3, 2. aşama ölçümü.
+ *
+ * `clubDuplicates`'ten AYRI BİR SORU soruyor ve karıştırılmamalı. Orada
+ * aranan şey aynı ANIN iki kaydı (şemsiye kulüp ↔ futbol şubesi); burada
+ * aranan şey aynı kulübün ARDIŞIK kayıtları — iflas edip yeniden kurulan,
+ * ad değiştiren, birleşen kulüpler.
+ *
+ * Dört özellik birden okunuyor çünkü Wikidata hangisini kullanacağı
+ * konusunda tutarlı değil: `P1365`/`P1366` (yerine geçer / yerini alır)
+ * kurumsal ardıllık, `P155`/`P156` (önce gelen / sonra gelen) daha genel
+ * bir sıralama. Kulüplerde ikisi de görülüyor.
+ *
+ * SINIF KISITI YOK, bilerek. `clubDuplicates` şemsiye asimetrisine dayanır;
+ * burada iki taraf da düz futbol kulübüdür ve ayrım sınıfla yapılamaz.
+ * Süzgeç çağıranda: yalnızca EVRENDE olan uçlar sayılır.
+ *
+ * BU SORGU KARAR VERMEZ. Yeniden kuruluş ile BİRLEŞMEYİ ayırt edemez —
+ * ikisi de aynı bağı taşır. Ayrım zincirin şeklinden okunur (tek selef mi,
+ * çok selef mi) ve son sözü insan söyler.
+ */
+export function clubLineage(qids: readonly string[]): string {
+  const values = qids.map((id) => `wd:${assertQid(id)}`).join(" ");
+
+  return `
+SELECT DISTINCT ?club ?other ?prop WHERE {
+  VALUES ?club { ${values} }
+  VALUES ?prop { wdt:P1365 wdt:P1366 wdt:P155 wdt:P156 }
+  ?club ?prop ?other .
+  FILTER(?club != ?other)
+}`.trim();
+}
+
 /** Bir sorguda sorulacak azami oyuncu sayısı — zaman aşımını önler. */
 export const PLAYER_BATCH_SIZE = 250;
 
