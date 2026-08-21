@@ -125,6 +125,7 @@ async function main(): Promise<void> {
     rejected,
     fetchedClubIds: dataset.fetchedClubIds,
     contradictions: dataset.contradictions,
+    undecided: dataset.undecided,
   });
 
   for (const warning of report.warnings) console.warn(`  ⚠ ${warning}`);

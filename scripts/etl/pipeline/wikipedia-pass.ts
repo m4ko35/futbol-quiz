@@ -43,6 +43,30 @@ import type { WikipediaSpell } from "./merge-wikipedia";
  * burada tek gereken, hiç makalesi gelmeyen dilin atlanması.
  */
 
+/**
+ * Bilgi kutusunda okunan ama evrendeki bir kulübe BAĞLANAMAYAN satır — §4.3.
+ *
+ * NEDEN SAKLANIYOR. Eskiden bu satır bir sayaca yazılıp atılıyordu ve
+ * atılması sonraki denetimlerde yanlış bir çıkarıma yol açtı: BR-42'nin
+ * "kulüp bilgi kutusunda hiç geçmiyor" koşulu, kulüp gerçekten geçmediği
+ * için değil BİZ OKUYAMADIĞIMIZ için doğru çıkabiliyordu (§8.2, Pineda).
+ *
+ * Kulüp QID'si YOK ve tahmin de EDİLMİYOR — §4.3'ün 5. kuralı yerinde:
+ * bu satır bir dönemle eşleşemez, birleştirmeye girmez. Taşıdığı tek bilgi
+ * "şu oyuncunun bilgi kutusunda, şu yıllarda, okuyamadığımız bir kulüp var".
+ * Bu bilgi bir veri değil, bir BİLGİSİZLİK KAYDI; kullanan da onu böyle
+ * kullanmalı.
+ */
+export interface UnresolvedClubRow {
+  readonly playerWikidataId: string;
+  /** Bilgi kutusundaki ham bağlantı metni — indekste aranan ad. */
+  readonly clubTitle: string;
+  readonly site: WikiSite;
+  readonly startYear: number | null;
+  readonly endYear: number | null;
+  readonly isLoan: boolean;
+}
+
 export interface WikipediaPassStats {
   playersWithArticle: number;
   playersWithoutArticle: number;
@@ -80,6 +104,11 @@ export interface WikipediaPassResult {
    * ikinci kez ayrıştırılır, yeni bir ağ isteği YOKTUR.
    */
   readonly careerTotals: ReadonlyMap<string, CareerTotal>;
+  /**
+   * Çözülemeyen satırlar. Uzunluğu `stats.unmatchedClubLinks`'e EŞİTTİR —
+   * sayaç ile liste ayrışırsa biri yanlıştır (testle tutuluyor).
+   */
+  readonly unresolved: UnresolvedClubRow[];
   readonly stats: WikipediaPassStats;
 }
 
@@ -91,8 +120,20 @@ export interface WikipediaPassInput {
   readonly noCache?: boolean;
 }
 
+/**
+ * Bu geçişin istemciden İHTİYAÇ DUYDUĞU her şey.
+ *
+ * Somut sınıf yerine yüzeyi daraltmak, `unresolved` muhasebesinin ağ olmadan
+ * test edilebilmesi için gerekli — sayaç ile liste ayrışırsa BR-42 sessizce
+ * yanlış karar verir ve bunu ancak bir test tutabilir.
+ */
+export type WikipediaReader = Pick<
+  WikipediaClient,
+  "articleWikitext" | "redirectAliases"
+>;
+
 export async function collectWikipediaSpells(
-  client: WikipediaClient,
+  client: WikipediaReader,
   input: WikipediaPassInput,
 ): Promise<WikipediaPassResult> {
   const options = { noCache: input.noCache ?? false };
@@ -221,6 +262,7 @@ export async function collectWikipediaSpells(
 
   // ─── 3. Kulüpleri eşleştir ve dilleri birleştir ───────────────────────
   const spells: WikipediaSpell[] = [];
+  const unresolved: UnresolvedClubRow[] = [];
 
   for (const [playerId, entries] of rowsByPlayer) {
     // Aynı dönemin ikinci dildeki kopyası atılır. Anahtar kulüp QID'i +
@@ -230,7 +272,16 @@ export async function collectWikipediaSpells(
     for (const { site, row } of entries) {
       const clubId = clubIndex.get(site)?.get(row.clubTitle);
       if (clubId === undefined) {
+        // ATILMIYOR, KAYDEDİLİYOR. Gerekçe `UnresolvedClubRow` üstünde.
         stats.unmatchedClubLinks++;
+        unresolved.push({
+          playerWikidataId: playerId,
+          clubTitle: row.clubTitle,
+          site,
+          startYear: row.startYear,
+          endYear: row.endYear,
+          isLoan: row.isLoan,
+        });
         continue;
       }
       stats.matchedBySite[site]++;
@@ -254,5 +305,5 @@ export async function collectWikipediaSpells(
     }
   }
 
-  return { spells, careerTotals, stats };
+  return { spells, careerTotals, unresolved, stats };
 }

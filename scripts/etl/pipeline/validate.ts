@@ -1,5 +1,5 @@
 import { isPlausibleSeasonYear } from "../../../src/domain/value-objects/season";
-import type { Contradiction } from "./cross-check";
+import type { Contradiction, Undecided } from "./cross-check";
 import { MIN_SPELLS_FOR_SELECTABLE } from "../leagues";
 import type {
   NormalizedClub,
@@ -149,6 +149,14 @@ export function validateDataset(input: {
    * ikinci kaynak yoktur ve denetim susar.
    */
   readonly contradictions?: readonly Contradiction[];
+  /**
+   * BR-42'nin karar VEREMEDİĞİ dönemler (`cross-check.ts`).
+   *
+   * BLOKLAMAZ, uyarı üretir. Bunlar "iki kaynak anlaşamıyor" değil, "ikinci
+   * kaynağı okuyamadık" kayıtlarıdır; sayı, kulüp adı indeksinin eksikliğini
+   * ölçer ve kapının kendisi hakkında bir şey söylemez (§8.2).
+   */
+  readonly undecided?: readonly Undecided[];
 }): ValidationReport {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -326,6 +334,45 @@ export function validateDataset(input: {
       `${contradictions.length} dönemde Vikipedi ile Wikidata AYNI YILLAR için ` +
         `farklı kulüp söylüyor (BR-42): ${detay}${more}. ` +
         `Her biri elle incelenmeli — kaynaktaki kayıt düzeltilmeden yüklenmemeli.`,
+    );
+  }
+
+  /*
+    ─── Bloklamayan: kapının karar veremediği kayıtlar (BR-42, 4. koruma) ──
+
+    NEDEN UYARI, NEDEN HATA DEĞİL. Burada bulunan şey bir veri kusuru değil,
+    BİZİM eksiğimiz: bilgi kutusundaki bir bağlantıyı evrendeki bir kulübe
+    bağlayamadık. Yüklemeyi durdurmak yanlış olurdu — durduracak bir bulgu
+    yok, yalnızca bir kör nokta var.
+
+    AMA SESSİZ DE KALMIYOR. Sayı büyürse bu, kapının giderek daha çok kaydı
+    inceleyemediği anlamına gelir; kapının aşınmasını ancak bu satır gösterir.
+  */
+  const undecided = input.undecided ?? [];
+  if (undecided.length > 0) {
+    details.push({
+      key: "br42-karar-verilemedi",
+      label: "BR-42 — okunamayan bağlantı yüzünden karar verilemedi",
+      header:
+        "oyuncu	wikidata_kulup	baslangic	bitis	mac	vikipedi_kulupler	okunamayan	ifade",
+      items: undecided.map((u) =>
+        [
+          u.playerWikidataId,
+          u.clubWikidataId,
+          u.startYear ?? "",
+          u.endYear ?? "",
+          u.appearances ?? "",
+          u.wikipediaClubs.join(","),
+          u.unreadTitles.join(","),
+          u.spellId,
+        ].join("	"),
+      ),
+    });
+
+    warnings.push(
+      `${undecided.length} dönemde BR-42 karar veremedi: bilgi kutusunda ` +
+        `okunamayan bir bağlantı tartışmalı yıllara denk geliyor. ` +
+        `Bunlar çelişki DEĞİL — kulüp adı indeksinin eksiği (§4.3).`,
     );
   }
 

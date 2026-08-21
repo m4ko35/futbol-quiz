@@ -32,7 +32,7 @@ import {
 import { disambiguateShortNames } from "./club-labels";
 import { mergeDuplicateClubs } from "./merge-clubs";
 import { findContradictions } from "./cross-check";
-import type { Contradiction } from "./cross-check";
+import type { Contradiction, Undecided } from "./cross-check";
 import { mergeWikipediaSpells } from "./merge-wikipedia";
 import {
   applyPlayerStats,
@@ -66,6 +66,14 @@ export interface ExtractedDataset {
    * "çelişki yok" ile "sorulamadı" karıştırılmamalıdır.
    */
   readonly contradictions: Contradiction[];
+  /**
+   * BR-42'nin KARAR VEREMEDİĞİ dönemler — §8.2.
+   *
+   * Bloklamaz. Bu sayı kulüp adı indeksinin eksikliğini ölçüyor: her satır,
+   * bilgi kutusunda okunup evrendeki bir kulübe bağlanamamış bir bağlantı
+   * yüzünden hüküm verilemeyen bir kayıt.
+   */
+  readonly undecided: Undecided[];
   /**
    * §9.2 — çapraz denetimin DÜŞÜRDÜĞÜ kariyer toplamları.
    *
@@ -498,6 +506,8 @@ export async function extractDataset(
    * olurdu (§2.7).
    */
   let contradictions: Contradiction[] = [];
+  /** Aynı gerekçe: Vikipedi atlanırsa karar verilememiş kayıt da yoktur. */
+  let undecided: Undecided[] = [];
   /** §9.2 — çapraz denetimi geçen kulüp kariyer toplamları. */
   let careerTotals: ReadonlyMap<string, CareerTotal> = new Map();
   let careerTotalConflicts: CareerTotalConflict[] = [];
@@ -597,15 +607,26 @@ export async function extractDataset(
 
       Denetim SİLMEZ; kararı `validateDataset` verir (§4.3'ün 4. kuralı).
     */
-    contradictions = findContradictions({
+    const crossCheck = findContradictions({
       spells: finalSpells,
       wikipedia: pass.spells,
+      unresolved: pass.unresolved,
     });
+    contradictions = crossCheck.contradictions;
+    undecided = crossCheck.undecided;
     console.log(
       contradictions.length === 0
         ? "      ✓ çapraz kaynak denetimi temiz (BR-42)"
         : `      ✗ ${contradictions.length} dönemde Vikipedi ile Wikidata AYNI YILLAR için farklı kulüp söylüyor (BR-42)`,
     );
+    if (undecided.length > 0) {
+      // BLOKLAMAZ — kapının körlüğünün ölçüsü. Eski kural bunları çelişki
+      // sayardı; ikisinin toplamı o eski sayıdır (§8.2).
+      console.log(
+        `      · ${undecided.length} dönemde karar VERİLEMEDİ: ` +
+          `bilgi kutusunda okunamayan bağlantı aynı yıllara denk geliyor`,
+      );
+    }
 
     /*
       §9.2 — kulüp kariyer toplamı, kendi lig sayımızla karşılaştırılır.
@@ -701,6 +722,7 @@ export async function extractDataset(
     selectableClubIds,
     fetchedClubIds,
     contradictions,
+    undecided,
     careerTotals,
     careerTotalConflicts,
   };

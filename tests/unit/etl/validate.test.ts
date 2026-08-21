@@ -196,6 +196,53 @@ describe("BR-42 — çapraz kaynak kapısı", () => {
     expect(detay?.items.at(-1)).toContain("Q19-abc");
   });
 
+  /**
+   * 4. koruma — karar verilemeyen kayıt BLOKLAMAZ (§8.2, 21 Ağustos 2026).
+   *
+   * Ayrım burada tutuluyor çünkü karıştırılması pahalı: "iki kaynak
+   * anlaşamıyor" yüklemeyi durdurur, "ikinci kaynağı okuyamadık" durdurmaz.
+   * İkincisi bir veri kusuru değil, bizim kör noktamız.
+   */
+  const kararsiz = {
+    ...celiski,
+    unreadTitles: ["AEK Athens F.C."],
+  };
+
+  it("karar verilemeyen kayıt UYARI üretir, hata değil", () => {
+    const report = validateDataset({
+      clubs: [club("QA")],
+      spells: [spell("s1")],
+      rejected: [],
+      fetchedClubIds,
+      contradictions: [],
+      undecided: [kararsiz],
+    });
+
+    expect(report.errors).toEqual([]);
+    expect(report.warnings.some((w) => w.includes("karar veremedi"))).toBe(
+      true,
+    );
+  });
+
+  it("karar verilemeyen kayıt AYRI dosyaya yazılır ve okunamayan adı taşır", () => {
+    // Bu sütun işin devamı: indekse eklenecek takma ad tam olarak bu.
+    const report = validateDataset({
+      clubs: [club("QA")],
+      spells: [spell("s1")],
+      rejected: [],
+      fetchedClubIds,
+      contradictions: [],
+      undecided: [kararsiz],
+    });
+
+    const detay = report.details.find((d) => d.key === "br42-karar-verilemedi");
+    expect(detay?.items).toHaveLength(1);
+    expect(detay?.items[0]).toContain("AEK Athens F.C.");
+    expect(detay?.header).toContain("okunamayan");
+    // Çelişki dosyasına KARIŞMIYOR — iki liste iki ayrı iş.
+    expect(report.details.some((d) => d.key === "br42-celiskiler")).toBe(false);
+  });
+
   it("çelişki yoksa detay da üretmez", () => {
     const report = validateDataset({
       clubs: [club("QA")],
