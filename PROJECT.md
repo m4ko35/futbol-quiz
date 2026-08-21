@@ -3635,7 +3635,7 @@ Geçiş onaylanmadan önce bugünkü kapsam ölçüldü (15 Ağustos 2026):
 
 **Durum (15 Ağustos 2026, geçiş ONAYLANDI):** boru hattı hazır ve `verify` temiz.
 
-- `Player.nationalGoals` — millî takım golü, `pq:P1351`, ek istek sıfır.
+- `Player.nationalGoals` — millî takım golü, `pq:P1351`, ek istek sıfır. **Gol maçı aşıyorsa `null`** (BR-22'nin millî karşılığı): alanın ilk dolduğu koşuda kabul kontrolü düştü — 22.982 kaydın **184'ünde** gol maçtan büyüktü. Kural kulüp tarafında (`tallies`) vardı, millîde yoktu. Maç değil GOL düşer, çünkü maç sayısı BR-14'ün ve BR-38'in girdisi. `tallies`'in aksine saklanmaz: millî golün ikinci kaynağı yok, bekletilecek karar da yok.
 - `Player.clubCareerAppearances` / `clubCareerGoals` — Vikipedi kariyer toplamı. `careerAppearances` ile karıştırılmamalı: o BR-21'in arama ağırlığıdır ve yalnız 24 ligi sayar.
 - `career-total.ts` (23 test) — ayrıştırıcı, saf.
 - `career-total-check.ts` (12 test) — çapraz denetim kapısı.

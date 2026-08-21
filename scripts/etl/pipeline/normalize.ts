@@ -509,6 +509,22 @@ export interface NationalTeamCaps {
    *
    * Maçı olup golü olmayan oyuncu için `null` — sıfır DEĞİL (§2.7). Ölçüldü:
    * 3.580 oyuncunun 7'si.
+   *
+   * GOL MAÇI AŞIYORSA `null` OLUR — BR-22'nin millî karşılığı, 21 Ağustos
+   * 2026'da eklendi. Alanın İLK dolduğu koşuda kabul kontrolü düştü:
+   * **22.982 kayıttan 184'ünde gol maçtan büyüktü.** Kural kulüp tarafında
+   * (`tallies`) zaten vardı, millî tarafta yoktu; §9.2 alanı ekledi, kapıyı
+   * ekledi, ama ayıklayıcıyı eklemedi.
+   *
+   * MAÇ DEĞİL GOL DÜŞER, `tallies` ile aynı gerekçeyle: maç sayısı BR-14'ün
+   * ve BR-38'in (uyruk seçimi) girdisi, yani daha çok yerde kullanılıyor.
+   * Hangi sayının yanlış olduğunu bilemeyiz; bilemediğimizde daha az şeyi
+   * kaybettiren tarafı bırakırız.
+   *
+   * SAKLANMIYOR, `tallies`'in aksine. Orada değer `disputedGoals`'a konup
+   * ikinci kaynağın doğrulaması bekleniyor; millî golün ikinci kaynağı YOK
+   * (§9.2 yalnızca KULÜP kariyer toplamını okuyor). Bekletilecek bir karar
+   * olmadığı için değer doğrudan bilinmiyor sayılır.
    */
   readonly goals: number | null;
 }
@@ -530,10 +546,14 @@ export function nationalCapsFrom(
 
     const current = best.get(player);
     if (current === undefined || caps > current.caps) {
+      // Gol maçı aşıyorsa kaynak kaydı kendi içinde tutarsızdır; gerekçe
+      // `NationalTeamCaps.goals` üstünde.
+      const goals = int(binding, "goals") ?? null;
+
       best.set(player, {
         caps,
         teamQid: team,
-        goals: int(binding, "goals") ?? null,
+        goals: goals !== null && goals > caps ? null : goals,
       });
     }
   }

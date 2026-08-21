@@ -277,4 +277,43 @@ describe("nationalCapsFrom — takım kimliği de döner", () => {
 
     expect(map.size).toBe(0);
   });
+
+  /**
+   * BR-22'nin millî karşılığı — 21 Ağustos 2026.
+   *
+   * ALANIN İLK DOLDUĞU KOŞUDA kabul kontrolü düştü: 22.982 kaydın 184'ünde
+   * gol maçtan büyüktü. Kural kulüp tarafında (`tallies`) vardı, millî
+   * tarafta yoktu; §9.2 alanı ve kapıyı ekledi, ayıklayıcıyı eklemedi.
+   */
+  const golluRow = (
+    player: string,
+    team: string,
+    caps: number,
+    goals: number,
+  ): SparqlBinding =>
+    ({
+      ...capsRow(player, team, caps),
+      goals: { type: "literal", value: String(goals) },
+    }) as unknown as SparqlBinding;
+
+  it("gol maçı AŞIYORSA gol bilinmiyor olur, maç KALIR", () => {
+    // Hangi sayının yanlış olduğunu bilemeyiz; bilemediğimizde daha az şeyi
+    // kaybettiren tarafı bırakırız. Maç sayısı BR-14 ve BR-38'in girdisi.
+    const map = nationalCapsFrom([golluRow("Q1", "Q2", 5, 80)], () => true);
+
+    expect(map.get("Q1")).toEqual({ caps: 5, teamQid: "Q2", goals: null });
+  });
+
+  it("makul gol OLDUĞU GİBİ geçer", () => {
+    const map = nationalCapsFrom([golluRow("Q1", "Q2", 217, 138)], () => true);
+
+    expect(map.get("Q1")?.goals).toBe(138);
+  });
+
+  it("gol maça EŞİTSE düşmez", () => {
+    // Sınır dışarıda: 12 maçta 12 gol imkânsız değil, olağanüstüdür.
+    const map = nationalCapsFrom([golluRow("Q1", "Q2", 12, 12)], () => true);
+
+    expect(map.get("Q1")?.goals).toBe(12);
+  });
 });
