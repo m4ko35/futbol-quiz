@@ -28,6 +28,17 @@ on:
         description: "Yarıda kalan koşuyu önbellekten sürdür (TAZE VERİ ÇEKMEZ)"
         type: boolean
         default: false
+      vikipedi_karari:
+        # §4.3, 3. aşama — BR-42 çelişkilerinde Vikipedi'nin kararını UYGULA.
+        #
+        # ÖNTANIMLI KAPALI ve `resume` ile aynı gerekçe değil, daha sertidir:
+        # bu bayrak VERİ SİLER. Kapı önce gölge modda koşup ne sileceğini
+        # `etl-tani-raporu` artefaktına yazar; liste insan tarafından
+        # doğrulanmadan açılmaz. §4.3'ün 4. kuralı bir kez ölçülmeden
+        # uygulanmış ve 66 sağlam dönemi ayıklamıştı.
+        description: "BR-42: Vikipedi'nin çürüttüğü dönemleri DÜŞÜR (veri siler)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write # sürüm (release) varlığı yüklemek için
@@ -96,7 +107,9 @@ jobs:
           restore-keys: etl-cache-
 
       - name: ETL
-        run: npm run etl
+        # Bayrak GİRDİDEN gelir, olay türünden değil: zamanlanmış koşu asla
+        # kendiliğinden silmez.
+        run: npm run etl ${{ inputs.vikipedi_karari && '-- --vikipedi-karari' || '' }}
         env:
           DATABASE_URL: file:./dev.db
           # ETL'in zorunlu yapılandırması (scripts/etl/config.ts). Eksik
