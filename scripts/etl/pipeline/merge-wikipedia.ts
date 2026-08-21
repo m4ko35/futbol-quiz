@@ -1,4 +1,5 @@
 import { isPlausibleSeasonYear } from "../../../src/domain/value-objects/season";
+import type { WikiSite } from "../sources/wikipedia/client";
 import { tallies, type NormalizedSpell } from "./normalize";
 
 /**
@@ -18,6 +19,18 @@ export interface WikipediaSpell {
   readonly appearances: number | null;
   readonly goals: number | null;
   readonly isLoan: boolean;
+  /**
+   * Bu kaydı ÜRETEN diller — §4.3, 3. aşama kanıtı.
+   *
+   * NEDEN SAKLANIYOR. Aynı dönemi iki dil birden yazdığında ikincisi kopya
+   * sayılıp atılıyordu (`duplicateRows`) ve atılan şey yalnızca kopya değil
+   * KANITTI: iki bağımsız dilin aynı şeyi söylemesi, birinin söylemesinden
+   * farklı bir güç taşır. Vikipedi'ye bir Wikidata kaydını reddettirmek
+   * ancak bu ayrımla yapılabilir (`wikipedia-verdict.ts`).
+   *
+   * Birleştirme bu alanı KULLANMAZ; §4.3'ün 1-4. kuralları dil saymıyor.
+   */
+  readonly sites: readonly WikiSite[];
 }
 
 export interface MergeStats {

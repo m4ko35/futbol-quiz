@@ -46,6 +46,9 @@ function fromWikipedia(over: Partial<WikipediaSpell> = {}): WikipediaSpell {
     appearances: 50,
     goals: 3,
     isLoan: false,
+    // Birleştirme dili KULLANMAZ (§4.3, 1-4. kurallar); alan yalnızca
+    // `wikipedia-verdict.ts` için taşınıyor.
+    sites: ["tr"],
     ...over,
   };
 }

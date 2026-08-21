@@ -265,9 +265,12 @@ export async function collectWikipediaSpells(
   const unresolved: UnresolvedClubRow[] = [];
 
   for (const [playerId, entries] of rowsByPlayer) {
-    // Aynı dönemin ikinci dildeki kopyası atılır. Anahtar kulüp QID'i +
-    // başlangıç yılı: iki dilin AYNI dönemi iki kez saymasını engeller.
-    const seen = new Set<string>();
+    // Aynı dönemin ikinci dildeki kopyası SAYILMAZ ama diline kaydedilir.
+    // Anahtar kulüp QID'i + başlangıç yılı: iki dilin AYNI dönemi iki kez
+    // saymasını engeller. Kopyanın DİLİ ise kanıttır ve saklanır — iki
+    // bağımsız dilin aynı şeyi söylemesi, birinin söylemesinden farklıdır
+    // (§4.3, 3. aşama).
+    const seen = new Map<string, WikipediaSpell>();
 
     for (const { site, row } of entries) {
       const clubId = clubIndex.get(site)?.get(row.clubTitle);
@@ -287,13 +290,17 @@ export async function collectWikipediaSpells(
       stats.matchedBySite[site]++;
 
       const key = `${clubId}|${row.startYear ?? "?"}`;
-      if (seen.has(key)) {
+      const already = seen.get(key);
+      if (already !== undefined) {
         stats.duplicateRows++;
+        // DEĞERLERE DOKUNULMUYOR, yalnızca dil ekleniyor: ilk dilin okuduğu
+        // maç/gol kalır. Hangi dilin kazanacağı ayrı bir karardır ve §4.3'te
+        // yok; burada açılacak yer değil.
+        seen.set(key, { ...already, sites: [...already.sites, site] });
         continue;
       }
-      seen.add(key);
 
-      spells.push({
+      const spell: WikipediaSpell = {
         playerWikidataId: playerId,
         clubWikidataId: clubId,
         startYear: row.startYear,
@@ -301,8 +308,14 @@ export async function collectWikipediaSpells(
         appearances: row.appearances,
         goals: row.goals,
         isLoan: row.isLoan,
-      });
+        sites: [site],
+      };
+      seen.set(key, spell);
     }
+
+    // Dönemler oyuncu turunun SONUNDA toplanıyor: `sites` ancak bütün diller
+    // okunduktan sonra tamamlanmış olur.
+    spells.push(...seen.values());
   }
 
   return { spells, careerTotals, unresolved, stats };

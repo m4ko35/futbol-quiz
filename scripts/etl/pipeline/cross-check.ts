@@ -1,5 +1,6 @@
 import type { WikipediaSpell } from "./merge-wikipedia";
 import type { NormalizedSpell } from "./normalize";
+import type { WikiSite } from "../sources/wikipedia/client";
 import type { UnresolvedClubRow } from "./wikipedia-pass";
 
 /**
@@ -54,6 +55,13 @@ export interface Contradiction {
   readonly appearances: number | null;
   /** Vikipedi'nin AYNI dönemde söylediği kulüp(ler). */
   readonly wikipediaClubs: readonly string[];
+  /**
+   * Rakip kayıtları ÜRETEN diller — §4.3, 3. aşama.
+   *
+   * Çelişkinin kendisi için gerekli değil; kararı için gerekli. Kaç bağımsız
+   * dilin aynı şeyi söylediği, `wikipedia-verdict.ts`'in tek ölçütü.
+   */
+  readonly wikipediaSites: readonly WikiSite[];
 }
 
 /**
@@ -217,6 +225,7 @@ export function findContradictions(input: {
     if (rivals.length === 0) continue;
 
     const wikipediaClubs = [...new Set(rivals.map((r) => r.clubWikidataId))];
+    const wikipediaSites = [...new Set(rivals.flatMap((r) => r.sites))];
 
     /*
       KOŞUL 4 — bu yıllarda okuyamadığımız bir satır var mı?
@@ -254,6 +263,7 @@ export function findContradictions(input: {
       endYear: spell.endYear,
       appearances: spell.appearances,
       wikipediaClubs,
+      wikipediaSites,
     });
   }
 

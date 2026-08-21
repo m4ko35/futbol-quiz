@@ -130,6 +130,7 @@ describe("BR-42 — çapraz kaynak kapısı", () => {
     endYear: null,
     appearances: 227,
     wikipediaClubs: ["Q1543"],
+    wikipediaSites: ["tr", "en"] as const,
   };
 
   it("TEK BİR çelişki bile yüklemeyi durdurur", () => {

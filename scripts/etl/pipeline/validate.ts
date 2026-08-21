@@ -1,5 +1,6 @@
 import { isPlausibleSeasonYear } from "../../../src/domain/value-objects/season";
 import type { Contradiction, Undecided } from "./cross-check";
+import type { RejectionCandidate } from "./wikipedia-verdict";
 import { MIN_SPELLS_FOR_SELECTABLE } from "../leagues";
 import type {
   NormalizedClub,
@@ -157,6 +158,13 @@ export function validateDataset(input: {
    * ölçer ve kapının kendisi hakkında bir şey söylemez (§8.2).
    */
   readonly undecided?: readonly Undecided[];
+  /**
+   * §4.3 3. aşama — Vikipedi'nin BR-42 çelişkilerindeki kararı.
+   *
+   * GÖLGE MODDA DA DOLU gelir; bu liste "ne olacağını" gösterir, "ne oldu"yu
+   * değil. Uygulanıp uygulanmadığını `extract.ts` bilir ve günlüğe yazar.
+   */
+  readonly rejectionCandidates?: readonly RejectionCandidate[];
 }): ValidationReport {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -374,6 +382,37 @@ export function validateDataset(input: {
         `okunamayan bir bağlantı tartışmalı yıllara denk geliyor. ` +
         `Bunlar çelişki DEĞİL — kulüp adı indeksinin eksiği (§4.3).`,
     );
+  }
+
+  /*
+    ─── §4.3, 3. aşama: Vikipedi'nin kararı ───────────────────────────────
+
+    UYARI DEĞİL, BİLGİ. Bu liste bir kusur bildirmiyor — kapının ne yapacağını
+    gösteriyor. Asıl işi rapordaki dosya görüyor: her satır ifade kimliği,
+    rakip kulüp ve KANITI TAŞIYAN DİLLER ile yazılıyor, çünkü gölge modun
+    tek amacı bu listenin insan tarafından doğrulanabilmesi.
+  */
+  const rejections = input.rejectionCandidates ?? [];
+  if (rejections.length > 0) {
+    details.push({
+      key: "br42-vikipedi-karari",
+      label: "BR-42 — Vikipedi'nin kararı (reddet / karantina)",
+      header:
+        "karar	oyuncu	wikidata_kulup	baslangic	bitis	mac	vikipedi_kulupler	diller	ifade",
+      items: rejections.map((r) =>
+        [
+          r.verdict,
+          r.playerWikidataId,
+          r.clubWikidataId,
+          r.startYear ?? "",
+          r.endYear ?? "",
+          r.appearances ?? "",
+          r.wikipediaClubs.join(","),
+          r.evidenceSites.join(","),
+          r.spellId,
+        ].join("	"),
+      ),
+    });
   }
 
   pushIssue(

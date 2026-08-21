@@ -41,6 +41,7 @@ function wp(over: Partial<WikipediaSpell> = {}): WikipediaSpell {
     appearances: 218,
     goals: 64,
     isLoan: false,
+    sites: ["en"],
     ...over,
   };
 }

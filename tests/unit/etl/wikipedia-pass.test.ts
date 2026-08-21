@@ -88,3 +88,57 @@ describe("collectWikipediaSpells — çözülemeyen bağlantılar", () => {
     );
   });
 });
+
+/**
+ * Dil kanıtının birikmesi — §4.3, 3. aşama.
+ *
+ * NEDEN AYRI TUTULUYOR. `wikipedia-verdict.ts` bir Wikidata kaydını
+ * düşürmeye YALNIZCA kaç bağımsız dilin aynı şeyi söylediğine bakarak karar
+ * veriyor. O sayı burada üretiliyor: ikinci dilin kopyası atılırken dili
+ * ekleniyor. Bu birikim sessizce bozulursa kapı her kaydı tek dilli görür ve
+ * hiçbir şeyi reddetmez — kusur, kapının çalışmamasıdır ve gürültü çıkarmaz.
+ */
+const TR_INFOBOX = `{{Futbolcu bilgi kutusu
+| ad = Test
+| kulüpyıl1 = 2019-2023 | kulüp1 = [[Celta Vigo]] | maç1 = 80 | gol1 = 9
+}}`;
+
+describe("collectWikipediaSpells — dil kanıtı", () => {
+  const iki = () =>
+    collectWikipediaSpells(reader({ Oyuncu: INFOBOX, OyuncuTR: TR_INFOBOX }), {
+      playerArticles: new Map([["Q1", { tr: "OyuncuTR", en: "Oyuncu" }]]),
+      clubArticles: new Map([
+        ["Q-celta", { tr: "Celta Vigo", en: "Celta Vigo" }],
+      ]),
+    });
+
+  it("aynı dönemi iki dil yazdıysa İKİ dil de kaydedilir", async () => {
+    const result = await iki();
+
+    const celta = result.spells.find((s) => s.clubWikidataId === "Q-celta");
+    expect(celta?.sites).toHaveLength(2);
+    expect([...(celta?.sites ?? [])].sort()).toEqual(["en", "tr"]);
+  });
+
+  it("dönem yine TEK kez sayılır", async () => {
+    // Dil eklemek kopya üretmemeli: iki dil aynı dönemi iki kez saysaydı
+    // kariyer ikiye katlanırdı.
+    const result = await iki();
+
+    expect(
+      result.spells.filter((s) => s.clubWikidataId === "Q-celta"),
+    ).toHaveLength(1);
+    expect(result.stats.duplicateRows).toBe(1);
+  });
+
+  it("tek dilde okunan dönem TEK dille kalır", async () => {
+    // Karantina/reddet ayrımının alt ucu: burada 1 çıkmazsa kapı tek dille
+    // silmeye başlar.
+    const result = await collectWikipediaSpells(reader({ Oyuncu: INFOBOX }), {
+      playerArticles: new Map([["Q1", { en: "Oyuncu" }]]),
+      clubArticles: new Map([["Q-celta", { en: "Celta Vigo" }]]),
+    });
+
+    expect(result.spells[0]?.sites).toEqual(["en"]);
+  });
+});

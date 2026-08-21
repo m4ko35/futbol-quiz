@@ -21,6 +21,8 @@ import { WikipediaClient } from "./sources/wikipedia/client";
  *   npm run etl -- --no-cache        disk önbelleğini atla
  *   npm run etl -- --dry-run         çek ve doğrula, veritabanına YAZMA
  *   npm run etl -- --skip-wikipedia  yalnızca Wikidata (§4.3 katmanını ölç)
+ *   npm run etl -- --vikipedi-karari  BR-42 çelişkilerinde Vikipedi'yi
+ *                                     UYGULA (varsayılan: yalnızca raporla)
  *
  * Bu, ağa çıkan tek süreçtir (§7.4). Web uygulaması çalışırken Wikidata'ya
  * veya Vikipedi'ye hiçbir bağlantı kurulmaz.
@@ -37,6 +39,7 @@ interface CliOptions {
   noCache: boolean;
   dryRun: boolean;
   skipWikipedia: boolean;
+  applyWikipediaVerdict: boolean;
 }
 
 function parseArgs(argv: readonly string[]): CliOptions {
@@ -45,6 +48,7 @@ function parseArgs(argv: readonly string[]): CliOptions {
     noCache: false,
     dryRun: false,
     skipWikipedia: false,
+    applyWikipediaVerdict: false,
   };
 
   for (const arg of argv) {
@@ -56,6 +60,8 @@ function parseArgs(argv: readonly string[]): CliOptions {
       options.dryRun = true;
     } else if (arg === "--skip-wikipedia") {
       options.skipWikipedia = true;
+    } else if (arg === "--vikipedi-karari") {
+      options.applyWikipediaVerdict = true;
     } else if (arg.startsWith("--max-clubs=")) {
       const value = Number.parseInt(arg.slice("--max-clubs=".length), 10);
       if (!Number.isInteger(value) || value < 1) {
@@ -100,6 +106,7 @@ async function main(): Promise<void> {
     maxClubs: options.maxClubs,
     noCache: options.noCache,
     skipWikipedia: options.skipWikipedia,
+    applyWikipediaVerdict: options.applyWikipediaVerdict,
   });
 
   console.log(
@@ -126,6 +133,7 @@ async function main(): Promise<void> {
     fetchedClubIds: dataset.fetchedClubIds,
     contradictions: dataset.contradictions,
     undecided: dataset.undecided,
+    rejectionCandidates: dataset.rejectionCandidates,
   });
 
   for (const warning of report.warnings) console.warn(`  ⚠ ${warning}`);

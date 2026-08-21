@@ -33,6 +33,11 @@ import { disambiguateShortNames } from "./club-labels";
 import { mergeDuplicateClubs } from "./merge-clubs";
 import { findContradictions } from "./cross-check";
 import type { Contradiction, Undecided } from "./cross-check";
+import {
+  applyVerdict,
+  judgeContradictions,
+  type RejectionCandidate,
+} from "./wikipedia-verdict";
 import { mergeWikipediaSpells } from "./merge-wikipedia";
 import {
   applyPlayerStats,
@@ -75,6 +80,13 @@ export interface ExtractedDataset {
    */
   readonly undecided: Undecided[];
   /**
+   * §4.3 3. aşama — Vikipedi'nin kararı (gölge modda da dolu).
+   *
+   * `reddet` olanlar `applyWikipediaVerdict` açıksa dönemlerden DÜŞÜRÜLMÜŞ
+   * olur; kapalıysa liste yalnızca raporlanır.
+   */
+  readonly rejectionCandidates: RejectionCandidate[];
+  /**
    * §9.2 — çapraz denetimin DÜŞÜRDÜĞÜ kariyer toplamları.
    *
    * Kapı bunları zaten siliyor (aritmetik olarak imkânsızlar) ama sayı ilk
@@ -102,6 +114,14 @@ export interface ExtractOptions {
    * görmek istediğinizde. Üretim koşusunda kapatılmaz.
    */
   readonly skipWikipedia?: boolean;
+  /**
+   * Vikipedi'nin reddettiği dönemleri GERÇEKTEN düşür — §4.3, 3. aşama.
+   *
+   * VARSAYILAN KAPALI ve bu bir tercih değil, sıra: kapı önce gölge modda
+   * koşup ne sileceğini gösterir, liste doğrulanır, sonra açılır. §4.3'ün
+   * 4. kuralı bir kez "ölçmeden uygulanıp" 66 sağlam dönemi ayıklamıştı.
+   */
+  readonly applyWikipediaVerdict?: boolean;
 }
 
 /**
@@ -508,6 +528,8 @@ export async function extractDataset(
   let contradictions: Contradiction[] = [];
   /** Aynı gerekçe: Vikipedi atlanırsa karar verilememiş kayıt da yoktur. */
   let undecided: Undecided[] = [];
+  /** §4.3 3. aşama — Vikipedi'nin reddettiği/karantinaya aldığı dönemler. */
+  let rejectionCandidates: RejectionCandidate[] = [];
   /** §9.2 — çapraz denetimi geçen kulüp kariyer toplamları. */
   let careerTotals: ReadonlyMap<string, CareerTotal> = new Map();
   let careerTotalConflicts: CareerTotalConflict[] = [];
@@ -619,6 +641,39 @@ export async function extractDataset(
         ? "      ✓ çapraz kaynak denetimi temiz (BR-42)"
         : `      ✗ ${contradictions.length} dönemde Vikipedi ile Wikidata AYNI YILLAR için farklı kulüp söylüyor (BR-42)`,
     );
+    /*
+      §4.3, 3. AŞAMA — çelişkiyi karara bağla.
+
+      HER KOŞUDA HESAPLANIR, yalnızca UYGULANMASI seçime bağlı. Gölge modda
+      da liste üretilmeli: kapının ne yapacağı, yapmadan önce görülebilsin.
+    */
+    const verdict = judgeContradictions({ contradictions });
+    rejectionCandidates = verdict.candidates;
+
+    const reddedilen = verdict.candidates.filter((c) => c.verdict === "reddet");
+    if (reddedilen.length > 0) {
+      console.log(
+        `      · Vikipedi ${reddedilen.length} dönemi REDDEDİYOR ` +
+          `(${verdict.candidates.length - reddedilen.length} karantina) — ` +
+          (options.applyWikipediaVerdict === true
+            ? "UYGULANIYOR"
+            : "gölge modu, hiçbir şey silinmiyor"),
+      );
+    }
+
+    if (options.applyWikipediaVerdict === true) {
+      const applied = applyVerdict({
+        spells: finalSpells,
+        contradictions,
+        rejectedSpellIds: verdict.rejectedSpellIds,
+      });
+      finalSpells = applied.spells;
+      contradictions = applied.contradictions;
+      if (applied.droppedCount > 0) {
+        console.log(`      · ${applied.droppedCount} dönem DÜŞÜRÜLDÜ (§4.3)`);
+      }
+    }
+
     if (undecided.length > 0) {
       // BLOKLAMAZ — kapının körlüğünün ölçüsü. Eski kural bunları çelişki
       // sayardı; ikisinin toplamı o eski sayıdır (§8.2).
@@ -723,6 +778,7 @@ export async function extractDataset(
     fetchedClubIds,
     contradictions,
     undecided,
+    rejectionCandidates,
     careerTotals,
     careerTotalConflicts,
   };
