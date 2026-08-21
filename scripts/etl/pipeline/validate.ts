@@ -88,19 +88,28 @@ const MAX_REPORTED = 8;
  * her koşuda birkaç düzine çıkar ve raporla ele alınır; ANİ SIÇRAMA ise
  * bizim bir şeyi bozduğumuz anlamına gelir. Ölçülen çapalar:
  *
- *   85   üç koruma da çalışırken (bugünkü taban)
- *   341  kulüp akrabalığı koruması bozulursa
- *   383  körlük koruması da bozulursa
+ *   175  dört koruma da çalışırken (bugünkü taban)
+ *   404  körlük koruması bozulursa (+229 karar verilemeyen)
+ *   626  kulüp akrabalığı koruması da bozulursa (+451)
  *
- * 150 bu iki dünyanın arasında: tabanın ~1,75 katı, yani normal dalgalanmaya
- * yer var; ama bir korumanın sessizce devre dışı kalması (341) bütçeyi
- * KESİNLİKLE aşar ve koşu durur. Sayı tahminle değil, kırılma noktalarıyla
- * konuldu.
+ * 250 bu iki dünyanın arasında: tabanın ~1,43 katı, yani altı aylık
+ * dalgalanmaya yer var; ama bir korumanın sessizce devre dışı kalması (404)
+ * bütçeyi KESİNLİKLE aşar ve koşu durur. Sayı tahminle değil, kırılma
+ * noktalarıyla konuldu.
+ *
+ * ÖLÇÜLEN SAYI KARAR SONRASIDIR. Kapı 227 çelişki buluyor, Vikipedi 52'sini
+ * reddediyor, bütçeye giren 175 KARANTİNA kalıyor — yani "çözülemeyen".
+ *
+ * TABAN BİR KEZ ZATEN DEĞİŞTİ ve sebebi kayda geçiyor: ilk değer 85'ti ve
+ * bütçe 150 konmuştu. Tek sezonluk dönem kör noktası kapatılınca (BR-6,
+ * §8.2) taban 175'e çıktı ve koşu bütçeye takıldı — kapı doğru davrandı,
+ * eşik eskimişti. Bir korumanın kapsamı genişlediğinde bu sayı YENİDEN
+ * ÖLÇÜLMELİ; sessizce yükseltilmemeli.
  *
  * LİSTE HÂLÂ TAM YAZILIYOR. Bütçenin altında kalmak "sorun yok" demek değil,
  * "yükleme durmasın" demek. Her satır ifade kimliğiyle rapora düşüyor.
  */
-const MAX_UNRESOLVED_CONTRADICTIONS = 150;
+const MAX_UNRESOLVED_CONTRADICTIONS = 250;
 
 /**
  * Kullanılamaz dönem kayıtlarını ayıklar.

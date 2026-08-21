@@ -151,10 +151,9 @@ describe("BR-42 — çapraz kaynak kapısı", () => {
   });
 
   it("BÜTÇEYİ AŞAN sayı yüklemeyi durdurur", () => {
-    // Bütçe sistemik bozulmayı ölçer: bir korumanın sessizce devre dışı
-    // kalması sayıyı 85'ten 341'e çıkarıyor (ölçüldü). 151 satır o dünyanın
-    // içinde ve durmalı.
-    const cok = Array.from({ length: 151 }, (_, i) => ({
+    // Bütçe sistemik bozulmayı ölçer: körlük koruması devre dışı kalırsa
+    // sayı 175'ten 404'e çıkıyor (ölçüldü). 251 satır o dünyanın içinde.
+    const cok = Array.from({ length: 251 }, (_, i) => ({
       ...celiski,
       spellId: `Q${String(i)}-abc`,
     }));

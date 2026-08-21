@@ -727,13 +727,17 @@ Kural konulurken beklenen değer **sıfırdı** ve gerekçesi sağlamdı: iki ba
 
 **Bütçe sistemik bozulmayı ölçer, tekil hatayı değil.** Ölçülen kırılma noktaları:
 
-| Durum                                   | Çelişki |
-| --------------------------------------- | ------- |
-| Üç koruma da çalışırken (bugünkü taban) | **85**  |
-| Kulüp akrabalığı koruması bozulursa     | 341     |
-| Körlük koruması da bozulursa            | 383     |
+| Durum                                     | Çelişki |
+| ----------------------------------------- | ------- |
+| Dört koruma da çalışırken (bugünkü taban) | **175** |
+| Körlük koruması bozulursa                 | 404     |
+| Kulüp akrabalığı koruması da bozulursa    | 626     |
 
-Bütçe **150**: tabanın ~1,75 katı, yani normal dalgalanmaya yer var; ama bir korumanın sessizce devre dışı kalması (341) bütçeyi kesinlikle aşar ve koşu durur. Sayı tahminle değil, **kırılma noktalarıyla** konuldu.
+Ölçülen sayı **karar sonrasıdır**: kapı 227 çelişki buluyor, Vikipedi 52'sini reddediyor, bütçeye giren 175 karantina kalıyor.
+
+**Taban bir kez zaten değişti ve sebebi kayda geçiyor.** İlk değer 85'ti, bütçe 150 kondu. Tek sezonluk dönem kör noktası kapatılınca (BR-6) taban 175'e çıktı ve koşu bütçeye takıldı — kapı doğru davrandı, eşik eskimişti. Bir korumanın kapsamı genişlediğinde bu sayı **yeniden ölçülmeli**, sessizce yükseltilmemeli.
+
+Bütçe **250**: tabanın ~1,43 katı, yani normal dalgalanmaya yer var; ama bir korumanın sessizce devre dışı kalması (341) bütçeyi kesinlikle aşar ve koşu durur. Sayı tahminle değil, **kırılma noktalarıyla** konuldu.
 
 Bütçenin altında kalmak "sorun yok" demek değil, "yükleme durmasın" demek: liste hâlâ tam yazılıyor, her satır ifade kimliğiyle.
 
