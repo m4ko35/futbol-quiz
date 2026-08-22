@@ -1435,6 +1435,24 @@ Yani kayıp, fark listesinin gösterdiğinden **otuz altı kat büyüktü**. Kal
 
 **BU SAYININ SINIRI YAZILI OLSUN:** 1.868, yerel önbelleğin haftalara yayılmış yanıtlarının BİRLEŞİMİDİR; tek bir koşunun kaybı değil. Tek koşuda ölçülen kayıp 1.851 (135.657 istenen − 133.806 üretilen), yani aynı büyüklük sınıfında. Kesin sayı bir sonraki tam koşuda ikinci geçişin raporundan okunacak.
 
+#### Sonuç: koşu koştu, sayılar tuttu (22 Ağustos 2026, 13:39 UTC)
+
+| Ölçüm                           |          Önce |              Sonra |
+| ------------------------------- | ------------: | -----------------: |
+| Oyuncu                          |       132.357 | **132.838** (+481) |
+| Kulüp                           |         1.003 |              1.006 |
+| Dönem                           |       405.339 |            406.440 |
+| Çapa oyuncu kapısı              | 26'da 3 kayıp |          **29/29** |
+| Altın veri seti (üretilen küme) |    koşmuyordu |          **50/50** |
+
+Tahmin **472** idi, gerçek **481** çıktı — aradaki fark iki koşu arasındaki olağan kaynak değişimi.
+
+**İkinci geçiş 0 oyuncu kurtardı ve bu iyi haber.** Günlük şöyle diyor: _"etiket servisi 1385 oyuncuyu çözemedi · 0 tanesi rdfs:label ile kurtarıldı · 1385 tanesi gerçekten adsız"_. Yani `mul` birincil sorguda hepsini yakaladı; geriye kalan 1.385, hiçbir dilde etiketi olmayan varlıklar. Geçiş artık bir kurtarıcı değil, **sayaç** — ve sayacın söylediği sayı ilk kez görünür durumda.
+
+**BR-42 bütçesi tuttu:** 228 çelişki (bütçe 250), 52 reddedildi, 176 karantinada, 451 kayıt akrabalık kuralıyla çelişki sayılmadı. Leão'nun kariyeri hâlâ temiz — Sporting, Lille, Milan; sahte Real Madrid ve Porto dönemleri yok.
+
+**Sabitler yeni kümede yeniden ölçüldü**, en büyük sapma %4 (`goals` 98,0 → 102,2). Kimse eşiğin altında; `stats:measure` "sabitler ölçümle uyumlu" diyor.
+
 #### Düzeltmenin kendisi bir koşu düşürdü
 
 `mul`, etiket servisini kullanan ÜÇ sorgunun hepsine birden eklendi ve üçüncüsü yanlıştı. **Lig doğrulaması** (`verifyLeagues`) etiketi saklamıyor, `leagues.ts`'teki bir beklentiyle KARŞILAŞTIRIYOR — ve o beklentiler İngilizce yazılı (`verifyLabel: "Liga Portugal"`, `"Russian Premier League"`). Dil listesi değişince etiketler Türkçeye döndü ve 22 Ağustos koşusu 24 ligin **10'unda** kırılarak ETL'in ilk dakikasında durdu:
