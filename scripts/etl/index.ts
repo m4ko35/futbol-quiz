@@ -23,6 +23,9 @@ import { WikipediaClient } from "./sources/wikipedia/client";
  *   npm run etl -- --skip-wikipedia  yalnızca Wikidata (§4.3 katmanını ölç)
  *   npm run etl -- --vikipedi-karari  BR-42 çelişkilerinde Vikipedi'yi
  *                                     UYGULA (varsayılan: yalnızca raporla)
+ *   npm run etl -- --skip-squad-discovery   kadro keşfini atla (§4.3 Aşama 3)
+ *   npm run etl -- --apply-squad-discovery  keşfedilen oyuncuları GERÇEKTEN
+ *                                     yükle (varsayılan: gölge modu, BR-60)
  *
  * Bu, ağa çıkan tek süreçtir (§7.4). Web uygulaması çalışırken Wikidata'ya
  * veya Vikipedi'ye hiçbir bağlantı kurulmaz.
@@ -40,6 +43,8 @@ interface CliOptions {
   dryRun: boolean;
   skipWikipedia: boolean;
   applyWikipediaVerdict: boolean;
+  skipSquadDiscovery: boolean;
+  applySquadDiscovery: boolean;
 }
 
 function parseArgs(argv: readonly string[]): CliOptions {
@@ -49,6 +54,8 @@ function parseArgs(argv: readonly string[]): CliOptions {
     dryRun: false,
     skipWikipedia: false,
     applyWikipediaVerdict: false,
+    skipSquadDiscovery: false,
+    applySquadDiscovery: false,
   };
 
   for (const arg of argv) {
@@ -62,6 +69,10 @@ function parseArgs(argv: readonly string[]): CliOptions {
       options.skipWikipedia = true;
     } else if (arg === "--vikipedi-karari") {
       options.applyWikipediaVerdict = true;
+    } else if (arg === "--skip-squad-discovery") {
+      options.skipSquadDiscovery = true;
+    } else if (arg === "--apply-squad-discovery") {
+      options.applySquadDiscovery = true;
     } else if (arg.startsWith("--max-clubs=")) {
       const value = Number.parseInt(arg.slice("--max-clubs=".length), 10);
       if (!Number.isInteger(value) || value < 1) {
@@ -107,6 +118,8 @@ async function main(): Promise<void> {
     noCache: options.noCache,
     skipWikipedia: options.skipWikipedia,
     applyWikipediaVerdict: options.applyWikipediaVerdict,
+    skipSquadDiscovery: options.skipSquadDiscovery,
+    applySquadDiscovery: options.applySquadDiscovery,
   });
 
   console.log(

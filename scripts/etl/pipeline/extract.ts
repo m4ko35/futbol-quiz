@@ -31,6 +31,11 @@ import {
   type CareerTotalConflict,
 } from "./career-total-check";
 import { disambiguateShortNames } from "./club-labels";
+import {
+  discoverSquadPlayers,
+  type SquadDiscoveryResult,
+} from "./squad-discovery";
+import { applySquadVerdict } from "./squad-verdict";
 import { mergeDuplicateClubs } from "./merge-clubs";
 import { findKinClubPairs } from "./club-kinship";
 import { findContradictions } from "./cross-check";
@@ -127,6 +132,24 @@ export interface ExtractOptions {
    * 4. kuralı bir kez "ölçmeden uygulanıp" 66 sağlam dönemi ayıklamıştı.
    */
   readonly applyWikipediaVerdict?: boolean;
+  /**
+   * Kadro keşfini tamamen atlar (§4.3, Aşama 3).
+   *
+   * Yalnızca ölçüm için: keşfin kazancını görmek isteyen iki koşuyu
+   * karşılaştırır. `skipWikipedia` zaten keşfi de kapatır — keşfedilen
+   * oyuncunun kariyerini okuyacak katman odur.
+   */
+  readonly skipSquadDiscovery?: boolean;
+  /**
+   * Keşfedilen oyuncuları GERÇEKTEN yükle — BR-60.
+   *
+   * VARSAYILAN KAPALI ve gerekçesi `applyWikipediaVerdict` ile aynı: kapı önce
+   * gölge modda koşup ne ekleyeceğini gösterir, liste doğrulanır, sonra
+   * açılır. Burada gerekçe daha da güçlü, çünkü bu oyuncuların Wikidata
+   * dayanağı YOK: yanlış açılan bir eşik, tek kaynağın söylediğini
+   * doğrulanmış veri gibi yükler.
+   */
+  readonly applySquadDiscovery?: boolean;
 }
 
 /**
@@ -388,8 +411,56 @@ export async function extractDataset(
     );
   }
 
+  // ─── 2d. Kadro keşfi (§4.3, Aşama 3) ──────────────────────────────────
+  //
+  // BURADA, ÇÜNKÜ ÇIKTISI 3. ADIMIN GİRDİSİ. Keşfin ürettiği şey bir oyuncu
+  // KİMLİĞİ listesidir; künyesini `playerDetails` çeker ve o sorgu `P54` şartı
+  // koşmaz. Dönemleri ise 5. adımdaki Vikipedi katmanı okur — yani keşif, iki
+  // mevcut adımın arasına giren üçüncü bir kaynak değil, onlara YENİ KİMLİK
+  // veren bir adımdır.
+  //
+  // Kulüp makale adları burada bir kez çekilir ve 5. adımda YENİDEN KULLANILIR.
+  const skipWikipedia = options.skipWikipedia === true;
+  const clubArticles = skipWikipedia
+    ? new Map<string, ArticleTitles>()
+    : await fetchArticleTitles(
+        client,
+        mergedClubs.map((c) => c.wikidataId),
+        "clubs",
+        noCache,
+        WIKI_SITES,
+      );
+
+  const spellPlayerIds = new Set(uniqueSpells.map((s) => s.playerWikidataId));
+  let discovered: SquadDiscoveryResult | null = null;
+
+  if (!skipWikipedia && options.skipSquadDiscovery !== true) {
+    console.log(`\n[2d/5] Kadro keşfi — kulüp kadroları okunuyor (§4.3)…`);
+    discovered = await discoverSquadPlayers(wikipedia, {
+      clubArticles,
+      knownPlayerIds: spellPlayerIds,
+      noCache,
+    });
+
+    const d = discovered.stats;
+    console.log(
+      `      ${d.clubsWithSquadBlock}/${d.clubsWithArticle} kulüpte kadro şablonu var · ` +
+        `${d.clubsWithoutSquadBlock} kulüp düz tabloyla yazılmış`,
+    );
+    console.log(
+      `      ${d.squadSlots} kadro yeri · ${d.unlinkedSlots} oyuncunun makalesi yok · ` +
+        `${d.unresolvedTitles} makalenin Wikidata ögesi yok`,
+    );
+    console.log(
+      `      ${d.alreadyKnown} oyuncu zaten evrende · ` +
+        `**${d.discovered} oyuncu evrende DEĞİL** (§4.3 Aşama 3)`,
+    );
+  }
+
+  const discoveredIds = new Set(discovered?.playerIds ?? []);
+
   // ─── 3. Oyuncu meta verisi ────────────────────────────────────────────
-  const playerIds = [...new Set(uniqueSpells.map((s) => s.playerWikidataId))];
+  const playerIds = [...new Set([...spellPlayerIds, ...discoveredIds])];
   const batches = Math.ceil(playerIds.length / PLAYER_BATCH_SIZE);
   console.log(
     `\n[3/5] ${playerIds.length} oyuncunun bilgisi çekiliyor (${batches} grup)…`,
@@ -595,9 +666,16 @@ export async function extractDataset(
     // ANA DİLLER YALNIZCA BOŞLUK İÇİN (§4.3, Aşama 2). tr/en makalesi olan
     // oyuncuya it/de/fr sormak, satırlarının %88-96'sı zaten Wikidata'da
     // olduğu için isteğin çoğunu kopya veriye harcardı.
+    //
+    // KEŞFEDİLEN OYUNCULAR BU POLİTİKANIN DIŞINDADIR — BR-60. Yukarıdaki
+    // gerekçe ("satırlar zaten Wikidata'da var") tam olarak bu oyuncularda
+    // düşer: Wikidata'da hiçbir şey yok. Üstelik ana dil, bu oyuncularda
+    // ikinci kaynağın TEK yolu — ölçüldü, keşfedilenlerin %100'ünde `en`
+    // makalesi var ama yalnızca **%16,5'inde** `tr` var. Varsayılan politika
+    // bırakılsaydı BR-60 oyuncuların altıda birinde uygulanabilirdi.
     const gapPlayers = inScopePlayers
       .map((p) => p.wikidataId)
-      .filter((id) => !playerArticles.has(id));
+      .filter((id) => !playerArticles.has(id) || discoveredIds.has(id));
 
     console.log(
       `      ${gapPlayers.length} oyuncunun tr/en makalesi yok — ` +
@@ -612,20 +690,16 @@ export async function extractDataset(
       NATIVE_SITES,
     );
     for (const [id, titles] of nativeArticles) {
-      // Boşluktaki oyuncularda tr/en zaten yok; birleştirme çakışmaz.
+      // Anahtarlar çakışmaz: bu sorgu YALNIZCA `NATIVE_SITES` isteniyor,
+      // dolayısıyla `tr`/`en` alanları olduğu gibi kalır. Keşfedilen
+      // oyuncuların ikisi de dolu olabiliyor (BR-60 istisnası) ve birleştirme
+      // onları ezmemeli.
       playerArticles.set(id, { ...playerArticles.get(id), ...titles });
     }
 
-    // Kulüpler her dilde sorulur: ana dil kutusundaki bağlantıyı evrenle
-    // eşleştirmenin tek yolu o dildeki kulüp makale adı. ~400 kulüp = 2 sorgu.
-    const clubArticles = await fetchArticleTitles(
-      client,
-      mergedClubs.map((c) => c.wikidataId),
-      "clubs",
-      noCache,
-      WIKI_SITES,
-    );
-
+    // Kulüp makale adları 2d'de her dilde bir kez çekildi ve burada yeniden
+    // kullanılıyor: ana dil kutusundaki bağlantıyı evrenle eşleştirmenin tek
+    // yolu o dildeki kulüp makale adı.
     const pass = await collectWikipediaSpells(wikipedia, {
       playerArticles,
       clubArticles,
@@ -654,9 +728,37 @@ export async function extractDataset(
         }).join(" · "),
     );
 
+    /*
+      BR-60 — keşfedilen oyuncunun ikinci kaynak şartı (§4.3, Aşama 3).
+
+      BİRLEŞTİRMEDEN ÖNCE, çünkü kanıt burada: `WikipediaSpell.sites` kaydı
+      hangi dillerin ürettiğini taşıyor ve birleştirme onu taşımıyor.
+
+      `findContradictions` AŞAĞIDA hâlâ süzülmemiş `pass.spells` görüyor ve bu
+      bilinçli: BR-42 Wikidata'nın dönemlerini sorguluyor, keşfedilen
+      oyuncunun ise Wikidata dönemi yok — karantinaya alınmış bir kayıt orada
+      hiçbir şeyi çürütemez ama körlük de yaratmamalı (§8.2, Pineda).
+    */
+    const squadVerdict = applySquadVerdict({
+      spells: pass.spells,
+      discoveredIds,
+    });
+
+    if (squadVerdict.stats.discoveredRecords > 0) {
+      const v = squadVerdict.stats;
+      console.log(
+        `      BR-60: keşfedilen oyuncularda ${v.discoveredRecords} kayıt · ` +
+          `${v.admitted} kabul (≥2 dil) · ${v.quarantined} karantina (tek dil)`,
+      );
+      console.log(
+        `      · ${v.playersAdmitted} oyuncunun en az bir dönemi doğrulandı · ` +
+          `${v.playersFullyQuarantined} oyuncu hiç doğrulanamadı`,
+      );
+    }
+
     const merged = mergeWikipediaSpells({
       spells: scopedSpells,
-      wikipedia: pass.spells,
+      wikipedia: squadVerdict.spells,
       clubIds,
       isYouthClub: (id) => youthClubIds.has(id),
     });
@@ -797,6 +899,51 @@ export async function extractDataset(
     );
   }
 
+  /*
+    §4.3 Aşama 3 — GÖLGE MODU.
+
+    Keşif, kimlikleri ve dönemleri buraya kadar GERÇEKTEN üretti; ölçülecek
+    şey buydu. Eşik kapalıysa üretilen her şey burada geri alınır ve rapor
+    kalır. Sıra `applyWikipediaVerdict` ile aynı ve gerekçesi daha güçlü: bu
+    oyuncuların Wikidata dayanağı yok, yani ölçmeden açılan bir eşik tek
+    kaynağın söylediğini doğrulanmış veri gibi yükler.
+
+    ÖNCE ÖLÇÜLÜR, SONRA DÜŞÜRÜLÜR. Sayılar rapora düşmezse gölge modun hiçbir
+    değeri kalmaz — kapının ne yapacağı, yapmadan önce görülebilmeli.
+  */
+  let scopedPlayers = inScopePlayers;
+
+  if (discoveredIds.size > 0) {
+    const keptIds = new Set(
+      finalSpells
+        .filter((s) => discoveredIds.has(s.playerWikidataId))
+        .map((s) => s.playerWikidataId),
+    );
+    const keptSpells = finalSpells.filter((s) =>
+      discoveredIds.has(s.playerWikidataId),
+    ).length;
+
+    if (options.applySquadDiscovery === true) {
+      console.log(
+        `\n      KADRO KEŞFİ AÇIK: +${keptIds.size} oyuncu, +${keptSpells} dönem yükleniyor (BR-60).`,
+      );
+    } else {
+      console.log(
+        `\n      GÖLGE MODU: keşif ${keptIds.size} oyuncu ve ${keptSpells} dönem ` +
+          `üretti, HİÇBİRİ YÜKLENMİYOR (§4.3 Aşama 3).`,
+      );
+      console.log(
+        `      Açmak için: --apply-squad-discovery. Kapatmak için: --skip-squad-discovery.`,
+      );
+      finalSpells = finalSpells.filter(
+        (s) => !discoveredIds.has(s.playerWikidataId),
+      );
+      scopedPlayers = inScopePlayers.filter(
+        (p) => !discoveredIds.has(p.wikidataId),
+      );
+    }
+  }
+
   // ─── Seçim listesi küratörlüğü ────────────────────────────────────────
   //
   // BİRLEŞTİRMEDEN SONRA hesaplanır: Vikipedi'nin eklediği dönemler bir
@@ -834,7 +981,7 @@ export async function extractDataset(
 
   return {
     clubs: mergedClubs,
-    players: inScopePlayers,
+    players: scopedPlayers,
     spells: finalSpells,
     selectableClubIds,
     fetchedClubIds,

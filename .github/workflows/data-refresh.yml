@@ -39,6 +39,19 @@ on:
         description: "BR-42: Vikipedi'nin çürüttüğü dönemleri DÜŞÜR (veri siler)"
         type: boolean
         default: false
+      kadro_kesfi:
+        # §4.3 Aşama 3 — BR-60. Kadro keşfiyle bulunan oyuncuları GERÇEKTEN
+        # yükle.
+        #
+        # ÖNTANIMLI KAPALI. Bu bayrak veri SİLMEZ, EKLER — ama eklediği şeyin
+        # Wikidata dayanağı YOKTUR: bu oyuncuların hiçbirinde `P54` ifadesi
+        # bulunmuyor ve kariyerlerinin tek kaynağı Vikipedi bilgi kutusudur.
+        # BR-42'nin koruması burada işlemez, çünkü çelişecek ikinci kaynak yok.
+        # Kapı önce gölge modda koşup ne EKLEYECEĞİNİ raporlar; sayı insan
+        # tarafından doğrulanmadan açılmaz.
+        description: "BR-60: kadro keşfiyle bulunan oyuncuları YÜKLE (tek kaynak)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write # sürüm (release) varlığı yüklemek için
@@ -109,7 +122,7 @@ jobs:
       - name: ETL
         # Bayrak GİRDİDEN gelir, olay türünden değil: zamanlanmış koşu asla
         # kendiliğinden silmez.
-        run: npm run etl ${{ inputs.vikipedi_karari && '-- --vikipedi-karari' || '' }}
+        run: npm run etl -- ${{ inputs.vikipedi_karari && '--vikipedi-karari' || '' }} ${{ inputs.kadro_kesfi && '--apply-squad-discovery' || '' }}
         env:
           DATABASE_URL: file:./dev.db
           # ETL'in zorunlu yapılandırması (scripts/etl/config.ts). Eksik

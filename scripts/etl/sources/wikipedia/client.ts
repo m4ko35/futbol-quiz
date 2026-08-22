@@ -120,6 +120,28 @@ const RedirectsResponseSchema = z.object({
     .optional(),
 });
 
+const EntityIdResponseSchema = z.object({
+  error: ApiErrorSchema,
+  continue: ContinueSchema,
+  query: z
+    .object({
+      normalized: TitleStepSchema.optional(),
+      redirects: TitleStepSchema.optional(),
+      pages: z
+        .array(
+          z.object({
+            title: z.string(),
+            missing: z.boolean().optional(),
+            pageprops: z
+              .object({ wikibase_item: z.string().optional() })
+              .optional(),
+          }),
+        )
+        .optional(),
+    })
+    .optional(),
+});
+
 export interface FetchOptions {
   readonly noCache?: boolean;
 }
@@ -277,6 +299,78 @@ export class WikipediaClient {
           const canonical = originsOf(page.title, aliases);
           for (const redirect of page.redirects ?? []) {
             for (const name of canonical) result.set(redirect.title, name);
+          }
+        }
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Makale başlığı → Wikidata QID (`başlık → Q…`) — §4.3 Aşama 3.
+   *
+   * YÖN TERSİNE ÇEVRİLMİŞ HÂLİ. Boru hattının geri kalanında eşleme
+   * SPARQL'den, varlıktan makaleye doğru okunur (`wikipediaArticles`) ve
+   * gerekçesi maliyettir: 250'lik gruplar 50'lik uçların beşte biri kadar
+   * istekle aynı bilgiyi verir. Kadro keşfinde elde **QID yoktur** — bilinen
+   * tek şey kadro şablonundaki makale başlığıdır — dolayısıyla o yol
+   * kullanılamaz.
+   *
+   * `pageprops` SEÇİLDİ çünkü tek istekte üç işi birden yapıyor:
+   * yönlendirmeyi izliyor, başlığı normalleştiriyor ve olmayan sayfayı
+   * `missing` ile bildiriyor. Aynı işi SPARQL'de yapmak, başlığı yüzde
+   * kodlayıp `schema:about` üzerinden aramak demekti ve yönlendirmeleri
+   * çözmezdi.
+   *
+   * Sonuç ÇAĞIRANIN VERDİĞİ başlıkla anahtarlanır: MediaWiki başlığı
+   * normalleştirebilir ya da yönlendirmeyi izleyebilir, dönen başlık
+   * istenenle aynı olmayabilir.
+   *
+   * Wikidata ögesi olmayan sayfa sonuçta YER ALMAZ. Bu bir kayıp değil,
+   * ölçülmüş bir sınıf: 13.497 kadro bağlantısının 408'inde (%3,0) makale var
+   * ama öge yok. Kimlik uydurulamaz (§2.7).
+   */
+  async entityIds(
+    site: WikiSite,
+    titles: readonly string[],
+    options: FetchOptions = {},
+  ): Promise<Map<string, string>> {
+    const result = new Map<string, string>();
+    const unique = [...new Set(titles)];
+
+    for (const [index, batch] of batches(unique, TITLE_BATCH).entries()) {
+      for await (const data of this.#paged(
+        site,
+        {
+          action: "query",
+          format: "json",
+          formatversion: "2",
+          prop: "pageprops",
+          ppprop: "wikibase_item",
+          redirects: "1",
+          titles: batch.join("|"),
+        },
+        EntityIdResponseSchema,
+        {
+          label: `wp-${site}-entity-${index}-${batch.length}`,
+          noCache: options.noCache ?? false,
+          describe: (v) =>
+            `${(v.query?.pages ?? []).filter((p) => p.pageprops?.wikibase_item !== undefined).length} QID`,
+        },
+      )) {
+        throwOnApiError(data.error, "prop=pageprops");
+
+        const aliases = aliasIndex([
+          data.query?.normalized,
+          data.query?.redirects,
+        ]);
+        for (const page of data.query?.pages ?? []) {
+          const qid = page.pageprops?.wikibase_item;
+          if (qid === undefined) continue;
+
+          for (const name of originsOf(page.title, aliases)) {
+            result.set(name, qid);
           }
         }
       }
