@@ -402,6 +402,18 @@ export function normalizeCountryCode(code: string | undefined): string | null {
 }
 
 /** Etiket, QID'e düşmüşse (etiket servisi çözemediyse) kullanılmaz. */
+/**
+ * Etiket kullanılabilir mi?
+ *
+ * `SERVICE wikibase:label` istenen dillerin hiçbirini bulamazsa etiket olarak
+ * QID'nin KENDİSİNİ döndürür. Bu bir ad değildir ve öyle davranılmamalıdır.
+ *
+ * DİKKAT — `null` DÖNMESİ "bu varlık adsız" DEMEK DEĞİLDİR (§5.3.2). Wikidata
+ * kişi adlarını `mul` diline taşıyor ve dile özgü kopyaları siliyor; dil
+ * listesi eksik olan bir sorgu, 96 dilde adı olan Cristiano Ronaldo'yu adsız
+ * sanıp düşürdü. Bu yüzden çağıran taraf `null` gördüğünde kaydı atmadan
+ * önce ikinci bir yola sormalıdır — oyuncularda bunu `playerLabels` yapar.
+ */
 function usableLabel(label: string | undefined, id: string): string | null {
   if (label === undefined) return null;
 
@@ -433,12 +445,17 @@ export function toClub(
   };
 }
 
-export function toPlayer(binding: SparqlBinding): NormalizedPlayer | null {
+export function toPlayer(
+  binding: SparqlBinding,
+  labels?: ReadonlyMap<string, string>,
+): NormalizedPlayer | null {
   const id = qid(binding, "player");
   if (id === undefined) return null;
 
-  const name = usableLabel(str(binding, "playerLabel"), id);
-  if (name === null) return null;
+  // İkinci geçişten gelen ad, yalnızca etiket servisi çözemediğinde devreye
+  // girer (§5.3.2) — çözdüğünde onun değeri geçerlidir.
+  const name = usableLabel(str(binding, "playerLabel"), id) ?? labels?.get(id);
+  if (name === undefined || name === null) return null;
 
   const citizenship = normalizeCountryCode(str(binding, "countryCode"));
 
@@ -478,11 +495,12 @@ export function toPlayer(binding: SparqlBinding): NormalizedPlayer | null {
  */
 export function playersFrom(
   bindings: readonly SparqlBinding[],
+  labels?: ReadonlyMap<string, string>,
 ): NormalizedPlayer[] {
   const byId = new Map<string, NormalizedPlayer>();
 
   for (const binding of bindings) {
-    const player = toPlayer(binding);
+    const player = toPlayer(binding, labels);
     if (player === null) continue;
 
     const existing = byId.get(player.wikidataId);
@@ -504,6 +522,60 @@ export function playersFrom(
   }
 
   return [...byId.values()];
+}
+
+/**
+ * Adı çözülemeyen oyuncuların HAM bağlamaları — §5.3.2'nin ikinci geçişi.
+ *
+ * Bağlama döndürüyor, kimlik değil: ikinci geçiş yalnızca ADI tazeler, geri
+ * kalan alanlar (doğum tarihi, vatandaşlık, mevki, cinsiyet) bu bağlamalarda
+ * zaten doğru geldi ve tekrar sorulmaları gereksiz bir istek olurdu.
+ */
+export function unlabeledPlayerBindings(
+  bindings: readonly SparqlBinding[],
+): SparqlBinding[] {
+  return bindings.filter((binding) => {
+    const id = qid(binding, "player");
+    if (id === undefined) return false;
+    return usableLabel(str(binding, "playerLabel"), id) === null;
+  });
+}
+
+/** Bağlamalardaki tekil oyuncu kimlikleri — ikinci geçişin `VALUES` listesi. */
+export function playerIdsOf(bindings: readonly SparqlBinding[]): string[] {
+  const ids = new Set<string>();
+  for (const binding of bindings) {
+    const id = qid(binding, "player");
+    if (id !== undefined) ids.add(id);
+  }
+  return [...ids];
+}
+
+/**
+ * `playerLabels` yanıtını kimlik → ad eşlemesine çevirir.
+ *
+ * TÜRKÇE TERCİH EDİLİR ve bu bir seçimdir, sıra değil: site Türkçedir ve iki
+ * dil de geldiğinde kararı yanıt sırasına bırakmak §5.3.1'in düzelttiği
+ * kusurun aynısı olurdu — "sonuncusu kazanır" bir kural değildir.
+ */
+export function labelsFrom(
+  bindings: readonly SparqlBinding[],
+): Map<string, string> {
+  const byId = new Map<string, string>();
+
+  for (const binding of bindings) {
+    const id = qid(binding, "player");
+    if (id === undefined) continue;
+
+    const label = usableLabel(str(binding, "label"), id);
+    if (label === null) continue;
+
+    if (binding["label"]?.["xml:lang"] === "tr" || !byId.has(id)) {
+      byId.set(id, label);
+    }
+  }
+
+  return byId;
 }
 
 /**

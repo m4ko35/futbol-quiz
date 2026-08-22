@@ -25,31 +25,47 @@ const CLUB_A = CURATED_CLUB_QIDS[0]!;
 const CLUB_B = CURATED_CLUB_QIDS[1]!;
 const clubIdOf = (qid: string) => `club-${qid}`;
 
-/** Uygun adaylar: altı istatistik dolu, 100+ maç, 2 küratörlü kulüp. */
+/**
+ * Uygun adaylar: altı istatistik dolu, 100+ KAPSAM maçı, 2 küratörlü kulüp.
+ *
+ * `apps`/`goals` DÖNEM sayılarıdır (kapsam ölçütünü besler); `clubApps`/
+ * `clubGoals`/`natGoals` ise oyunun GÖSTERDİĞİ resmî toplamın parçalarıdır
+ * (BR-23). İkisi kasıtlı olarak farklı: kariyer toplamı kapsamdan büyüktür,
+ * çünkü kupa ve Avrupa maçlarını da içerir.
+ */
 const ELIGIBLE = [
   {
     id: "elig1",
     caps: 40,
+    natGoals: 8,
     height: 180,
     born: 1990,
     apps: [120, 60],
     goals: [10, 5],
+    clubApps: 240,
+    clubGoals: 30,
   },
   {
     id: "elig2",
     caps: 90,
+    natGoals: 25,
     height: 190,
     born: 1978,
     apps: [200, 90],
     goals: [40, 20],
+    clubApps: 400,
+    clubGoals: 95,
   },
   {
     id: "elig3",
     caps: 12,
+    natGoals: 1,
     height: 172,
     born: 1996,
     apps: [150, 80],
     goals: [2, 1],
+    clubApps: 260,
+    clubGoals: 6,
   },
 ];
 
@@ -96,6 +112,9 @@ beforeAll(async () => {
         searchKey: toSearchKey(`Uygun ${player.id}`),
         nationality: "TR",
         nationalCaps: player.caps,
+        nationalGoals: player.natGoals,
+        clubCareerAppearances: player.clubApps,
+        clubCareerGoals: player.clubGoals,
         heightCm: player.height,
         birthDate: new Date(Date.UTC(player.born, 0, 1)),
         spells: {
@@ -120,6 +139,10 @@ beforeAll(async () => {
       wikidataId: "Qcapsiz",
       name: "Millîsiz Oyuncu",
       searchKey: toSearchKey("Millîsiz Oyuncu"),
+      // Kulüp yarısı VAR, millî yarısı YOK: resmî toplam hesaplanamaz (BR-23)
+      // ama boy, doğum yılı ve kulüp sayısı sorularında hâlâ geçerli cevaptır.
+      clubCareerAppearances: 210,
+      clubCareerGoals: 12,
       heightCm: 185,
       birthDate: new Date(Date.UTC(1988, 0, 1)),
       spells: {
@@ -133,7 +156,8 @@ beforeAll(async () => {
     },
   });
 
-  // UYGUN OLMAYAN: bir döneminde maç sayısı eksik.
+  // UYGUN OLMAYAN: Vikipedi kariyer toplamı okunamamış. Millî tarafı tam,
+  // dönemleri de var — eksik olan tek şey resmî toplamın kulüp yarısı.
   await db.prisma.player.create({
     data: {
       id: "eksik",
@@ -141,6 +165,9 @@ beforeAll(async () => {
       name: "Eksik Veri",
       searchKey: toSearchKey("Eksik Veri"),
       nationalCaps: 20,
+      nationalGoals: 3,
+      clubCareerAppearances: null,
+      clubCareerGoals: null,
       heightCm: 180,
       birthDate: new Date(Date.UTC(1992, 0, 1)),
       spells: {
@@ -316,10 +343,10 @@ describe("POST /api/stat-match/answer — BR-18, BR-20", () => {
   });
 
   /**
-   * KAPSAM TUTARLILIĞI: bir döneminde maç sayısı eksik olan oyuncunun toplamı
-   * yanıltıcıdır; sıfır dönmek yerine reddedilir (§2.7).
+   * BR-23 — resmî toplamın bir yarısı bilinmiyorsa toplam da bilinmiyor;
+   * sıfır dönmek yerine reddedilir (§2.7).
    */
-  it("eksik dönemi olan oyuncuyu maç sorusunda reddeder", async () => {
+  it("kariyer toplamı olmayan oyuncuyu maç sorusunda reddeder", async () => {
     const response = await answerRoute.POST(
       post({ statKey: "appearances", playerId: "eksik" }),
     );
@@ -409,10 +436,20 @@ describe("GET /api/players?stat= — BR-16", () => {
     expect(ids).toContain("capsiz");
   });
 
-  it("maç süzgeci eksik dönemliyi eler", async () => {
+  it("maç süzgeci kariyer toplamı olmayanı eler", async () => {
     const ids = await search("q=Eksik&stat=appearances");
 
     expect(ids).not.toContain("eksik");
+  });
+
+  /**
+   * BR-23'ün İKİ YARISI AYRI AYRI ARANIR. Millî yarısı olmayan oyuncu resmî
+   * maç sorusunda cevap OLAMAZ — ama kulüp sayısında olabilir. Süzgeç ile
+   * sunucunun ayrışması ölçülmüş bir kusur sınıfı (§9.2).
+   */
+  it("maç süzgeci millî yarısı olmayanı da eler", async () => {
+    expect(await search("q=Oyuncu&stat=appearances")).not.toContain("capsiz");
+    expect(await search("q=Oyuncu&stat=clubs")).toContain("capsiz");
   });
 
   it("tanınmayan istatistik adını reddeder", async () => {

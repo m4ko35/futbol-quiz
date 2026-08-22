@@ -415,14 +415,18 @@ export class PrismaPlayerRepository implements PlayerRepository {
 /**
  * BR-16 — o istatistikte puanlanabilir oyuncuların `where` koşulu (§9.2).
  *
- * Kulüp kaynaklı istatistikler (maç, gol, kulüp sayısı) için koşul, §1.3
- * kapsamında eksiksiz bir döneminin bulunmasıdır. Kapsam tutarlılığı zorunlu:
- * hedef 24 ligi saydığı için cevap da öyle sayılır (BR-23,
- * `PrismaStatMatchRepository.findStatValue` ile aynı ölçüt).
+ * Kapsam tutarlılığı zorunlu: hedef hangi sayıyı gösteriyorsa cevap da onu
+ * sayar (BR-23, `PrismaStatMatchRepository.findStatValue` ile aynı ölçüt).
+ * Ayrışması ölçülmüş bir kusur sınıfıdır — seçici oyuncuyu gösterir, sunucu
+ * reddeder ve kullanıcı sebebini göremez.
  *
- * KÜRATÖRLÜ KISIT BURADAN KALDIRILDI ve sebebi tam olarak aşağıdaki uyarıdır:
- * `findStatValue` 24 lige geçince bu süzgeç küratörlü kalsaydı ikisi yeniden
- * ayrışırdı — seçici gösterir, sunucu reddederdi.
+ * MAÇ VE GOL ARTIK BİR TOPLAMA DEĞİL, İKİ SÜTUN (§9.2). Koşul "hiçbir dönem
+ * eksik olmasın" idi ve bunu Prisma'nın `where` diliyle ifade etmek için
+ * `none:` alt sorgusu gerekiyordu; resmî toplam oyuncu kaydında durduğu için
+ * artık iki `not: null` yetiyor. Ölçülen yan etki: cevap havuzu 90.475'ten
+ * 5.790'a iniyor — bu bir daralma değil, sayının kapsam değiştirmesinin
+ * bedeli. Kariyer toplamı olmayan oyuncu için "resmî gol" diye bir sayı
+ * YOKTUR ve uydurulamaz (§2.7).
  *
  * `undefined` verilirse süzgeç YOK — ızgara modu her oyuncuyu cevap olarak
  * kabul eder ve o mod bu alanı hiç göndermez.
@@ -434,26 +438,12 @@ function scoreableWhere(key: StatKey | undefined): Prisma.PlayerWhereInput {
   if (key === "heightCm") return { heightCm: { not: null } };
   if (key === "birthYear") return { birthDate: { not: null } };
 
-  // Kapsamdaki profesyonel dönemler — hem varlık hem eksiklik koşulunun
-  // tabanı. Kulüp kısıtı YOK: değerler artık tüm kapsamı sayıyor.
-  const professional: Prisma.SpellWhereInput = { isYouth: false };
+  // Kulüp SAYISI kapsama bağlı kalıyor: bir profesyonel dönem yeter.
+  if (key === "clubs") return { spells: { some: { isYouth: false } } };
 
-  // Kulüp sayısı için bir dönem yeter.
-  if (key === "clubs") return { spells: { some: professional } };
-
-  /*
-   * Maç ve golde koşul "EN AZ BİR dolu dönem" DEĞİL, "HİÇBİR dönem eksik
-   * değil". İkisi farklı ve fark bir kusura yol açmıştı: süzgeç "en az bir
-   * dolu" derken `findStatValue` "hiçbiri eksik olmasın" diyordu; seçici
-   * oyuncuyu gösteriyor, sunucu reddediyordu — yani süzgecin kaldırmak için
-   * eklendiği duvarın aynısı. Kural artık `findStatValue` ile birebir aynı.
-   */
-  const missing: Prisma.SpellWhereInput = {
-    ...professional,
-    ...(key === "appearances" ? { appearances: null } : { goals: null }),
-  };
-
-  return { spells: { some: professional, none: missing } };
+  return key === "appearances"
+    ? { clubCareerAppearances: { not: null }, nationalCaps: { not: null } }
+    : { clubCareerGoals: { not: null }, nationalGoals: { not: null } };
 }
 
 /**
@@ -464,15 +454,16 @@ function scoreableWhere(key: StatKey | undefined): Prisma.PlayerWhereInput {
  * aynısı). Bu yüzden ölçüt, Prisma'nın `where` diliyle tam ifade edilebilecek
  * biçimde seçildi:
  *
- *   · altı istatistiğin üçü oyuncu kaydında  → `not: null`
- *   · 100+ maç                               → `careerAppearances` (§5.2'de
- *     zaten denormalize; eksik dönem yasağıyla birlikte `SUM` ile çakışır)
- *   · hiçbir dönemde eksik maç/gol           → `none`
+ *   · altı istatistiğin beş girdisi oyuncu kaydında → `not: null`
+ *   · 100+ kapsam maçı → `careerAppearances` (§5.2'de zaten denormalize ve
+ *     `SUM(s.appearances)` ile birebir aynı: ikisi de altyapı dışı dönemlerin
+ *     null olmayan maçlarını toplar)
+ *   · kulüp sayısı için en az bir profesyonel dönem → `some`
  *
  * "2+ kulüp" şartı BİLEREK YOK. Günün oyuncusunda o şart TANINIRLIK içindi;
  * burada seçen kullanıcının kendisi. Şartı taşımak, ölçütü Prisma'nın
  * ifade edemeyeceği bir toplamaya çevirir ve süzgeci doğrulayıcıdan yeniden
- * ayrıştırırdı. Ölçülen bedel: havuz 5.242 yerine 5.524 (§9.2).
+ * ayrıştırırdı.
  */
 function targetableWhere(
   targetable: boolean | undefined,
@@ -481,15 +472,13 @@ function targetableWhere(
 
   return {
     nationalCaps: { not: null },
+    nationalGoals: { not: null },
+    clubCareerAppearances: { not: null },
+    clubCareerGoals: { not: null },
     heightCm: { not: null },
     birthDate: { not: null },
     careerAppearances: { gte: MIN_TARGET_APPEARANCES },
-    spells: {
-      none: {
-        isYouth: false,
-        OR: [{ appearances: null }, { goals: null }],
-      },
-    },
+    spells: { some: { isYouth: false } },
   };
 }
 

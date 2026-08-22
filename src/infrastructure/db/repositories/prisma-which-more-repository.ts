@@ -4,7 +4,11 @@ import type {
   WhichMoreCandidateQuery,
   WhichMoreRepository,
 } from "@/application/ports/which-more-repository";
-import { STAT_KEYS, type StatKey } from "@/domain/services/stat-match";
+import {
+  officialTotal,
+  STAT_KEYS,
+  type StatKey,
+} from "@/domain/services/stat-match";
 import {
   isWellKnown,
   LEVELS,
@@ -63,13 +67,14 @@ interface PoolRow {
   id: string;
   name: string;
   nationalCaps: number | bigint | null;
+  nationalGoals: number | bigint | null;
   heightCm: number | bigint | null;
   /** Doğum YILI ayrı bir sütun değil, buradan türetilir — §9.2. */
   birthDate: Date | null;
-  appearances: number | bigint | null;
-  goals: number | bigint | null;
+  /** Kulüp kariyerinin TAMAMI; millî tarafla toplanır (BR-23). */
+  clubAppearances: number | bigint | null;
+  clubGoals: number | bigint | null;
   clubs: number | bigint;
-  missing: number | bigint;
 }
 
 /**
@@ -237,13 +242,13 @@ export class PrismaWhichMoreRepository implements WhichMoreRepository {
 
     const rows = await this.#prisma.$queryRaw<PoolRow[]>(Prisma.sql`
       SELECT p.id AS id, p.name AS name,
-             p.nationalCaps AS nationalCaps,
-             p.heightCm     AS heightCm,
-             p.birthDate    AS birthDate,
-             SUM(s.appearances)       AS appearances,
-             SUM(s.goals)             AS goals,
-             COUNT(DISTINCT s.clubId) AS clubs,
-             SUM(CASE WHEN s.appearances IS NULL OR s.goals IS NULL THEN 1 ELSE 0 END) AS missing
+             p.nationalCaps  AS nationalCaps,
+             p.nationalGoals AS nationalGoals,
+             p.heightCm      AS heightCm,
+             p.birthDate     AS birthDate,
+             p.clubCareerAppearances AS clubAppearances,
+             p.clubCareerGoals       AS clubGoals,
+             COUNT(DISTINCT s.clubId) AS clubs
       FROM players p
       JOIN spells s ON s.playerId = p.id AND s.isYouth = 0
       WHERE p.id = ${id}
@@ -293,13 +298,13 @@ export class PrismaWhichMoreRepository implements WhichMoreRepository {
            AND COUNT(DISTINCT s.clubId) >= ${MIN_CLUBS}
       )
       SELECT p.id AS id, p.name AS name,
-             p.nationalCaps AS nationalCaps,
-             p.heightCm     AS heightCm,
-             p.birthDate    AS birthDate,
-             SUM(s.appearances)       AS appearances,
-             SUM(s.goals)             AS goals,
+             p.nationalCaps  AS nationalCaps,
+             p.nationalGoals AS nationalGoals,
+             p.heightCm      AS heightCm,
+             p.birthDate     AS birthDate,
+             p.clubCareerAppearances AS clubAppearances,
+             p.clubCareerGoals       AS clubGoals,
              COUNT(DISTINCT s.clubId) AS clubs,
-             SUM(CASE WHEN s.appearances IS NULL OR s.goals IS NULL THEN 1 ELSE 0 END) AS missing,
              MAX(COALESCE(s.endYear, s.startYear)) AS lastYear
       FROM players p
       JOIN taninir t ON t.pid = p.id
@@ -363,15 +368,16 @@ function valueOf(row: PoolRow, key: StatKey): number | null {
   if (key === "heightCm") return toNumber(row.heightCm);
   if (key === "birthYear") return yearOf(row.birthDate);
 
-  const clubs = Number(row.clubs);
-  // Kapsamda hiç dönemi yok: bu istatistikte 0 DEĞİL, bilinmiyor (§2.7).
-  if (clubs === 0) return null;
-  if (key === "clubs") return clubs;
+  if (key === "clubs") {
+    const clubs = Number(row.clubs);
+    // Kapsamda hiç dönemi yok: bu istatistikte 0 DEĞİL, bilinmiyor (§2.7).
+    return clubs === 0 ? null : clubs;
+  }
 
-  // Tek bir dönemde bile eksik değer varsa toplam yanıltıcıdır.
-  if (Number(row.missing) > 0) return null;
-
-  return toNumber(key === "appearances" ? row.appearances : row.goals);
+  // BR-23 — resmî toplam; parçalardan biri eksikse toplam da bilinmiyor.
+  return key === "appearances"
+    ? officialTotal(toNumber(row.clubAppearances), toNumber(row.nationalCaps))
+    : officialTotal(toNumber(row.clubGoals), toNumber(row.nationalGoals));
 }
 
 function toNumber(value: number | bigint | null): number | null {

@@ -48,6 +48,9 @@ const NOTABLE = [
     apps: [80, 40],
     goals: [4, 2],
     caps: 20,
+    natGoals: 2,
+    clubApps: 150,
+    clubGoals: 8,
     lastYear: 2010,
   },
   {
@@ -56,6 +59,9 @@ const NOTABLE = [
     apps: [120, 60],
     goals: [20, 10],
     caps: 30,
+    natGoals: 9,
+    clubApps: 230,
+    clubGoals: 40,
     lastYear: 2012,
   },
   {
@@ -64,6 +70,9 @@ const NOTABLE = [
     apps: [150, 90],
     goals: [40, 30],
     caps: 60,
+    natGoals: 22,
+    clubApps: 330,
+    clubGoals: 95,
     lastYear: 2015,
   },
 ];
@@ -133,6 +142,11 @@ beforeAll(async () => {
         searchKey: toSearchKey(`Tanınır ${player.id}`),
         heightCm: player.height,
         nationalCaps: player.caps,
+        // BR-23'ün resmî toplamı: kulüp kariyeri + millî. Dönemlerden BÜYÜK,
+        // çünkü kupa ve Avrupa maçlarını da içerir.
+        nationalGoals: player.natGoals,
+        clubCareerAppearances: player.clubApps,
+        clubCareerGoals: player.clubGoals,
         spells: {
           create: [CLUB_A, CLUB_B].map((qid, i) => ({
             wikidataStatementId: `${player.id}-${String(i)}`,
@@ -155,6 +169,9 @@ beforeAll(async () => {
         searchKey: toSearchKey(`Silik ${player.id}`),
         heightCm: player.height,
         nationalCaps: player.caps,
+        nationalGoals: 2,
+        clubCareerAppearances: 260,
+        clubCareerGoals: 14,
         spells: {
           create: [CLUB_A, CLUB_B].map((qid, i) => ({
             wikidataStatementId: `${player.id}-${String(i)}`,
@@ -198,6 +215,9 @@ beforeAll(async () => {
       searchKey: toSearchKey("Boysuz Oyuncu"),
       // Bilindik (BR-41): eksik olan yalnızca BOY olsun, seviye olmasın.
       nationalCaps: 25,
+      nationalGoals: 4,
+      clubCareerAppearances: 241,
+      clubCareerGoals: 9,
       spells: {
         create: [CLUB_A, CLUB_B].map((qid, i) => ({
           wikidataStatementId: `boysuz-${String(i)}`,
@@ -210,7 +230,8 @@ beforeAll(async () => {
     },
   });
 
-  // MAÇ SAYISI EKSİK: `appearances`/`goals` değeri `null` sayılır (§2.7).
+  // KARİYER TOPLAMI EKSİK: `appearances`/`goals` değeri `null` sayılır
+  // (§2.7, BR-23) — resmî toplamın kulüp yarısı okunamamış.
   await db.prisma.player.create({
     data: {
       id: "eksik",
@@ -218,8 +239,11 @@ beforeAll(async () => {
       name: "Eksik Veri",
       searchKey: toSearchKey("Eksik Veri"),
       heightCm: 178,
-      // Bilindik (BR-41): eksik olan yalnızca MAÇ SAYISI olsun, seviye olmasın.
+      // Bilindik (BR-41): eksik olan yalnızca KARİYER TOPLAMI olsun.
       nationalCaps: 22,
+      nationalGoals: 5,
+      clubCareerAppearances: null,
+      clubCareerGoals: null,
       spells: {
         create: [
           {
@@ -290,7 +314,8 @@ describe("POST /api/hangisi-daha/round — §6.6", () => {
       playerId("boysuz"),
       "appearances",
     );
-    expect(found?.value).toBe(241);
+    // Resmî toplam: 241 kulüp maçı + 25 A millî maç (BR-23).
+    expect(found?.value).toBe(266);
   });
 
   it("kalan oyuncu SOLDA durur (BR-28)", async () => {
@@ -452,6 +477,14 @@ describe("POST /api/hangisi-daha/answer — §6.6", () => {
     expect(body.data.winnerId).toBe("h180");
   });
 
+  /**
+   * BR-23 — 22 Ağustos 2026'da bu testin BEKLENTİSİ TERSİNE DÖNDÜ ve dönmesi
+   * gerekiyordu: resmî maç artık kariyerin tamamını sayıyor, yani "yalnızca
+   * 24 lig" uyarısını hak etmiyor. Kapsama bağlı kalan tek istatistik kulüp
+   * sayısıdır; onun çifti bu fikstürde kurulamıyor (üç oyuncunun da 2 kulübü
+   * var, band da 2) ve kurulmasına gerek de yok — burada denenen şey bayrağın
+   * TAŞINMASI, değerin kendisi `isScoped`'un birim testinde.
+   */
   it("kapsam bildirimi doğru taşınır", async () => {
     const { body } = await answer({
       statKey: "appearances",
@@ -461,8 +494,7 @@ describe("POST /api/hangisi-daha/answer — §6.6", () => {
       chosenId: "h160",
     });
 
-    // Maç sayısı yalnızca 24 ligi sayar; boy saymaz.
-    expect(body.data.scoped).toBe(true);
+    expect(body.data.scoped).toBe(false);
   });
 
   it("BAND ALTINDAKİ çift reddedilir (BR-29)", async () => {
@@ -561,8 +593,8 @@ describe("değer tanımı §9.2 ile aynıdır", () => {
 describe("BR-29 bandı", () => {
   it("ölçülen değerleri taşır", () => {
     expect(MIN_GAP).toEqual({
-      appearances: 25,
-      goals: 5,
+      appearances: 35,
+      goals: 10,
       clubs: 2,
       nationalCaps: 5,
       heightCm: 3,

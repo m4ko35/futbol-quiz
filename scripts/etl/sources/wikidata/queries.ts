@@ -64,12 +64,35 @@ const UMBRELLA_CLASS_VALUES = ["Q847017", "Q13580678"]
   .map((id) => `wd:${assertQid(id)}`)
   .join(" ");
 
+/**
+ * Etiket servisinin dil listesi — `mul` DAHİL, ve `mul` bu listenin sebebidir.
+ *
+ * ÖLÇÜLDÜ (22 Ağustos 2026, §5.3.2). Wikidata 2024'ten beri kişi adlarını
+ * dile bağlı olmayan **`mul`** koduna taşıyor ve taşırken Latin alfabesi
+ * kullanan dillerin ayrı etiketlerini SİLİYOR. Sonuç bugün canlı sorguyla
+ * doğrulandı:
+ *
+ *   Q11571 Cristiano Ronaldo  96 dil · en YOK · tr YOK · mul VAR
+ *   Q615   Lionel Messi      100 dil · en YOK · tr YOK · mul VAR
+ *   Q483837 Luka Modrić       59 dil · en YOK · tr YOK · mul VAR
+ *   Q189984 Franco Baresi     37 dil · en VAR ·          mul VAR
+ *
+ * `"tr,en"` diyen sorgu bu üç oyuncu için etiket olarak QID'nin kendisini
+ * aldı, `toPlayer` onları adsız sayıp düşürdü ve 21 Ağustos 2026 veri
+ * kümesinde Cristiano Ronaldo ile Lionel Messi HİÇ YOKTU.
+ *
+ * SIRA ÖNEMLİ: `tr` en özgül olan, `mul` ise adın dilden bağımsız kanonik
+ * biçimi; `en` ikisinin arasında kalır. Göç sürdükçe `mul` daha çok varlıkta
+ * tek seçenek olacak, yani bu liste bir yama değil yeni normaldir.
+ */
+const LABEL_LANGUAGES = "tr,en,mul";
+
 /** Kulüp meta verisi — iki kulüp sorgusunda da aynı. */
 const CLUB_FIELDS = `
   OPTIONAL { ?club wdt:P571 ?inception }
   OPTIONAL { ?club wdt:P154 ?logo }
   OPTIONAL { ?club wdt:P17/wdt:P297 ?countryCode }
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "tr,en". }`;
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "${LABEL_LANGUAGES}". }`;
 
 /**
  * Kulüp evreni üç ayrı sorgudan toplanır. Sorgular ADAY üretir; hangisinin
@@ -242,7 +265,34 @@ SELECT ?player ?playerLabel ?dob ?positionLabel ?countryCode ?birthCountryCode ?
   OPTIONAL { ?player wdt:P27/wdt:P297 ?countryCode }
   OPTIONAL { ?player wdt:P19/wdt:P17/wdt:P297 ?birthCountryCode }
   OPTIONAL { ?player wdt:P21 ?gender }
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "tr,en". }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "${LABEL_LANGUAGES}". }
+}`.trim();
+}
+
+/**
+ * İlk geçişte adsız kalan oyuncuların adı — İKİNCİ GEÇİŞ (§5.3.2).
+ *
+ * KURTARMAKTAN ÇOK SAYMAK İÇİN VAR. Adsız kalmanın bilinen sebebi `mul`
+ * göçüydü ve o, `LABEL_LANGUAGES`'a `mul` eklenerek kapatıldı. Buradaki
+ * geçiş ondan geriye kalanı ölçer: 21 Ağustos 2026 koşusu 135.657 kimlik
+ * isteyip 133.806 kayıt üretti — **1.851 oyuncu tek satır rapor edilmeden
+ * düşmüştü** ve bunu hiçbir kapı, hiçbir günlük söylemiyordu.
+ *
+ * Sorgu `rdfs:label` üçlüsünü DOĞRUDAN okur; etiket servisi devrede değildir,
+ * yani ikinci bağımsız bir yoldur. Yalnızca ilk geçişte adsız kalan kimlikler
+ * sorulur.
+ *
+ * Oyuncu başına birden çok satır dönebilir (`tr`, `en`, `mul`); seçimi
+ * `labelsFrom` yapar ve Türkçeyi tercih eder.
+ */
+export function playerLabels(playerQids: readonly string[]): string {
+  const values = playerQids.map((id) => `wd:${assertQid(id)}`).join(" ");
+
+  return `
+SELECT ?player ?label WHERE {
+  VALUES ?player { ${values} }
+  ?player rdfs:label ?label .
+  FILTER(LANG(?label) IN ("tr", "en", "mul"))
 }`.trim();
 }
 
@@ -346,7 +396,7 @@ SELECT ?league ?leagueLabel (COUNT(DISTINCT ?club) AS ?clubCount) WHERE {
   VALUES ?clubClass { ${CLUB_CLASS_VALUES} }
   ?club wdt:${WD.PROP_LEAGUE} ?league ;
         wdt:P31/wdt:P279* ?clubClass .
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "${LABEL_LANGUAGES}". }
 }
 GROUP BY ?league ?leagueLabel`.trim();
 }

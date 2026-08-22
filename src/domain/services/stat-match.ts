@@ -32,37 +32,45 @@ export function isStatKey(value: string): value is StatKey {
  * NEDEN SABİT, VERİDEN HESAPLANMIYOR: puanlama kuralı her istek için tüm
  * havuzu taramamalı ve aynı cevap farklı günlerde farklı puan almamalı.
  * Değerler ölçülerek konur; veri kümesi yenilendiğinde ölçüm TEKRARLANIR —
- * artık elle değil, `npm run stats:measure` ile.
+ * `npm run stats:measure` farkı %15'i aşarsa "BAYAT" diye işaretler.
  *
- * ÖLÇÜM — BR-15 aday havuzunun tamamı, **2.518 oyuncu** (2026-08-13):
+ * ÖLÇÜM — BR-15 aday havuzunun tamamı, **1.766 oyuncu** (22 Ağustos 2026):
  *
- *                min   p25  medyan  p75   p95   max     ort     SD
- *   kulüp maçı   100   272    352   435   569   962   357,8  120,3
- *   kulüp golü     0    12     32    77   178   600    54,1   60,5
- *   kulüp sayısı   2     4      5     7     9    17     5,4    2,2
- *   A millî maç    0     8     27    60   110   233    38,3   36,4
- *   boy          157   176    180   185   191   203   180,8    6,6
- *   doğum yılı  1868  1965   1978  1987  1996  2005  1973,7   19,8
+ *                 min   p25  medyan  p75   p95   max      SD
+ *   resmî maç      18   430    539   668   857  1374   175,8
+ *   resmî gol       0    22     57   137   299   755    98,0
+ *   kulüp sayısı    2     4      5     7    10    15     2,2
+ *   A millî maç     0    14     39    72   118   180    37,5
+ *   boy           160   177    182   186   193   203     6,6
+ *   doğum yılı   1874  1976   1985  1992  1998  2005    14,0
  *
- * BAYATLAMA ÖLÇÜLDÜ VE BU SATIRLARIN VAR OLMA SEBEBİDİR. Önceki değerler
- * 1.904 oyunculuk havuzda (2026-07-31) ölçülmüştü; lig kapsamı 6'dan 24'e
- * çıkınca `clubs` sapması **1,2 → 2,2** oldu, yani gerçek yayılım iki katına
- * çıkarken puanlama eski dar yayılımı kullanmaya devam etti ve o istatistiği
- * tasarlandığından iki kat sert hâle getirdi. Kimse fark etmedi çünkü ölçümü
- * tekrarlayacak bir araç yoktu; `scripts/measure-stats.ts` o boşluğu kapatıyor
- * ve sapma %15'ten fazlaysa "BAYAT" diye işaretliyor.
+ * ÜÇ SABİT BİRDEN DEĞİŞTİ ve sebebi tek: BR-23 (§9.2). Maç ile gol artık 24
+ * ligi değil kariyerin tamamını sayıyor, yani ölçekleri büyüdü — maç
+ * 120,3 → 175,8, gol 60,5 → 98,0. Doğum yılı ise SAYILARI değişmediği hâlde
+ * saptı (19,8 → 14,0): havuz değişti. Kariyer toplamı Vikipedi'nin kariyer
+ * tablosundan geliyor ve o tablo çoğunlukla modern oyuncularda dolu, yani
+ * aday havuzu 2.662'den 1.766'ya inerken yaş yayılımı da daraldı (en eski
+ * 1861 → 1874, çeyrekler 1965/1987 → 1976/1992).
+ *
+ * ÜÇÜNCÜSÜ ÖNEMLİ BİR DERSTİR: bir istatistiğin sapması, o istatistiğe hiç
+ * dokunulmadan da bayatlayabilir. Havuzun tanımı değiştiyse hepsi yeniden
+ * ölçülür.
+ *
+ * BİR ÖNCEKİ BAYATLAMA da bu satırların var olma sebebiydi: lig kapsamı
+ * 6'dan 24'e çıkınca `clubs` sapması 1,2 → 2,2 olmuş ve kimse fark etmemişti,
+ * çünkü ölçümü tekrarlayacak bir araç yoktu.
  *
  * ONDALIKLAR KORUNDU. `clubs` sapması tam sayıya yuvarlansa 2'ye inerdi; iki
  * kulüplük bir sapmanın puanı %50'den %55'e kayardı. Altı istatistiğin en dar
  * ölçeklisinde bu fark oyunun tamamını etkiliyor.
  */
 export const STAT_DEVIATIONS: Readonly<Record<StatKey, number>> = {
-  appearances: 120.3,
-  goals: 60.5,
+  appearances: 175.8,
+  goals: 98.0,
   clubs: 2.2,
-  nationalCaps: 36.4,
+  nationalCaps: 37.5,
   heightCm: 6.6,
-  birthYear: 19.8,
+  birthYear: 14.0,
 };
 
 /**
@@ -105,18 +113,41 @@ export function totalScore(scores: readonly number[]): number {
 }
 
 /**
- * Maç, gol ve kulüp sayısı YALNIZCA §1.3 kapsamındaki yirmi dört ligi sayar.
+ * BR-23 — "resmî toplam": kulüp kariyerinin TAMAMI artı A millî takım.
  *
- * Arayüz bunu göstermek zorundadır: Ajax'ta geçen yıllar bu sayılara girmez
- * ve kullanıcı bildiği gerçek toplamla karşılaştırıp siteyi yanlış sanar.
- * Millî maç, boy ve doğum yılı ise kapsamdan bağımsızdır — oyuncunun kendi
- * kaydından gelir.
+ * Maç ve gol artık §1.3'ün yirmi dört liginden değil, oyuncunun bütün resmî
+ * karşılaşmalarından gelir: lig, yerel kupa, Avrupa ve millî takım. Ürün
+ * sahibinin istediği sayı budur ve kullanıcının kafasındaki sayı da budur —
+ * "Kane 527 gol" derken kimse lig golünü kastetmiyor.
+ *
+ * PARÇALARDAN BİRİ BİLİNMİYORSA TOPLAM DA BİLİNMİYOR (§2.7). `null` sıfır
+ * değildir: millî takım kaydı olmayan bir oyuncuda "hiç millî gol atmadı" ile
+ * "millî takıma çıkıp çıkmadığını bilmiyoruz" veri kümesinde AYIRT EDİLEMEZ.
+ * İkisini sıfır sayıp toplamak, ölçülemeyen bir yanlışı sessizce sayıya
+ * çevirirdi. Ölçülen bedel §9.2'de: tanınırlık havuzunda gol için 2.789 →
+ * 1.824, ama KOLAY havuzda 1.126 → 1.124, yani oyunun görünen yüzünde iki
+ * oyuncu.
  */
-export const SCOPED_STATS: ReadonlySet<StatKey> = new Set<StatKey>([
-  "appearances",
-  "goals",
-  "clubs",
-]);
+export function officialTotal(
+  club: number | null,
+  national: number | null,
+): number | null {
+  return club === null || national === null ? null : club + national;
+}
+
+/**
+ * Yalnızca §1.3 kapsamındaki yirmi dört ligi sayan istatistikler.
+ *
+ * Arayüz bunu göstermek zorundadır: kullanıcı bildiği gerçek toplamla
+ * karşılaştırıp siteyi yanlış sanar. Liste 22 Ağustos 2026'da ÜÇTEN BİRE
+ * indi — maç ve gol `officialTotal` ile kariyerin tamamına geçti; kulüp
+ * sayısı geçemez, çünkü Vikipedi'nin kariyer tablosu bir TOPLAM satırıdır ve
+ * "kaç kulüpte oynadı" sorusunu taşımaz.
+ *
+ * Yani bugün tek bir istatistik kapsama bağlı ve arayüzün uyarısı da tam
+ * olarak onun üstünde duruyor.
+ */
+export const SCOPED_STATS: ReadonlySet<StatKey> = new Set<StatKey>(["clubs"]);
 
 export function isScoped(key: StatKey): boolean {
   return SCOPED_STATS.has(key);

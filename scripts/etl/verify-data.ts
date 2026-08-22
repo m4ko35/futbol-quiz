@@ -116,6 +116,61 @@ const MUST_BE_SELECTABLE: readonly { qid: string; why: string }[] = [
   { qid: "Q482764", why: "Al-Nassr — Suudi kapsamı (378 dönem)" },
 ];
 
+/**
+ * Veri kümesinde BULUNMASI ZORUNLU oyuncular — çapa listesi (§5.3.2, §8.2).
+ *
+ * NEDEN AD DEĞİL QID: aranan şey "bu isimde biri var mı" değil, "tam olarak
+ * bu varlık var mı". Etiket servisi bir oyuncuyu çözemediğinde onu evrenden
+ * düşürüyor ve 21 Ağustos 2026'da Cristiano Ronaldo ile Lionel Messi
+ * yayımlanmış veri kümesinden böyle kayboldu — 132.357 oyuncu içinde 13
+ * kayıp hiçbir ORAN kapısını kımıldatmadı.
+ *
+ * NEDEN BİR İSİM LİSTESİ: buradaki kapıların geri kalanı oran ya da toplam
+ * ölçüyor ve tek bir ismin yokluğu bir orana yansımaz. Çapa listesi bunun
+ * tersini yapar ve MEKANİZMADAN BAĞIMSIZDIR: yarın Messi başka bir sebeple
+ * düşerse yine durur.
+ *
+ * SEÇİM ÖLÇÜTÜ İKİ TANE: (1) kapsamdaki kariyeri tartışmasız — hepsinin
+ * `careerAppearances` değeri 170'in üstünde, yani kapsam daralmadıkça
+ * düşemezler; (2) kullanıcının ADINI bildiği oyuncular. Site Türkçe olduğu
+ * için beş Türk oyuncu bilerek listede.
+ *
+ * Liste bakım ister ve bu bilinçli bir bedeldir. Bir satır düşerse doğru
+ * tepki satırı silmek DEĞİL, neden düştüğünü bulmaktır.
+ */
+const MUST_EXIST_PLAYERS: readonly { qid: string; name: string }[] = [
+  { qid: "Q11571", name: "Cristiano Ronaldo" },
+  { qid: "Q615", name: "Lionel Messi" },
+  { qid: "Q483837", name: "Luka Modrić" },
+  { qid: "Q189984", name: "Franco Baresi" },
+  { qid: "Q142794", name: "Neymar" },
+  { qid: "Q21621995", name: "Kylian Mbappé" },
+  { qid: "Q10520", name: "David Beckham" },
+  { qid: "Q11576", name: "Raúl González Blanco" },
+  { qid: "Q11584", name: "Iker Casillas" },
+  { qid: "Q17500", name: "Xavi" },
+  { qid: "Q43729", name: "Andrés Iniesta" },
+  { qid: "Q1912", name: "Karim Benzema" },
+  { qid: "Q483309", name: "Sergio Ramos" },
+  { qid: "Q45901", name: "Thierry Henry" },
+  { qid: "Q483027", name: "Paolo Maldini" },
+  { qid: "Q1835", name: "Zinedine Zidane" },
+  { qid: "Q429039", name: "Roberto Carlos" },
+  { qid: "Q624", name: "Alessandro Del Piero" },
+  { qid: "Q48892", name: "Didier Drogba" },
+  { qid: "Q459830", name: "Steven Gerrard" },
+  { qid: "Q266613", name: "Wayne Rooney" },
+  { qid: "Q151269", name: "Robert Lewandowski" },
+  { qid: "Q26517", name: "Luis Suárez" },
+  { qid: "Q969725", name: "Harry Kane" },
+  // Site Türkçedir: bu beşi kullanıcı kitlesinin çekirdeğidir.
+  { qid: "Q192974", name: "Hakan Şükür" },
+  { qid: "Q201900", name: "Rüştü Reçber" },
+  { qid: "Q202569", name: "Emre Belözoğlu" },
+  { qid: "Q487459", name: "Arda Turan" },
+  { qid: "Q1388570", name: "Sergen Yalçın" },
+];
+
 /** MVP'nin çekirdek sorusu boş dönmemesi gereken çiftler. */
 const KNOWN_PAIRS: readonly [string, string][] = [
   ["galatasaray", "arsenal"],
@@ -574,14 +629,15 @@ async function verifyPlayerStats(): Promise<void> {
  *    seçimi ile golün seçimi ayrışmıştır. Sütun boşken bu sayı 0'dır ve kapı
  *    zararsızca geçer, doğruyken de 0 kalır.
  *
- *  · KAPSAM **sayaçtır, kapı değil** — henüz. Alan bu koşuyla eklendi ve ilk
- *    ETL tazelemesine kadar BOŞ duracak; şimdi kapı yapmak, veriyi hiç
- *    çekmemiş bir veritabanını "bozuk" ilan ederdi. Ölçülen beklenti yazılı:
- *    maç sayısı olanların **%99,8'inde** gol de olmalı (15 Ağustos 2026,
- *    6.464 oyunculuk tanınırlık havuzunda 3.573/3.580).
+ *  · KAPSAM ARTIK **kapıdır** (22 Ağustos 2026). Sayaç olarak konmuştu çünkü
+ *    alan boştu; ilk dolu koşudan sonra çevrileceği yazılıydı ve BR-23 ile
+ *    birlikte zorunlu oldu: "resmî gol" istatistiği bu sütun olmadan
+ *    hesaplanamıyor, yani kapsam düşerse oyunun bir ekseni sessizce boşalır.
  *
- * İlk dolu koşudan sonra kapsam da `check`'e çevrilir; eşiği o zaman
- * ölçülmüş değere göre konur, tahminle değil.
+ *    EŞİK ÖLÇÜLDÜ, TAHMİN EDİLMEDİ. Çevrimdışı beklenti %99,8 idi (15 Ağustos
+ *    2026, 6.464 oyunculuk havuzda 3.573/3.580); GERÇEK koşuda çıkan
+ *    **%98,6** (22.649/22.982). Kapı ölçülen değerin altına, %95'e konuyor:
+ *    amaç bugünkü gürültüyü cezalandırmak değil, ÇÖKMEYİ yakalamak.
  */
 async function verifyNationalGoals(caps: number): Promise<void> {
   const [goals, overscored] = await Promise.all([
@@ -605,11 +661,20 @@ async function verifyNationalGoals(caps: number): Promise<void> {
   }
 
   const ratio = caps === 0 ? 0 : goals / caps;
-  console.log(
-    `  ℹ millî gol ${goals}/${caps} = %${(ratio * 100).toFixed(1)} ` +
-      `(ölçülen beklenti %99,8; dolu ilk koşudan sonra kapıya çevrilecek)`,
+  check(
+    ratio >= MIN_NATIONAL_GOAL_RATIO,
+    `millî gol ${goals}/${caps} = %${(ratio * 100).toFixed(1)} ` +
+      `(alt sınır %${(MIN_NATIONAL_GOAL_RATIO * 100).toFixed(0)}, ölçülen %98,6)`,
   );
 }
+
+/**
+ * Millî maçı olanların kaçında gol de olmalı — BR-23'ün girdisi (§9.2).
+ *
+ * Ölçülen %98,6'nın altında bir tampon: gol ile maç AYNI ifadeden okunuyor,
+ * dolayısıyla oranın düşmesi ancak okumanın bozulmasıyla mümkün.
+ */
+const MIN_NATIONAL_GOAL_RATIO = 0.95;
 
 /**
  * Kulüp kariyer toplamı — §9.2, "toplam resmî gol"ün ikinci yarısı.
@@ -650,18 +715,31 @@ async function verifyClubCareerTotals(): Promise<void> {
   check(over === 0, `kulüp kariyerinde maçından çok gol: ${over}`);
   check(below === 0, `kariyer golü lig golünden küçük: ${below}`);
 
-  if (filled === 0) {
-    console.log(
-      "  ℹ kulüp kariyer toplamı: 0 — alan henüz doldurulmadı, ilk ETL koşusunda dolar (§9.2)",
-    );
-    return;
-  }
-
-  console.log(
-    `  ℹ kulüp kariyer toplamı dolu: ${filled} ` +
-      `(ölçülen beklenti: BR-15 aday havuzunda %78,3)`,
+  check(
+    filled >= MIN_CAREER_TOTALS,
+    `kulüp kariyer toplamı dolu: ${filled} ` +
+      `(alt sınır ${MIN_CAREER_TOTALS}, ölçülen 23.017)`,
   );
 }
+
+/**
+ * Kariyer toplamı dolu oyuncu sayısının tabanı — BR-23'ün girdisi (§9.2).
+ *
+ * SAYI, ORAN DEĞİL: payda (132 bin oyuncu) veri kümesinin BÜYÜMESİYLE
+ * değişiyor ve oranı hem yukarı hem aşağı çekebiliyor; asıl önemsediğimiz
+ * şey oyunun havuzunu besleyen mutlak sayının çökmemesi.
+ *
+ * Ölçüldü: 23.017 (22 Ağustos 2026, ilk dolu koşu). Taban yarısına konuyor —
+ * Vikipedi'nin kariyer tablosu ayrıştırıcısı bozulursa ya da bölüm başlığı
+ * değişirse bu sayı yarıya inmeden çok önce göze çarpar; ama %5'lik doğal
+ * dalgalanma kapıyı kırmamalı.
+ *
+ * BR-15 aday havuzundaki ORAN da kayda geçiyor: çevrimdışı örneklem %78,3
+ * demişti, gerçek koşuda **%66,3** çıktı (2.662 → 1.766). 60 kişilik örneklem
+ * gerçek oranı yukarı sapıtmış; sayı burada, bir dahaki tahmin ona göre
+ * yapılsın.
+ */
+const MIN_CAREER_TOTALS = 11_500;
 
 async function verifyDailyCandidates(): Promise<void> {
   console.log("\n=== Günün oyuncusu havuzu (BR-15) ===");
@@ -855,6 +933,43 @@ async function verifyKnownPairs(): Promise<void> {
   }
 }
 
+/**
+ * Çapa oyuncular — §5.3.2'nin sessiz kaybını yakalayan kapı.
+ *
+ * Yalnızca VARLIK denetlenir, değerler değil: kayıp burada oyuncunun tamamen
+ * yok olması biçiminde görünüyor ve alan alan denetim başka kapıların işi.
+ * Dönem şartı ekli, çünkü dönemi olmayan bir oyuncu yükleyicide zaten
+ * siliniyor — kayıt varmış gibi görünüp oyunda hiç çıkmaması daha kötüdür.
+ */
+async function verifyAnchorPlayers(): Promise<void> {
+  console.log("\n=== Çapa oyuncular (§5.3.2) ===");
+
+  const found = await prisma.player.findMany({
+    where: { wikidataId: { in: MUST_EXIST_PLAYERS.map((p) => p.qid) } },
+    select: { wikidataId: true, careerAppearances: true },
+  });
+  const byQid = new Map(found.map((p) => [p.wikidataId, p]));
+
+  const missing = MUST_EXIST_PLAYERS.filter((p) => !byQid.has(p.qid));
+  check(
+    missing.length === 0,
+    missing.length === 0
+      ? `${MUST_EXIST_PLAYERS.length} çapa oyuncunun hepsi veri kümesinde`
+      : `KAYIP çapa oyuncu: ${missing.map((p) => `${p.name} (${p.qid})`).join(", ")}`,
+  );
+
+  // Kaydı var ama kapsamda hiç maçı yok: kayıp kadar sessiz, sonucu aynı.
+  const empty = MUST_EXIST_PLAYERS.filter(
+    (p) => (byQid.get(p.qid)?.careerAppearances ?? 0) === 0,
+  ).filter((p) => byQid.has(p.qid));
+  check(
+    empty.length === 0,
+    empty.length === 0
+      ? "çapa oyuncuların hepsinde kapsamda maç var"
+      : `kapsamda maçı olmayan çapa oyuncu: ${empty.map((p) => p.name).join(", ")}`,
+  );
+}
+
 async function main(): Promise<void> {
   try {
     await reportCounts();
@@ -870,6 +985,7 @@ async function main(): Promise<void> {
     await verifyWhichMorePool();
     await verifyCrestLicensing();
     await verifyKnownPairs();
+    await verifyAnchorPlayers();
   } finally {
     await prisma.$disconnect();
   }

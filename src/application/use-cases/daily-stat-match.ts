@@ -30,7 +30,12 @@ export interface StatDto {
   readonly key: StatKey;
   readonly label: string;
   readonly value: number;
-  /** `true` → sayı yalnızca §1.3 kapsamındaki yirmi dört ligi kapsar. */
+  /**
+   * `true` → sayı yalnızca §1.3 kapsamındaki yirmi dört ligi kapsar.
+   *
+   * 22 Ağustos 2026'dan beri bunu söyleyen TEK istatistik kulüp sayısıdır;
+   * maç ve gol kariyerin tamamına geçti (BR-23).
+   */
   readonly scoped: boolean;
 }
 
@@ -53,10 +58,18 @@ export interface StatMatchDeps {
   readonly statMatch: StatMatchRepository;
 }
 
-/** Arayüzde gösterilen adlar. Anahtarlar sözleşme, etiketler sunum (§6.5). */
+/**
+ * Arayüzde gösterilen adlar. Anahtarlar sözleşme, etiketler sunum (§6.5).
+ *
+ * "Kulüp maçı"/"Kulüp golü" 22 Ağustos 2026'da "Resmî maç"/"Resmî gol" oldu
+ * ve bu kozmetik bir değişiklik değil: sayının KAPSAMI değişti. Artık kulüp
+ * kariyerinin tamamı (lig, kupa, Avrupa) artı A millî takım sayılıyor, yani
+ * eski ad yeni sayıyı yanlış anlatırdı — millî takım golü "kulüp golü"
+ * değildir.
+ */
 const STAT_LABELS: Readonly<Record<StatKey, string>> = {
-  appearances: "Kulüp maçı",
-  goals: "Kulüp golü",
+  appearances: "Resmî maç",
+  goals: "Resmî gol",
   clubs: "Oynadığı kulüp",
   nationalCaps: "A millî maç",
   heightCm: "Boy (cm)",

@@ -61,8 +61,8 @@ describe("kurulum ekranı", () => {
     setup();
 
     for (const name of [
-      /Kulüp maçı/u,
-      /Kulüp golü/u,
+      /Resmî maç/u,
+      /Resmî gol/u,
       /Oynadığı kulüp/u,
       /A millî maç/u,
       /Boy/u,
@@ -77,7 +77,7 @@ describe("kurulum ekranı", () => {
 
     // Türkçede "daha az uzun" diye bir şey yok; karşıtı "daha kısa".
     expect(
-      screen.getByRole("radio", { name: "daha çok kulüp maçı yaptı" }),
+      screen.getByRole("radio", { name: "daha çok resmî maça çıktı" }),
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole("radio", { name: /Boy/u }));
@@ -94,14 +94,14 @@ describe("kurulum ekranı", () => {
    * BR-29'un bandı seçim ANINDA okunabilmeli.
    *
    * Oyunun zorluğunu ayarlayan tek sayı budur ve arayüzün hiçbir yerinde
-   * görünmüyordu: kullanıcı "kulüp sayısı" ile "kulüp maçı"nın neden bambaşka
+   * görünmüyordu: kullanıcı "kulüp sayısı" ile "resmî maç"ın neden bambaşka
    * zorlukta olduğunu bilemiyordu. Sayı `MIN_GAP`'ten okunuyor — testin içine
    * kopyalansaydı kural değiştiğinde arayüz sessizce yanlış söylerdi.
    *
    * ADIN TAMAMI DEĞİL PARÇASI aranıyor. Erişilebilir ad, kardeş düğümlerin
    * metinlerini birleştirerek kurulur ve aradaki boşluk YERLEŞİMDEN türetilir
    * (blok kutular boşlukla ayrılır, satır içi olanlar ayrılmaz). jsdom'un
-   * yerleşim motoru olmadığı için burada ad "Kulüp maçıen az …" diye
+   * yerleşim motoru olmadığı için burada ad "Resmî maçen az …" diye
    * birleşiyor; tarayıcıda boşlukla. Bu bir işaretleme kusuru değil, ortam
    * kısıtı — testin iddiası bu yüzden bandın adın İÇİNDE geçmesi.
    */
@@ -109,7 +109,7 @@ describe("kurulum ekranı", () => {
     setup();
 
     expect(
-      screen.getByRole("radio", { name: /Kulüp maçı/u }),
+      screen.getByRole("radio", { name: /Resmî maç/u }),
     ).toHaveAccessibleName(
       new RegExp(`en az ${String(MIN_GAP.appearances)} maç fark`, "u"),
     );
@@ -127,7 +127,7 @@ describe("kurulum ekranı", () => {
     const { user } = setup();
 
     expect(
-      screen.getByText("Hangisi daha çok kulüp maçı yaptı?"),
+      screen.getByText("Hangisi daha çok resmî maça çıktı?"),
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole("radio", { name: /Boy/u }));
@@ -145,8 +145,8 @@ describe("kurulum ekranı", () => {
     setup();
 
     for (const name of [
-      "daha çok kulüp maçı yaptı",
-      "daha az kulüp maçı yaptı",
+      "daha çok resmî maça çıktı",
+      "daha az resmî maça çıktı",
     ]) {
       const label = screen.getByRole("radio", { name }).closest("label");
       const visible = label?.querySelector('[aria-hidden="true"]');
@@ -511,7 +511,7 @@ describe("shareOf", () => {
   });
 
   it("iki değer de sıfırken bölme yapılmıyor", () => {
-    // Kulüp golünde ölçülen en küçük değer 0; iki oyuncu da golsüz olabilir.
+    // Resmî golde ölçülen en küçük değer 0; iki oyuncu da golsüz olabilir.
     const a = answer(0, 0);
 
     expect(shareOf(a, "sol")).toBe(0);
@@ -527,8 +527,16 @@ describe("shareOf", () => {
 });
 
 describe("kapsam bildirimi", () => {
-  it("maç/gol/kulüp sorularında 24 lig uyarısı görünür", async () => {
-    const { user } = setup();
+  /**
+   * BR-23 — uyarı 22 Ağustos 2026'da ÜÇ istatistikten BİRE indi. Maç ve gol
+   * artık kariyerin tamamını sayıyor; "yalnızca 24 lig" demek yanlış olurdu.
+   */
+  it("kulüp sayısı sorusunda 24 lig uyarısı görünür", async () => {
+    const { user } = setup({
+      round: { statKey: "clubs", pair: PAIR },
+    });
+
+    await user.click(screen.getByRole("radio", { name: /Oynadığı kulüp/u }));
     await start(user);
 
     expect(
@@ -536,7 +544,23 @@ describe("kapsam bildirimi", () => {
     ).toBeInTheDocument();
   });
 
-  it("boy sorusunda kapsam uyarısı YOKTUR", async () => {
+  /**
+   * UYARININ YERİNE AÇIKLAMA GELİR, boşluk değil. 830 gollük bir sayıyı
+   * açıklamasız bırakmak, yanlış bir uyarı kadar kötü olurdu.
+   */
+  it("resmî maç sorusunda kapsam yerine kariyer notu görünür", async () => {
+    const { user } = setup();
+    await start(user);
+
+    expect(
+      screen.queryByText(/yalnızca kapsamdaki 24 ligi/u),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/Kulüp kariyerinin tamamı .* A millî takım toplamı/u),
+    ).toBeInTheDocument();
+  });
+
+  it("boy sorusunda hiçbir kapsam notu YOKTUR", async () => {
     const { user } = setup({
       round: { statKey: "heightCm", pair: PAIR },
     });
@@ -544,9 +568,12 @@ describe("kapsam bildirimi", () => {
     await user.click(screen.getByRole("radio", { name: /Boy/u }));
     await start(user);
 
-    // Boy ve kilo oyuncunun kendi kaydından gelir; lig kapsamıyla ilgisi yok.
+    // Boy oyuncunun kendi kaydından gelir; açıklanacak bir kapsamı yok.
     expect(
       screen.queryByText(/yalnızca kapsamdaki 24 ligi/u),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Kulüp kariyerinin tamamı/u),
     ).not.toBeInTheDocument();
   });
 });

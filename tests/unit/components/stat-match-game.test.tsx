@@ -23,8 +23,8 @@ const DAILY: DailyStatMatchDto = {
   date: "2026-07-31",
   player: { id: "gunun", name: "Éric Cantona", nationality: "FR" },
   stats: [
-    { key: "appearances", label: "Kulüp maçı", value: 194, scoped: true },
-    { key: "goals", label: "Kulüp golü", value: 83, scoped: true },
+    { key: "appearances", label: "Resmî maç", value: 194, scoped: false },
+    { key: "goals", label: "Resmî gol", value: 83, scoped: false },
     { key: "clubs", label: "Oynadığı kulüp", value: 3, scoped: true },
     { key: "nationalCaps", label: "A millî maç", value: 45, scoped: false },
     { key: "heightCm", label: "Boy (cm)", value: 188, scoped: false },
@@ -127,12 +127,18 @@ describe("StatMatchGame — sunum", () => {
   it("kapsamlı istatistikleri işaretler ve açıklar", () => {
     setup();
 
-    expect(screen.getAllByText("(yalnızca yirmi dört lig)")).toHaveLength(3);
-    // Dipnot kapsamı SÖYLEMELİ. Ülke listesi 12 ligde okunamaz hâle geldiği
-    // için lig SAYISINA çevrildi; sınanan şey metnin harfi değil, kullanıcının
+    // BR-23 — yıldız artık YALNIZCA kulüp sayısında; maç ve gol kariyerin
+    // tamamını sayıyor.
+    expect(screen.getAllByText("(yalnızca yirmi dört lig)")).toHaveLength(1);
+    // Dipnot kapsamı SÖYLEMELİ. Sınanan şey metnin harfi değil, kullanıcının
     // "bu sayı neyi kapsıyor" sorusunun yanıtlanmış olması (§1.3).
     expect(
-      screen.getByText(/yalnızca kapsanan yirmi dört ligdeki/u),
+      screen.getByText(/işaretli sayı yalnızca kapsanan yirmi dört ligi/u),
+    ).toBeInTheDocument();
+    // Yıldızsız sayıların da bir açıklaması olmalı; aksi hâlde 194 maçın
+    // neyi saydığı hiçbir yerde yazmazdı.
+    expect(
+      screen.getByText(/kulüp kariyerinin tamamı ile A millî takımın toplamı/u),
     ).toBeInTheDocument();
   });
 
@@ -153,7 +159,7 @@ describe("StatMatchGame — cevap verme", () => {
   it("istatistik anahtarı ve oyuncu kimliğiyle gönderir", async () => {
     const { user, submitAnswer } = setup();
 
-    await answerStat(user, /Kulüp maçı/u);
+    await answerStat(user, /Resmî maç/u);
 
     expect(submitAnswer).toHaveBeenCalledWith("appearances", "p1");
   });
@@ -161,7 +167,7 @@ describe("StatMatchGame — cevap verme", () => {
   it("sunucunun verdiği değeri ve puanı gösterir", async () => {
     const { user } = setup();
 
-    await answerStat(user, /Kulüp maçı/u);
+    await answerStat(user, /Resmî maç/u);
 
     await waitFor(() => {
       expect(screen.getByText("Dennis Bergkamp")).toBeInTheDocument();
@@ -172,11 +178,11 @@ describe("StatMatchGame — cevap verme", () => {
   it("cevaplanan istatistik yeniden açılamaz", async () => {
     const { user } = setup();
 
-    await answerStat(user, /Kulüp maçı/u);
+    await answerStat(user, /Resmî maç/u);
 
     await waitFor(() => {
       expect(
-        screen.queryByRole("button", { name: /Kulüp maçı/u }),
+        screen.queryByRole("button", { name: /Resmî maç/u }),
       ).not.toBeInTheDocument();
     });
   });
@@ -184,7 +190,7 @@ describe("StatMatchGame — cevap verme", () => {
   it("ortalama puanı gösterir", async () => {
     const { user } = setup();
 
-    await answerStat(user, /Kulüp maçı/u);
+    await answerStat(user, /Resmî maç/u);
 
     await waitFor(() => {
       expect(
@@ -206,7 +212,7 @@ describe("StatMatchGame — cevap verme", () => {
         ),
     });
 
-    await answerStat(user, /Kulüp maçı/u);
+    await answerStat(user, /Resmî maç/u);
 
     await waitFor(() => {
       expect(screen.getByRole("alert")).toHaveTextContent(/verisi yok/u);
@@ -218,25 +224,25 @@ describe("StatMatchGame — cevap verme", () => {
       submitAnswer: vi.fn().mockRejectedValue(new Error("ağ")),
     });
 
-    await answerStat(user, /Kulüp maçı/u);
+    await answerStat(user, /Resmî maç/u);
 
     await waitFor(() => {
       expect(screen.getByRole("alert")).toBeInTheDocument();
     });
     expect(screen.getByText("0/6 cevaplandı")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Kulüp maçı/u })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /Resmî maç/u })).toBeEnabled();
   });
 
   /** BR-17 — bir oyuncu yalnızca bir istatistikte kullanılabilir. */
   it("kullanılmış oyuncuyu ikinci istatistikte listelemez", async () => {
     const { user } = setup();
 
-    await answerStat(user, /Kulüp maçı/u);
+    await answerStat(user, /Resmî maç/u);
     await waitFor(() => {
       expect(screen.getByText(/1\/6 cevaplandı/u)).toBeInTheDocument();
     });
 
-    await user.click(screen.getByRole("button", { name: /Kulüp golü/u }));
+    await user.click(screen.getByRole("button", { name: /Resmî gol/u }));
     await user.type(screen.getByRole("combobox"), "berg");
 
     await waitFor(() => {
@@ -251,7 +257,7 @@ describe("StatMatchGame — cevap verme", () => {
       { id: "gunun", name: "Éric Cantona", nationality: "FR", position: null },
     ]);
 
-    await user.click(screen.getByRole("button", { name: /Kulüp maçı/u }));
+    await user.click(screen.getByRole("button", { name: /Resmî maç/u }));
     await user.type(screen.getByRole("combobox"), "berg");
 
     await waitFor(() => {
@@ -267,7 +273,7 @@ describe("StatMatchGame — ilerlemenin saklanması", () => {
   it("yeniden yüklemede korunur", async () => {
     const { user } = setup();
 
-    await answerStat(user, /Kulüp maçı/u);
+    await answerStat(user, /Resmî maç/u);
     await waitFor(() => {
       expect(screen.getByText(/1\/6 cevaplandı/u)).toBeInTheDocument();
     });
@@ -281,7 +287,7 @@ describe("StatMatchGame — ilerlemenin saklanması", () => {
   it("gün değişince atılır", async () => {
     const { user } = setup();
 
-    await answerStat(user, /Kulüp maçı/u);
+    await answerStat(user, /Resmî maç/u);
     await waitFor(() => {
       expect(screen.getByText(/1\/6 cevaplandı/u)).toBeInTheDocument();
     });
@@ -361,7 +367,7 @@ describe("StatMatchGame — saklanmayan tur", () => {
   it("cevabı gösterir ama depoya YAZMAZ", async () => {
     const { user } = setupChosen();
 
-    await answerStat(user, /Kulüp maçı/u);
+    await answerStat(user, /Resmî maç/u);
 
     await waitFor(() => {
       expect(screen.getByText("180 · %93")).toBeInTheDocument();
@@ -383,7 +389,7 @@ describe("StatMatchGame — saklanmayan tur", () => {
     resetStatMatchCache();
 
     const { user } = setupChosen();
-    await answerStat(user, /Kulüp maçı/u);
+    await answerStat(user, /Resmî maç/u);
 
     await waitFor(() => {
       expect(screen.getByText("180 · %93")).toBeInTheDocument();

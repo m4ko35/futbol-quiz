@@ -516,13 +516,16 @@ export function StatMatchGame({
       )}
 
       {/*
-        KAPSAM BİLDİRİMİ (§1.3, §9.2). Maç/gol/kulüp sayıları yalnızca yirmi
-        dört ligi kapsar; söylenmezse kullanıcı bildiği gerçek toplamla
-        karşılaştırıp siteyi yanlış sanar.
+        KAPSAM BİLDİRİMİ (§1.3, §9.2, BR-23). 22 Ağustos 2026'da DARALDI ve
+        daralması iyi haber: maç ve gol artık kariyerin tamamını sayıyor, geriye
+        yalnızca kulüp sayısı kaldı. Söylenmezse kullanıcı bildiği gerçek
+        toplamla karşılaştırıp siteyi yanlış sanar — ama artık yalnızca tek bir
+        sayıda böyle bir fark var.
       */}
       <p className="text-xs text-muted">
-        <span aria-hidden="true">*</span> işaretli sayılar yalnızca kapsanan
-        yirmi dört ligdeki kariyeri kapsar.
+        <span aria-hidden="true">*</span> işaretli sayı yalnızca kapsanan yirmi
+        dört ligi sayar. Maç ve gol, kulüp kariyerinin tamamı ile A millî
+        takımın toplamıdır.
       </p>
     </div>
   );

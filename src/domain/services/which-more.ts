@@ -109,28 +109,41 @@ export function isWellKnown(
  * BR-29 — bir çiftin kurulabilmesi için gereken asgari fark.
  *
  * NEDEN VAR: aynı değere sahip iki oyuncuda "doğru cevap" diye bir şey yok ve
- * kıl payı farklar bilgi değil kura sorar. Ölçüldü (§9.3, 6.464 tanınır
- * oyuncu) — rastgele iki oyuncunun berabere olma oranı:
+ * kıl payı farklar bilgi değil kura sorar.
  *
- *   kulüp maçı %0,3 · kulüp golü %1,7 · KULÜP SAYISI %14,1
- *   millî maç  %2,5 · boy        %4,9 · doğum yılı   %1,2
+ * ÖLÇÜT: bandın ELEDİĞİ çift oranı ~%10 olmalı. Daha düşüğü ayırt edilemeyen
+ * soruları içeride bırakır, daha yükseği havuzu gereksiz daraltır. Oran
+ * `npm run stats:measure` ile iki havuzda birden ölçülür — kolay havuz
+ * tanınırlık havuzunun beşte biridir ve dağılımı DARDIR, aynı band orada
+ * bambaşka bir oranı eleyebilir.
  *
- * NEDEN BU SAYILAR: her biri, çiftlerin ~%10–22'sini eleyen en küçük anlamlı
- * fark. Kulüp sayısı istisnadır — yalnızca 16 farklı değer taşıdığı için 2'lik
- * band çiftlerin %40,2'sini eliyor; daha küçüğü ise "3 kulüp mü 4 kulüp mü"
- * sorusuna dönerdi ve o soru cevaplanabilir değil.
+ * ÖLÇÜM (22 Ağustos 2026, elenen çift oranı — zor havuz / kolay havuz):
  *
- * DOĞUM YILI 5 — ölçüldü: 1 yıl çiftlerin yalnızca %1,2'sini, 5 yıl **%10,8**'ini
- * eliyor, yani bandın alt ucu. Daha küçüğü seçilseydi "1985 doğumlu mu 1987
- * doğumlu mu" sorusu kalırdı; o soru bilgi değil kura sorar. `npm run
- * stats:measure` bu oranı yeniden ölçer.
+ *   resmî maç    band 25: %7,9 / %8,0   band 30: %9,6 / %9,6
+ *                band 35: %11,2 / %11,3 ← SEÇİLEN   band 40: %12,8 / %12,9
+ *   resmî gol    band  5: %4,9 / %4,5   band  8: %7,8 / %7,2
+ *                band 10: %9,8 / %9,1  ← SEÇİLEN   band 12: %11,7 / %10,9
+ *
+ * İKİSİ DE BR-23 YÜZÜNDEN BÜYÜDÜ (§9.2): maç ve gol artık kariyerin tamamını
+ * sayıyor, medyan 311 → 534 ve 26 → 57. Eski bandlar aynı bıraksaydı oyun
+ * sessizce kolaylaşırdı — 5 gollük bir fark, 26 gollük bir medyanda anlamlı,
+ * 57'lik bir medyanda gürültüdür. Eski bandların eski tanımda elediği oran
+ * %11,5 ve %10,0 idi; yeni bandlar tam olarak oraya oturuyor, yani oyunun
+ * zorluğu KORUNDU, değiştirilmedi.
+ *
+ * KULÜP SAYISI İSTİSNADIR: yalnızca 16 farklı değer taşıdığı için 2'lik band
+ * çiftlerin %40,1'ini eliyor; daha küçüğü "3 kulüp mü 4 kulüp mü" sorusuna
+ * dönerdi ve o soru cevaplanabilir değil.
+ *
+ * DOĞUM YILI 5 — 1 yıl çiftlerin yalnızca %1,2'sini, 5 yıl %10,7'sini eliyor.
+ * Değerleri BR-23'ten etkilenmedi, band da değişmedi.
  *
  * Bu, oyunun zorluğunu ayarlayan TEK sayıdır — §9.2'deki
  * `SCORE_TOLERANCE_FACTOR`'ün buradaki karşılığı.
  */
 export const MIN_GAP: Readonly<Record<StatKey, number>> = {
-  appearances: 25,
-  goals: 5,
+  appearances: 35,
+  goals: 10,
   clubs: 2,
   nationalCaps: 5,
   heightCm: 3,

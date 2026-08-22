@@ -121,13 +121,15 @@ describe("totalScore", () => {
 
 describe("isScoped — kapsam bildirimi", () => {
   /**
-   * Maç, gol ve kulüp sayısı yalnızca §1.3'teki yirmi dört ligi kapsar; millî maç,
-   * boy ve kilo oyuncunun kendi kaydından gelir ve kapsamdan bağımsızdır.
+   * BR-23 — kapsama bağlı kalan TEK istatistik kulüp sayısıdır (22 Ağustos
+   * 2026). Maç ve gol kariyerin tamamına geçti; kulüp sayısı geçemedi çünkü
+   * Vikipedi'nin kariyer toplamı satırı "kaç kulüpte oynadı" sorusunu
+   * taşımıyor.
    */
-  it("kulüp kaynaklı istatistikleri işaretler", () => {
-    expect(isScoped("appearances")).toBe(true);
-    expect(isScoped("goals")).toBe(true);
+  it("YALNIZCA kulüp sayısını işaretler", () => {
     expect(isScoped("clubs")).toBe(true);
+    expect(isScoped("appearances")).toBe(false);
+    expect(isScoped("goals")).toBe(false);
   });
 
   it("oyuncu kaynaklı istatistikleri işaretlemez", () => {

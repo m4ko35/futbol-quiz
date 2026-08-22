@@ -17,6 +17,7 @@
  */
 import { CURATED_CLUB_QIDS } from "../src/application/curated-clubs";
 import {
+  officialTotal,
   STAT_DEVIATIONS,
   STAT_KEYS,
   type StatKey,
@@ -43,11 +44,11 @@ interface Row {
   /** BR-41 — altyapı dışı EN SON dönem yılı. */
   lastYear: number | bigint | null;
   nationalCaps: number | bigint | null;
+  nationalGoals: number | bigint | null;
   heightCm: number | bigint | null;
-  appearances: number | bigint | null;
-  goals: number | bigint | null;
+  clubAppearances: number | bigint | null;
+  clubGoals: number | bigint | null;
   clubs: number | bigint;
-  missing: number | bigint;
 }
 
 /** Tanınırlık havuzu — §9.3'ün havuzu; istatistik başına boş olabilir. */
@@ -63,11 +64,10 @@ async function recognizablePool(): Promise<Row[]> {
       HAVING SUM(s.appearances) >= ${MIN_APPEARANCES}
          AND COUNT(DISTINCT s.clubId) >= ${MIN_CLUBS}
     )
-    SELECT p.birthDate, p.nationalCaps, p.heightCm,
-           SUM(s.appearances)       AS appearances,
-           SUM(s.goals)             AS goals,
+    SELECT p.birthDate, p.nationalCaps, p.nationalGoals, p.heightCm,
+           p.clubCareerAppearances AS clubAppearances,
+           p.clubCareerGoals       AS clubGoals,
            COUNT(DISTINCT s.clubId) AS clubs,
-           SUM(CASE WHEN s.appearances IS NULL OR s.goals IS NULL THEN 1 ELSE 0 END) AS missing,
            MAX(COALESCE(s.endYear, s.startYear)) AS lastYear
     FROM players p
     JOIN taninir t ON t.pid = p.id
@@ -92,11 +92,12 @@ function valueOf(row: Row, key: StatKey): number | null {
       return num(row.heightCm);
     case "clubs":
       return num(row.clubs);
-    // Maç ve gol, dönemlerden toplanır; eksik dönem varsa toplam YANILTICIDIR.
+    // BR-23 — resmî toplam: kulüp kariyeri + A millî takım. Kural DOMAIN'den
+    // geliyor; burada kopyalansaydı ölçüm ile oyun sessizce ayrışabilirdi.
     case "appearances":
-      return Number(row.missing) > 0 ? null : num(row.appearances);
+      return officialTotal(num(row.clubAppearances), num(row.nationalCaps));
     case "goals":
-      return Number(row.missing) > 0 ? null : num(row.goals);
+      return officialTotal(num(row.clubGoals), num(row.nationalGoals));
   }
 }
 

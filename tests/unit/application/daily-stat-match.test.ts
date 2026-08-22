@@ -81,8 +81,9 @@ describe("getDailyStatMatch", () => {
       statMatch: new FakeStatMatchRepository([aStatPlayer("p1")]),
     });
 
+    // BR-23 — 22 Ağustos 2026'dan beri kapsama bağlı TEK istatistik var.
     const scoped = dto.stats.filter((s) => s.scoped).map((s) => s.key);
-    expect(scoped).toEqual(["appearances", "goals", "clubs"]);
+    expect(scoped).toEqual(["clubs"]);
   });
 
   it("aynı gün aynı oyuncuyu verir (BR-19)", async () => {

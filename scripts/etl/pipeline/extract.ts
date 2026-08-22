@@ -17,6 +17,7 @@ import {
   clubDuplicates,
   mensNationalTeams,
   playerDetails,
+  playerLabels,
   playerPhysical,
   playerStats,
   spellsAtClub,
@@ -44,13 +45,16 @@ import {
   applyPlayerStats,
   dedupeBy,
   isInScope,
+  labelsFrom,
   looksLikeYouthOrReserve,
   nationalCapsFrom,
   nationalTeamCountriesFrom,
   physicalFrom,
+  playerIdsOf,
   playersFrom,
   toClub,
   toSpell,
+  unlabeledPlayerBindings,
   type NationalTeamCaps,
   type NormalizedClub,
   type NormalizedPlayer,
@@ -396,6 +400,7 @@ export async function extractDataset(
   // satırı ayrı kayıt yapıp diziye ekliyordu ve yükleyicide SONUNCUSU
   // kazanıyordu — Messi bu yüzden İspanyol görünüyordu.
   const players: NormalizedPlayer[] = [];
+  const unlabeled: SparqlBinding[] = [];
   for (let i = 0; i < playerIds.length; i += PLAYER_BATCH_SIZE) {
     const batch = playerIds.slice(i, i + PLAYER_BATCH_SIZE);
     const bindings = await client.queryBatch(batch, playerDetails, {
@@ -404,6 +409,43 @@ export async function extractDataset(
     });
 
     players.push(...playersFrom(bindings));
+    unlabeled.push(...unlabeledPlayerBindings(bindings));
+  }
+
+  /*
+    İKİNCİ GEÇİŞ — §5.3.2.
+
+    NEDEN VAR: adsız kalan oyuncu evrenden TAMAMEN düşüyor — dönemleri de
+    birlikte. 21 Ağustos 2026 kümesinden Cristiano Ronaldo ile Lionel Messi
+    böyle kayboldu ve hiçbir kapı ses çıkarmadı, çünkü 13 kayıp 132 binin
+    binde birinden azdır.
+
+    O kaybın sebebi (`mul` göçü) artık `LABEL_LANGUAGES` ile kapalı. Bu geçiş
+    GERİYE KALANI ÖLÇÜYOR: aynı koşuda 1.851 oyuncu rapor edilmeden düşmüştü
+    ve bunu kimse bilmiyordu. `rdfs:label` doğrudan sorulur, servis devrede
+    değildir; buradan da ad gelmiyorsa oyuncu gerçekten adsızdır ve düşer —
+    ama artık sayılarak.
+  */
+  const unlabeledIds = playerIdsOf(unlabeled);
+  if (unlabeledIds.length > 0) {
+    const labels = new Map<string, string>();
+    for (let i = 0; i < unlabeledIds.length; i += PLAYER_BATCH_SIZE) {
+      const batch = unlabeledIds.slice(i, i + PLAYER_BATCH_SIZE);
+      const bindings = await client.queryBatch(batch, playerLabels, {
+        label: `player-labels-${i / PLAYER_BATCH_SIZE}-${batch.length}`,
+        noCache,
+      });
+      for (const [id, name] of labelsFrom(bindings)) labels.set(id, name);
+    }
+
+    const recovered = playersFrom(unlabeled, labels);
+    players.push(...recovered);
+
+    console.log(
+      `      etiket servisi ${unlabeledIds.length} oyuncuyu çözemedi · ` +
+        `${recovered.length} tanesi rdfs:label ile kurtarıldı · ` +
+        `${unlabeledIds.length - recovered.length} tanesi gerçekten adsız (§5.3.2)`,
+    );
   }
 
   // ─── 4. Oyuncu istatistikleri (§9.2) ──────────────────────────────────

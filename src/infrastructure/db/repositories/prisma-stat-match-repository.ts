@@ -3,7 +3,7 @@ import type {
   StatMatchRepository,
   StatMatchTarget,
 } from "@/application/ports/stat-match-repository";
-import type { StatKey } from "@/domain/services/stat-match";
+import { officialTotal, type StatKey } from "@/domain/services/stat-match";
 import { playerId, type PlayerId } from "@/domain/value-objects/identifiers";
 import { Prisma, type PrismaClient } from "@/generated/prisma";
 import { yearOf } from "../birth-year";
@@ -21,13 +21,23 @@ import { yearOf } from "../birth-year";
  * BR-23 — İKİ KAPSAM AYRIDIR ve bu dosyanın ana yapısı odur:
  *
  *   · TANINIRLIK  → küratörlü kulüpler (§9.1). Yalnızca "bu oyuncu günün
- *                   oyuncusu OLABİLİR Mİ" sorusunu yanıtlar.
- *   · DEĞERLER    → §1.3 kapsamındaki TÜM kulüpler. Kullanıcıya gösterilen
- *                   ve puanlanan sayılar bunlardır.
+ *                   oyuncusu OLABİLİR Mİ" sorusunu yanıtlar; dönemlerden
+ *                   toplanır, çünkü sorduğu şey BİZİM kapsamımızdır.
+ *   · DEĞERLER    → kullanıcıya gösterilen ve puanlanan sayılar. Maç ve gol
+ *                   artık oyuncu kaydından gelir: kulüp kariyerinin tamamı
+ *                   artı A millî takım (`officialTotal`). Kulüp SAYISI
+ *                   dönemlerden gelmeye devam eder — Vikipedi'nin kariyer
+ *                   toplamı o soruyu taşımıyor.
  *
  * Eskiden ikisi tek `WHERE` idi ve kapsam bildirimi üç lig turu boyunca
  * yanlış kaldı (Cantona 235 gösteriliyordu, gerçek 408). Ayrım burada
  * yapıldığı için iki sorgu da kendi işini anlatıyor.
+ *
+ * MAÇ VE GOL BİRLİKTE GEÇTİ, tek başına değil (§9.2). İkisi de Vikipedi'nin
+ * kariyer toplamı satırından, AYNI hücrelerden okunuyor; ölçüldü, tanınırlık
+ * havuzunda ikisinin kapsamı birebir aynı (2.789/2.789, ayrışan 0). Yalnız
+ * gol geçseydi ekranda "527 gol / 427 maç" gibi 39 imkânsız kart çıkardı —
+ * Kane, Suárez, Tévez, Álvarez dâhil.
  */
 export class PrismaStatMatchRepository implements StatMatchRepository {
   readonly #prisma: PrismaClient;
@@ -54,17 +64,20 @@ export class PrismaStatMatchRepository implements StatMatchRepository {
              p.nationalCaps  AS nationalCaps,
              p.heightCm      AS heightCm,
              p.birthDate     AS birthDate,
-             SUM(s.appearances)       AS appearances,
-             SUM(s.goals)             AS goals,
+             p.clubCareerAppearances AS clubAppearances,
+             p.clubCareerGoals       AS clubGoals,
+             p.nationalGoals         AS nationalGoals,
              COUNT(DISTINCT s.clubId) AS clubs
       FROM players p
       JOIN taninir t ON t.pid = p.id
       JOIN spells  s ON s.playerId = p.id AND s.isYouth = 0
-      WHERE p.nationalCaps IS NOT NULL
-        AND p.heightCm     IS NOT NULL
-        AND p.birthDate    IS NOT NULL
+      WHERE p.nationalCaps          IS NOT NULL
+        AND p.nationalGoals         IS NOT NULL
+        AND p.clubCareerAppearances IS NOT NULL
+        AND p.clubCareerGoals       IS NOT NULL
+        AND p.heightCm              IS NOT NULL
+        AND p.birthDate             IS NOT NULL
       GROUP BY p.id
-      HAVING SUM(CASE WHEN s.appearances IS NULL OR s.goals IS NULL THEN 1 ELSE 0 END) = 0
       ORDER BY p.id
     `);
 
@@ -74,7 +87,15 @@ export class PrismaStatMatchRepository implements StatMatchRepository {
   async findChosenTarget(id: PlayerId): Promise<StatMatchTarget | null> {
     // Tanınırlık süzgeci YOK (§9.2): seçen kullanıcı kimi seçtiğini biliyor.
     // Kalan tek eşik puanın anlamlı olması için: tek maçlık bir kariyerin
-    // "kulüp golü" hedefi diye sunulması oyunu bozardı.
+    // "resmî gol" hedefi diye sunulması oyunu bozardı.
+    //
+    // EŞİK KAPSAMDAKİ MAÇI SAYAR (`careerAppearances`), gösterilen kariyer
+    // toplamını DEĞİL. İkisi farklı sorular soruyor: gösterilen sayı "bu
+    // oyuncu ne yaptı", eşik ise "bizim verimiz bu oyuncuyu ne kadar
+    // tanıyor". `SUM(s.appearances)` yerine denormalize sütun okunuyor
+    // çünkü seçicinin süzgeci (`targetableWhere`) Prisma'nın `where` diliyle
+    // ancak böyle ifade edilebilir — ikisi ayrışırsa seçici gösterir,
+    // sunucu reddeder.
     //
     // "2+ kulüp" ŞARTI BİLEREK YOK. Günün oyuncusunda o şart tanınırlık
     // içindi. Burada taşınsaydı, seçicinin süzgeci (`targetableWhere`) bunu
@@ -87,18 +108,21 @@ export class PrismaStatMatchRepository implements StatMatchRepository {
              p.nationalCaps  AS nationalCaps,
              p.heightCm      AS heightCm,
              p.birthDate     AS birthDate,
-             SUM(s.appearances)       AS appearances,
-             SUM(s.goals)             AS goals,
+             p.clubCareerAppearances AS clubAppearances,
+             p.clubCareerGoals       AS clubGoals,
+             p.nationalGoals         AS nationalGoals,
              COUNT(DISTINCT s.clubId) AS clubs
       FROM players p
       JOIN spells s ON s.playerId = p.id AND s.isYouth = 0
       WHERE p.id = ${id}
-        AND p.nationalCaps IS NOT NULL
-        AND p.heightCm     IS NOT NULL
-        AND p.birthDate    IS NOT NULL
+        AND p.nationalCaps          IS NOT NULL
+        AND p.nationalGoals         IS NOT NULL
+        AND p.clubCareerAppearances IS NOT NULL
+        AND p.clubCareerGoals       IS NOT NULL
+        AND p.heightCm              IS NOT NULL
+        AND p.birthDate             IS NOT NULL
+        AND p.careerAppearances >= ${MIN_APPEARANCES}
       GROUP BY p.id
-      HAVING SUM(CASE WHEN s.appearances IS NULL OR s.goals IS NULL THEN 1 ELSE 0 END) = 0
-         AND SUM(s.appearances) >= ${MIN_APPEARANCES}
     `);
 
     const row = rows[0];
@@ -117,14 +141,30 @@ export class PrismaStatMatchRepository implements StatMatchRepository {
       return player[key];
     }
 
-    // BR-23 — hedef 24 ligi saydığı için cevap da sayar. Küratörlü kısıt
-    // BURADA DA yoktu değil: vardı ve kaldırıldı; iki taraf farklı ölçekte
-    // karşılaştırıldığında puan anlamını yitiriyordu.
+    // BR-23 — hedef resmî toplamı gösteriyorsa cevap da onu sayar. İki taraf
+    // farklı ölçekte karşılaştırıldığında puan anlamını yitirir; bu kural bir
+    // kez ölçülmüş bir kusurdur, tercih değil.
+    if (key === "appearances" || key === "goals") {
+      const player = await this.#prisma.player.findUnique({
+        where: { id },
+        select: {
+          clubCareerAppearances: true,
+          clubCareerGoals: true,
+          nationalCaps: true,
+          nationalGoals: true,
+        },
+      });
+      if (player === null) return null;
+
+      return key === "appearances"
+        ? officialTotal(player.clubCareerAppearances, player.nationalCaps)
+        : officialTotal(player.clubCareerGoals, player.nationalGoals);
+    }
+
+    // Kulüp SAYISI kapsama bağlı kalır (§9.2): kariyer toplamı satırı "kaç
+    // kulüpte oynadı" sorusunu taşımıyor, dolayısıyla tek kaynağı dönemler.
     const rows = await this.#prisma.$queryRaw<AggregateRow[]>(Prisma.sql`
-      SELECT SUM(s.appearances)       AS appearances,
-             SUM(s.goals)             AS goals,
-             COUNT(DISTINCT s.clubId) AS clubs,
-             SUM(CASE WHEN s.appearances IS NULL OR s.goals IS NULL THEN 1 ELSE 0 END) AS missing
+      SELECT COUNT(DISTINCT s.clubId) AS clubs
       FROM spells s
       WHERE s.playerId = ${id}
         AND s.isYouth = 0
@@ -135,14 +175,7 @@ export class PrismaStatMatchRepository implements StatMatchRepository {
 
     const clubs = Number(row.clubs);
     // Kapsamda hiç dönemi yok: bu istatistikte 0 DEĞİL, bilinmiyor.
-    if (clubs === 0) return null;
-    if (key === "clubs") return clubs;
-
-    // Tek bir dönemde bile eksik değer varsa toplam yanıltıcıdır (§2.7).
-    if (Number(row.missing) > 0) return null;
-
-    const value = key === "appearances" ? row.appearances : row.goals;
-    return value === null ? null : Number(value);
+    return clubs === 0 ? null : clubs;
   }
 }
 
@@ -157,7 +190,10 @@ export class PrismaStatMatchRepository implements StatMatchRepository {
  * uygulanır: amaç tanınırlık değil, puanın anlamlı olması. `MIN_CLUBS` orada
  * kasten yok — gerekçesi `findChosenTarget` içinde.
  *
- * Ölçülen havuzlar: günün oyuncusu 1.927 · "Sen seç" 5.524.
+ * ÖLÇÜLEN HAVUZLAR (22 Ağustos 2026, BR-23 geçişinden SONRA):
+ * günün oyuncusu **1.766** (önce 2.662) · "Sen seç" **4.392** (önce 9.325).
+ * Daralmanın sebebi eşikler değil, resmî toplamın kapsamı: kariyer toplamı
+ * okunamamış oyuncu için gösterilecek bir sayı yok (§9.2).
  */
 const MIN_APPEARANCES = 100;
 const MIN_CLUBS = 2;
@@ -173,16 +209,14 @@ interface TargetRow {
   nationalCaps: number | bigint;
   heightCm: number | bigint;
   birthDate: Date;
-  appearances: number | bigint;
-  goals: number | bigint;
+  clubAppearances: number | bigint;
+  clubGoals: number | bigint;
+  nationalGoals: number | bigint;
   clubs: number | bigint;
 }
 
 interface AggregateRow {
-  appearances: number | bigint | null;
-  goals: number | bigint | null;
   clubs: number | bigint;
-  missing: number | bigint;
 }
 
 function toTarget(row: TargetRow): StatMatchTarget {
@@ -191,8 +225,10 @@ function toTarget(row: TargetRow): StatMatchTarget {
     name: row.name,
     nationality: row.nationality,
     stats: {
-      appearances: Number(row.appearances),
-      goals: Number(row.goals),
+      // Sorgu dört parçayı da `IS NOT NULL` süzdüğü için toplamlar burada
+      // null olamaz; `?? 0` yerine `Number` yeter ve yedek değer uydurmaz.
+      appearances: Number(row.clubAppearances) + Number(row.nationalCaps),
+      goals: Number(row.clubGoals) + Number(row.nationalGoals),
       clubs: Number(row.clubs),
       nationalCaps: Number(row.nationalCaps),
       heightCm: Number(row.heightCm),

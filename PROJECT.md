@@ -1385,6 +1385,51 @@ Millî takım ikisini birden doğru veriyor — çünkü sorulan şey zaten **fu
 
 **Millî takımın ülkesi nasıl bulunuyor.** `P1532` (spor için ülke) seyrek; ölçüldü: dört takımın yalnızca birinde var. `P17` (ülke) çalışıyor ve İngiltere millî takımını `GB`'ye eşliyor — bu, kulüp/oyuncu kodlamasıyla **tutarlı** (veri kümesindeki en kalabalık uyruk zaten `GB`). Sıra: önce `P1532`, sonra `P17`.
 
+### 5.3.2 Ölçüm: Messi ve Ronaldo veri kümesinden kayboldu (22 Ağustos 2026)
+
+**Bulgu.** 21 Ağustos'ta yayımlanan veri kümesinde **Cristiano Ronaldo ve Lionel Messi YOKTU.** 7 Ağustos kümesinde ikisi de vardı. İki küme karşılaştırıldı: 107 oyuncu eklenmiş, **13 oyuncu düşmüş**.
+
+```
+Cristiano Ronaldo (Q11571)   758 maç     Alex Ferguson      (Q44980)    173
+Luka Modrić       (Q483837)  666         John Barton        (Q6220970)   89
+Lionel Messi      (Q615)     645         Cuauhtémoc Blanco  (Q207644)    85
+François Modesto  (Q526159)  430         David Hunt         (Q5235259)   48
+Harry Maguire     (Q165772)  412         Wang Yang          (Q2477781)   20
+Barrie Jones      (Q4863529) 273         David Graham       (Q5234300)    5
+                                         John Turner        (Q6261440)    0
+```
+
+Onüçünün de kulüpleri veri kümesinde **duruyor**, dönemleri BR-42 tanı dosyalarının **hiçbirinde geçmiyor** ve koşu günlüğü Real Madrid için 883 dönem çektiğini söylüyor — yani dönem çekimi eksiksizdi. Kayıp daha sonra, oyuncu meta verisi adımında oldu.
+
+#### Sebep: Wikidata adları `mul` diline taşıyor
+
+Wikidata 2024'ten beri kişi adları için **dile bağlı olmayan `mul`** kodunu kullanıyor: ad bütün Latin alfabeli dillerde aynıysa tek bir `mul` etiketi yazılıyor ve dile özgü kopyalar **siliniyor**. Göç sürüyor ve bugün canlı sorguyla ölçüldü:
+
+| Varlık                     | Toplam dil | `en` | `tr` | `es`/`de`/`fr` | `mul`   |
+| -------------------------- | ---------: | ---- | ---- | -------------- | ------- |
+| `Q11571` Cristiano Ronaldo |     **96** | YOK  | YOK  | YOK            | **VAR** |
+| `Q615` Lionel Messi        |    **100** | YOK  | YOK  | YOK            | **VAR** |
+| `Q483837` Luka Modrić      |     **59** | YOK  | YOK  | YOK            | **VAR** |
+| `Q189984` Franco Baresi    |         37 | VAR  | YOK  | `de` VAR       | VAR     |
+
+Ronaldo'nun **96 dilde** etiketi var; sadece Latin alfabeli olanlar yok. Kalanlar `ar`, `fa`, `ja`, `ka`, `ru` gibi kendi yazısı olan diller — yani göç tam olarak beklendiği gibi çalışmış.
+
+**Bizim sorgumuz `"tr,en"` diyordu.** Etiket servisi bu iki dili bulamayınca etiket olarak **QID'nin kendisini** döndürüyor; `usableLabel` bunu haklı olarak "ad yok" sayıyor ve `toPlayer` `null` dönüyor. Oyuncu evrenden tamamen düşüyor, dönemleri de `inScopeIds` süzgecinde birlikte gidiyor.
+
+**Bu bir arıza değil, bir SÖZLEŞME DEĞİŞİKLİĞİ** — ve süreceği için önemi de bu. Göç ilerledikçe `mul` giderek daha çok varlıkta tek seçenek olacak; `"tr,en"` diyen bir sorgu her koşuda biraz daha fazla oyuncuyu sessizce kaybederdi. Kusurun ilk olarak en ünlü üç isimde görülmesi tesadüf değil: göç en çok düzenlenen varlıklardan başlıyor.
+
+**Yanlış teşhis kayda geçiyor.** İlk hipotez "etiket servisi rastgele atlıyor" idi ve kanıtı da vardı: önbellekte Baresi bir yanıtta adıyla, başka bir yanıtta QID'yle geliyordu. Hipotez yanlıştı — Baresi'nin `en` etiketi göç sırasında bir süre silinmiş, sonra geri gelmişti. Aynı gözlem iki farklı sebebe uyuyordu ve ayıran şey ölçüm oldu: `rdfs:label` ile dil dökümü istendiğinde `mul` görüldü.
+
+#### Neden hiçbir kapı görmedi
+
+`db:verify` sayı ölçer, isim ölçmez: 13 oyuncu 132.357'nin içinde yuvarlama hatasıdır. Depodaki altın veri seti testi Ronaldo'yu **görüyor** (`Q18656 ∩ Q8682` onu içermeli) ama yalnızca yereldeki `prisma/dev.db`'ye karşı koşuyor ve yayımlama iş akışı onu hiç çalıştırmıyordu — yani kabul kapısı ile yayımlanan veri kümesi **hiç karşılaşmıyordu**. Kusur ancak yerel kopya tazelenip test kırıldığında görüldü.
+
+#### Karar üç parçalı
+
+1. **`mul` DİL LİSTESİNE GİRDİ** — sebebi kapatan değişiklik budur. `LABEL_LANGUAGES = "tr,en,mul"` ve sıra anlamlıdır: `tr` en özgülü, `mul` adın dilden bağımsız kanonik biçimi, `en` ikisinin arasında. Liste kulüp sorgularında da kullanılıyor (`CLUB_FIELDS`), çünkü kulüp adsız kaldığında BÜTÜN dönemlerini götürür — orada henüz örnek çıkmadı ama aynı göç aynı yerden geçecek. Canlı doğrulandı: yedi oyunculuk sorguda adsız kalan **0**, üç kayıp oyuncunun üçü de adıyla geliyor, mevki etiketleri hâlâ `tr`/`en`.
+2. **İKİNCİ GEÇİŞ (sayan ağ).** Etiketi yine çözülemeyen oyuncular için `rdfs:label` **doğrudan** sorulur; etiket servisi devrede değildir. Amacı artık kurtarmaktan çok **saymaktır**: 21 Ağustos koşusu 135.657 kimlik isteyip 133.806 kayıt üretti, yani **1.851 oyuncu tek satır rapor edilmeden düştü** ve bunu kimse bilmiyordu. Buradan da ad gelmiyorsa oyuncu gerçekten adsızdır ve düşer — ama sayılarak.
+3. **ÇAPA KAPISI (sınıfı kapatan).** `db:verify` listedeki tanınmış oyuncuların her birinin veri kümesinde bulunmasını şart koşar. Ayrıntısı §8.2'de. Sayı kapıları bir sınıfın büyüklüğünü ölçer; çapa kapısı **tek bir ismin** yokluğunu yakalar ve MEKANİZMADAN BAĞIMSIZDIR — yarın Messi bambaşka bir sebeple düşerse yine durur. Üç maddeden yalnızca bu, sebebi bilmeden çalışan tek maddedir.
+
 ### 5.4 İş Kuralları
 
 Bunlar `domain/services/` içinde saf fonksiyon olarak yaşar ve birim testi ile korunur:
@@ -2970,6 +3015,25 @@ Denetim **iki aşamalıdır**. Tek aşamalı ilk tasarım kullanılamaz çıktı
 
 Yükleme ayrıca **otoriter**dir: tam koşuda gelen listede olmayan kulüpler, dönemi kalmayan kulüpler ve dönemi kalmayan oyuncular silinir. Bu olmadan veritabanı önceki koşuların artıklarını biriktiriyordu.
 
+#### Çapa oyuncular: bir ismin kaybını sayı kapısı görmez (22 Ağustos 2026)
+
+§5.3.2 ölçtü: Wikidata'nın `mul` etiket göçü Cristiano Ronaldo'yu yayımlanmış veri kümesinden çıkardı ve **hiçbir kapı ses çıkarmadı**. Kapıların sessizliği yapısaldır — hepsi bir ORAN ya da TOPLAM ölçüyor:
+
+| Kapı                    | 13 oyuncu kaybında ne gördü       |
+| ----------------------- | --------------------------------- |
+| Ayıklama oranı (%1)     | değişmedi (dönemler hiç gelmedi)  |
+| Oyuncu sayısı           | 132.263 → 132.357, **arttı**      |
+| Millî maç / boy kapsamı | binde bir oynadı                  |
+| BR-42 çelişki bütçesi   | bu kayıtlar denetime hiç ulaşmadı |
+
+**Çapa listesi bunun tersini yapar: adı olan, tek tek aranan bir küme.** `db:verify` listedeki her QID'nin `players` tablosunda bulunmasını şart koşar; biri yoksa kabul **düşer**. Liste yirmi altı isimdir ve seçimi iki ölçüte dayanır — kapsamdaki kariyeri tartışmasız (hepsi 170+ lig maçı) ve kullanıcının **adını bildiği** oyuncular; Türk kullanıcı için Hakan Şükür, Rüştü Reçber, Emre Belözoğlu, Arda Turan ve Sergen Yalçın da listede.
+
+**Neden sayı değil isim.** Bir isim listesi bakım ister ve bu bilinçli bir bedeldir: kapsam daralmadıkça bu oyuncular veri kümesinden çıkamaz, çıkıyorlarsa sebep her zaman bir kusurdur. Aynı işi "oyuncu sayısı %1'den fazla düşmesin" gibi bir kapı yapamaz — 13 kayıp, 132 binin **binde birinden azdır**; üstelik o koşuda toplam oyuncu sayısı ARTMIŞTI.
+
+**Asıl değeri sebepten bağımsız olmasıdır.** `mul` göçü kapatıldı, ama bir dahaki sefer kaynak sözleşmesi başka bir yerinden değişecek. Çapa kapısı ne değiştiğini bilmek zorunda değildir; yalnızca sonucu ölçer.
+
+**Altın veri seti testi de yayımlama yoluna alındı.** Depoda 45 nokta kontrolü zaten vardı ve Ronaldo'yu yakalıyordu, ama yalnızca yerel `prisma/dev.db`'ye karşı koşuyordu; yayımlanan küme onunla hiç karşılaşmıyordu. Kapı, üretilen veri kümesinin üstünde çalışmıyorsa yoktur.
+
 #### Vandalizm bize ulaştı: çapraz kaynak denetimi (BR-42, 13 Ağustos 2026)
 
 **Ürün sahibi oyunun içinde fark etti, hiçbir denetim değil.** Real Madrid ∩ Milan ortak oyuncu sorgusu **Rafael Leão**'yu döndürüyordu; Leão Real Madrid'de hiç oynamadı.
@@ -3669,11 +3733,54 @@ Geçiş onaylanmadan önce bugünkü kapsam ölçüldü (15 Ağustos 2026):
 
 **Kapı neden siler, BR-42 neden silmez.** BR-42'de bulunan şey "iki kaynağın anlaşamadığı kayıt"tır ve kararı insan vermelidir. Burada bulunan şey aritmetik olarak imkânsızdır — bütünü kapsayan sayı parçasından küçük olamaz — ve insana sorulacak bir yanı yoktur. Değeri lig sayımıza yükseltmek de akla gelebilir ama uydurma olurdu: `null` sıfır olmadığı gibi tahmin de değildir (§2.7).
 
-**KALAN:** ETL koşusunun kendisi (Eylül tazelemesi) ve veri geldikten sonra ürün tarafı — `SCOPED_STATS`'ten `goals` çıkar, BR-23 ile arayüzdeki "yalnızca kapsamdaki 24 lig" ibaresi birlikte değişir, ve **`STAT_DEVIATIONS.goals` (60,5) ile `MIN_GAP` yeniden ölçülür**.
+**KAPANDI — 22 Ağustos 2026.** ETL koşusu 21 Ağustos'ta yapıldı ve alanlar doldu; ürün tarafı aşağıda ölçülerek geçirildi.
 
 > **Yol üstünde bulunan, ilgisiz kusur.** `db:verify` mevki denetimi düşüyor: `POSITIONS` sabiti İngilizce (`goalkeeper`, `defender`, …) ama veritabanındaki değerler Türkçe (`Kaleci`, `Defans`, `Kanat`, …). Mevcut veri kümesi, mevki normalleştirmesi İngilizceye çevrilmeden önceki bir koşudan kalma; ilk tazelemede kendiliğinden düzelir. Kayda geçiyor ki tazeleme sonrası hâlâ duruyorsa gerçek bir kusur olduğu bilinsin.
 
-Ürün tarafı ayrıca ele alınacak: `SCOPED_STATS`'ten `goals` çıkar, BR-23 ile arayüzdeki "yalnızca kapsamdaki 24 lig" ibaresi birlikte değişir. **Ve `STAT_DEVIATIONS.goals` (60,5) ile `MIN_GAP` yeniden ÖLÇÜLMELİDİR:** ikisi de bugünkü lig golü dağılımına göre konuldu, kariyer toplamı dağılımı ise belirgin biçimde geniş (Ronaldo 600 → 830, Hakan Şükür 250 → 332, Ervin Skela 51 → 131). Ölçmeden geçmek oyunun zorluğunu sessizce değiştirir — `scripts/measure-stats.ts` tam olarak bunun için var.
+##### Ölçüm: geçişin ürün tarafı (22 Ağustos 2026)
+
+Geçiş yapıldı ve **hiçbir sayı tahminle konmadı**; hepsi `npm run stats:measure` ile 21 Ağustos veri kümesi üzerinde ölçüldü.
+
+**Tanım.** `officialTotal(kulüp, millî)` — parçalardan biri `null` ise toplam da `null`. Maç için `clubCareerAppearances + nationalCaps`, gol için `clubCareerGoals + nationalGoals`.
+
+**MAÇ VE GOL BİRLİKTE GEÇTİ.** İkisi Vikipedi'nin kariyer toplamı satırında AYNI hücrelerden okunuyor; tanınırlık havuzunda kapsamları birebir aynı (2.789/2.789, ayrışan **0**). Yalnız gol geçseydi ekranda **39 imkânsız kart** çıkardı — Kane 527 gol / 427 lig maçı, Suárez 610/545, Tévez 321/268, Álvarez 154/111.
+
+**Havuzların bedeli ölçüldü.**
+
+| Havuz                              |   Önce | Sonra | Not      |
+| ---------------------------------- | -----: | ----: | -------- |
+| BR-15 aday havuzu (günün oyuncusu) |  2.662 | 1.766 | −%34     |
+| "Sen seç" hedef havuzu             |  9.325 | 4.392 | −%53     |
+| Cevap havuzu (maç)                 | 90.475 | 5.790 | −%94     |
+| BR-31 kolay havuz · gol            |  1.273 | 1.124 | **−%12** |
+| BR-31 zor havuz · gol              |  5.403 | 1.824 | −%66     |
+
+**Millî takımın toplama girmesi KOLAY HAVUZDA neredeyse bedava.** Yalnız kulüp kariyeri sayılsaydı kolay havuz 1.126 olurdu; millî yarı da istendiğinde **1.124**. Fark iki oyuncu. Zor havuzdaki 2.789 → 1.824 düşüşünün tamamı, millî takım kaydı hiç olmayan 954 oyuncudan geliyor — yani `nationalCaps` boş olanlar. Onlarda "hiç millî gol atmadı" ile "millî takıma çıktı mı bilmiyoruz" veri kümesinde ayırt edilemez ve ikisini sıfır saymak §2.7'yi çiğnerdi.
+
+**Cevap havuzundaki %94'lük daralma bir daralma değil, sayının kapsam değiştirmesinin bedelidir.** Kariyer toplamı okunamamış bir oyuncu için "resmî gol" diye bir sayı YOKTUR. Süzgeç ile sunucu birlikte değişti; ayrışsalardı seçici gösterir, sunucu reddederdi (§9.2'nin ölçülmüş kusur sınıfı).
+
+**Üç sabit birden bayatladı** ve `stats:measure` üçünü de yakaladı:
+
+| Sabit                         |  Eski |      Yeni | Sebep                           |
+| ----------------------------- | ----: | --------: | ------------------------------- |
+| `STAT_DEVIATIONS.appearances` | 120,3 | **175,8** | ölçek büyüdü (medyan 311 → 534) |
+| `STAT_DEVIATIONS.goals`       |  60,5 |  **98,0** | ölçek büyüdü (medyan 26 → 57)   |
+| `STAT_DEVIATIONS.birthYear`   |  19,8 |  **14,0** | **havuz** değişti, sayı değil   |
+
+Üçüncüsü ders niteliğinde: doğum yılına hiç dokunulmadı ama aday havuzu 2.662'den 1.766'ya inerken modernleşti (en eski 1861 → 1874, çeyrekler 1965/1987 → 1976/1992) ve sapma %29 saptı. **Havuzun tanımı değiştiyse bütün sabitler yeniden ölçülür.**
+
+**BR-29 bandları da ölçülerek büyütüldü** (elenen çift oranı, zor/kolay):
+
+```
+resmî maç   25: %7,9/%8,0   30: %9,6/%9,6   35: %11,2/%11,3 ←   40: %12,8/%12,9
+resmî gol    5: %4,9/%4,5    8: %7,8/%7,2   10: %9,8/%9,1  ←   12: %11,7/%10,9
+```
+
+Eski bandlar ESKİ tanımda %11,5 ve %10,0 eliyordu; yeni bandlar (35 ve 10) aynı yere oturuyor. Yani oyunun zorluğu **korundu**, değiştirilmedi — 5 gollük bir fark 26 gollük medyanda anlamlı, 57'lik medyanda gürültüdür.
+
+**İki sayaç kapıya çevrildi** (§8.2). "İlk dolu koşudan sonra kapı yapılacak" diye yazılmıştı ve BR-23 bunu zorunlu kıldı: millî gol kapsamı %95 alt sınırı (ölçülen %98,6), kariyer toplamı 11.500 alt sınırı (ölçülen 23.017). Bu sütunlar olmadan "resmî gol" istatistiği hesaplanamıyor; kapsamları düşerse oyunun bir ekseni sessizce boşalır.
+
+**Çevrimdışı örneklem gerçeği yukarı sapıtmıştı, kayda geçiyor:** 60 kişilik örneklem BR-15 havuzunda %78,3 demişti, gerçek koşuda **%66,3** çıktı (2.662 → 1.766). Bir dahaki tahmin bu farkı bilerek yapılsın.
 
 #### Ölçüm: BR-14 — millî maç TOPLANMAZ, EN BÜYÜĞÜ alınır
 
@@ -3894,7 +4001,8 @@ kullanıcının kendisine ait.
 
   Değer **denormalize** tutulur: maç sayısı `Spell`'de durur ve Prisma ilişki toplamına göre sıralayamaz. Ham SQL'e geçmek BR-16 süzgecini ikinci bir yerde yeniden yazmak olurdu — ölçülmüş bir hata sınıfı. İkincil sıralama anahtarı alfabetiktir; oyuncuların **%33,9'unun** toplam maçı 0 ve eşitlikte sıranın sabit kalması gerekir.
 
-- **BR-23 — Tanınırlık süzgeci ile değer kapsamı ayrıdır.** Günün oyuncusu küratörlü kulüplerde (§9.1) 100+ maç ve 2+ kulüp koşulunu sağlayanlar arasından seçilir; ancak gösterilen maç, gol ve kulüp sayıları §1.3 kapsamındaki **tüm** kulüpleri toplar. İkisini tek sorguda birleştirmek, kapsam bildirimini üç lig turu boyunca yanlış tutmuştu (yukarıda ölçüldü).
+- **BR-23 — Tanınırlık süzgeci ile değer kapsamı ayrıdır.** Günün oyuncusu küratörlü kulüplerde (§9.1) 100+ maç ve 2+ kulüp koşulunu sağlayanlar arasından seçilir; gösterilen sayılar ise o süzgeçten bağımsızdır. İkisini tek sorguda birleştirmek, kapsam bildirimini üç lig turu boyunca yanlış tutmuştu (yukarıda ölçüldü).
+  **Maç ve gol RESMÎ TOPLAMDIR** (22 Ağustos 2026): kulüp kariyerinin tamamı — lig, yerel kupa, Avrupa — artı A millî takım. Parçalardan biri bilinmiyorsa toplam da bilinmiyor; `null` sıfır değildir (§2.7). **Kulüp sayısı** kapsama bağlı kalır ve §1.3'teki 24 ligi sayar, çünkü Vikipedi'nin kariyer toplamı satırı o soruyu taşımaz. Arayüz bu farkı söylemek zorundadır: kapsam uyarısı artık yalnızca kulüp sayısının üstündedir, maç ve gol ise "kulüp kariyeri + A millî takım" notunu taşır.
 - **BR-24 — Seçilen hedef geçerli olmalıdır.** "Sen seç" turunda hedef oyuncunun altı istatistiği de dolu olmalıdır; değilse tur **reddedilir**, sessizce başka bir oyuncuya kaydırılmaz. Kullanıcı neden reddedildiğini görmezse aynı ismi tekrar dener.
 - **BR-22 — Akla yatkın olmayan maç/gol sayısı `null` sayılır.** Tek dönemde 1000'i aşan değer kabul edilmez. Gol sayısı maç sayısını aştığında değer atılMAZ; ikinci kaynak (Vikipedi) aynı çifti doğrularsa korunur, doğrulayamazsa düşer.
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 import type {
   WhichMoreAnswerDto,
   WhichMorePairDto,
@@ -71,25 +71,31 @@ interface StatQuestion {
  * diye bir şey yok — karşıtı "daha kısa".
  */
 const QUESTIONS: readonly StatQuestion[] = [
+  /**
+   * ADLAR SAYININ KAPSAMINI ANLATIR (BR-23). "Kulüp maçı"ydı; 22 Ağustos
+   * 2026'da sayı kulüp kariyerinin tamamına + A millî takıma geçince ad da
+   * geçti. Millî takım golünü "kulüp golü" diye sunmak, kullanıcının
+   * doğrulayabileceği bir yalan olurdu.
+   */
   {
     key: "appearances",
-    name: "Kulüp maçı",
-    more: "daha çok kulüp maçı yaptı",
-    less: "daha az kulüp maçı yaptı",
+    name: "Resmî maç",
+    more: "daha çok resmî maça çıktı",
+    less: "daha az resmî maça çıktı",
     moreShort: "daha çok",
     lessShort: "daha az",
     unit: "maç",
-    scoped: true,
+    scoped: false,
   },
   {
     key: "goals",
-    name: "Kulüp golü",
-    more: "daha çok kulüp golü attı",
-    less: "daha az kulüp golü attı",
+    name: "Resmî gol",
+    more: "daha çok resmî gol attı",
+    less: "daha az resmî gol attı",
     moreShort: "daha çok",
     lessShort: "daha az",
     unit: "gol",
-    scoped: true,
+    scoped: false,
   },
   {
     key: "clubs",
@@ -146,14 +152,19 @@ const QUESTIONS: readonly StatQuestion[] = [
 /**
  * İstatistikler İKİ ÖBEKTE sunuluyor ve ayrım uydurma değil: `scoped`.
  *
- * Kulüp maçı, gol ve kulüp sayısı §1.3'ün yirmi dört ligini sayar; millî maç,
- * boy ve doğum yılı oyuncunun kendi kaydından gelir. Bu fark oyuna doğrudan etki
- * ediyor (aynı oyuncu için "gerçek" toplamdan farklı bir sayı görülebilir) ve
- * bugüne dek yalnızca TUR ekranında, seçim yapıldıktan SONRA söyleniyordu.
- * Öbek başlığına taşındığında kullanıcı onu seçerken okuyor.
+ * Öbeğin işi, sayının kullanıcının bildiği toplamdan FARKLI olabileceğini
+ * seçim ANINDA söylemek. Bu bugüne dek yalnızca tur ekranında, seçim
+ * yapıldıktan SONRA yazıyordu.
+ *
+ * ÖBEK BOYLARI 22 Ağustos 2026'da 3+3'ten 5+1'e döndü ve dengesizlik
+ * doğrudur: maç ve gol kariyerin tamamına geçtikten sonra kapsama bağlı
+ * kalan TEK istatistik kulüp sayısıdır (BR-23). Uyarıyı beş istatistiğin
+ * üstünde bırakmak, artık doğru olmayan bir şeyi söylemek olurdu.
  *
  * Öbek üyeliği burada elle listelenmiyor; `scoped` alanından türetiliyor ki
  * yeni bir istatistik eklendiğinde iki yerde birden güncelleme gerekmesin.
+ * Kapsamdan bağımsız öbek ÖNCE geliyor: beş kartlı öbek ızgarayı doldurur ve
+ * tek kartlı uyarı öbeği sonda kendi başına durur.
  */
 const STAT_GROUPS: readonly {
   readonly caption: string;
@@ -161,16 +172,44 @@ const STAT_GROUPS: readonly {
   readonly scoped: boolean;
 }[] = [
   {
-    caption: "Kulüp kariyeri",
-    detail: "yalnızca kapsamdaki 24 lig",
-    scoped: true,
-  },
-  {
-    caption: "Oyuncunun kendi kaydı",
+    caption: "Kariyerin tamamı",
     detail: "lig kapsamından bağımsız",
     scoped: false,
   },
+  {
+    caption: "Kapsama bağlı",
+    detail: "yalnızca kapsamdaki 24 lig",
+    scoped: true,
+  },
 ];
+
+/**
+ * Kapsamdan bağımsız sayıların NEYİ topladığını söyleyen not (BR-23).
+ *
+ * Kapsam uyarısının simetriği: "24 lig" uyarısı kalktığında yerine hiçbir şey
+ * koymamak, kullanıcıyı 830 gollük bir sayıyla açıklamasız bırakırdı. Boy ve
+ * doğum yılında not YOK — o sayılar zaten tek anlama geliyor.
+ */
+function scopeNoteFor(key: StatKey): ReactNode {
+  if (key !== "appearances" && key !== "goals") return null;
+
+  return (
+    <p className="text-sm text-note">
+      Kulüp kariyerinin tamamı (lig, kupa, Avrupa) ile A millî takım toplamı.
+    </p>
+  );
+}
+
+/** Bir öbekten önce kaç kart çizildiği — animasyon sırası için (§7.12). */
+function groupOffset(groupIndex: number): number {
+  return STAT_GROUPS.slice(0, groupIndex).reduce(
+    (sum, group) =>
+      sum +
+      STAT_KEYS.filter((key) => questionFor(key).scoped === group.scoped)
+        .length,
+    0,
+  );
+}
 
 /**
  * BR-41'in seviyelerinin ARAYÜZ karşılığı.
@@ -450,10 +489,12 @@ export function WhichMoreQuiz({
         */}
         <p className="text-sm text-note">{levelFor(level).note}</p>
 
-        {question.scoped && (
+        {question.scoped ? (
           <p className="text-sm text-note">
             Bu sayı yalnızca kapsamdaki 24 ligi sayar.
           </p>
+        ) : (
+          scopeNoteFor(statKey)
         )}
       </div>
 
@@ -1130,9 +1171,14 @@ function StatPicker({
                         ? "border-accent bg-accent-soft shadow-card"
                         : "border-line-strong bg-surface hover:-translate-y-0.5 hover:border-accent hover:shadow-card"
                     }`}
+                    /*
+                      GECİKME ÖBEK BOYUNDAN OKUNUR, sabit 3'ten değil: öbekler
+                      artık eşit değil (5+1) ve sabit çarpan ikinci öbeği
+                      birincinin üstüne bindirirdi.
+                    */
                     style={{
                       animationDelay: `${String(
-                        (groupIndex * 3 + index + 2) * SETUP_STEP_MS,
+                        (groupOffset(groupIndex) + index + 2) * SETUP_STEP_MS,
                       )}ms`,
                     }}
                   >

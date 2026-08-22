@@ -368,8 +368,9 @@ describe("checkAnswer — BR-32", () => {
       ]),
     );
 
-    // Maç/gol/kulüp yalnızca 24 ligi sayar (§9.2 kapsam bildirimi).
-    expect(scoped.scoped).toBe(true);
+    // BR-23 — resmî maç kariyerin tamamını sayar, kapsam uyarısı ona AİT
+    // DEĞİL. Uyarıyı hak eden tek istatistik kulüp sayısıdır.
+    expect(scoped.scoped).toBe(false);
   });
 
   it("SUNUCUNUN KURMAYACAĞI çift cevap olarak da kabul edilmez", async () => {
