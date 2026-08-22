@@ -1435,6 +1435,21 @@ Yani kayıp, fark listesinin gösterdiğinden **otuz altı kat büyüktü**. Kal
 
 **BU SAYININ SINIRI YAZILI OLSUN:** 1.868, yerel önbelleğin haftalara yayılmış yanıtlarının BİRLEŞİMİDİR; tek bir koşunun kaybı değil. Tek koşuda ölçülen kayıp 1.851 (135.657 istenen − 133.806 üretilen), yani aynı büyüklük sınıfında. Kesin sayı bir sonraki tam koşuda ikinci geçişin raporundan okunacak.
 
+#### Düzeltmenin kendisi bir koşu düşürdü
+
+`mul`, etiket servisini kullanan ÜÇ sorgunun hepsine birden eklendi ve üçüncüsü yanlıştı. **Lig doğrulaması** (`verifyLeagues`) etiketi saklamıyor, `leagues.ts`'teki bir beklentiyle KARŞILAŞTIRIYOR — ve o beklentiler İngilizce yazılı (`verifyLabel: "Liga Portugal"`, `"Russian Premier League"`). Dil listesi değişince etiketler Türkçeye döndü ve 22 Ağustos koşusu 24 ligin **10'unda** kırılarak ETL'in ilk dakikasında durdu:
+
+```
+✗ Q182994: "Portekiz Süper Ligi" — beklenen "Liga Portugal"
+✗ Q182165: "Rossiyskaya Premyer-Liga" — beklenen "Russian Premier League"
+```
+
+Kusur veride değil, **karşılaştırmanın iki tarafının farklı dilde olmasındaydı**. Sorgu `en`'e döndürüldü ve gerekçesi koda yazıldı; ayrıca bir birim testi dil listesini sabitliyor.
+
+**`mul` oraya EKLENMEDİ ve bu bilinçli.** Bir ligin adı `mul`'a taşınırsa `en` çözülemez, etiket QID'e düşer ve ad karşılaştırması kendini kapatır (`labelResolved`) — kulüp sayısı kapısı çalışmaya devam eder. Yani en kötü durumda denetim ZAYIFLAR. `mul` eklenseydi en kötü durum **yanlış bir düşme** olurdu; bugün olan da tam olarak buydu. Beklentiler bir gün `mul`'a taşınacaksa `verifyLabel` satırları da aynı dile taşınmalıdır.
+
+**Genel ders:** aynı düzeltme, etiketi SAKLAYAN yer için doğru, etiketi BEKLENTİYLE KARŞILAŞTIRAN yer için yanlıştı. Bir sorgunun dil listesi, o etiketle ne yapıldığına bağlıdır.
+
 #### Neden hiçbir kapı görmedi
 
 `db:verify` sayı ölçer, isim ölçmez: 13 oyuncu 132.357'nin içinde yuvarlama hatasıdır. Depodaki altın veri seti testi Ronaldo'yu **görüyor** (`Q18656 ∩ Q8682` onu içermeli) ama yalnızca yereldeki `prisma/dev.db`'ye karşı koşuyor ve yayımlama iş akışı onu hiç çalıştırmıyordu — yani kabul kapısı ile yayımlanan veri kümesi **hiç karşılaşmıyordu**. Kusur ancak yerel kopya tazelenip test kırıldığında görüldü.

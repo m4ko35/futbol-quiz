@@ -396,10 +396,32 @@ SELECT ?league ?leagueLabel (COUNT(DISTINCT ?club) AS ?clubCount) WHERE {
   VALUES ?clubClass { ${CLUB_CLASS_VALUES} }
   ?club wdt:${WD.PROP_LEAGUE} ?league ;
         wdt:P31/wdt:P279* ?clubClass .
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "${LABEL_LANGUAGES}". }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "${VERIFY_LABEL_LANGUAGE}". }
 }
 GROUP BY ?league ?leagueLabel`.trim();
 }
+
+/**
+ * Lig doğrulamasının dili — `LABEL_LANGUAGES` DEĞİL, yalnızca `en`.
+ *
+ * BU AYRIM ÖLÇÜLDÜ VE BİR KOŞU DÜŞÜRDÜ (22 Ağustos 2026). `mul` düzeltmesi
+ * buraya da uygulanınca etiketler Türkçeye döndü ve denetim 24 ligin 10'unda
+ * kırıldı — çünkü `leagues.ts`'teki `verifyLabel` beklentileri İNGİLİZCE
+ * yazılı ("Liga Portugal", "Russian Premier League"). Gelen "Portekiz Süper
+ * Ligi" ile beklenen "Liga Portugal" eşleşmiyordu; kusur veride değil,
+ * karşılaştırmanın iki tarafının farklı dilde olmasındaydı.
+ *
+ * NEDEN `mul` DA EKLENMEDİ: burada etiket SAKLANMIYOR, bir beklentiyle
+ * KARŞILAŞTIRILIYOR. Bir ligin adı `mul`'a taşınırsa `en` çözülemez, etiket
+ * QID'e düşer ve karşılaştırma kendini kapatır (`labelResolved`) — kulüp
+ * sayısı kapısı çalışmaya devam eder. Yani en kötü durumda denetim ZAYIFLAR;
+ * `mul` eklenseydi en kötü durum YANLIŞ BİR DÜŞME olurdu ve bugün olan da
+ * tam olarak buydu.
+ *
+ * Ad karşılaştırması bir gün `mul`'a taşınacaksa, ondan önce `verifyLabel`
+ * beklentileri de aynı dile taşınmalıdır.
+ */
+const VERIFY_LABEL_LANGUAGE = "en";
 
 /**
  * Aynı futbol geçmişini paylaşan kulüp İKİZLERİ — PROJECT.md §5.3.

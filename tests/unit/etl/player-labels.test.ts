@@ -9,6 +9,7 @@ import {
   clubsByLeagueLink,
   playerDetails,
   playerLabels,
+  verifyLeagues,
 } from "../../../scripts/etl/sources/wikidata/queries";
 import type { SparqlBinding } from "../../../scripts/etl/sources/wikidata/schemas";
 
@@ -224,5 +225,19 @@ describe("etiket servisinin dil listesi", () => {
     // `mul` başa alınırsa Türkçe adı olan varlıklarda dilden bağımsız biçim
     // kazanır ve site kendi dilindeki adı kaybeder.
     expect(playerDetails(["Q1"])).not.toContain('wikibase:language "mul');
+  });
+
+  /**
+   * LİG DOĞRULAMASI İSTİSNADIR ve istisna olmasının bedeli ölçüldü: `mul`
+   * oraya da eklenince etiketler Türkçeye döndü ve 24 ligin 10'unda denetim
+   * KIRILDI (22 Ağustos 2026 koşusu). Sebep veri değil, karşılaştırmanın iki
+   * tarafının farklı dilde olmasıydı — `leagues.ts`'teki beklentiler
+   * İngilizce ("Liga Portugal", "Russian Premier League").
+   */
+  it("lig doğrulaması YALNIZCA İngilizce ister", () => {
+    const query = verifyLeagues(["Q9448"]);
+
+    expect(query).toContain('wikibase:language "en"');
+    expect(query).not.toContain("mul");
   });
 });
