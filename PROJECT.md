@@ -1420,6 +1420,21 @@ Ronaldo'nun **96 dilde** etiketi var; sadece Latin alfabeli olanlar yok. Kalanla
 
 **Yanlış teşhis kayda geçiyor.** İlk hipotez "etiket servisi rastgele atlıyor" idi ve kanıtı da vardı: önbellekte Baresi bir yanıtta adıyla, başka bir yanıtta QID'yle geliyordu. Hipotez yanlıştı — Baresi'nin `en` etiketi göç sırasında bir süre silinmiş, sonra geri gelmişti. Aynı gözlem iki farklı sebebe uyuyordu ve ayıran şey ölçüm oldu: `rdfs:label` ile dil dökümü istendiğinde `mul` görüldü.
 
+#### Kaç oyuncu geri geliyor: 13 değil, **472**
+
+Onüç rakamı iki kümenin FARKINDAN çıktı — 7 Ağustos'ta var olup 21 Ağustos'ta düşenler. Göç daha önce başladıysa, iki kümede de eksik olan oyuncu o farkta görünmez. Bu yüzden ayrıca ölçüldü.
+
+Önbellekteki bütün oyuncu yanıtları tarandı: etiketi QID olarak gelmiş **1.868** tekil oyuncu var ve bunların **1.854'ü veri kümesinde yok**. Bu 1.854 kimlik `rdfs:label` ile, `tr`/`en`/`mul` istenerek yeniden soruldu:
+
+| Sonuç                          |            Sayı |
+| ------------------------------ | --------------: |
+| Adı bulundu → **geri gelecek** | **472 (%25,5)** |
+| `tr`/`en`/`mul` hiçbiri yok    |           1.382 |
+
+Yani kayıp, fark listesinin gösterdiğinden **otuz altı kat büyüktü**. Kalan 1.382 gerçekten adsız varlıklar ve onlar düşmeye devam edecek — ama artık sayılarak (ikinci geçişin raporu).
+
+**BU SAYININ SINIRI YAZILI OLSUN:** 1.868, yerel önbelleğin haftalara yayılmış yanıtlarının BİRLEŞİMİDİR; tek bir koşunun kaybı değil. Tek koşuda ölçülen kayıp 1.851 (135.657 istenen − 133.806 üretilen), yani aynı büyüklük sınıfında. Kesin sayı bir sonraki tam koşuda ikinci geçişin raporundan okunacak.
+
 #### Neden hiçbir kapı görmedi
 
 `db:verify` sayı ölçer, isim ölçmez: 13 oyuncu 132.357'nin içinde yuvarlama hatasıdır. Depodaki altın veri seti testi Ronaldo'yu **görüyor** (`Q18656 ∩ Q8682` onu içermeli) ama yalnızca yereldeki `prisma/dev.db`'ye karşı koşuyor ve yayımlama iş akışı onu hiç çalıştırmıyordu — yani kabul kapısı ile yayımlanan veri kümesi **hiç karşılaşmıyordu**. Kusur ancak yerel kopya tazelenip test kırıldığında görüldü.
