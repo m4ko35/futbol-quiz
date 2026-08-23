@@ -976,6 +976,63 @@ Varsayılan politika bırakılsaydı ikinci kaynak oyuncuların yalnızca %16,5'
 
 BR-60'ın gerçek verimi **dönem başına** ölçülmeden bilinemez: yukarıdaki tablo makalenin var olduğunu söylüyor, iki dilin **aynı dönemi** yazdığını değil. Ana dil kutuları farklı biçimlerde ve verimleri %15 ile %65 arasında değişiyor (Aşama 2). Bu yüzden katman, §4.3 3. aşamasının ve BR-42'nin izlediği yolu izler: ilk koşuda **hiçbir şey yazmaz**, yalnızca ne yazacağını raporlar. Eşik ancak o rapordan sonra açılır.
 
+##### Gölge koşusunun sonucu — 23 Ağustos 2026
+
+Koşu 3 sa 2 dk sürdü ve baştan sona geçti. **Keşif tahmin edildiği kadar
+oyuncu buldu, ama BR-60 tahmin edilenden çok daha sert eledi.**
+
+| Ölçüm                          | Tahmin | **Ölçüm** |
+| ------------------------------ | -----: | --------: |
+| Evrende olmayan kadro oyuncusu |  5.547 | **5.548** |
+| BR-60'ın kabul ettiği oyuncu   |  3.918 | **3.540** |
+| BR-60'ın kabul ettiği dönem    | 11.021 | **8.468** |
+
+Keşfin kendisi neredeyse birebir tuttu — 5.547 tahmine karşı **5.548**. Kapı
+tutmadı:
+
+```
+BR-60: keşfedilen oyuncularda 15631 kayıt · 8659 kabul (≥2 dil) · 6972 karantina
+```
+
+**Dönem başına mutabakat %55,4, tahmin %76 idi.** Fark, tahminin ölçtüğü şeyin
+yanlış olmasından geliyor ve bu ayrım kayda geçmeli: "iki dilde **makalesi
+var**" ile "iki dil **aynı dönemi yazmış**" farklı şeylerdir. Aradaki boşluğu
+ana dillerin verimi açıklıyor — bu koşuda ölçüldü ve §4.3'ün eski
+ölçümleriyle uyumlu:
+
+| Dil  | Okunan satır | Evrene düşen | Oran    |
+| ---- | -----------: | -----------: | ------- |
+| `tr` |      130.682 |       76.127 | %58     |
+| `en` |      751.451 |      339.565 | %45     |
+| `it` |       54.263 |        8.981 | **%17** |
+| `de` |       27.443 |       12.677 | %46     |
+| `fr` |       19.643 |       13.200 | %67     |
+
+İtalyanca bir makalenin var olması, o makalenin kulübü **okunabilir biçimde**
+yazdığı anlamına gelmiyor: satırların %83'ü evrendeki bir kulübe düşmüyor
+(kulüp düz metin yazılıyor ve o ad şehre çözülüyor). Yani ikinci kaynak
+"vardır" demek, "konuşmuştur" demek değil (§2.7'nin aynı yöndeki kuralı).
+
+Keşif sayaçları:
+
+```
+739/969 kulüpte kadro şablonu var · 232 kulüp düz tabloyla yazılmış
+19805 kadro yeri · 6252 oyuncunun makalesi yok · 433 makalenin Wikidata ögesi yok
+7405 oyuncu zaten evrende · 5548 oyuncu evrende DEĞİL
+```
+
+**Gölge modu çalıştı ve bu ayrıca doğrulandı.** Yayımlanan veri kümesi
+132.841 oyuncu / 406.501 dönem — bir önceki koşunun (132.838 / 406.440)
+olağan komşuluğunda. Keşfin ürettiği 3.540 oyuncu ve 8.468 dönemin **hiçbiri
+girmedi**. Kapılar da temiz: çapa 29/29, altın veri seti 50/50, `db:verify`
+KABUL BAŞARILI, BR-42 227 çelişki (bütçe 250).
+
+**Karar bekleyen soru artık nicelikselleştirildi.** Eşik açılırsa evrene
+3.540 oyuncu ve 8.468 dönem girer; bunların tamamı Wikidata dayanağı
+olmayan, iki bağımsız Vikipedi dilinin doğruladığı kayıtlardır. Karantinada
+kalan 6.972 kayıt bir sonraki koşuda ikinci bir dil yazarsa kendiliğinden
+kabul edilir — karantina bir silme değil, bir bekleme durumudur.
+
 ##### Bilinen sınırlar
 
 - **Yalnızca GÜNCEL kadro boşluğunu kapatır.** Tarihî eksikler yerinde kalır; kadro şablonu bugünün kadrosunu yazar.
@@ -4944,7 +5001,7 @@ Bunun süreçteki karşılığı `npm run db:verify`. Faz 1 boyunca doğrulama "
 | p95 gecikme                                  | **Ölçüldü (Faz 4):** 16,8 ms, bütçe 150 ms; `npm run bench` kalıcı kapı                                                                                                                                                                                                                                                                                                                                                                                                                                | Kapsam genişleyince yeniden ölçülür (betik zaten var)                                                                                                                                                                                                                    |
 | Erişilebilirlik: yerleşime bağlı ölçütler    | Yapısal denetim (axe-core) ve kontrast ölçüldü; görünürlük, odak sırası ve hedef boyutu ölçülMEDİ (§7.10)                                                                                                                                                                                                                                                                                                                                                                                              | Faz 4.5: gerçek tarayıcıda elle denetim                                                                                                                                                                                                                                  |
 | Bağsız kulüp ikizi (Gençlerbirliği)          | Kabul — ölçüldü, eşik tabanlı kural GÜVENLİ DEĞİL: %80 eşiği Barcelona'yı yedek takımıyla birleştirirdi (§5.3)                                                                                                                                                                                                                                                                                                                                                                                         | Doğru düzeltme yeri kaynağın kendisi: Wikidata'da iki öğenin birleştirilmesi                                                                                                                                                                                             |
-| Kadro keşfi: güncel kadronun **%43'ü** eksik | **YENİDEN ÖLÇÜLDÜ (22 Ağu 2026, tam sayım): eski %26 sayısı sekiz seçkin kulüpten geliyordu ve yanıltıcıydı.** 730 kulüp, 19.666 kadro yeri: QID'si olanlar içinde kapsam %57,1. Sebep yapısal olarak DOĞRULANDI — 5.547 eksiğin hiçbirinde evrendeki bir kulübe `P54` bağı yok, yani boru hattı kusuru sıfır (§4.3 Aşama 3).                                                                                                                                                                          | **Kadro keşfi katmanı yazıldı, BR-60 kapısı GÖLGE MODUNDA** — beklenen kazanç 5.490 oyuncu / 14.444 dönem, ≥2 dil şartıyla 3.918 / 11.021                                                                                                                                |
+| Kadro keşfi: güncel kadronun **%43'ü** eksik | **YENİDEN ÖLÇÜLDÜ (22 Ağu 2026, tam sayım): eski %26 sayısı sekiz seçkin kulüpten geliyordu ve yanıltıcıydı.** 730 kulüp, 19.666 kadro yeri: QID'si olanlar içinde kapsam %57,1. Sebep yapısal olarak DOĞRULANDI — 5.547 eksiğin hiçbirinde evrendeki bir kulübe `P54` bağı yok, yani boru hattı kusuru sıfır (§4.3 Aşama 3).                                                                                                                                                                          | **Katman yazıldı, BR-60 kapısı GÖLGE MODUNDA KOŞTU (23 Ağu 2026).** Ölçülen kazanç: **3.540 oyuncu / 8.468 dönem**. Karar bekliyor — eşiği açmak `--apply-squad-discovery` ya da iş akışında `kadro_kesfi` girdisi                                                       |
 | Kaleci golleri kaynakta kirli                | Kabul — Vikipedi YENEN golü negatif yazıyor (`-87`), bu değerler Wikidata'ya pozitif gol olarak girmiş olabiliyor (Ottavio Bugatti 256 maç / 329 "gol"). BR-22 mutabakatı bunları düşürüyor ama kaynağı temizlemiyor                                                                                                                                                                                                                                                                                   | Kaleci dönemleri ayrı bir alanla (yenen gol) modellenirse; şu an oyunun hiçbir ekseni kaleci golü sormuyor                                                                                                                                                               |
 | Izgara havuzu 18 ligi kapsamıyor             | **Kısmen ödendi (2026-08-07):** "Sen kur" turunda kullanıcı 906 kulübün hepsini kullanabiliyor (BR-25); günlük ızgara ertelenmiş kararla 82 kulüpte kaldı — Ajax/Porto/Benfica, LA Galaxy ve Al-Hilal ızgarada ve günün oyuncusu havuzunda YOK (§9.1)                                                                                                                                                                                                                                                  | Ürün sahibi yeni lig kulüplerini görüp seçtiğinde; ölçüm değil KARAR                                                                                                                                                                                                     |
 
