@@ -1033,6 +1033,86 @@ olmayan, iki bağımsız Vikipedi dilinin doğruladığı kayıtlardır. Karanti
 kalan 6.972 kayıt bir sonraki koşuda ikinci bir dil yazarsa kendiliğinden
 kabul edilir — karantina bir silme değil, bir bekleme durumudur.
 
+##### Eşik açıldı — 23 Ağustos 2026
+
+Koşu 3 sa 0 dk sürdü, bütün kapılardan geçti ve veri yayımlandı.
+
+```
+5550 oyuncu evrende DEĞİL
+BR-60: 15638 kayıt · 8661 kabul (≥2 dil) · 6977 karantina (tek dil)
+KADRO KEŞFİ AÇIK: +3541 oyuncu, +8470 dönem yükleniyor
+```
+
+|        |    Önce |       Sonra |
+| ------ | ------: | ----------: |
+| Oyuncu | 132.841 | **136.383** |
+| Dönem  | 406.501 | **414.974** |
+| Kulüp  |   1.006 |       1.006 |
+
+Çapa kapısı 29/29, altın veri seti 50/50, `db:verify` KABUL BAŞARILI.
+
+**Dönemi kalmayan 2.005 oyuncu kendiliğinden düştü.** BR-60'ın bütün
+dönemlerini karantinaya aldığı oyuncular veritabanına kimliğiyle girip orada
+öksüz kalacaktı; yükleyicinin zaten var olan temizliği
+(`player.deleteMany({ spells: { none: {} } })`) onları sildi. Yayımlanan
+kümede **dönemsiz oyuncu sıfır**. Bu kural kadın futbolcuların kapsam dışına
+alınması için yazılmıştı ve burada da doğru davrandı — yeni bir şey yazmak
+gerekmedi.
+
+###### Kazanç ızgara modundadır, istatistik modunda DEĞİL
+
+Bu, koşudan önce fark edilmemiş ve **koşudan sonra ölçülmüş** bir sonuçtur.
+Keşfedilen oyuncunun hiçbir `P54` ifadesi yok — bu yalnızca kulüp bağının
+değil, **millî takım bağının da** yokluğu demek, çünkü `nationalCaps` de aynı
+ifadeden okunuyor (BR-14). §9.2'ye göre resmî toplam iki parçası da doluysa
+hesaplanır; biri boşsa sonuç `null`.
+
+| Alan                            | Keşfedilenler (3.541) | Ötekiler (132.842) |
+| ------------------------------- | --------------------: | -----------------: |
+| Millî maç                       |              **%0,5** |              %17,3 |
+| Kulüp kariyer toplamı           |                 %60,4 |              %17,3 |
+| Uyruk                           |                 %85,3 |              %92,5 |
+| Boy                             |                 %70,4 |              %37,6 |
+| Mevki                           |             **%42,5** |              %88,8 |
+| **Resmî toplam hesaplanabilen** |  **12 oyuncu (%0,3)** |       5.801 (%4,4) |
+
+Yani 3.541 oyuncunun **12'si** istatistik havuzuna girebiliyor. Kazancın
+tamamına yakını **ızgara modunda**: +8.470 dönem, yeni kulüp kesişimleri.
+
+Bu bir kusur değil, kaynağın şeklinin sonucu — ve kapatılması ayrı bir iş:
+bilgi kutusunda `nationalcaps` alanı **var**, ama BR-14'ün semantiği (toplam
+değil, TEK takım için en büyük) o alandan doğrudan okunamaz. Ayrı bir karar
+ve ayrı bir ölçüm ister.
+
+###### Bayat sayı sorunu: dil önceliği, keşifle büyüyor
+
+Keşfedilen dönemlerin **%13,1'inde `maç = 0`** yazıyor (taban %6,9). Bir kısmı
+gerçek — birinci takım kadrosunda olup hiç oynamayan genç oyuncu bu nüfusta
+çok yaygın. Ama bir kısmı bayat:
+
+```
+Josip Šutalo, Ajax 2023–
+   tr: maç4 = 0        <- KAZANAN (WIKI_SITES sırasında tr ilk)
+   it: 76 (3)
+   de: 76 (3)
+   fr: 108 (4)
+```
+
+Türkçe makale transfer anında yazılmış `0`'ı taşıyor ve kimse güncellememiş.
+Kural §4.3'ün mevcut kuralıdır ("aynı dönem iki dilde de varsa ÖNCE geleni
+kalır") ve keşifle gelmedi — ama **etkisi keşifle büyüyor**, çünkü bu
+oyuncularda geri düşülecek bir Wikidata değeri yok.
+
+Şüpheli üst sınır ölçüldü: **397 dönem (%4,7)** — sürmekte olup 2024 ve
+öncesinde başlayan 72 dönem, artı kapanmış ve 2024 öncesi başlayan 325 dönem.
+Üst sınırdır: o 325'in çoğu muhtemelen gerçekten sıfırdır.
+
+> **Açık soru, KARARA BAĞLANMADI.** Sayı çakışmasında "ilk dil kazanır" kuralı
+> kulüp ADI için doğru (Türkçe bu evrene en yakın dil) ama SAYI için keyfî.
+> Bir dil `0`, üçü `76` diyorsa `0`'ı seçmek için bir gerekçe yok. Kuralı
+> değiştirmek 414 bin dönemin tamamını etkiler ve kendi ölçümünü ister; bu
+> yüzden burada yalnızca kayda geçiyor.
+
 ##### Bilinen sınırlar
 
 - **Yalnızca GÜNCEL kadro boşluğunu kapatır.** Tarihî eksikler yerinde kalır; kadro şablonu bugünün kadrosunu yazar.
@@ -5001,7 +5081,7 @@ Bunun süreçteki karşılığı `npm run db:verify`. Faz 1 boyunca doğrulama "
 | p95 gecikme                                  | **Ölçüldü (Faz 4):** 16,8 ms, bütçe 150 ms; `npm run bench` kalıcı kapı                                                                                                                                                                                                                                                                                                                                                                                                                                | Kapsam genişleyince yeniden ölçülür (betik zaten var)                                                                                                                                                                                                                    |
 | Erişilebilirlik: yerleşime bağlı ölçütler    | Yapısal denetim (axe-core) ve kontrast ölçüldü; görünürlük, odak sırası ve hedef boyutu ölçülMEDİ (§7.10)                                                                                                                                                                                                                                                                                                                                                                                              | Faz 4.5: gerçek tarayıcıda elle denetim                                                                                                                                                                                                                                  |
 | Bağsız kulüp ikizi (Gençlerbirliği)          | Kabul — ölçüldü, eşik tabanlı kural GÜVENLİ DEĞİL: %80 eşiği Barcelona'yı yedek takımıyla birleştirirdi (§5.3)                                                                                                                                                                                                                                                                                                                                                                                         | Doğru düzeltme yeri kaynağın kendisi: Wikidata'da iki öğenin birleştirilmesi                                                                                                                                                                                             |
-| Kadro keşfi: güncel kadronun **%43'ü** eksik | **YENİDEN ÖLÇÜLDÜ (22 Ağu 2026, tam sayım): eski %26 sayısı sekiz seçkin kulüpten geliyordu ve yanıltıcıydı.** 730 kulüp, 19.666 kadro yeri: QID'si olanlar içinde kapsam %57,1. Sebep yapısal olarak DOĞRULANDI — 5.547 eksiğin hiçbirinde evrendeki bir kulübe `P54` bağı yok, yani boru hattı kusuru sıfır (§4.3 Aşama 3).                                                                                                                                                                          | **Katman yazıldı, BR-60 kapısı GÖLGE MODUNDA KOŞTU (23 Ağu 2026).** Ölçülen kazanç: **3.540 oyuncu / 8.468 dönem**. Karar bekliyor — eşiği açmak `--apply-squad-discovery` ya da iş akışında `kadro_kesfi` girdisi                                                       |
+| Kadro keşfi: güncel kadronun **%43'ü** eksik | **YENİDEN ÖLÇÜLDÜ (22 Ağu 2026, tam sayım): eski %26 sayısı sekiz seçkin kulüpten geliyordu ve yanıltıcıydı.** 730 kulüp, 19.666 kadro yeri: QID'si olanlar içinde kapsam %57,1. Sebep yapısal olarak DOĞRULANDI — 5.547 eksiğin hiçbirinde evrendeki bir kulübe `P54` bağı yok, yani boru hattı kusuru sıfır (§4.3 Aşama 3).                                                                                                                                                                          | **KAPANDI — eşik açıldı ve yüklendi (23 Ağu 2026): +3.541 oyuncu, +8.470 dönem.** Kazanç ızgara modundadır; keşfedilenlerin %0,5'inde millî maç olduğu için istatistik havuzuna yalnızca 12'si giriyor (§4.3 Aşama 3). Kalan açık soru: sayı çakışmasında dil önceliği   |
 | Kaleci golleri kaynakta kirli                | Kabul — Vikipedi YENEN golü negatif yazıyor (`-87`), bu değerler Wikidata'ya pozitif gol olarak girmiş olabiliyor (Ottavio Bugatti 256 maç / 329 "gol"). BR-22 mutabakatı bunları düşürüyor ama kaynağı temizlemiyor                                                                                                                                                                                                                                                                                   | Kaleci dönemleri ayrı bir alanla (yenen gol) modellenirse; şu an oyunun hiçbir ekseni kaleci golü sormuyor                                                                                                                                                               |
 | Izgara havuzu 18 ligi kapsamıyor             | **Kısmen ödendi (2026-08-07):** "Sen kur" turunda kullanıcı 906 kulübün hepsini kullanabiliyor (BR-25); günlük ızgara ertelenmiş kararla 82 kulüpte kaldı — Ajax/Porto/Benfica, LA Galaxy ve Al-Hilal ızgarada ve günün oyuncusu havuzunda YOK (§9.1)                                                                                                                                                                                                                                                  | Ürün sahibi yeni lig kulüplerini görüp seçtiğinde; ölçüm değil KARAR                                                                                                                                                                                                     |
 
