@@ -280,6 +280,7 @@ describe("applyPlayerStats", () => {
     nationalGoals: null,
     heightCm: null,
     weightKg: null,
+    languageCount: null,
   };
 
   const ITALY = new Map([["Q1088902", "IT"]]);
@@ -290,6 +291,7 @@ describe("applyPlayerStats", () => {
       new Map([["Q68060", { caps: 176, teamQid: "Q1088902", goals: null }]]),
       new Map([["Q68060", { heightCm: 192, weightKg: 92 }]]),
       ITALY,
+      new Map(),
     );
 
     expect(player).toMatchObject({
@@ -301,9 +303,29 @@ describe("applyPlayerStats", () => {
     });
   });
 
+  /** §9.3 BR-41 — Wikipedia dil sayısı; sorguda çıkmayan oyuncu 0, null DEĞİL. */
+  it("Wikipedia dil sayısını işler; sorguda yoksa 0", () => {
+    const [withLang, withoutLang] = applyPlayerStats(
+      [base, { ...base, wikidataId: "Q2" }],
+      new Map(),
+      new Map(),
+      new Map(),
+      new Map([["Q68060", 96]]),
+    );
+
+    expect(withLang?.languageCount).toBe(96);
+    expect(withoutLang?.languageCount).toBe(0);
+  });
+
   /** Eksik istatistik oyuncuyu DÜŞÜRMEZ; yalnızca o alanı boş bırakır. */
   it("istatistiği olmayan oyuncuyu korur", () => {
-    const [player] = applyPlayerStats([base], new Map(), new Map(), new Map());
+    const [player] = applyPlayerStats(
+      [base],
+      new Map(),
+      new Map(),
+      new Map(),
+      new Map(),
+    );
 
     expect(player).toMatchObject({
       wikidataId: "Q68060",
@@ -337,6 +359,7 @@ describe("applyPlayerStats", () => {
       new Map([["Q191885", { caps: 30, teamQid: "Q1088902", goals: null }]]),
       new Map(),
       ITALY,
+      new Map(),
     );
 
     expect(player?.nationality).toBe("IT");
@@ -348,6 +371,7 @@ describe("applyPlayerStats", () => {
       new Map([["Q68060", { caps: 176, teamQid: "Q1088902", goals: null }]]),
       new Map(),
       ITALY,
+      new Map(),
     );
 
     expect(base.nationalCaps).toBeNull();

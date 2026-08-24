@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { STAT_KEYS } from "@/domain/services/stat-match";
 import {
   DIRECTIONS,
+  EASY_MIN_LANGUAGES,
   EASY_MIN_LAST_YEAR,
   EASY_MIN_NATIONAL_CAPS,
   isDirection,
@@ -9,10 +10,12 @@ import {
   isPlayablePair,
   isWellKnown,
   LEVELS,
+  LOCAL_FAME_COUNTRY,
   MIN_GAP,
   opponentSide,
   otherSide,
   winningSide,
+  type WellKnownInput,
 } from "@/domain/services/which-more";
 
 /** §9.3 — "Hangisi daha" kuralları (BR-28…BR-32). */
@@ -71,36 +74,64 @@ describe("yön", () => {
 });
 
 describe("BR-41 — bilindik oyuncu ölçütü", () => {
-  it("İKİ ölçüt de gereklidir — biri yetmez", () => {
-    // Ölçüm bunu söylüyordu (§9.3): tek başına millî maç 1.725 oyuncu veriyor
-    // ve fazladan gelen 356'nın yalnızca %21,3'ü tanınıyor.
-    expect(isWellKnown(40, 1995)).toBe(false); // millî maç var, çağdaş değil
-    expect(isWellKnown(3, 2015)).toBe(false); // çağdaş, millî maç yok
-    expect(isWellKnown(40, 2015)).toBe(true);
+  // Varsayılan: dil sayısı verisi GELMİŞ (yeni ölçüt), yerel şöhret yolu kapalı.
+  const wk = (o: Partial<WellKnownInput>): boolean =>
+    isWellKnown({
+      languageCount: 0,
+      nationality: null,
+      nationalCaps: null,
+      lastYear: null,
+      ...o,
+    });
+
+  it("40+ Wikipedia dili küresel şöhrettir — tek başına yeter", () => {
+    expect(wk({ languageCount: EASY_MIN_LANGUAGES })).toBe(true);
+    expect(wk({ languageCount: EASY_MIN_LANGUAGES - 1 })).toBe(false);
+    // Beckenbauer (99 dil) çağ sınırı OLMADAN girer — eski ölçütün kapattığı kapı.
+    expect(wk({ languageCount: 99, lastYear: 1977 })).toBe(true);
   });
 
-  it("eşikler DÂHİLDİR", () => {
-    expect(isWellKnown(EASY_MIN_NATIONAL_CAPS, EASY_MIN_LAST_YEAR)).toBe(true);
-    expect(isWellKnown(EASY_MIN_NATIONAL_CAPS - 1, EASY_MIN_LAST_YEAR)).toBe(
+  it("Türkiye A millî takımında 20+ maç yerel şöhrettir — az dille de yeter", () => {
+    // Ünal Karaman: 18 dil ama Türk kullanıcı bilir; site Türkçe.
+    expect(wk({ languageCount: 18, nationality: "TR", nationalCaps: 20 })).toBe(
+      true,
+    );
+    // 20 maçın altında Türk bile olsa girmez.
+    expect(wk({ languageCount: 18, nationality: "TR", nationalCaps: 19 })).toBe(
       false,
     );
-    expect(isWellKnown(EASY_MIN_NATIONAL_CAPS, EASY_MIN_LAST_YEAR - 1)).toBe(
+    // Küçük ülke çok maçla bile girmez (James Debbah, 72 maç, Liberya, 11 dil).
+    expect(wk({ languageCount: 11, nationality: "LR", nationalCaps: 72 })).toBe(
       false,
     );
   });
 
-  it("BİLİNMEYEN veri kolay havuza girmez", () => {
-    // §2.7: eksik değer sıfır değildir. Ama burada asıl gerekçe yön: eksik
-    // veriyi lehte yorumlamak, modun elemeye çalıştığı oyuncuyu içeri alırdı.
-    expect(isWellKnown(null, 2015)).toBe(false);
-    expect(isWellKnown(40, null)).toBe(false);
-    expect(isWellKnown(null, null)).toBe(false);
+  it("GEÇİŞ YEDEĞİ — dil sayısı null iken eski vekil ölçüt uygulanır", () => {
+    // Sütun dolana kadar davranış DEĞİŞMEZ: millî maç ≥20 VE son dönem ≥2000.
+    const legacy = (nationalCaps: number | null, lastYear: number | null) =>
+      isWellKnown({
+        languageCount: null,
+        nationality: null,
+        nationalCaps,
+        lastYear,
+      });
+    expect(legacy(40, 1995)).toBe(false); // çağdaş değil
+    expect(legacy(3, 2015)).toBe(false); // millî maç yok
+    expect(legacy(40, 2015)).toBe(true);
+    expect(legacy(EASY_MIN_NATIONAL_CAPS, EASY_MIN_LAST_YEAR)).toBe(true);
+    expect(legacy(EASY_MIN_NATIONAL_CAPS - 1, EASY_MIN_LAST_YEAR)).toBe(false);
+    expect(legacy(EASY_MIN_NATIONAL_CAPS, EASY_MIN_LAST_YEAR - 1)).toBe(false);
+    // Eksik veri kolay havuza girmez.
+    expect(legacy(null, 2015)).toBe(false);
+    expect(legacy(40, null)).toBe(false);
   });
 
   it("ölçülen eşikleri taşır", () => {
     // Sayılar §9.3'te ölçüldü; değişirlerse belge de değişmeli.
+    expect(EASY_MIN_LANGUAGES).toBe(40);
     expect(EASY_MIN_NATIONAL_CAPS).toBe(20);
     expect(EASY_MIN_LAST_YEAR).toBe(2000);
+    expect(LOCAL_FAME_COUNTRY).toBe("TR");
   });
 
   it("seviye anahtarları tanınır, uydurma olan reddedilir", () => {

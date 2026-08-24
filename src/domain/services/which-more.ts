@@ -46,59 +46,80 @@ export function isLevel(value: string): value is Level {
 }
 
 /**
- * "Bilindik" ölçütü — A millî maç ≥ 20 VE son kulüp dönemi ≥ 2000.
+ * "Bilindik" ölçütü — §9.3, BR-41. İKİ SÜRÜM, GEÇİŞ VERİYLE TETİKLENİR.
  *
- * NEDEN MİLLÎ MAÇ. Sezgisel aday kulüp maç sayısıydı ve YANLIŞTI: dil sayısıyla
- * korelasyonu yalnızca **r = 0,28**. Millî maçın korelasyonu **r = 0,78** —
- * çünkü millî takımda 20 maç yapan bir oyuncu ülkesinde tanınır. Ölçülen ayrım:
+ * YENİ ÖLÇÜT (dil sayısı verisi geldiğinde): **40+ Wikipedia dili VEYA Türkiye
+ * A millî takımında 20+ maç.** İlki küresel şöhret, ikincisi yerel şöhret
+ * (site Türkçe). Bu, eski vekil ölçütün — "millî maç ≥ 20 VE son dönem ≥ 2000" —
+ * amaçladığı şeyin DOĞRUDAN hâlidir.
  *
- *   kolay havuz   medyan 47 dil · %66,7 tanınan (40+ dil)
- *   dışarıdakiler medyan 22 dil · %14,7 tanınan
+ * NEDEN DİL SAYISI. Eski ölçüt millî maçı ŞÖHRETİN VEKİLİ olarak kullanıyordu:
+ * kulüp maçının dil sayısıyla korelasyonu r=0,28, millî maçınki r=0,78 idi.
+ * Artık dil sayısının kendisi elimizde, vekile gerek yok. Eski ölçütün iki
+ * bilinen kusuru da kapanıyor:
+ *  · küçük ülke millî takımları (James Debbah, 72 maç, Liberya, 11 dil) 40 dil
+ *    eşiğini geçemez ve DIŞARIDA kalır (eskiden 20+ maçla giriyordu);
+ *  · pre-2000 efsaneleri (Beckenbauer 99 dil, Puskás 87) 2000 sınırına
+ *    takılmadan İÇERİ girer (eskiden çağ sınırı onları eliyordu).
  *
- * ÖLÇÜMÜN SINIRI YAZILI OLSUN: dil sayıları 150'şer oyuncudan oluşan iki
- * örneklemden geliyor, havuzun tamamından değil. Dışarıdakiler örneği ayrıca
- * EN ÇOK MAÇ YAPANLARDAN seçildi, yani gerçek küme ölçülenden daha az tanınır
- * — hata payı iddianın aleyhine değil lehine düşüyor.
+ * NEDEN TÜRKİYE İSTİSNASI. Dil sayısı YEREL şöhreti göremiyor: Ünal Karaman
+ * (18 dil), Ertuğrul Sağlam (18 dil) Türk kullanıcının bildiği ama 40 dilin
+ * altında kalan isimler. Site Türkçe olduğu için `nationality = "TR"` ve 20+
+ * A millî maç ikinci bir "bilindik" yolu açar.
  *
- * NEDEN İKİNCİ ÖLÇÜT DE GEREKLİ. Tek başına millî maç 1.725 oyuncu veriyor ve
- * bunların 356'sı 2000 öncesinde oynamayı bırakmış. O 356'nın medyanı **29
- * dil**, yalnızca **%21,3'ü** tanınıyor: küme ikiye bölünmüş, birkaç ölümsüz
- * (Beckenbauer 99 dil, Puskás 87) ve çok sayıda unutulmuş millî takım oyuncusu.
- * Millî maç sayısı bu ikisini AYIRAMIYOR (Capello 32 maç, Breitner 48), o yüzden
- * kümenin tamamı dışarıda kalıyor: kolay havuz %57,3'ten %66,7'ye çıkıyor.
+ * GEÇİŞ NULL-YEDEKLİDİR. `languageCount` sütunu dolana (dolduran ilk ETL
+ * koşusu) kadar `null`; o sürece kadar ESKİ ölçüt uygulanır ve oyun davranışı
+ * DEĞİŞMEZ. Sütun dolunca yeni ölçüt kendiliğinden devreye girer — veri,
+ * anahtarın kendisidir, ayrı bir bayrak yok. `EASY_MIN_LAST_YEAR` bu yüzden
+ * hâlâ burada: YALNIZCA geçiş yedeğinde kullanılıyor.
  *
- * Karar ASİMETRİDEN çıktı: kolay modda tanımadığı bir oyuncuyu gören kullanıcı
- * rahatsız olur — modun var olma sebebi bu. Beckenbauer'in kolay havuzda
- * OLMADIĞINI ise fark etmez; yokluk görünmez. Yanlış negatif ucuz, yanlış
- * pozitif pahalı.
- *
- * YIL MUTLAKTIR, KAYAN PENCERE DEĞİL. "Son 25 yıl" deseydik havuz her yıl
- * sessizce değişir ve yukarıdaki ölçümlerin hiçbiri bir daha üretilemezdi.
- * 2000 bir çağ sınırıdır; kayarsa ölçülerek kaydırılır.
- *
- * ÖLÇÜT BİR VEKİLDİR ve öyle olduğu biliniyor: kolay havuzun **%33'ü** hâlâ
- * 40 dilin altında. İki bilinen kusur sınıfı var — küçük ülke millî takımları
- * yukarı çekiyor (James Debbah 72 maç, Liberya, 11 dil), ve dil sayısı YEREL
- * şöhreti göremiyor (Ünal Karaman 36 maç 18 dil, Ertuğrul Sağlam 26 maç 18 dil
- * — Türk kullanıcı ikisini de bilir, site Türkçedir). Doğru ölçüt ikisinin
- * BİRLEŞİMİ olurdu: 40+ dil VEYA Türkiye millî takımında 20+ maç. O, bir ETL
- * koşusu gerektiriyor ve 20 Eylül tazelemesine bırakıldı (§9.3, §10.2).
+ * `null` dil sayısı "henüz çekilmedi" demektir; eksik `nationalCaps`/`lastYear`
+ * ise "bilinmiyor" ve o oyuncu kolay havuza GİRMEZ (eksik veriyi lehte
+ * yorumlamak, modun elemeye çalıştığı oyuncuyu içeri alırdı).
  */
+export const EASY_MIN_LANGUAGES = 40;
 export const EASY_MIN_NATIONAL_CAPS = 20;
 export const EASY_MIN_LAST_YEAR = 2000;
 
+/** Yerel şöhret yolunun ülkesi — site Türkçe olduğu için Türkiye (ISO alpha-2). */
+export const LOCAL_FAME_COUNTRY = "TR";
+
 /**
- * Bir oyuncu "bilindik" sayılır mı?
- *
- * Girdi iki sayı, bir oyuncu kaydı değil — kural, değerleri kimin nasıl
- * topladığından bağımsız (BR-29'un `isPlayablePair`'i ile aynı desen). `null`
- * "bilinmiyor" demektir ve bilinmeyen oyuncu kolay havuza GİRMEZ: eksik veriyi
- * lehte yorumlamak, modun elemeye çalıştığı tam da o oyuncuyu içeri alırdı.
+ * `isWellKnown` girdisi — dört alan bir NESNEDE, dört konumlu argüman değil:
+ * ikisi `number | null`, biri `string | null`; sırayı karıştırmak sessiz bir
+ * hata olurdu.
  */
-export function isWellKnown(
-  nationalCaps: number | null,
-  lastYear: number | null,
-): boolean {
+export interface WellKnownInput {
+  /** Wikipedia dil sayısı. `null` = henüz çekilmedi → geçiş yedeği devreye girer. */
+  readonly languageCount: number | null;
+  /** Uyruk, ISO 3166-1 alpha-2 — yerel şöhret yolu için ("TR"). */
+  readonly nationality: string | null;
+  /** A millî takım maç sayısı (BR-14). */
+  readonly nationalCaps: number | null;
+  /** Son kulüp dönemi yılı — YALNIZCA geçiş yedeğinde okunur. */
+  readonly lastYear: number | null;
+}
+
+/**
+ * Bir oyuncu "bilindik" sayılır mı? (BR-41)
+ *
+ * Girdi ham değerler, bir oyuncu kaydı değil — kural, değerleri kimin nasıl
+ * topladığından bağımsız (BR-29'un `isPlayablePair`'i ile aynı desen).
+ */
+export function isWellKnown(input: WellKnownInput): boolean {
+  const { languageCount, nationality, nationalCaps, lastYear } = input;
+
+  // YENİ ÖLÇÜT — dil sayısı verisi geldi (küresel VEYA yerel şöhret).
+  if (languageCount !== null) {
+    if (languageCount >= EASY_MIN_LANGUAGES) return true;
+    return (
+      nationality === LOCAL_FAME_COUNTRY &&
+      nationalCaps !== null &&
+      nationalCaps >= EASY_MIN_NATIONAL_CAPS
+    );
+  }
+
+  // GEÇİŞ YEDEĞİ — dil sayısı henüz yok; eski vekil ölçüt (davranış aynı kalsın).
   if (nationalCaps === null || lastYear === null) return false;
   return (
     nationalCaps >= EASY_MIN_NATIONAL_CAPS && lastYear >= EASY_MIN_LAST_YEAR

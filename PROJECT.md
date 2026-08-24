@@ -4547,14 +4547,18 @@ Tek ters yön **doğum yılında**: bandın elediği çift oranı %10,7'den **%2
 
 En dar alt havuz **1.271** oyuncu (kulüp maçı/golü). Dışlama listesinin tavanı 200 (BR-28), yani en kötü hâlde havuzun %15,7'si dışlanmış olur — `MAX_RANDOM_TRIES` için hâlâ fazlasıyla geniş. `db:verify` artık 6 değil **12** kontrol yapıyor: her seviyede her istatistik için bir çift kurulabildiği ölçülüyor.
 
-#### Bilinen kusur: ölçüt bir VEKİLDİR
+#### Vekil ölçütün düzeltmesi YAZILDI — 20 Eylül'de devreye girecek
 
-Kolay havuzun **%33'ü** hâlâ 40 dilin altında. İki kusur sınıfı ölçüldü:
+Eski ölçüt bir VEKİLDİ ve iki kusur sınıfı ölçülmüştü — kolay havuzun **%33'ü** hâlâ 40 dilin altında:
 
 - **Küçük ülke millî takımları yukarı çekiyor.** James Debbah 72 maç (Liberya) ama 11 dil; Imre Szabics 36 maç (Macaristan), 16 dil.
 - **Dil sayısı YEREL şöhreti göremiyor.** Ünal Karaman 36 maç / 18 dil, Ertuğrul Sağlam 26 maç / 18 dil, Stefano Rossini 30 maç / 15 dil. İlk ikisi ölçüte göre "kusur" ama **site Türkçedir ve Türk kullanıcı ikisini de bilir** — yani burada yanılan ölçüt değil, şöhret ölçeğidir.
 
-Doğru ölçüt ikisinin **birleşimi** olurdu: 40+ dil **VEYA** Türkiye millî takımında 20+ maç. Bu, `sitelinks` alanını veriye yazmayı, yani bir **ETL koşusu** gerektiriyor ve **20 Eylül 2026 tazelemesine** bırakıldı (§10.2). Sıralama bilinçli: millî maç ölçütü bugün çalışıyor ve dağıtım gerektirmiyor; dil sayısı onu keskinleştirecek, yerinden etmeyecek.
+Doğru ölçüt ikisinin **birleşimi**: 40+ Wikipedia dili **VEYA** Türkiye millî takımında 20+ maç. **Bu artık yazıldı (24 Ağustos 2026):** `players.languageCount` sütunu (§9.3 şema), ETL'in Wikipedia dil sayısı çekimi (`playerWikipediaLanguages`, `wikibase:wikiGroup "wikipedia"` — Wikiquote/Commons değil yalnızca dil sürümleri) ve `isWellKnown`'ın yeni sürümü eklendi.
+
+**Devreye alma 20 Eylül 2026 tazelemesine bağlı ve bu YAPISAL — ayrı bir bayrak yok.** `languageCount` sütunu `null` iken (dolduran ilk ETL koşusuna kadar) `isWellKnown` ESKİ vekil ölçüte düşer, yani **oyun davranışı bugün DEĞİŞMEZ**. Tazeleme koşusu sütunu doldurunca yeni ölçüt kendiliğinden devreye girer. Veri, davranışın anahtarıdır. Küçük ülke şişmesi (James Debbah 40 dil eşiğini geçemez → düşer) ve pre-2000 efsaneleri (Beckenbauer 99 dil → çağ sınırı olmadan girer) o an düzelir; yerel şöhret ise `nationality = "TR"` yoluyla korunur.
+
+Yeni havuz kompozisyonu (yukarıdaki %33 dâhil) tazelemeden sonra **yeniden ölçülecek**; `buildPool` sorgusu artık `languageCount` ve `nationality`'yi de yansıtıyor (ek katılım yok, maliyet ihmal edilebilir ama ölçüm tekrarlanacak).
 
 #### Ölçüm: maliyet
 

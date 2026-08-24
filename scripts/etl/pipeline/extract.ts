@@ -20,6 +20,7 @@ import {
   playerLabels,
   playerPhysical,
   playerStats,
+  playerWikipediaLanguages,
   spellsAtClub,
   verifyLeagues,
   wikipediaArticles,
@@ -60,6 +61,7 @@ import {
   toClub,
   toSpell,
   unlabeledPlayerBindings,
+  wikipediaLanguagesFrom,
   type NationalTeamCaps,
   type NormalizedClub,
   type NormalizedPlayer,
@@ -551,6 +553,8 @@ export async function extractDataset(
     string,
     { heightCm: number | null; weightKg: number | null }
   >();
+  // §9.3 BR-41 — Wikipedia dil sayısı; kolay havuzun küresel şöhret ölçütü.
+  const languages = new Map<string, number>();
 
   for (let i = 0; i < playerIds.length; i += PLAYER_BATCH_SIZE) {
     const batch = playerIds.slice(i, i + PLAYER_BATCH_SIZE);
@@ -573,6 +577,15 @@ export async function extractDataset(
     for (const [player, value] of physicalFrom(physicalBindings)) {
       physical.set(player, value);
     }
+
+    const languageBindings = await client.queryBatch(
+      batch,
+      playerWikipediaLanguages,
+      { label: `player-languages-${group}-${batch.length}`, noCache },
+    );
+    for (const [player, count] of wikipediaLanguagesFrom(languageBindings)) {
+      languages.set(player, count);
+    }
   }
 
   const playersWithStats = applyPlayerStats(
@@ -580,12 +593,14 @@ export async function extractDataset(
     caps,
     physical,
     nationalTeamCountries,
+    languages,
   );
   const sizes = [...physical.values()];
   console.log(
     `      millî maç ${caps.size} · ` +
       `boy ${sizes.filter((p) => p.heightCm !== null).length} · ` +
-      `kilo ${sizes.filter((p) => p.weightKg !== null).length}`,
+      `kilo ${sizes.filter((p) => p.weightKg !== null).length} · ` +
+      `dil ${languages.size}`,
   );
 
   // BR-38'in kademeleri ölçülüyor: hangi sinyalin kaç oyuncuyu kapsadığı,

@@ -85,8 +85,12 @@ interface PoolRow {
  * `PoolRow`'a eklenseydi tip, tekil sorguda hiç dolmayan bir alan vaat ederdi.
  */
 interface PoolBuildRow extends PoolRow {
-  /** Altyapı dışı EN SON dönem yılı — BR-41'in ikinci ölçütü. */
+  /** Altyapı dışı EN SON dönem yılı — BR-41'in GEÇİŞ YEDEĞİ ölçütü. */
   lastYear: number | bigint | null;
+  /** Uyruk (ISO alpha-2) — BR-41'in yerel şöhret yolu için ("TR"). */
+  nationality: string | null;
+  /** Wikipedia dil sayısı — BR-41'in küresel şöhret ölçütü; `null` = geçiş yedeği. */
+  languageCount: number | bigint | null;
 }
 
 interface ClubRow {
@@ -302,6 +306,8 @@ export class PrismaWhichMoreRepository implements WhichMoreRepository {
              p.nationalGoals AS nationalGoals,
              p.heightCm      AS heightCm,
              p.birthDate     AS birthDate,
+             p.nationality   AS nationality,
+             p.languageCount AS languageCount,
              p.clubCareerAppearances AS clubAppearances,
              p.clubCareerGoals       AS clubGoals,
              COUNT(DISTINCT s.clubId) AS clubs,
@@ -320,10 +326,12 @@ export class PrismaWhichMoreRepository implements WhichMoreRepository {
     for (const row of rows) {
       // Ölçüt DOMAIN'de (BR-41); burada yalnızca uygulanıyor. SQL'e gömülseydi
       // eşikler test edilemez ve §9.3'ün ölçümleriyle ayrışabilirdi.
-      const wellKnown = isWellKnown(
-        toNumber(row.nationalCaps),
-        toNumber(row.lastYear),
-      );
+      const wellKnown = isWellKnown({
+        languageCount: toNumber(row.languageCount),
+        nationality: row.nationality,
+        nationalCaps: toNumber(row.nationalCaps),
+        lastYear: toNumber(row.lastYear),
+      });
 
       for (const key of STAT_KEYS) {
         const value = valueOf(row, key);

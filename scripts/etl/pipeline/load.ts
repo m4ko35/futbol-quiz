@@ -170,6 +170,9 @@ export async function loadDataset(
             input.careerTotals?.get(player.wikidataId)?.goals ?? null,
           heightCm: player.heightCm,
           weightKg: player.weightKg,
+          // §9.3 BR-41 — dolduran ilk ETL koşusuna kadar `null`; o sürece kadar
+          // `isWellKnown` eski vekil ölçüte düşer, davranış değişmez.
+          languageCount: player.languageCount,
           careerAppearances: appearancesByPlayer.get(player.wikidataId) ?? 0,
         };
         return prisma.player.upsert({

@@ -58,6 +58,8 @@ export interface NormalizedPlayer {
   nationalGoals: number | null;
   heightCm: number | null;
   weightKg: number | null;
+  /** §9.3 BR-41 — Wikipedia dil sayısı; ayrı sorgudan, `applyPlayerStats` doldurur. */
+  languageCount: number | null;
 }
 
 export interface NormalizedSpell {
@@ -476,6 +478,7 @@ export function toPlayer(
     nationalGoals: null,
     heightCm: null,
     weightKg: null,
+    languageCount: null,
   };
 }
 
@@ -818,6 +821,27 @@ function inRange(
 }
 
 /**
+ * Oyuncu başına Wikipedia dil sayısı — §9.3, BR-41.
+ *
+ * Sorguda GÖRÜNMEYEN oyuncu (hiç Wikipedia maddesi yok) haritada da yoktur;
+ * `applyPlayerStats` onu 0 sayar — `?? null` DEĞİL: sütun dolduktan sonra "0
+ * dil" ile "henüz çekilmedi" ayrışmalı (§2.7), yoksa makalesiz bir oyuncu
+ * kalıcı olarak eski vekil ölçüte düşerdi.
+ */
+export function wikipediaLanguagesFrom(
+  bindings: readonly SparqlBinding[],
+): Map<string, number> {
+  const result = new Map<string, number>();
+  for (const binding of bindings) {
+    const player = qid(binding, "player");
+    const count = int(binding, "wikipedias");
+    if (player === undefined || count === undefined) continue;
+    result.set(player, count);
+  }
+  return result;
+}
+
+/**
  * Ayrı sorgulardan gelen istatistikleri oyuncu kayıtlarına işler.
  *
  * UYRUK DA BURADA SEÇİLİR (BR-38) ve başka bir yerde seçilemezdi: seçimin
@@ -831,6 +855,7 @@ export function applyPlayerStats(
     { heightCm: number | null; weightKg: number | null }
   >,
   nationalTeamCountries: ReadonlyMap<string, string>,
+  languages: ReadonlyMap<string, number>,
 ): NormalizedPlayer[] {
   return players.map((player) => {
     const size = physical.get(player.wikidataId);
@@ -850,6 +875,8 @@ export function applyPlayerStats(
       nationalGoals: national?.goals ?? null,
       heightCm: size?.heightCm ?? null,
       weightKg: size?.weightKg ?? null,
+      // Dil sorgusunda çıkmayan oyuncu 0 dil (null DEĞİL — §9.3, BR-41).
+      languageCount: languages.get(player.wikidataId) ?? 0,
     };
   });
 }

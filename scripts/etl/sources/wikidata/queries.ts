@@ -382,6 +382,33 @@ SELECT ?player ?height ?mass WHERE {
 }
 
 /**
+ * Oyuncunun kaç Wikipedia DİLİNDE maddesi olduğu — §9.3, BR-41.
+ *
+ * "Hangisi daha" kolay havuzunun küresel şöhret ölçütü (`isWellKnown`).
+ *
+ * `wikibase:wikiGroup "wikipedia"` YALNIZCA Wikipedia sürümlerini sayar:
+ * Wikiquote, Commons, Wikinews gibi siteler bir DİL değildir ve `wikibase:
+ * sitelinks` (toplam sitelink) onları da katıp sayıyı şişirirdi.
+ *
+ * `COUNT(DISTINCT) ... GROUP BY`: madde başına satır yerine oyuncu başına tek
+ * sayı. Wikipedia maddesi HİÇ olmayan oyuncu sonuçta GÖRÜNMEZ; çağıran onu 0
+ * sayar (null değil) — "hiç dili yok" ile "henüz çekilmedi" farklı (§2.7).
+ */
+export function playerWikipediaLanguages(
+  playerQids: readonly string[],
+): string {
+  const values = playerQids.map((id) => `wd:${assertQid(id)}`).join(" ");
+
+  return `
+SELECT ?player (COUNT(DISTINCT ?article) AS ?wikipedias) WHERE {
+  VALUES ?player { ${values} }
+  ?article schema:about ?player ;
+           schema:isPartOf ?wiki .
+  ?wiki wikibase:wikiGroup "wikipedia" .
+} GROUP BY ?player`.trim();
+}
+
+/**
  * Lig kimliklerinin gerçekten beklenen ligler olduğunu denetler.
  *
  * Bu sorgu `Q170323 = Nintendo DS` hatasını yakalayan denetimin kalıcı

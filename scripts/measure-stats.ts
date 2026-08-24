@@ -41,8 +41,12 @@ const DRIFT_TOLERANCE = 0.15;
 
 interface Row {
   birthDate: Date | null;
-  /** BR-41 — altyapı dışı EN SON dönem yılı. */
+  /** BR-41 — altyapı dışı EN SON dönem yılı (geçiş yedeği). */
   lastYear: number | bigint | null;
+  /** BR-41 — yerel şöhret yolu (ISO alpha-2). */
+  nationality: string | null;
+  /** BR-41 — küresel şöhret ölçütü; `null` = geçiş yedeği. */
+  languageCount: number | bigint | null;
   nationalCaps: number | bigint | null;
   nationalGoals: number | bigint | null;
   heightCm: number | bigint | null;
@@ -65,6 +69,7 @@ async function recognizablePool(): Promise<Row[]> {
          AND COUNT(DISTINCT s.clubId) >= ${MIN_CLUBS}
     )
     SELECT p.birthDate, p.nationalCaps, p.nationalGoals, p.heightCm,
+           p.nationality, p.languageCount,
            p.clubCareerAppearances AS clubAppearances,
            p.clubCareerGoals       AS clubGoals,
            COUNT(DISTINCT s.clubId) AS clubs,
@@ -200,7 +205,12 @@ async function main(): Promise<void> {
   // §9.3'ün sayıları ile oyunun havuzu sessizce ayrışabilirdi.
   const byLevel: Record<Level, readonly Row[]> = {
     easy: rows.filter((r) =>
-      isWellKnown(toNumber(r.nationalCaps), toNumber(r.lastYear)),
+      isWellKnown({
+        languageCount: toNumber(r.languageCount),
+        nationality: r.nationality,
+        nationalCaps: toNumber(r.nationalCaps),
+        lastYear: toNumber(r.lastYear),
+      }),
     ),
     hard: rows,
   };

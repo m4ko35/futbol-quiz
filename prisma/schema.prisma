@@ -165,6 +165,20 @@ model Player {
   /// Uygulama okumuyor; `db:verify` de kapsamını artık kapı saymıyor.
   weightKg Int?
 
+  /// Wikipedia dil sayısı — PROJECT.md §9.3, BR-41.
+  ///
+  /// Oyuncunun kaç Wikipedia DİLİNDE maddesi olduğu; "hangisi daha" kolay
+  /// havuzunun KÜRESEL şöhret ölçütüdür. Eski ölçüt millî maçı şöhretin vekili
+  /// olarak kullanıyordu (korelasyon r=0,78); artık ölçünün kendisi burada.
+  ///
+  /// SÜTUN BOŞ BAŞLAR ve dolduran ilk ETL koşusuna kadar `null` kalır. Bu
+  /// KASITLIDIR: `isWellKnown` (§9.3) `null` iken eski vekil ölçüte (millî maç
+  /// + 2000 sonrası) düşer; sütun dolunca yeni ölçüt (40+ dil VEYA Türkiye 20+
+  /// maç) kendiliğinden devreye girer. Veri, davranışın anahtarıdır — ayrı bir
+  /// bayrak yok. `null` sıfır DEĞİLDİR: "hiç dili yok" ile "henüz çekilmedi"
+  /// farklı şeyler (§2.7).
+  languageCount Int?
+
   /// Arama sıralama ağırlığı — PROJECT.md §6.1, BR-21.
   ///
   /// Altyapı dışı dönemlerdeki maç sayılarının toplamı. TÜRETİLMİŞ bir

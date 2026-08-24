@@ -1,0 +1,12 @@
+-- Wikipedia dil sayisi — PROJECT.md §9.3, BR-41.
+--
+-- "Hangisi daha" kolay havuzunun kuresel sohret olcutu. Oyuncunun kac
+-- Wikipedia dilinde maddesi oldugu; eski olcut bunun vekili olan milli maci
+-- kullaniyordu (korelasyon r=0,78).
+--
+-- Sutun BOS baslar ve dolduran ilk ETL kosusuna kadar `NULL` kalir. Bu
+-- KASITLIDIR: `isWellKnown` `NULL` iken eski vekil olcute duser, sutun
+-- dolunca yeni olcut (40+ dil VEYA Turkiye 20+ mac) kendiliginden devreye
+-- girer. Boylece kod simdi hazir olsa da oyun davranisi Eylul tazeleme
+-- kosusuna kadar DEGISMEZ. `null` sifir degildir (§2.7).
+ALTER TABLE "players" ADD COLUMN "languageCount" INTEGER;
