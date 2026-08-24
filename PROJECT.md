@@ -2197,7 +2197,7 @@ Tehdit modeli: uygulama **kimliği doğrulanmamış, herkese açık, salt-okunur
 ### 7.2 Enjeksiyon
 
 - **SQL:** Yalnızca Prisma sorgu kurucusu kullanılır. Ham SQL gerekiyorsa `Prisma.sql` etiketli şablonu zorunludur; dize birleştirme ile SQL üretmek yasaktır (ESLint kuralıyla engellenir).
-- **XSS:** React varsayılan kaçışı kullanılır. `dangerouslySetInnerHTML` kod tabanında yasaktır (ESLint `react/no-danger`).
+- **XSS:** React varsayılan kaçışı kullanılır. `dangerouslySetInnerHTML` kod tabanında yasaktır (ESLint `react/no-danger`). İKİ belgelenmiş istisna var, ikisi de `src/app/layout.tsx`'te ve ikisi de aynı ölçütü karşılıyor — içerik sunucuda üretilen bir SABİT, kullanıcı girdisi taşımıyor ve satır bazında `eslint-disable-next-line` ile açılıyor (kural genel olarak kapatılmıyor): **(1)** tema açılış script'i (`THEME_BOOT_SCRIPT`, §7.12); **(2)** yapılandırılmış veri (JSON-LD, §7.11) — `type="application/ld+json"` bir VERİ bloğudur, tarayıcı onu çalıştırmaz, dolayısıyla CSP `script-src`/`strict-dynamic` onu denetlemez; yine de `<` karakteri Unicode kaçışına (`U+003C`) çevrilerek `</script>` kaçışı ve olası XSS engellenir (Next'in resmi kalıbı). Her iki script de nonce taşır (§7.3 denetimiyle tutarlılık için).
 - **Komut enjeksiyonu:** Uygulama alt süreç (`child_process`) çalıştırmaz.
 
 ### 7.3 HTTP Güvenlik Başlıkları
@@ -2542,7 +2542,15 @@ gerekmiyor.
 
 **Paylaşım meta verisi.** `metadataBase` olmadan Open Graph alanları göreli kalır ve hiçbir sohbet uygulaması onları çözemez; bağlantı başlıksız gri bir kutu olarak görünür. `SITE_URL` bu tabanı verir.
 
-> **Görsel üretilmiyor.** `twitter:card` bilerek `summary` (görselli `summary_large_image` değil): olmayan bir görseli vaat etmek boş bir kart üretir. Üretilmiş bir paylaşım görseli (`opengraph-image`) istenirse eklenebilir; MVP için gerekli görülmedi.
+**Paylaşım görseli ÜRETİLİR** (`app/opengraph-image.tsx`, `ImageResponse`). İstek-anı API'si kullanmadığı için Next onu DERLEME ANINDA statik bir PNG'ye çevirir — §7.4'ün "istek yolunda ağ" kuralının konusu değildir. `twitter:card` bu yüzden `summary_large_image`; ayrı bir `twitter:image` verilmez, Twitter `og:image`'e düşer (tek görsel, iki meta etiketinde ayrışmasın).
+
+> **Görseldeki metin ASCII.** `ImageResponse`'un varsayılan fontu temel Latin'i çizer; Türkçenin `ı/İ/ş/ğ/ç` harfleri (§7.12) için ayrı bir font dosyası gerekir ve onu ağdan çekmek §7.4'e, depoya gömmek gereksiz bir ikili varlığa yol açardı. Bu yüzden görselde yalnızca kelime markası ("Futbol Quiz") ve ASCII etiket var; tam Türkçe tanıtım `og:description`'da, sosyal platform onu görselin altında gösteriyor. Marka işareti (`A ∩ B`) `icon.svg` ile aynı geometri, veri-URI `<img>` olarak gömülü (Satori `clipPath` desteklemez, resvg destekler).
+
+**Site haritası `SITE_INDEXABLE` ile KENETLİ.** `app/sitemap.ts`, tıpkı `robots.ts` gibi `connection()` çağırır ve aynı anahtardan okur: değer `false` iken **boş** bir harita döner. Gerekçe aynı — `robots.txt` "`Disallow: /`" derken bir yandan adres listeleyen site haritası çelişkilidir ve tarayıcıyı yanıltır. Açıkken yalnızca **indekslenebilir** sayfalar listelenir (`/`, `/izgara`, `/istatistik`, `/hangisi-daha`, `/lider-tablosu`, `/kaynaklar`, `/gizlilik`); giriş/oda/hesap gibi `noindex` sayfalar haritada YOKTUR. `lastmod`, veri kümesinin üretim tarihidir (`getGeneratedAt`) — sayfaların içeriği ancak yeni bir veri çekimiyle değişir, dolayısıyla doğru sinyal budur.
+
+**Kanonik adres SAYFA BAŞINADIR, düzende DEĞİL.** Her indekslenebilir sayfa kendi `alternates.canonical` değerini verir (`metadataBase` ile mutlaklaşır). Düzende (`layout.tsx`) tek bir kanonik tanımlansaydı bütün sayfalar `/` adresini kendi kanonikleri diye bildirir ve arama motoru hepsini ana sayfanın kopyası sanırdı. `noindex` sayfalara kanonik verilmez — zaten indekslenmiyorlar.
+
+**Yapılandırılmış veri (JSON-LD) site genelidir.** `layout.tsx`'in `<head>`'inde tek bir `application/ld+json` bloğu var: `WebSite` ve `WebApplication` düğümleri (`@graph`). Uydurma alan yazılmaz — yalnızca doğrulanabilir olgular (ad, adres, dil `tr-TR`, ücretsiz erişim). Blok bir SABİTTİR; `dangerouslySetInnerHTML`'in ikinci belgelenmiş istisnasıdır (§7.2) ve tema açılış script'iyle aynı nonce'u taşır. `type="application/ld+json"` bir veri bloğu olduğu için CSP onu çalıştırılabilir script gibi denetlemez.
 
 **Diğer.** 404 sayfası Türkçedir (arayüz dili TR — §1.2) ve denenen adresi **yansıtmaz**: adresi sayfaya basmak, kullanıcı girdisini sayfaya basmanın en kolay yoludur ve buna hiçbir sebep yok (§6.3). Simge, iskeletten kalan Next logosu yerine uygulamanın kendi işaretidir — iki kesişen çember, yani `A ∩ B`.
 

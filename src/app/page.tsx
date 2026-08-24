@@ -1,8 +1,17 @@
+import type { Metadata } from "next";
 import { listLeagues, searchClubs } from "@/application/use-cases/search-clubs";
 import { CommonPlayersQuiz } from "@/components/common-players-quiz";
 import { PageShell } from "@/components/page-shell";
 import { SiteFooter } from "@/components/site-footer";
 import { datasets, repositories } from "@/infrastructure/db/repositories";
+
+/**
+ * Başlık ve açıklama kök düzenden miras alınır (ana sayfa onların konusu);
+ * burada yalnızca kanonik adres verilir — §7.11 gereği SAYFA BAŞINA.
+ */
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 /**
  * Ortak oyuncu ekranı — MVP'nin tek sayfası.

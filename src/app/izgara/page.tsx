@@ -21,6 +21,7 @@ import { datasets, repositories } from "@/infrastructure/db/repositories";
 
 export const metadata: Metadata = {
   title: "3×3 Izgara — Futbol Quiz",
+  alternates: { canonical: "/izgara" },
   description:
     "Her gün yeni bir 3×3 ızgara. Satır ve sütun ölçütlerinin ikisini birden " +
     "sağlayan futbolcuları bulun.",

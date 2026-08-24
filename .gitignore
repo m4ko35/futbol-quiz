@@ -51,6 +51,9 @@ yarn-error.log*
 /coverage
 /test-results
 
+# Strix (yerel guvenlik taramasi) ciktisi — arac uretti, kaynak degil
+/strix_runs/
+
 # vercel
 .vercel
 

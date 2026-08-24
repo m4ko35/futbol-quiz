@@ -23,6 +23,7 @@ import type { StatMatchState } from "@/lib/stat-match-storage";
 
 export const metadata: Metadata = {
   title: "İstatistik Eşleştirme — Futbol Quiz",
+  alternates: { canonical: "/istatistik" },
   description:
     "Her gün bir futbolcu ve istatistikleri. Her sayıya en yakın değere " +
     "sahip başka oyuncuları bulun.",

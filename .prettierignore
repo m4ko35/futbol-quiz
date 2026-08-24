@@ -9,6 +9,9 @@ scripts/etl/.cache
 src/generated
 *.db
 
+# Strix (yerel güvenlik taraması) çıktısı — bizim kaynağımız değil, araç üretti.
+strix_runs
+
 # Dışarıdan gelen tasarım teslimatı — bizim kaynağımız değil, bir referans.
 # Yeniden biçimlendirmek 2.274 satırı değiştirir ve sürümler arası
 # karşılaştırmayı imkânsız kılar.

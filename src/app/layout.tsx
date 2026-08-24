@@ -51,6 +51,46 @@ const DESCRIPTION =
   "İki futbol kulübü seçin, ikisinde de forma giymiş oyuncuları görün. " +
   "Yirmi dört üst ligin tarihsel kadroları: Avrupa, MLS ve Suudi Pro Lig.";
 
+/** Paylaşım tabanı ve JSON-LD adresleri aynı kaynaktan; iki kez okumamak için. */
+const SITE_URL = serverEnv().SITE_URL;
+
+/**
+ * Site geneli yapılandırılmış veri (JSON-LD) — PROJECT.md §7.11.
+ *
+ * Yalnızca DOĞRULANABİLİR olgular: ad, adres, dil (`tr-TR`), ücretsiz erişim.
+ * Uydurma alan (puan, yazar, sahte kuruluş) yazılmaz — yanlış yapılandırılmış
+ * veri, hiç olmamasından kötüdür.
+ *
+ * `<` karakteri Unicode kaçışına çevrilir: içerik statik olsa da Next'in resmi
+ * kalıbı budur ve bir gün bir değere `<` girse bile `</script>` kaçışını
+ * imkânsız kılar. `type="application/ld+json"` bir VERİ bloğudur; tarayıcı onu
+ * çalıştırmaz, dolayısıyla CSP `script-src`/`strict-dynamic` denetlemez (§7.2).
+ */
+const STRUCTURED_DATA = {
+  __html: JSON.stringify({
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        name: "Futbol Quiz",
+        url: SITE_URL,
+        inLanguage: "tr-TR",
+        description: DESCRIPTION,
+      },
+      {
+        "@type": "WebApplication",
+        name: "Futbol Quiz",
+        url: SITE_URL,
+        applicationCategory: "GameApplication",
+        operatingSystem: "Web",
+        inLanguage: "tr-TR",
+        isAccessibleForFree: true,
+        description: DESCRIPTION,
+      },
+    ],
+  }).replaceAll("<", "\\u003c"),
+};
+
 /**
  * Sayfa meta verisi — PROJECT.md §7.11.
  *
@@ -61,7 +101,7 @@ const DESCRIPTION =
  * öyle). Siteyi aramaya açmak tek bir ortam değişkenini değiştirmektir.
  */
 export const metadata: Metadata = {
-  metadataBase: new URL(serverEnv().SITE_URL),
+  metadataBase: new URL(SITE_URL),
   title: TITLE,
   description: DESCRIPTION,
   applicationName: "Futbol Quiz",
@@ -77,9 +117,10 @@ export const metadata: Metadata = {
     url: "/",
   },
   twitter: {
-    // Görsel üretilmiyor; görselsiz kartın doğru türü budur. "summary_large_image"
-    // vermek, olmayan bir görseli vaat edip boş bir kart üretirdi.
-    card: "summary",
+    // Paylaşım görseli var (`opengraph-image.tsx`, §7.11), o yüzden büyük
+    // kart. Ayrı bir `twitter:image` VERİLMEZ: Twitter, o yokken `og:image`'e
+    // düşer — tek görseli iki meta etiketinde tutmak ikisinin ayrışması demek.
+    card: "summary_large_image",
     title: TITLE,
     description: DESCRIPTION,
   },
@@ -147,6 +188,19 @@ export default async function RootLayout({
           suppressHydrationWarning
           // eslint-disable-next-line react/no-danger -- Sabit içerik, kullanıcı girdisi yok (§7.2, §7.12).
           dangerouslySetInnerHTML={bootScript}
+        />
+        {/*
+          Site geneli yapılandırılmış veri (JSON-LD) — §7.11. İçerik derleme
+          zamanı bir SABİT (`STRUCTURED_DATA`), `<` kaçışlı; `type` bir veri
+          bloğu olduğu için tarayıcı çalıştırmaz. Nonce ve `suppressHydrationWarning`
+          gerekçesi açılış script'iyle birebir aynı (§7.3 nonce gizleme).
+        */}
+        <script
+          type="application/ld+json"
+          nonce={nonce}
+          suppressHydrationWarning
+          // eslint-disable-next-line react/no-danger -- Sabit yapılandırılmış veri, kullanıcı girdisi yok; veri bloğu, çalıştırılmaz (§7.2, §7.11).
+          dangerouslySetInnerHTML={STRUCTURED_DATA}
         />
       </head>
       <body className="flex min-h-full flex-col">
