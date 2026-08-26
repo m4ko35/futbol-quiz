@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback } from "react";
 import { useJoinRoom } from "./use-join-room";
+import { Button } from "./ui/button";
 
 /**
  * Paylaşılan bağlantıyla gelen kişinin katılma ekranı — PROJECT.md §12.4.
@@ -55,16 +56,16 @@ export function RoomJoin({ code }: { readonly code: string }) {
           </p>
         </div>
 
-        <button
-          type="button"
-          disabled={isJoining}
-          className="w-fit rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40"
+        <Button
+          size="md"
+          loading={isJoining}
+          className="w-fit"
           onClick={() => {
             join(code);
           }}
         >
           {isJoining ? "Katılınıyor…" : "Bu odaya katıl"}
-        </button>
+        </Button>
       </section>
 
       {failure !== null && (

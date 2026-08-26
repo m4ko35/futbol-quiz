@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { buttonClasses } from "./ui/button";
 
 /**
  * Odaya çağrı şeridi — PROJECT.md §12.7.
@@ -42,7 +43,7 @@ export function RoomEntryBar({ signedIn }: RoomEntryBarProps) {
 
       <Link
         href={signedIn ? "/oda" : "/giris"}
-        className="rounded-lg bg-accent px-4 py-3 text-sm font-semibold whitespace-nowrap text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        className={buttonClasses({ size: "md" }, "whitespace-nowrap")}
       >
         {signedIn ? "Oda kur" : "Giriş yap ve oda kur"}
       </Link>

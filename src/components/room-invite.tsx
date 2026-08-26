@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect } from "react";
 import { rememberInvite } from "@/lib/room-invite";
+import { buttonClasses } from "./ui/button";
 
 /**
  * Giriş yapmamış davetlinin gördüğü ekran — PROJECT.md §12.
@@ -47,10 +48,7 @@ export function RoomInvite({ code }: { readonly code: string }) {
           Odalar hesapla oynanıyor: sonuç ekranında karşılıklı adlar görünüyor.
         </p>
 
-        <Link
-          href="/giris"
-          className="w-fit rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-        >
+        <Link href="/giris" className={buttonClasses({ size: "md" }, "w-fit")}>
           Giriş yap ve katıl
         </Link>
       </section>

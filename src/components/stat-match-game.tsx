@@ -33,6 +33,7 @@ import {
 } from "@/lib/stat-match-storage";
 import { ModeHeader, Scoreboard } from "./mode-header";
 import { PlayerPicker } from "./player-picker";
+import { Button, buttonClasses } from "./ui/button";
 
 /**
  * İstatistik eşleştirme oyunu — PROJECT.md §9.2.
@@ -498,19 +499,15 @@ export function StatMatchGame({
           {recording?.kind === "kayitli" && (
             <Link
               href="/lider-tablosu"
-              className="rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              className={buttonClasses({ size: "md" })}
             >
               Lider tablosunu gör
             </Link>
           )}
           {onRestart !== undefined && (
-            <button
-              type="button"
-              className="rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-              onClick={onRestart}
-            >
+            <Button size="md" onClick={onRestart}>
               Başka oyuncu seç
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -690,16 +687,15 @@ function StatRow({ stat, answer, disabled, isOpen, onOpen }: StatRowProps) {
       </span>
 
       {answer === undefined ? (
-        <button
-          type="button"
+        <Button
+          size="md"
           disabled={disabled}
           aria-expanded={isOpen}
-          className="rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40"
           onClick={onOpen}
         >
           Oyuncu seç
           <span className="sr-only"> — {stat.label}</span>
-        </button>
+        </Button>
       ) : (
         <span className="flex flex-col items-end gap-1 text-sm">
           <span className="font-semibold">{answer.playerName}</span>

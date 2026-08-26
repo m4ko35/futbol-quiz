@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { PageShell } from "@/components/page-shell";
 import { SiteFooter } from "@/components/site-footer";
+import { buttonClasses } from "@/components/ui/button";
 import { accountsEnabled } from "@/infrastructure/config/env";
 import { datasets } from "@/infrastructure/db/repositories";
 import { currentUser } from "@/lib/auth/current-user";
@@ -79,10 +80,7 @@ export default async function LoginPage({ searchParams }: PageProps) {
       )}
 
       <section className="flex flex-col gap-4 rounded-xl border border-line bg-surface p-6 shadow-card">
-        <a
-          href="/api/auth/google"
-          className="inline-flex items-center justify-center rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-        >
+        <a href="/api/auth/google" className={buttonClasses({ size: "md" })}>
           Google ile gir
         </a>
 

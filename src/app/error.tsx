@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+
 /**
  * Sayfa düzeyinde hata ekranı — PROJECT.md §6.3.
  *
@@ -36,13 +38,9 @@ export default function GlobalError({
       )}
 
       <div>
-        <button
-          type="button"
-          onClick={reset}
-          className="rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-        >
+        <Button size="md" onClick={reset}>
           Yeniden dene
-        </button>
+        </Button>
       </div>
     </main>
   );

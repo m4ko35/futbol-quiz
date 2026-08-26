@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { peekRoom } from "@/application/use-cases/rooms";
 import { PageShell } from "@/components/page-shell";
 import { RoomBoard } from "@/components/room-board";
+import { buttonClasses } from "@/components/ui/button";
 import { RoomInvite } from "@/components/room-invite";
 import { RoomJoin } from "@/components/room-join";
 import { SiteFooter } from "@/components/site-footer";
@@ -131,10 +132,7 @@ function RoomClosed({
         </p>
       </header>
 
-      <Link
-        href="/oda"
-        className="w-fit rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-      >
+      <Link href="/oda" className={buttonClasses({ size: "md" }, "w-fit")}>
         Kendi odanı kur
       </Link>
     </div>

@@ -22,6 +22,7 @@ import type { StatMatchState } from "@/lib/stat-match-storage";
 import { ModeHeader, Scoreboard } from "./mode-header";
 import { RoomResult, sidePoints } from "./room-result";
 import { StatMatchGame } from "./stat-match-game";
+import { Button } from "./ui/button";
 import { useCreateRoom } from "./use-create-room";
 
 /**
@@ -456,14 +457,9 @@ function Rematch() {
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <button
-        type="button"
-        disabled={isCreating}
-        className="rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40"
-        onClick={create}
-      >
+      <Button size="md" loading={isCreating} onClick={create}>
         {isCreating ? "Oda kuruluyor…" : "Yeni oda kur"}
-      </button>
+      </Button>
 
       <Link
         href="/istatistik"
@@ -536,15 +532,14 @@ function RoomCodeCard({ code }: { readonly code: string }) {
       </div>
 
       <div className="flex flex-wrap gap-3">
-        <button
-          type="button"
-          className="rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        <Button
+          size="md"
           onClick={() => {
             copy("kod", code);
           }}
         >
           Kodu kopyala
-        </button>
+        </Button>
 
         <button
           type="button"

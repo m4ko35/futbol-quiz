@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { buttonClasses } from "@/components/ui/button";
 
 /**
  * 404 ekranı — PROJECT.md §7.11.
@@ -21,10 +22,7 @@ export default function NotFound() {
       </p>
 
       <div>
-        <Link
-          href="/"
-          className="inline-block rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-        >
+        <Link href="/" className={buttonClasses({ size: "md" })}>
           Başa dön
         </Link>
       </div>

@@ -15,6 +15,7 @@ import {
 } from "@/lib/room-invite";
 import { useCreateRoom } from "./use-create-room";
 import { useJoinRoom } from "./use-join-room";
+import { Button } from "./ui/button";
 
 /**
  * Oda lobisi — PROJECT.md §12.
@@ -90,14 +91,14 @@ export function RoomLobby() {
           açılır.
         </p>
 
-        <button
-          type="button"
-          disabled={create.isCreating}
-          className="w-fit rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40"
+        <Button
+          size="md"
+          loading={create.isCreating}
+          className="w-fit"
           onClick={create.create}
         >
           {create.isCreating ? "Oda kuruluyor…" : "Oda kur"}
-        </button>
+        </Button>
 
         {create.failure !== null && (
           <p
@@ -162,13 +163,15 @@ export function RoomLobby() {
             </p>
           </div>
 
-          <button
+          <Button
             type="submit"
-            disabled={!valid || isJoining}
-            className="w-fit rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40"
+            size="md"
+            loading={isJoining}
+            disabled={!valid}
+            className="w-fit"
           >
             {isJoining ? "Katılınıyor…" : "Katıl"}
-          </button>
+          </Button>
         </form>
 
         {joinFailure !== null && (

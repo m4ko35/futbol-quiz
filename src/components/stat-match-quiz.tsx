@@ -8,6 +8,7 @@ import type {
 } from "@/application/use-cases/daily-stat-match";
 import type { StatKey } from "@/domain/services/stat-match";
 import { PlayerPicker } from "./player-picker";
+import { Button } from "./ui/button";
 import { formatTurkishIsoDate } from "@/lib/format-date";
 import { readErrorMessage } from "@/lib/http/error-message";
 import { searchPlayersForStat, searchTargets } from "@/lib/http/player-search";
@@ -145,17 +146,17 @@ export function StatMatchQuiz({
         {chosen === null ? (
           <>
             {!isPicking && (
-              <button
-                type="button"
-                disabled={isLoading}
-                className="w-fit rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40"
+              <Button
+                size="md"
+                loading={isLoading}
+                className="w-fit"
                 onClick={() => {
                   setIsPicking(true);
                   setFailure(null);
                 }}
               >
                 Oyuncu seç
-              </button>
+              </Button>
             )}
 
             {isPicking && (

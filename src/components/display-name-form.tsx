@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Button } from "./ui/button";
 import {
   DISPLAY_NAME_MAX_LENGTH,
   DISPLAY_NAME_MIN_LENGTH,
@@ -129,13 +130,14 @@ export function DisplayNameForm() {
         </p>
       )}
 
-      <button
+      <Button
         type="submit"
-        disabled={sending || blocked || trimmed.length === 0}
-        className="rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40"
+        size="md"
+        loading={sending}
+        disabled={blocked || trimmed.length === 0}
       >
         {sending ? "Açılıyor…" : "Hesabı aç"}
-      </button>
+      </Button>
     </form>
   );
 }

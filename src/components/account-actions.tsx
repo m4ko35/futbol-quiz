@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Button } from "./ui/button";
 
 /**
  * Çıkış ve hesap silme — PROJECT.md §11.10, BR-48.
@@ -55,14 +56,14 @@ export function AccountActions() {
 
         {confirming ? (
           <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={busy}
+            <Button
+              variant="danger"
+              size="md"
+              loading={busy}
               onClick={() => void post("/api/auth/hesap-sil")}
-              className="rounded-lg bg-wrong px-4 py-3 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-40"
             >
               {busy ? "Siliniyor…" : "Evet, hesabımı sil"}
-            </button>
+            </Button>
             <button
               type="button"
               disabled={busy}

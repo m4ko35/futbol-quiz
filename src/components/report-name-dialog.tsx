@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useId, useRef, useState } from "react";
+import { Button } from "./ui/button";
 import {
   REPORT_REASON_LABELS,
   REPORT_REASONS,
@@ -116,13 +117,9 @@ export function ReportNameDialog({ displayName }: ReportNameDialogProps) {
                 Bildirimin alındı. İncelenecek — bir ad{" "}
                 <strong>otomatik olarak</strong> kaldırılmaz.
               </p>
-              <button
-                type="button"
-                onClick={kapat}
-                className="self-start rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-              >
+              <Button size="md" className="self-start" onClick={kapat}>
                 Kapat
-              </button>
+              </Button>
             </>
           ) : (
             <>
@@ -153,14 +150,13 @@ export function ReportNameDialog({ displayName }: ReportNameDialogProps) {
               )}
 
               <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  disabled={durum === "gonderiliyor"}
+                <Button
+                  size="md"
+                  loading={durum === "gonderiliyor"}
                   onClick={() => void gonder()}
-                  className="rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-40"
                 >
                   {durum === "gonderiliyor" ? "Gönderiliyor…" : "Bildir"}
-                </button>
+                </Button>
                 <button
                   type="button"
                   onClick={kapat}

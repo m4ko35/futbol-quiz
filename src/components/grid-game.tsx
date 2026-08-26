@@ -24,6 +24,7 @@ import {
 } from "@/lib/grid-storage";
 import { ModeHeader, Scoreboard } from "./mode-header";
 import { PlayerPicker } from "./player-picker";
+import { Button } from "./ui/button";
 
 /**
  * Yeni bulmacanın yayın saati — BR-49'un sabitinden TÜRETİLİR.
@@ -444,13 +445,9 @@ export function GridGame({
               : `Yeni ızgara her gün ${ROLLOVER_LABEL} (TSİ) yayınlanır.`}
           </p>
           {onRestart !== undefined && (
-            <button
-              type="button"
-              className="rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-              onClick={onRestart}
-            >
+            <Button size="md" onClick={onRestart}>
               Yeni ızgara kur
-            </button>
+            </Button>
           )}
         </div>
       )}

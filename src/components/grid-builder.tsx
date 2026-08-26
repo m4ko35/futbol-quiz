@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import type { GridCriterionRefDto } from "@/application/use-cases/custom-grid";
 import { GRID_SIZE, GRID_SIZES, type GridSize } from "@/domain/services/grid";
 import { CriterionPicker } from "./criterion-picker";
+import { Button } from "./ui/button";
 
 /**
  * "Sen kur" — ızgarayı kullanıcı kurar (PROJECT.md §9.1, BR-25).
@@ -199,16 +200,15 @@ export function GridBuilder({
       )}
 
       <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
+        <Button
+          size="md"
           disabled={!columnsReady || rows.length !== size}
-          className="rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40"
           onClick={() => {
             onBuilt({ rows, columns });
           }}
         >
           Izgarayı kur
-        </button>
+        </Button>
         {columnsReady && rows.length !== size && (
           <p className="text-sm text-muted">
             {String(size - rows.length)} satır daha seçin.

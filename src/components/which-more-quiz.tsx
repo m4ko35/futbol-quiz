@@ -8,6 +8,7 @@ import type {
   WhichMoreRoundDto,
 } from "@/application/use-cases/which-more";
 import { ModeHeader, Scoreboard } from "./mode-header";
+import { Button } from "./ui/button";
 import { STAT_KEYS, type StatKey } from "@/domain/services/stat-match";
 import {
   LEVELS,
@@ -902,13 +903,9 @@ function VerdictBar({
         {band !== null && <p className="text-sm text-muted">{band}</p>}
       </div>
 
-      <button
-        type="button"
-        className="rounded-lg bg-accent px-5 py-3 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-        onClick={onContinue}
-      >
+      <Button size="lg" onClick={onContinue}>
         Devam
-      </button>
+      </Button>
     </div>
   );
 }
@@ -958,13 +955,9 @@ function OverPanel({ title, detail, streak, tone, onRestart }: OverPanelProps) {
       {band !== null && <p className="text-sm text-muted">{band}</p>}
 
       <div>
-        <button
-          type="button"
-          className="rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          onClick={onRestart}
-        >
+        <Button size="md" onClick={onRestart}>
           Yeniden başla
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -1283,16 +1276,10 @@ function StatPicker({
         className="animate-duel-enter"
         style={{ animationDelay: `${String(9 * SETUP_STEP_MS)}ms` }}
       >
-        <button
-          type="button"
-          className="w-full rounded-xl bg-accent px-7 py-3.5 text-base font-bold text-accent-fg shadow-card transition-[transform,box-shadow,opacity] duration-150 hover:-translate-y-0.5 hover:opacity-95 hover:shadow-pop focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:translate-y-0 sm:w-auto"
-          onClick={onStart}
-        >
+        <Button size="hero" glow className="w-full sm:w-auto" onClick={onStart}>
           Başla
-          <span aria-hidden="true" className="ml-2">
-            →
-          </span>
-        </button>
+          <span aria-hidden="true">→</span>
+        </Button>
       </div>
     </div>
   );
