@@ -120,19 +120,40 @@ export function totalScore(scores: readonly number[]): number {
  * sahibinin istediği sayı budur ve kullanıcının kafasındaki sayı da budur —
  * "Kane 527 gol" derken kimse lig golünü kastetmiyor.
  *
- * PARÇALARDAN BİRİ BİLİNMİYORSA TOPLAM DA BİLİNMİYOR (§2.7). `null` sıfır
- * değildir: millî takım kaydı olmayan bir oyuncuda "hiç millî gol atmadı" ile
- * "millî takıma çıkıp çıkmadığını bilmiyoruz" veri kümesinde AYIRT EDİLEMEZ.
- * İkisini sıfır sayıp toplamak, ölçülemeyen bir yanlışı sessizce sayıya
- * çevirirdi. Ölçülen bedel §9.2'de: tanınırlık havuzunda gol için 2.789 →
- * 1.824, ama KOLAY havuzda 1.126 → 1.124, yani oyunun görünen yüzünde iki
- * oyuncu.
+ * PARÇALARDAN BİRİ BİLİNMİYORSA TOPLAM DA BİLİNMİYOR (§2.7): `null` sıfır
+ * değildir. Ama millî YARININ `null`'ı iki ayrı şeydir ve ayrımı çağıran
+ * `nationalContribution` ile YAPAR (aşağıya bakınız); bu fonksiyona ulaşan
+ * `national`, artık ya bilinen bir sayı ya da gerçekten belirsiz olan `null`dır.
  */
 export function officialTotal(
   club: number | null,
   national: number | null,
 ): number | null {
   return club === null || national === null ? null : club + national;
+}
+
+/**
+ * Resmî toplamın MİLLÎ yarısı — millî kariyerin sinyali `caps`tir (§9.2, BR-23,
+ * 26 Ağustos 2026 revizyonu).
+ *
+ * `nationalGoals`/`nationalCaps` `null` olması İKİ ayrı şeyi anlatır ve ayrımı
+ * `caps` yapar:
+ *   - caps NULL → oyuncunun kayıtlı bir A millî takım kariyeri YOK; millî
+ *     katkısı bilinmiyor değil, gerçekten SIFIRDIR.
+ *   - caps VAR  → oyuncu oynamış; değer bilinen sayıdır (gerçek 0 DÂHİL) ya da
+ *     `null`'dır (oynadı ama o sayı eksik) — o zaman toplam da `null` kalır.
+ *
+ * NEDEN GÜVENLİ. Ölçüldü (26 Ağustos): `caps` boş olup da bilinen millî golü
+ * olan oyuncu SIFIR — yani "caps null → 0" hiçbir bilinen değeri ezmez. Bu,
+ * §2.7'nin ("sessizlik kanıt değildir") bilinçli ve ölçülmüş istisnasıdır:
+ * caps'in yokluğu burada sessizlik değil, millî kaydın yokluğunun KENDİSİDİR.
+ * Kapsam etkisi: resmî gol sorulabilirliği tanınırlık havuzunda %28,3 → ~%43,2.
+ */
+export function nationalContribution(
+  caps: number | null,
+  value: number | null,
+): number | null {
+  return caps === null ? 0 : value;
 }
 
 /**

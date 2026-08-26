@@ -139,8 +139,10 @@ beforeAll(async () => {
       wikidataId: "Qcapsiz",
       name: "Millîsiz Oyuncu",
       searchKey: toSearchKey("Millîsiz Oyuncu"),
-      // Kulüp yarısı VAR, millî yarısı YOK: resmî toplam hesaplanamaz (BR-23)
-      // ama boy, doğum yılı ve kulüp sayısı sorularında hâlâ geçerli cevaptır.
+      // Kulüp yarısı VAR, millî yarısı YOK. §9.2 revizyonu (26 Ağu 2026):
+      // millî kaydı olmayan oyuncunun millî katkısı 0'dır, dolayısıyla resmî
+      // maç (210) ve resmî gol (12) HESAPLANIR. `nationalCaps` sorusunda ise
+      // (ham millî maç sayısı) hâlâ geçersizdir — o sayı gerçekten yok.
       clubCareerAppearances: 210,
       clubCareerGoals: 12,
       heightCm: 185,
@@ -340,6 +342,23 @@ describe("POST /api/stat-match/answer — BR-18, BR-20", () => {
     const body = await ret.json();
     expect(ret.status).toBe(400);
     expect(body.error.code).toBe("VALIDATION_ERROR");
+  });
+
+  /**
+   * §9.2 revizyonu (26 Ağu 2026) — hiç millî maçı olmayan oyuncunun millî
+   * katkısı 0'dır; resmî maç ve resmî gol artık hesaplanır ve geçerli cevaptır.
+   * Eski kural bu iki soruda da reddederdi (millî yarı null → toplam null).
+   */
+  it("millî maçı olmayan oyuncu resmî maç/gol sorusunda kabul edilir", async () => {
+    const mac = await answerRoute.POST(
+      post({ statKey: "appearances", playerId: "capsiz" }),
+    );
+    expect(mac.status).toBe(200);
+
+    const gol = await answerRoute.POST(
+      post({ statKey: "goals", playerId: "capsiz" }),
+    );
+    expect(gol.status).toBe(200);
   });
 
   /**

@@ -1065,7 +1065,8 @@ Bu, koşudan önce fark edilmemiş ve **koşudan sonra ölçülmüş** bir sonu�
 Keşfedilen oyuncunun hiçbir `P54` ifadesi yok — bu yalnızca kulüp bağının
 değil, **millî takım bağının da** yokluğu demek, çünkü `nationalCaps` de aynı
 ifadeden okunuyor (BR-14). §9.2'ye göre resmî toplam iki parçası da doluysa
-hesaplanır; biri boşsa sonuç `null`.
+hesaplanır; biri boşsa sonuç `null` (26 Ağustos revizyonu: `nationalCaps`
+boşsa millî yarı `null` değil `0` sayılır — §9.2 revizyonuna bakınız).
 
 | Alan                            | Keşfedilenler (3.541) | Ötekiler (132.842) |
 | ------------------------------- | --------------------: | -----------------: |
@@ -4038,7 +4039,7 @@ Geçiş onaylanmadan önce bugünkü kapsam ölçüldü (15 Ağustos 2026):
 
 Geçiş yapıldı ve **hiçbir sayı tahminle konmadı**; hepsi `npm run stats:measure` ile 21 Ağustos veri kümesi üzerinde ölçüldü.
 
-**Tanım.** `officialTotal(kulüp, millî)` — parçalardan biri `null` ise toplam da `null`. Maç için `clubCareerAppearances + nationalCaps`, gol için `clubCareerGoals + nationalGoals`.
+**Tanım.** `officialTotal(kulüp, millî)` — parçalardan biri `null` ise toplam da `null`. Maç için `clubCareerAppearances + nationalCaps`, gol için `clubCareerGoals + nationalGoals`. _(Millî yarının `null` işlenişi 26 Ağustos revizyonunda değişti — aşağıya bakınız.)_
 
 **MAÇ VE GOL BİRLİKTE GEÇTİ.** İkisi Vikipedi'nin kariyer toplamı satırında AYNI hücrelerden okunuyor; tanınırlık havuzunda kapsamları birebir aynı (2.789/2.789, ayrışan **0**). Yalnız gol geçseydi ekranda **39 imkânsız kart** çıkardı — Kane 527 gol / 427 lig maçı, Suárez 610/545, Tévez 321/268, Álvarez 154/111.
 
@@ -4052,7 +4053,26 @@ Geçiş yapıldı ve **hiçbir sayı tahminle konmadı**; hepsi `npm run stats:m
 | BR-31 kolay havuz · gol            |  1.273 | 1.124 | **−%12** |
 | BR-31 zor havuz · gol              |  5.403 | 1.824 | −%66     |
 
-**Millî takımın toplama girmesi KOLAY HAVUZDA neredeyse bedava.** Yalnız kulüp kariyeri sayılsaydı kolay havuz 1.126 olurdu; millî yarı da istendiğinde **1.124**. Fark iki oyuncu. Zor havuzdaki 2.789 → 1.824 düşüşünün tamamı, millî takım kaydı hiç olmayan 954 oyuncudan geliyor — yani `nationalCaps` boş olanlar. Onlarda "hiç millî gol atmadı" ile "millî takıma çıktı mı bilmiyoruz" veri kümesinde ayırt edilemez ve ikisini sıfır saymak §2.7'yi çiğnerdi.
+**Millî takımın toplama girmesi KOLAY HAVUZDA neredeyse bedava.** Yalnız kulüp kariyeri sayılsaydı kolay havuz 1.126 olurdu; millî yarı da istendiğinde **1.124**. Fark iki oyuncu. Zor havuzdaki 2.789 → 1.824 düşüşünün tamamı, millî takım kaydı hiç olmayan 954 oyuncudan geliyor — yani `nationalCaps` boş olanlar. Onlarda "hiç millî gol atmadı" ile "millî takıma çıktı mı bilmiyoruz" veri kümesinde ayırt edilemez ve ikisini sıfır saymak §2.7'yi çiğnerdi. **[Bu karar 26 Ağustos'ta revize edildi — hemen aşağıya bakınız.]**
+
+##### Revizyon: "hiç oynamamış" artık `null` değil `0` (26 Ağustos 2026)
+
+Yukarıdaki karar (millî yarı `null` → toplam `null`) tanınırlık havuzunun resmî-gol kapsamını **%28,3'e** düşürüyordu: kulüp golü %43,2'de dolu ama millî tarafı `null` olan **963 oyuncu** eleniyordu. Ürün sahibi, ayrımın veride VAR olduğunu görüp kararı tersine çevirdi.
+
+**Ayrımı `nationalCaps` yapıyor — millî kariyerin sinyali odur:**
+
+- `nationalCaps` **NULL** → oyuncunun kayıtlı bir A millî takım kariyeri **yok**; millî katkısı bilinmiyor değil, **sıfırdır**.
+- `nationalCaps` **VAR** → oyuncu oynamış; değer bilinen sayıdır (**gerçek 0 dâhil**) ya da `null`'dır (oynadı ama sayı eksik) — bu son durumda toplam yine `null` (bilinmez) kalır.
+
+**Ölçümle güvenli (26 Ağustos, 21 Ağustos veri kümesi).** `nationalCaps` boş olup da bilinen millî golü olan oyuncu sayısı **sıfır** (anomali yok) — yani "caps null → 0" hiçbir bilinen değeri ezmez. Oynayıp gol atmamış oyuncu zaten `nationalGoals = 0` kayıtlı (havuzda 1.522), `null` değil; ETL bu durumu baştan ayırıyor. Yalnızca oynadığı hâlde sayısı gerçekten eksik olan (`caps` var, değer `null`) **%0,6** belirsiz kalır ve doğru biçimde `null` sürer.
+
+**Kapsam etkisi:** resmî gol sorulabilirliği havuzda **%28,3 → ~%43,2** (1.833 → ~2.796 oyuncu); tüm kümede **%4,3 → %17,3**. Aynı düzeltme resmî MAÇA da uygulanır (aynı `officialTotal`, aynı sinyal) — maç ve gol yine birlikte, imkânsız kart üretmeden (millî iki yarı da caps'e bağlı, biri var biri yok olamaz).
+
+**Kabul edilen artık risk:** `nationalCaps` boş olması "hiç oynamadı" yerine "millî verisi tümden eksik" de olabilir; öyle bir oyuncuya millî katkı 0 atanır ve resmî toplamı olduğundan düşük gösterilir. Anomali 0 ve caps Wikidata'nın en iyi belgelenen alanlarından olduğu için risk nadir ve sınırlı; kazanç (havuzun yarıya yakını) buna değer. Bu, §2.7'nin "sessizlik kanıt değildir" ilkesinin bilinçli, ölçülmüş bir istisnasıdır — caps'in yokluğu burada sessizlik değil, **millî kaydın yokluğunun kendisidir**.
+
+**Kural (kodda `nationalContribution`, domain):** `millîKatkı(caps, değer) = caps === null ? 0 : değer`. Resmî gol = `officialTotal(kulüpGol, millîKatkı(caps, millîGol))`, resmî maç = `officialTotal(kulüpMaç, millîKatkı(caps, caps))`.
+
+**Ölçüm yükümlülüğü:** havuz büyüdüğü için `STAT_DEVIATIONS` ve BR-29 bandları (`MIN_GAP`) sapabilir; `npm run stats:measure` koşulur ve fark **raporlanır**. Sabitlerin (oyunun zorluğu) güncellenmesi ayrı bir ürün kararıdır, sessizce yapılmaz.
 
 **Cevap havuzundaki %94'lük daralma bir daralma değil, sayının kapsam değiştirmesinin bedelidir.** Kariyer toplamı okunamamış bir oyuncu için "resmî gol" diye bir sayı YOKTUR. Süzgeç ile sunucu birlikte değişti; ayrışsalardı seçici gösterir, sunucu reddederdi (§9.2'nin ölçülmüş kusur sınıfı).
 

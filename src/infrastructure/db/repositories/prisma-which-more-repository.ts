@@ -5,6 +5,7 @@ import type {
   WhichMoreRepository,
 } from "@/application/ports/which-more-repository";
 import {
+  nationalContribution,
   officialTotal,
   STAT_KEYS,
   type StatKey,
@@ -382,10 +383,18 @@ function valueOf(row: PoolRow, key: StatKey): number | null {
     return clubs === 0 ? null : clubs;
   }
 
-  // BR-23 — resmî toplam; parçalardan biri eksikse toplam da bilinmiyor.
+  // BR-23 — resmî toplam. Millî yarı caps'e göre işlenir (§9.2 revizyonu):
+  // caps yoksa millî katkı 0, varsa bilinen değer ya da null.
+  const caps = toNumber(row.nationalCaps);
   return key === "appearances"
-    ? officialTotal(toNumber(row.clubAppearances), toNumber(row.nationalCaps))
-    : officialTotal(toNumber(row.clubGoals), toNumber(row.nationalGoals));
+    ? officialTotal(
+        toNumber(row.clubAppearances),
+        nationalContribution(caps, caps),
+      )
+    : officialTotal(
+        toNumber(row.clubGoals),
+        nationalContribution(caps, toNumber(row.nationalGoals)),
+      );
 }
 
 function toNumber(value: number | bigint | null): number | null {

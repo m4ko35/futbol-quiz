@@ -17,6 +17,7 @@
  */
 import { CURATED_CLUB_QIDS } from "../src/application/curated-clubs";
 import {
+  nationalContribution,
   officialTotal,
   STAT_DEVIATIONS,
   STAT_KEYS,
@@ -100,9 +101,15 @@ function valueOf(row: Row, key: StatKey): number | null {
     // BR-23 — resmî toplam: kulüp kariyeri + A millî takım. Kural DOMAIN'den
     // geliyor; burada kopyalansaydı ölçüm ile oyun sessizce ayrışabilirdi.
     case "appearances":
-      return officialTotal(num(row.clubAppearances), num(row.nationalCaps));
+      return officialTotal(
+        num(row.clubAppearances),
+        nationalContribution(num(row.nationalCaps), num(row.nationalCaps)),
+      );
     case "goals":
-      return officialTotal(num(row.clubGoals), num(row.nationalGoals));
+      return officialTotal(
+        num(row.clubGoals),
+        nationalContribution(num(row.nationalCaps), num(row.nationalGoals)),
+      );
   }
 }
 

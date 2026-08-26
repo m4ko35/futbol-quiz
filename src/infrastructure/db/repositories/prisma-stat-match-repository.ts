@@ -3,7 +3,11 @@ import type {
   StatMatchRepository,
   StatMatchTarget,
 } from "@/application/ports/stat-match-repository";
-import { officialTotal, type StatKey } from "@/domain/services/stat-match";
+import {
+  nationalContribution,
+  officialTotal,
+  type StatKey,
+} from "@/domain/services/stat-match";
 import { playerId, type PlayerId } from "@/domain/value-objects/identifiers";
 import { Prisma, type PrismaClient } from "@/generated/prisma";
 import { yearOf } from "../birth-year";
@@ -156,9 +160,16 @@ export class PrismaStatMatchRepository implements StatMatchRepository {
       });
       if (player === null) return null;
 
+      // Millî yarı caps'e göre işlenir (§9.2 revizyonu): caps yoksa 0.
       return key === "appearances"
-        ? officialTotal(player.clubCareerAppearances, player.nationalCaps)
-        : officialTotal(player.clubCareerGoals, player.nationalGoals);
+        ? officialTotal(
+            player.clubCareerAppearances,
+            nationalContribution(player.nationalCaps, player.nationalCaps),
+          )
+        : officialTotal(
+            player.clubCareerGoals,
+            nationalContribution(player.nationalCaps, player.nationalGoals),
+          );
     }
 
     // Kulüp SAYISI kapsama bağlı kalır (§9.2): kariyer toplamı satırı "kaç
