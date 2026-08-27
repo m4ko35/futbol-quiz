@@ -51,34 +51,50 @@ describe("officialTotal — BR-23", () => {
   });
 });
 
-describe("nationalContribution — BR-23, §9.2 revizyonu (26 Ağu 2026)", () => {
-  /** A) Hiç oynamamış: caps null → katkı 0 (bilinmiyor DEĞİL). */
-  it("caps null ise 0 döner — değer ne olursa olsun", () => {
-    expect(nationalContribution(null, null)).toBe(0);
-    expect(nationalContribution(null, 7)).toBe(0);
+describe("nationalContribution — BR-23, §9.2 revizyonu (26–27 Ağu 2026)", () => {
+  /** caps VAR → oynadı, sayı biliniyor (gerçek 0 dâhil). */
+  it("caps varsa değeri döndürür (gerçek 0 dâhil)", () => {
+    expect(nationalContribution(true, 120, 45)).toBe(45);
+    expect(nationalContribution(true, 30, 0)).toBe(0);
   });
 
-  /** B) Oynamış ama gol atmamış: caps var, değer 0 → gerçek 0 korunur. */
-  it("caps varsa gerçek 0'ı korur", () => {
-    expect(nationalContribution(30, 0)).toBe(0);
+  /** caps VAR ama o istatistiğin değeri null → belirsiz (ör. maçı olup golü yok). */
+  it("caps var ama o istatistiğin değeri null ise null", () => {
+    expect(nationalContribution(true, 30, null)).toBeNull();
   });
 
-  /** Oynamış ve golü/maçı bilinen: değer aynen geçer. */
-  it("caps varsa bilinen değeri aynen döndürür", () => {
-    expect(nationalContribution(120, 45)).toBe(45);
+  /** A) Üyelik YOK + caps yok → hiç oynamamış → 0. */
+  it("üyelik yok + caps yok → 0 (hiç oynamamış)", () => {
+    expect(nationalContribution(false, null, null)).toBe(0);
   });
 
-  /** C) Oynamış ama o sayı eksik: caps var, değer null → belirsiz kalır. */
-  it("caps var ama değer null ise null döner (belirsiz)", () => {
-    expect(nationalContribution(30, null)).toBeNull();
+  /** C) Üyelik VAR + caps yok → oynadı ama sayı eksik → null (gizle). */
+  it("üyelik var + caps yok → null (oynadı, sayı eksik)", () => {
+    expect(nationalContribution(true, null, null)).toBeNull();
   });
 
-  /** Resmî toplamla birlikte: hiç oynamamış golcünün resmî golü artık gelir. */
-  it("hiç oynamamışta resmî toplam = kulüp yarısı", () => {
-    const caps = null;
-    expect(officialTotal(120, nationalContribution(caps, 0))).toBe(120);
-    // Oynadığı hâlde millî golü eksikse toplam yine bilinmez.
-    expect(officialTotal(120, nationalContribution(30, null))).toBeNull();
+  /** NULL-YEDEK: üyelik ölçülmemiş (null) → 26 Ağustos davranışı (caps yok → 0). */
+  it("üyelik null (ölçülmemiş) + caps yok → 0 (geçiş yedeği)", () => {
+    expect(nationalContribution(null, null, null)).toBe(0);
+    expect(nationalContribution(null, null, 7)).toBe(0);
+  });
+
+  /** Resmî toplamda üç durum + yedek. */
+  it("üç durum resmî toplama doğru yansır", () => {
+    // hiç oynamamış → kulüp-yalnız
+    expect(officialTotal(120, nationalContribution(false, null, null))).toBe(
+      120,
+    );
+    // oynadı ama sayı eksik → gizlenir
+    expect(
+      officialTotal(120, nationalContribution(true, null, null)),
+    ).toBeNull();
+    // ölçülmemiş → eski davranış (kulüp-yalnız)
+    expect(officialTotal(120, nationalContribution(null, null, null))).toBe(
+      120,
+    );
+    // oynadı, biliniyor → toplanır
+    expect(officialTotal(120, nationalContribution(true, 30, 12))).toBe(132);
   });
 });
 

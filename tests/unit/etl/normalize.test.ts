@@ -470,6 +470,7 @@ describe("isInScope — erkek ligi kapsamı", () => {
     genderQid,
     nationalCaps: null,
     nationalGoals: null,
+    nationalTeamMember: false,
     heightCm: null,
     weightKg: null,
     languageCount: null,

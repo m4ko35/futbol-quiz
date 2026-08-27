@@ -133,27 +133,35 @@ export function officialTotal(
 }
 
 /**
- * Resmî toplamın MİLLÎ yarısı — millî kariyerin sinyali `caps`tir (§9.2, BR-23,
- * 26 Ağustos 2026 revizyonu).
+ * Resmî toplamın MİLLÎ yarısı — ÜÇ durumu ayırır (§9.2, BR-23; 26 ve 27 Ağustos
+ * 2026 revizyonları).
  *
- * `nationalGoals`/`nationalCaps` `null` olması İKİ ayrı şeyi anlatır ve ayrımı
- * `caps` yapar:
- *   - caps NULL → oyuncunun kayıtlı bir A millî takım kariyeri YOK; millî
- *     katkısı bilinmiyor değil, gerçekten SIFIRDIR.
- *   - caps VAR  → oyuncu oynamış; değer bilinen sayıdır (gerçek 0 DÂHİL) ya da
- *     `null`'dır (oynadı ama o sayı eksik) — o zaman toplam da `null` kalır.
+ * `nationalCaps`/`nationalGoals` `null` olması tek başına belirsizdir; ayrımı
+ * İKİ sinyal yapar — maç sayısı (`caps`) ve millî takım üyeliği (`member`):
+ *   - caps VAR                 → oynadı, sayı biliniyor → `value` (gerçek 0
+ *     dâhil; o istatistik eksikse `null`, toplam da bilinmez).
+ *   - caps YOK, member = false → hiç oynamadı → katkı 0 (resmî toplam = kulüp).
+ *   - caps YOK, member = true  → oynadı ama sayısı eksik → `null` (bilinmiyor,
+ *     resmî toplam gizlenir). Bardakçı, Yunus Akgün gibi 350 oyuncu böyle.
  *
- * NEDEN GÜVENLİ. Ölçüldü (26 Ağustos): `caps` boş olup da bilinen millî golü
- * olan oyuncu SIFIR — yani "caps null → 0" hiçbir bilinen değeri ezmez. Bu,
- * §2.7'nin ("sessizlik kanıt değildir") bilinçli ve ölçülmüş istisnasıdır:
- * caps'in yokluğu burada sessizlik değil, millî kaydın yokluğunun KENDİSİDİR.
- * Kapsam etkisi: resmî gol sorulabilirliği tanınırlık havuzunda %28,3 → ~%43,2.
+ * NEDEN İKİ SİNYAL. 26 Ağustos'ta yalnız `caps` vardı ve "caps null → 0"
+ * denmişti; ölçüm (27 Ağu) caps=null oyuncuların %12,2'sinin GERÇEK millî
+ * oyuncu olduğunu (Wikidata üyeliği var, maç sayısı niteleyicisi yok) gösterdi.
+ * `member` o ayrımı taşır (şema `nationalTeamMember`, ETL doldurur).
+ *
+ * NULL-YEDEK. `member === null` = henüz ölçülmemiş (sütun boş); o sürece kadar
+ * son satıra düşülür ve davranış 26 Ağustos kuralıyla (caps null → 0) AYNI
+ * kalır. İlk ETL koşusu `member`'ı true/false doldurunca üçüncü durum devreye
+ * girer. BR-41 dil sayısıyla aynı null-yedekli geçiş.
  */
 export function nationalContribution(
+  member: boolean | null,
   caps: number | null,
   value: number | null,
 ): number | null {
-  return caps === null ? 0 : value;
+  if (caps !== null) return value;
+  if (member === true) return null;
+  return 0;
 }
 
 /**

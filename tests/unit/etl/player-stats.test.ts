@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyPlayerStats,
   nationalCapsFrom,
+  nationalMembershipFrom,
   physicalFrom,
   type NormalizedPlayer,
 } from "../../../scripts/etl/pipeline/normalize";
@@ -191,6 +192,31 @@ describe("nationalCapsFrom — millî takım golü", () => {
   });
 });
 
+describe("nationalMembershipFrom — BR-23 (§9.2, 27 Ağu)", () => {
+  /** Sayı niteleyicisi OLMAYAN üyelik satırı — Bardakçı/Yunus durumu. */
+  const memberRow = (player: string, team: string): SparqlBinding => ({
+    player: { type: "uri", value: `${ENTITY}${player}` },
+    team: { type: "uri", value: `${ENTITY}${team}` },
+  });
+
+  it("millî üyeliği SAYI OLMADAN da yakalar", () => {
+    const members = nationalMembershipFrom(
+      [memberRow("Q1", ITALY), capRow("Q2", SPAIN, 50)],
+      isNationalTeam,
+    );
+    expect(members.has("Q1")).toBe(true); // caps yok ama üye
+    expect(members.has("Q2")).toBe(true); // caps'li üye
+  });
+
+  it("yalnızca kulüp üyeliğini SAYMAZ", () => {
+    const members = nationalMembershipFrom(
+      [capRow("Q3", CLUB, 300)],
+      isNationalTeam,
+    );
+    expect(members.has("Q3")).toBe(false);
+  });
+});
+
 describe("physicalFrom — akla yatkın aralık", () => {
   function row(player: string, height?: number, mass?: number): SparqlBinding {
     return {
@@ -278,12 +304,14 @@ describe("applyPlayerStats", () => {
     genderQid: null,
     nationalCaps: null,
     nationalGoals: null,
+    nationalTeamMember: false,
     heightCm: null,
     weightKg: null,
     languageCount: null,
   };
 
   const ITALY = new Map([["Q1088902", "IT"]]);
+  const NO_MEMBERS = new Set<string>();
 
   it("istatistikleri oyuncuya işler", () => {
     const [player] = applyPlayerStats(
@@ -292,10 +320,12 @@ describe("applyPlayerStats", () => {
       new Map([["Q68060", { heightCm: 192, weightKg: 92 }]]),
       ITALY,
       new Map(),
+      new Set(["Q68060"]),
     );
 
     expect(player).toMatchObject({
       nationalCaps: 176,
+      nationalTeamMember: true,
       heightCm: 192,
       weightKg: 92,
       name: "Gianluigi Buffon",
@@ -311,6 +341,7 @@ describe("applyPlayerStats", () => {
       new Map(),
       new Map(),
       new Map([["Q68060", 96]]),
+      NO_MEMBERS,
     );
 
     expect(withLang?.languageCount).toBe(96);
@@ -325,12 +356,14 @@ describe("applyPlayerStats", () => {
       new Map(),
       new Map(),
       new Map(),
+      NO_MEMBERS,
     );
 
     expect(player).toMatchObject({
       wikidataId: "Q68060",
       nationalCaps: null,
       nationalGoals: null,
+      nationalTeamMember: false,
       heightCm: null,
       weightKg: null,
       // Millî takım yok ama tek vatandaşlık var — BR-38'in ikinci kademesi.
@@ -360,6 +393,7 @@ describe("applyPlayerStats", () => {
       new Map(),
       ITALY,
       new Map(),
+      new Set(["Q191885"]),
     );
 
     expect(player?.nationality).toBe("IT");
@@ -372,6 +406,7 @@ describe("applyPlayerStats", () => {
       new Map(),
       ITALY,
       new Map(),
+      NO_MEMBERS,
     );
 
     expect(base.nationalCaps).toBeNull();

@@ -54,6 +54,7 @@ import {
   labelsFrom,
   looksLikeYouthOrReserve,
   nationalCapsFrom,
+  nationalMembershipFrom,
   nationalTeamCountriesFrom,
   physicalFrom,
   playerIdsOf,
@@ -549,6 +550,8 @@ export async function extractDataset(
   );
 
   const caps = new Map<string, NationalTeamCaps>();
+  // Millî üyelik — caps'ten AYRI (§9.2, BR-23): sayısı olmayan üyeliği de sayar.
+  const nationalMembers = new Set<string>();
   const physical = new Map<
     string,
     { heightCm: number | null; weightKg: number | null }
@@ -568,6 +571,12 @@ export async function extractDataset(
       nationalTeamIds.has(team),
     )) {
       caps.set(player, value);
+    }
+    // AYNI sonuçtan üyelik: caps'i olmayan millî üyelik de burada yakalanır.
+    for (const player of nationalMembershipFrom(capsBindings, (team) =>
+      nationalTeamIds.has(team),
+    )) {
+      nationalMembers.add(player);
     }
 
     const physicalBindings = await client.queryBatch(batch, playerPhysical, {
@@ -594,10 +603,11 @@ export async function extractDataset(
     physical,
     nationalTeamCountries,
     languages,
+    nationalMembers,
   );
   const sizes = [...physical.values()];
   console.log(
-    `      millî maç ${caps.size} · ` +
+    `      millî maç ${caps.size} · üyelik ${nationalMembers.size} · ` +
       `boy ${sizes.filter((p) => p.heightCm !== null).length} · ` +
       `kilo ${sizes.filter((p) => p.weightKg !== null).length} · ` +
       `dil ${languages.size}`,

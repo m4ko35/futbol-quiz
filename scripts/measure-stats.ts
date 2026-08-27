@@ -50,6 +50,8 @@ interface Row {
   languageCount: number | bigint | null;
   nationalCaps: number | bigint | null;
   nationalGoals: number | bigint | null;
+  /** BR-23 — millî üyelik; `null` = geçiş yedeği (SQLite: 0/1/null). */
+  nationalTeamMember: number | bigint | boolean | null;
   heightCm: number | bigint | null;
   clubAppearances: number | bigint | null;
   clubGoals: number | bigint | null;
@@ -69,8 +71,8 @@ async function recognizablePool(): Promise<Row[]> {
       HAVING SUM(s.appearances) >= ${MIN_APPEARANCES}
          AND COUNT(DISTINCT s.clubId) >= ${MIN_CLUBS}
     )
-    SELECT p.birthDate, p.nationalCaps, p.nationalGoals, p.heightCm,
-           p.nationality, p.languageCount,
+    SELECT p.birthDate, p.nationalCaps, p.nationalGoals, p.nationalTeamMember,
+           p.heightCm, p.nationality, p.languageCount,
            p.clubCareerAppearances AS clubAppearances,
            p.clubCareerGoals       AS clubGoals,
            COUNT(DISTINCT s.clubId) AS clubs,
@@ -84,6 +86,11 @@ async function recognizablePool(): Promise<Row[]> {
 
 function toNumber(value: number | bigint | null): number | null {
   return value === null ? null : Number(value);
+}
+
+/** Millî üyelik (BR-23): `null` = ölçülmemiş (yedek), yoksa 0/1 → false/true. */
+function mem(value: number | bigint | boolean | null): boolean | null {
+  return value === null ? null : Boolean(Number(value));
 }
 
 function valueOf(row: Row, key: StatKey): number | null {
@@ -103,12 +110,20 @@ function valueOf(row: Row, key: StatKey): number | null {
     case "appearances":
       return officialTotal(
         num(row.clubAppearances),
-        nationalContribution(num(row.nationalCaps), num(row.nationalCaps)),
+        nationalContribution(
+          mem(row.nationalTeamMember),
+          num(row.nationalCaps),
+          num(row.nationalCaps),
+        ),
       );
     case "goals":
       return officialTotal(
         num(row.clubGoals),
-        nationalContribution(num(row.nationalCaps), num(row.nationalGoals)),
+        nationalContribution(
+          mem(row.nationalTeamMember),
+          num(row.nationalCaps),
+          num(row.nationalGoals),
+        ),
       );
   }
 }

@@ -340,6 +340,14 @@ SELECT ?team ?sportCountryCode ?adminCountryCode WHERE {
  *
  * `?caps` ifade başına gelir ve **toplanmaz** — BR-14 gereği en büyüğü alınır.
  *
+ * `?caps` ARTIK OPTIONAL (27 Ağustos 2026, §9.2 revizyonu). Eskiden `pq:P1350`
+ * zorunluydu; maç SAYISI niteleyicisi olmayan millî üyelik hiç dönmüyordu ve
+ * caps null kalınca "hiç oynamamış" ile "oynadı, sayı eksik" ayırt edilemiyordu
+ * (ölçüldü: havuzda 350 gerçek millî oyuncu böyle). Zorunluluk kalkınca üyeliğin
+ * KENDİSİ görünür oluyor: `nationalCapsFrom` sayıyı yine yalnız `?caps` dolu
+ * satırdan alır (davranış aynı), `nationalMembershipFrom` ise millî takım
+ * satırının VARLIĞINI okur. İkisi tek sorgudan, ek tarama yok.
+ *
  * `?goals` AYNI İFADEDEN gelir ve `OPTIONAL`'dır. İkisini tek sorguda almak
  * bir tercih değil, tek seçenek: gol niteliği maç niteliğinin yanında durur,
  * ayrı sorgu ikinci bir tam tarama demek olurdu. Ölçüldü (15 Ağustos 2026,
@@ -357,7 +365,8 @@ export function playerStats(playerQids: readonly string[]): string {
 SELECT ?player ?team ?caps ?goals WHERE {
   VALUES ?player { ${values} }
   ?player p:${WD.PROP_MEMBER_OF_TEAM} ?st .
-  ?st ps:${WD.PROP_MEMBER_OF_TEAM} ?team ; pq:${WD.PROP_MATCHES_PLAYED} ?caps .
+  ?st ps:${WD.PROP_MEMBER_OF_TEAM} ?team .
+  OPTIONAL { ?st pq:${WD.PROP_MATCHES_PLAYED} ?caps }
   OPTIONAL { ?st pq:${WD.PROP_GOALS} ?goals }
 }`.trim();
 }

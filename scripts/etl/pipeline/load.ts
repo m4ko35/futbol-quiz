@@ -164,6 +164,9 @@ export async function loadDataset(
           // alanı atlamak eski bir değeri sessizce ayakta bırakırdı.
           nationalCaps: player.nationalCaps,
           nationalGoals: player.nationalGoals,
+          // §9.2 BR-23 — millî üyelik sinyali; caps null iken "hiç oynamamış"
+          // ile "sayısı eksik"i ayırır. ETL her koşuda true/false yazar.
+          nationalTeamMember: player.nationalTeamMember,
           clubCareerAppearances:
             input.careerTotals?.get(player.wikidataId)?.appearances ?? null,
           clubCareerGoals:

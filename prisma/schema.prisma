@@ -134,6 +134,24 @@ model Player {
   /// aynı ifadede, aynı istekte geliyor.
   nationalGoals Int?
 
+  /// A millî takım ÜYELİĞİ var mı — `nationalCaps`'ten AYRI sinyal (§9.2,
+  /// 27 Ağustos 2026 revizyonu, BR-23).
+  ///
+  /// NEDEN AYRI. `nationalCaps` yalnızca maç SAYISI niteleyicisi (`P1350`)
+  /// olan üyelikten gelir. Bardakçı, Yunus Akgün gibi gerçek millî oyuncuların
+  /// Wikidata üyeliğinde bu niteleyici EKSİK; caps null kalıyor ve "hiç
+  /// oynamamış" ile ayırt edilemiyordu. Ölçüldü (27 Ağu, havuzda caps=null 2.878
+  /// oyuncu): %87,7 gerçekten hiç oynamamış, %12,2 (350; 229'u ekranda) millî
+  /// üyeliği VAR ama sayısı yok. Bu alan o ayrımı taşır.
+  ///
+  /// `nationalContribution` (domain) bununla üç durumu ayırır: üyelik yok → 0,
+  /// üyelik var + caps yok → null (bilinmiyor, gizle), caps var → sayı.
+  ///
+  /// `null` = HENÜZ ÖLÇÜLMEMİŞ (geçiş yedeği). Alan boşken domain eski
+  /// davranışa (caps null → 0) düşer; ilk ETL koşusu true/false doldurunca
+  /// devreye girer. BR-41 dil sayısıyla aynı null-yedekli geçiş.
+  nationalTeamMember Boolean?
+
   /// Kulüp kariyerinin TAMAMI — lig, yerel kupa, Avrupa, hepsi (§9.2).
   ///
   /// `careerAppearances` ile KARIŞTIRILMAMALI: o, BR-21'in arama sıralama

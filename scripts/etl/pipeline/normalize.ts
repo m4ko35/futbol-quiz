@@ -56,6 +56,13 @@ export interface NormalizedPlayer {
    * kariyer istatistiği tablosundan gelir; ikisi ayrı fazlarda toplanır.
    */
   nationalGoals: number | null;
+  /**
+   * A millî takım üyeliği var mı — `nationalCaps`'ten AYRI (§9.2, BR-23).
+   * `nationalCapsFrom` yalnızca maç sayısı olan üyeliği görür; bu, sayı
+   * olmayan üyeliği de yakalar ("hiç oynamamış" ≠ "oynadı, sayı eksik").
+   * `applyPlayerStats` doldurur.
+   */
+  nationalTeamMember: boolean;
   heightCm: number | null;
   weightKg: number | null;
   /** §9.3 BR-41 — Wikipedia dil sayısı; ayrı sorgudan, `applyPlayerStats` doldurur. */
@@ -476,6 +483,7 @@ export function toPlayer(
     // Ayrı sorgulardan gelir; `applyPlayerStats` doldurur.
     nationalCaps: null,
     nationalGoals: null,
+    nationalTeamMember: false,
     heightCm: null,
     weightKg: null,
     languageCount: null,
@@ -704,6 +712,35 @@ export function nationalCapsFrom(
 }
 
 /**
+ * A millî takım ÜYELİĞİ olan oyuncular — maç sayısı olsun olmasın (§9.2, BR-23).
+ *
+ * `nationalCapsFrom` sayıyı verir ama sayısı olmayan üyeliği (satırda `?caps`
+ * yok) atlar; bu fonksiyon o satırların VARLIĞINI okur. İkisi AYNI `playerStats`
+ * sonucundan gelir — sorgu `P1350`'yi opsiyonel tuttuğu için sayısız millî
+ * üyelik de satır olarak dönüyor (bkz. `playerStats`).
+ *
+ * Bu ayrım "hiç oynamamış" (üyelik yok → resmî toplamda millî katkı 0) ile
+ * "oynadı ama sayısı eksik" (üyelik var, caps null → bilinmiyor) arasındaki
+ * farkı taşır; domain'de `nationalContribution` bunu kullanır.
+ */
+export function nationalMembershipFrom(
+  bindings: readonly SparqlBinding[],
+  isNationalTeam: (teamQid: string) => boolean,
+): Set<string> {
+  const members = new Set<string>();
+
+  for (const binding of bindings) {
+    const player = qid(binding, "player");
+    const team = qid(binding, "team");
+    if (player === undefined || team === undefined) continue;
+    if (!isNationalTeam(team)) continue;
+    members.add(player);
+  }
+
+  return members;
+}
+
+/**
  * Millî takım → ülke kodu (BR-38'in birinci kademesi).
  *
  * `P1532` (spor için ülke) ÖNCELİKLİ ama seyrek; ölçüldü, dört takımın
@@ -856,6 +893,7 @@ export function applyPlayerStats(
   >,
   nationalTeamCountries: ReadonlyMap<string, string>,
   languages: ReadonlyMap<string, number>,
+  nationalMembers: ReadonlySet<string>,
 ): NormalizedPlayer[] {
   return players.map((player) => {
     const size = physical.get(player.wikidataId);
@@ -873,6 +911,7 @@ export function applyPlayerStats(
       }),
       nationalCaps: national?.caps ?? null,
       nationalGoals: national?.goals ?? null,
+      nationalTeamMember: nationalMembers.has(player.wikidataId),
       heightCm: size?.heightCm ?? null,
       weightKg: size?.weightKg ?? null,
       // Dil sorgusunda çıkmayan oyuncu 0 dil (null DEĞİL — §9.3, BR-41).

@@ -69,6 +69,8 @@ interface PoolRow {
   name: string;
   nationalCaps: number | bigint | null;
   nationalGoals: number | bigint | null;
+  /** Millî üyelik (BR-23); `null` = geçiş yedeği. SQLite: 0/1/null. */
+  nationalTeamMember: number | bigint | boolean | null;
   heightCm: number | bigint | null;
   /** Doğum YILI ayrı bir sütun değil, buradan türetilir — §9.2. */
   birthDate: Date | null;
@@ -249,6 +251,7 @@ export class PrismaWhichMoreRepository implements WhichMoreRepository {
       SELECT p.id AS id, p.name AS name,
              p.nationalCaps  AS nationalCaps,
              p.nationalGoals AS nationalGoals,
+             p.nationalTeamMember AS nationalTeamMember,
              p.heightCm      AS heightCm,
              p.birthDate     AS birthDate,
              p.clubCareerAppearances AS clubAppearances,
@@ -305,6 +308,7 @@ export class PrismaWhichMoreRepository implements WhichMoreRepository {
       SELECT p.id AS id, p.name AS name,
              p.nationalCaps  AS nationalCaps,
              p.nationalGoals AS nationalGoals,
+             p.nationalTeamMember AS nationalTeamMember,
              p.heightCm      AS heightCm,
              p.birthDate     AS birthDate,
              p.nationality   AS nationality,
@@ -386,19 +390,25 @@ function valueOf(row: PoolRow, key: StatKey): number | null {
   // BR-23 — resmî toplam. Millî yarı caps'e göre işlenir (§9.2 revizyonu):
   // caps yoksa millî katkı 0, varsa bilinen değer ya da null.
   const caps = toNumber(row.nationalCaps);
+  const member = toBool(row.nationalTeamMember);
   return key === "appearances"
     ? officialTotal(
         toNumber(row.clubAppearances),
-        nationalContribution(caps, caps),
+        nationalContribution(member, caps, caps),
       )
     : officialTotal(
         toNumber(row.clubGoals),
-        nationalContribution(caps, toNumber(row.nationalGoals)),
+        nationalContribution(member, caps, toNumber(row.nationalGoals)),
       );
 }
 
 function toNumber(value: number | bigint | null): number | null {
   return value === null ? null : Number(value);
+}
+
+/** Millî üyelik (BR-23): `null` = ölçülmemiş (yedek), yoksa 0/1 → false/true. */
+function toBool(value: number | bigint | boolean | null): boolean | null {
+  return value === null ? null : Boolean(Number(value));
 }
 
 /** `value >= target` olan ilk indeks. Dizi ARTAN sıralı olmalıdır. */

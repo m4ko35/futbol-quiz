@@ -191,6 +191,31 @@ beforeAll(async () => {
     },
   });
 
+  // §9.2 (27 Ağu revizyonu) — GERÇEK millî oyuncu ama Wikidata'da maç SAYISI
+  // eksik: üyelik VAR (nationalTeamMember=true), caps null. Resmî maç/gol
+  // BİLİNMİYOR → gizlenir (0 sayılmaz). `capsiz`'in tersi. Bardakçı/Yunus durumu.
+  await db.prisma.player.create({
+    data: {
+      id: "uyesayisiz",
+      wikidataId: "Quyesayisiz",
+      name: "Üye Sayısız",
+      searchKey: toSearchKey("Üye Sayısız"),
+      nationalTeamMember: true,
+      clubCareerAppearances: 300,
+      clubCareerGoals: 40,
+      heightCm: 183,
+      birthDate: new Date(Date.UTC(1996, 0, 1)),
+      spells: {
+        create: [CLUB_A, CLUB_B].map((qid, i) => ({
+          wikidataStatementId: `uyesayisiz-${String(i)}`,
+          clubId: clubIdOf(qid),
+          appearances: 100 + i,
+          goals: 5,
+        })),
+      },
+    },
+  });
+
   process.env.DATABASE_URL = db.url;
   process.env.RATE_LIMIT_REQUESTS_PER_MINUTE ??= "60";
   process.env.RATE_LIMIT_BURST ??= "10";
@@ -359,6 +384,23 @@ describe("POST /api/stat-match/answer — BR-18, BR-20", () => {
       post({ statKey: "goals", playerId: "capsiz" }),
     );
     expect(gol.status).toBe(200);
+  });
+
+  /**
+   * §9.2 (27 Ağu) — millî ÜYELİĞİ olan ama maç SAYISI eksik oyuncu: resmî
+   * maç/gol BİLİNMİYOR, gizlenir (0 sayılmaz). `capsiz`'in tersi — onda üyelik
+   * yok (hiç oynamamış) → kulüp-yalnız gösterilir; burada üyelik var → reddedilir.
+   */
+  it("millî üyeliği olup sayısı eksik oyuncu resmî maç/golde reddedilir", async () => {
+    const mac = await answerRoute.POST(
+      post({ statKey: "appearances", playerId: "uyesayisiz" }),
+    );
+    expect(mac.status).toBe(400);
+
+    const gol = await answerRoute.POST(
+      post({ statKey: "goals", playerId: "uyesayisiz" }),
+    );
+    expect(gol.status).toBe(400);
   });
 
   /**

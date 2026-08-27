@@ -156,19 +156,30 @@ export class PrismaStatMatchRepository implements StatMatchRepository {
           clubCareerGoals: true,
           nationalCaps: true,
           nationalGoals: true,
+          nationalTeamMember: true,
         },
       });
       if (player === null) return null;
 
-      // Millî yarı caps'e göre işlenir (§9.2 revizyonu): caps yoksa 0.
+      // Millî yarı caps + üyeliğe göre işlenir (§9.2 revizyonu): üyelik yoksa 0,
+      // varsa caps yoksa null (bilinmiyor), caps varsa sayı.
+      const member = player.nationalTeamMember;
       return key === "appearances"
         ? officialTotal(
             player.clubCareerAppearances,
-            nationalContribution(player.nationalCaps, player.nationalCaps),
+            nationalContribution(
+              member,
+              player.nationalCaps,
+              player.nationalCaps,
+            ),
           )
         : officialTotal(
             player.clubCareerGoals,
-            nationalContribution(player.nationalCaps, player.nationalGoals),
+            nationalContribution(
+              member,
+              player.nationalCaps,
+              player.nationalGoals,
+            ),
           );
     }
 

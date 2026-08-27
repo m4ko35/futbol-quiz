@@ -4074,6 +4074,20 @@ Yukarıdaki karar (millî yarı `null` → toplam `null`) tanınırlık havuzunu
 
 **Ölçüm yükümlülüğü:** havuz büyüdüğü için `STAT_DEVIATIONS` ve BR-29 bandları (`MIN_GAP`) sapabilir; `npm run stats:measure` koşulur ve fark **raporlanır**. Sabitlerin (oyunun zorluğu) güncellenmesi ayrı bir ürün kararıdır, sessizce yapılmaz.
 
+##### 27 Ağustos rafinesi: üçüncü durum — "oynadı ama sayısı eksik"
+
+26 Ağustos'un "caps null → 0"ı ÖLÇÜLDÜ (Wikidata'ya soruldu, havuzda caps=null 2.878 oyuncu). Sonuç: **%87,7'si** gerçekten hiç oynamamış (0 DOĞRU), ama **%12,2'si (350; 229'u ekranda)** GERÇEK millî oyuncu — Wikidata üyelikleri var, yalnızca maç sayısı niteleyicisi (`P1350`) eksik. Abdülkerim Bardakçı, Yunus Akgün böyle: onlara 0 vermek resmî toplamı olduğundan DÜŞÜK gösteriyordu. (Anomali kontrolü: caps var + üyelik yok kombinasyonu ölçüldü, karşıt yönde tutarsızlık yok.)
+
+Ayrım için ETL artık **millî takım üyeliğinin VARLIĞINI** ayrı bir sinyal olarak çekiyor (`players.nationalTeamMember`): `playerStats` sorgusu `P1350`'yi OPTIONAL yaptı, böylece sayısız millî üyelik de satır olarak dönüyor ve `nationalMembershipFrom` onu okuyor — sayıyı yine `nationalCapsFrom` yalnız `P1350` dolu satırdan alır (davranış değişmez), ek tarama yok.
+
+`nationalContribution` artık ÜÇ durumu ayırır (domain):
+
+- **üyelik yok** → millî katkı **0** (hiç oynamamış → resmî toplam = kulüp). 2.525 oyuncu; doğru.
+- **üyelik var + caps yok** → **`null`** (oynadı ama sayı bilinmiyor → resmî toplam GİZLENİR). 350 oyuncu; artık dürüst.
+- **caps var** → sayı (gerçek 0 dâhil; o istatistik eksikse `null`).
+
+**NULL-YEDEK (BR-41 deseni).** `nationalTeamMember` sütunu boşken (`null` = henüz ölçülmemiş) domain 26 Ağustos davranışına düşer (caps null → 0); ilk ETL koşusu true/false doldurunca üçüncü durum devreye girer. O koşudan sonra havuz `stats:measure` ile yeniden ölçülür (kapsam düşer: hiç oynamamışlar kalır, sayısız-üyeler gizlenir).
+
 **Cevap havuzundaki %94'lük daralma bir daralma değil, sayının kapsam değiştirmesinin bedelidir.** Kariyer toplamı okunamamış bir oyuncu için "resmî gol" diye bir sayı YOKTUR. Süzgeç ile sunucu birlikte değişti; ayrışsalardı seçici gösterir, sunucu reddederdi (§9.2'nin ölçülmüş kusur sınıfı).
 
 **Üç sabit birden bayatladı** ve `stats:measure` üçünü de yakaladı:
