@@ -892,12 +892,19 @@ export function applyPlayerStats(
     { heightCm: number | null; weightKg: number | null }
   >,
   nationalTeamCountries: ReadonlyMap<string, string>,
-  languages: ReadonlyMap<string, number>,
+  languages: ReadonlyMap<string, number | null>,
   nationalMembers: ReadonlySet<string>,
 ): NormalizedPlayer[] {
   return players.map((player) => {
     const size = physical.get(player.wikidataId);
     const national = caps.get(player.wikidataId);
+    // Dil çekimi AYRIMI (§8.2, BR-41): harita girişi YOKSA (undefined) oyuncu
+    // sorguda hiç çıkmadı → 0 dil (gerçekten az/hiç, bilinir). Girişi explicit
+    // `null` ise o batch'in çekimi WDQS'te BAŞARISIZ oldu → bilinmiyor, null
+    // bırakılır ve isWellKnown eski vekil ölçüte düşer (0 sanılıp "tanınmıyor"
+    // damgası YEMEZ). "hiç oynamamış 0 vs sayısız üye null" ayrımının eşi.
+    const rawLanguages = languages.get(player.wikidataId);
+    const languageCount = rawLanguages === undefined ? 0 : rawLanguages;
 
     return {
       ...player,
@@ -914,8 +921,7 @@ export function applyPlayerStats(
       nationalTeamMember: nationalMembers.has(player.wikidataId),
       heightCm: size?.heightCm ?? null,
       weightKg: size?.weightKg ?? null,
-      // Dil sorgusunda çıkmayan oyuncu 0 dil (null DEĞİL — §9.3, BR-41).
-      languageCount: languages.get(player.wikidataId) ?? 0,
+      languageCount,
     };
   });
 }

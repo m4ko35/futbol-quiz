@@ -153,6 +153,15 @@ export interface ExtractOptions {
    * doğrulanmış veri gibi yükler.
    */
   readonly applySquadDiscovery?: boolean;
+  /**
+   * Dil sayısı çekimini (§9.3 BR-41) tamamen ATLAR: her oyuncunun
+   * languageCount'u null bırakılır (null-yedek → isWellKnown eski vekil ölçüte
+   * düşer, oyun değişmez). WDQS'in ağır sitelink sorgusunu servis edemediği
+   * BİLİNDİĞİNDE, çekirdek veriyi (üyelik/BR-23) rehin tutmadan yüklemek için
+   * (§8.2 "İsteğe bağlı zenginleştirme…"). Dil, sonraki sağlıklı tazelemede
+   * dolar. Non-fatal try/catch'ten farkı: hiç DENEMEZ, retry bütçesi yakmaz.
+   */
+  readonly skipLanguages?: boolean;
 }
 
 /**
@@ -272,6 +281,7 @@ export async function extractDataset(
   options: ExtractOptions = {},
 ): Promise<ExtractedDataset> {
   const noCache = options.noCache ?? false;
+  const skipLanguages = options.skipLanguages ?? false;
 
   // ─── 1. Ligdeki kulüpler ──────────────────────────────────────────────
   console.log("\n[1/5] Kulüpler çekiliyor…");
@@ -557,7 +567,14 @@ export async function extractDataset(
     { heightCm: number | null; weightKg: number | null }
   >();
   // §9.3 BR-41 — Wikipedia dil sayısı; kolay havuzun küresel şöhret ölçütü.
-  const languages = new Map<string, number>();
+  // Değer number|null: başarısız batch'te oyunculara AÇIKÇA null yazılır, ki
+  // applyPlayerStats onları "sorguda çıkmadı → 0" ile karıştırmasın.
+  const languages = new Map<string, number | null>();
+  // Dil çekimi KOŞU-ÖLDÜRÜCÜ DEĞİL (§8.2): WDQS bu sitelink sorgusunu servis
+  // edemezse batch'in languageCount'u null kalır (BR-41 null-yedeği) ve koşu
+  // sürer. Çekirdek veri (caps/üyelik) tıkanmadıkça hazır olan yazılmalıdır.
+  let languageBatchesFailed = 0;
+  let languagePlayersMissed = 0;
 
   for (let i = 0; i < playerIds.length; i += PLAYER_BATCH_SIZE) {
     const batch = playerIds.slice(i, i + PLAYER_BATCH_SIZE);
@@ -587,13 +604,35 @@ export async function extractDataset(
       physical.set(player, value);
     }
 
-    const languageBindings = await client.queryBatch(
-      batch,
-      playerWikipediaLanguages,
-      { label: `player-languages-${group}-${batch.length}`, noCache },
-    );
-    for (const [player, count] of wikipediaLanguagesFrom(languageBindings)) {
-      languages.set(player, count);
+    if (skipLanguages) {
+      // --skip-languages (§8.2): dil ucu bilinçli atlanıyor, hiç denenmez.
+      // Herkes AÇIKÇA null → "0 sanılmaz", eski vekil ölçüt kullanılır.
+      for (const player of batch) languages.set(player, null);
+      continue;
+    }
+
+    try {
+      const languageBindings = await client.queryBatch(
+        batch,
+        playerWikipediaLanguages,
+        { label: `player-languages-${group}-${batch.length}`, noCache },
+      );
+      for (const [player, count] of wikipediaLanguagesFrom(languageBindings)) {
+        languages.set(player, count);
+      }
+    } catch (error: unknown) {
+      // WDQS bu batch'i servis edemedi (queryBatch iç bölme + yeniden-deneme
+      // bütçesini tükettikten sonra). Dil isteğe bağlı ve null-yedekli → koşuyu
+      // öldürme; sonrakine geç (§8.2). Batch'in HER oyuncusuna AÇIKÇA null yaz:
+      // böylece languageCount "0 sanılmaz", bilinmiyor olarak (null) kalır.
+      for (const player of batch) languages.set(player, null);
+      languageBatchesFailed += 1;
+      languagePlayersMissed += batch.length;
+      console.warn(
+        `  ⚠ dil çekimi atlandı (player-languages-${group}-${batch.length}): ` +
+          `${error instanceof Error ? error.message : "bilinmeyen"} — ` +
+          `languageCount null (BR-41 null-yedeği)`,
+      );
     }
   }
 
@@ -610,8 +649,22 @@ export async function extractDataset(
     `      millî maç ${caps.size} · üyelik ${nationalMembers.size} · ` +
       `boy ${sizes.filter((p) => p.heightCm !== null).length} · ` +
       `kilo ${sizes.filter((p) => p.weightKg !== null).length} · ` +
-      `dil ${languages.size}`,
+      `dil ${[...languages.values()].filter((c) => c !== null).length}`,
   );
+  if (skipLanguages) {
+    console.warn(
+      `  ⚠ dil çekimi --skip-languages ile ATLANDI — tüm languageCount null ` +
+        `(BR-41 null-yedeği, isWellKnown eski vekile düşer, oyun değişmez). ` +
+        `Dil ucu düzelince yeni tazeleme doldurur.`,
+    );
+  } else if (languageBatchesFailed > 0) {
+    console.warn(
+      `  ⚠ dil çekimi ${languageBatchesFailed} batch'te başarısız — ` +
+        `~${languagePlayersMissed} oyuncunun languageCount'u null bırakıldı ` +
+        `(WDQS servis edemedi; BR-41 null-yedeği, oyun bugün değişmez). ` +
+        `Dil ucu düzelince yeni tazeleme bunları doldurur.`,
+    );
+  }
 
   // BR-38'in kademeleri ölçülüyor: hangi sinyalin kaç oyuncuyu kapsadığı,
   // bir sonraki koşuda kuralın işe yarayıp yaramadığını söyleyen tek sayı.

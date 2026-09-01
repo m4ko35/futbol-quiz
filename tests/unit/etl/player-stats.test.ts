@@ -348,6 +348,26 @@ describe("applyPlayerStats", () => {
     expect(withoutLang?.languageCount).toBe(0);
   });
 
+  /**
+   * §8.2 / BR-41 — dil çekimi WDQS'te BAŞARISIZ olursa `extractDataset` o
+   * batch'in oyuncularına haritada AÇIKÇA `null` yazar. Bu, "sorguda çıkmadı →
+   * 0" ile karışmamalı: 0 sanmak ünlü bir oyuncuyu "tanınmıyor" damgalardı.
+   * Bilinmiyor → null (isWellKnown eski vekil ölçüte düşer). "hiç oynamamış 0
+   * vs sayısız üye null" ayrımının (BR-23) eşi.
+   */
+  it("dil çekimi başarısızsa (harita null) languageCount null; 0 DEĞİL", () => {
+    const [player] = applyPlayerStats(
+      [base],
+      new Map(),
+      new Map(),
+      new Map(),
+      new Map([["Q68060", null]]),
+      NO_MEMBERS,
+    );
+
+    expect(player?.languageCount).toBeNull();
+  });
+
   /** Eksik istatistik oyuncuyu DÜŞÜRMEZ; yalnızca o alanı boş bırakır. */
   it("istatistiği olmayan oyuncuyu korur", () => {
     const [player] = applyPlayerStats(

@@ -3313,6 +3313,18 @@ Denetim **iki aşamalıdır**. Tek aşamalı ilk tasarım kullanılamaz çıktı
 
 Yükleme ayrıca **otoriter**dir: tam koşuda gelen listede olmayan kulüpler, dönemi kalmayan kulüpler ve dönemi kalmayan oyuncular silinir. Bu olmadan veritabanı önceki koşuların artıklarını biriktiriyordu.
 
+#### İsteğe bağlı zenginleştirme çekimi koşuyu ÖLDÜRMEZ (languageCount, 1 Eylül 2026)
+
+Yukarıdaki durma kuralı **bozuk veri** içindir. Bir alanın **çekilememesi** — kaynağın (WDQS) o sorguyu servis edememesi — farklı bir durumdur ve farklı bir tepki gerektirir. `languageCount` (BR-41, §9.3) `null` kabul eden, null-yedekli bir zenginleştirmedir; eksikse domain zaten eski davranışa düşer ve oyun değişmez. Bu alanın çekimi başarısız olduğunda **tüm koşuyu iptal etmek**, tek bir ikincil sinyal uğruna koşunun ürettiği bütün doğru veriyi çöpe atmak demektir — §2.7'nin "belirsizlik veri kaybından iyidir" ilkesinin tam tersi.
+
+O yüzden `player-languages` çekimi **koşu-öldürücü değildir**: bir batch (`queryBatch`'in iç yeniden-deneme ve bölme bütçesini tükettikten sonra) başarısız olursa uyarı basılır, o batch'teki oyuncuların `languageCount`'u `null` bırakılır ve koşu devam eder. Kaç oyuncunun dili çekilemedi koşu sonunda ayrıca yazılır; kapsam düşerse `stats:measure` ve kabul kontrolü bunu görür.
+
+**Bilinçli atlama: `--skip-languages`.** Non-fatal yol her batch için önce çekmeyi DENER; endpoint tümüyle tıkalıysa bu, batch başına retry+bölme bütçesini boşa yakar (yüzlerce batch × dakikalar = saatler). Uç noktanın ağır sitelink sorgusunu servis edemediği ÖNCEDEN biliniyorsa `npm run etl -- --skip-languages` dil aşamasını hiç denemeden geçer: her `languageCount` doğrudan `null` yazılır, çekirdek veri (üyelik/BR-23) beklemeden yüklenir. İkisi de aynı sonuca (null) varır; fark hızdır. `languageCount` `null` kaldığı için oyun yine değişmez ve dil sonraki sağlıklı tazelemede dolar.
+
+**Ayrım keskin: yalnızca isteğe bağlı, null-yedekli alanlar bu istisnaya girer.** `player-caps` (millî maç + üyelik, BR-23) çekiminin başarısızlığı yüklemeyi **hâlâ durdurur** — o veri çekirdeğin parçası, boş gelirse herkese sessizce "millî yok" yazılırdı ki bu bozuk veridir. Zenginleştirme ile çekirdek arasındaki çizgi budur.
+
+**Neden bu ölçülerek kondu.** 31 Ağustos–1 Eylül 2026'da millî üyelik (BR-23) tazelemesi üç kez denendi; public WDQS'in `player-languages` sitelink sorgusu ~8 saat boyunca — düşük-trafik UTC saatleri dâhil — 502/504/429 döndürdü ve her koşuyu tam bu noktada öldürdü. Üyelik verisi (`player-caps`) önbellekte hazırdı ama dil çekimi koşuyu öldürdüğü için **hiçbir şey yazılamıyordu**. Zenginleştirmeyi çekirdekten ayırmak, hazır olan doğruyu rehin tutmayı bitirir.
+
 #### Çapa oyuncular: bir ismin kaybını sayı kapısı görmez (22 Ağustos 2026)
 
 §5.3.2 ölçtü: Wikidata'nın `mul` etiket göçü Cristiano Ronaldo'yu yayımlanmış veri kümesinden çıkardı ve **hiçbir kapı ses çıkarmadı**. Kapıların sessizliği yapısaldır — hepsi bir ORAN ya da TOPLAM ölçüyor:
@@ -4591,6 +4603,8 @@ Eski ölçüt bir VEKİLDİ ve iki kusur sınıfı ölçülmüştü — kolay ha
 Doğru ölçüt ikisinin **birleşimi**: 40+ Wikipedia dili **VEYA** Türkiye millî takımında 20+ maç. **Bu artık yazıldı (24 Ağustos 2026):** `players.languageCount` sütunu (§9.3 şema), ETL'in Wikipedia dil sayısı çekimi (`playerWikipediaLanguages`, `wikibase:wikiGroup "wikipedia"` — Wikiquote/Commons değil yalnızca dil sürümleri) ve `isWellKnown`'ın yeni sürümü eklendi.
 
 **Devreye alma 20 Eylül 2026 tazelemesine bağlı ve bu YAPISAL — ayrı bir bayrak yok.** `languageCount` sütunu `null` iken (dolduran ilk ETL koşusuna kadar) `isWellKnown` ESKİ vekil ölçüte düşer, yani **oyun davranışı bugün DEĞİŞMEZ**. Tazeleme koşusu sütunu doldurunca yeni ölçüt kendiliğinden devreye girer. Veri, davranışın anahtarıdır. Küçük ülke şişmesi (James Debbah 40 dil eşiğini geçemez → düşer) ve pre-2000 efsaneleri (Beckenbauer 99 dil → çağ sınırı olmadan girer) o an düzelir; yerel şöhret ise `nationality = "TR"` yoluyla korunur.
+
+Bu null-yedeğin ikinci bir sonucu var: dil çekimi (`player-languages`) WDQS'te başarısız olsa bile **koşu ölmez** — o batch'in `languageCount`'u `null` bırakılır ve yukarıdaki eski-vekil davranışı sürer (bkz. §8.2 "İsteğe bağlı zenginleştirme çekimi koşuyu ÖLDÜRMEZ"). Böylece dil ucu tıkalıyken bile millî üyelik (BR-23) gibi çekirdek veriler yazılabilir.
 
 Yeni havuz kompozisyonu (yukarıdaki %33 dâhil) tazelemeden sonra **yeniden ölçülecek**; `buildPool` sorgusu artık `languageCount` ve `nationality`'yi de yansıtıyor (ek katılım yok, maliyet ihmal edilebilir ama ölçüm tekrarlanacak).
 

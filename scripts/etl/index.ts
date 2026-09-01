@@ -26,6 +26,9 @@ import { WikipediaClient } from "./sources/wikipedia/client";
  *   npm run etl -- --skip-squad-discovery   kadro keşfini atla (§4.3 Aşama 3)
  *   npm run etl -- --apply-squad-discovery  keşfedilen oyuncuları GERÇEKTEN
  *                                     yükle (varsayılan: gölge modu, BR-60)
+ *   npm run etl -- --skip-languages   dil sayısı çekimini ATLA; languageCount
+ *                                     null kalır (§8.2). WDQS'in ağır sitelink
+ *                                     sorgusu tıkalıyken çekirdeği yüklemek için
  *
  * Bu, ağa çıkan tek süreçtir (§7.4). Web uygulaması çalışırken Wikidata'ya
  * veya Vikipedi'ye hiçbir bağlantı kurulmaz.
@@ -45,6 +48,7 @@ interface CliOptions {
   applyWikipediaVerdict: boolean;
   skipSquadDiscovery: boolean;
   applySquadDiscovery: boolean;
+  skipLanguages: boolean;
 }
 
 function parseArgs(argv: readonly string[]): CliOptions {
@@ -56,6 +60,7 @@ function parseArgs(argv: readonly string[]): CliOptions {
     applyWikipediaVerdict: false,
     skipSquadDiscovery: false,
     applySquadDiscovery: false,
+    skipLanguages: false,
   };
 
   for (const arg of argv) {
@@ -73,6 +78,8 @@ function parseArgs(argv: readonly string[]): CliOptions {
       options.skipSquadDiscovery = true;
     } else if (arg === "--apply-squad-discovery") {
       options.applySquadDiscovery = true;
+    } else if (arg === "--skip-languages") {
+      options.skipLanguages = true;
     } else if (arg.startsWith("--max-clubs=")) {
       const value = Number.parseInt(arg.slice("--max-clubs=".length), 10);
       if (!Number.isInteger(value) || value < 1) {
@@ -120,6 +127,7 @@ async function main(): Promise<void> {
     applyWikipediaVerdict: options.applyWikipediaVerdict,
     skipSquadDiscovery: options.skipSquadDiscovery,
     applySquadDiscovery: options.applySquadDiscovery,
+    skipLanguages: options.skipLanguages,
   });
 
   console.log(
