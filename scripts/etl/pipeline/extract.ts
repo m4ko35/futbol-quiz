@@ -26,7 +26,10 @@ import {
   wikipediaArticles,
 } from "../sources/wikidata/queries";
 import { int, qid, str, type SparqlBinding } from "../sources/wikidata/schemas";
-import type { CareerTotal } from "../sources/wikipedia/career-total";
+import {
+  mergeCareerTotals,
+  type CareerTotal,
+} from "../sources/wikipedia/career-total";
 import type { NationalTotal } from "../sources/wikipedia/infobox";
 import {
   checkCareerTotals,
@@ -942,8 +945,20 @@ export async function extractDataset(
       vermeliydi. Burada bulunan şey ARİTMETİK OLARAK İMKÂNSIZ: bütünü
       kapsayan sayı parçasından küçük olamaz. İnsana sorulacak bir yanı yok.
     */
+    // §9.2 BR-65 — İngilizce (öncelikli) + Türkçe (yedek) kariyer toplamları
+    // BİRLEŞTİRİLİR, sonra çapraz denetime girer: Türkçe okuma da lig sayımızla
+    // sınanır. Türkçe yalnızca İngilizcenin boş olduğu oyuncuyu doldurur.
+    const mergedTotals = mergeCareerTotals(
+      pass.careerTotals,
+      pass.careerTotalsTr,
+    );
+    let trFilled = 0;
+    for (const playerId of pass.careerTotalsTr.keys()) {
+      if (!pass.careerTotals.has(playerId)) trFilled++;
+    }
+
     const checked = checkCareerTotals({
-      careerTotals: pass.careerTotals,
+      careerTotals: mergedTotals,
       spells: finalSpells,
     });
     careerTotals = checked.accepted;
@@ -959,8 +974,10 @@ export async function extractDataset(
     const missed = pass.stats.careerTotalsMissed;
     const read = pass.stats.careerTotalsParsed;
     console.log(
-      `      kariyer toplamı: ${read} okundu · ${missed} makale okunamadı · ` +
-        `${checked.conflicts.length} kayıt lig sayımızdan KÜÇÜK çıktı ve düştü`,
+      `      kariyer toplamı: ${read} en okundu · +${trFilled} tr yedek ` +
+        `(${pass.stats.careerTotalsTrParsed} tr toplam) · ${missed} en makale ` +
+        `okunamadı · ${checked.conflicts.length} kayıt lig sayımızdan KÜÇÜK ` +
+        `çıktı ve düştü`,
     );
     for (const conflict of checked.conflicts.slice(0, 5)) {
       console.log(

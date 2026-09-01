@@ -6,6 +6,7 @@ import {
 } from "../sources/wikipedia/client";
 import {
   parseCareerTotal,
+  parseCareerTotalTr,
   type CareerTotal,
 } from "../sources/wikipedia/career-total";
 import {
@@ -95,6 +96,8 @@ export interface WikipediaPassStats {
   careerTotalsParsed: number;
   /** İngilizce makalesi olup kariyer toplamı OKUNAMAYAN oyuncu. */
   careerTotalsMissed: number;
+  /** Türkçe kariyer toplamı okunan oyuncu — §9.2 BR-65 (İngilizce yedeği). */
+  careerTotalsTrParsed: number;
   /** Kıdemli millî caps bilgi kutusundan okunan oyuncu — §9.2 BR-64. */
   nationalTotalsParsed: number;
 }
@@ -108,6 +111,14 @@ export interface WikipediaPassResult {
    * ikinci kez ayrıştırılır, yeni bir ağ isteği YOKTUR.
    */
   readonly careerTotals: ReadonlyMap<string, CareerTotal>;
+  /**
+   * Oyuncu QID → Türkçe kulüp kariyer toplamı (§9.2 BR-65).
+   *
+   * İngilizcenin YEDEĞİ: çağıran (extract.ts) İngilizce toplam boşken uygular
+   * (`mergeCareerTotals`) ve sonuç lig sayımızla çapraz denetlenir. Aynı tr
+   * makale metninden okunur, yeni ağ isteği yok.
+   */
+  readonly careerTotalsTr: ReadonlyMap<string, CareerTotal>;
   /**
    * Oyuncu QID → kıdemli A millî takım caps/golü (§9.2 BR-64).
    *
@@ -162,6 +173,7 @@ export async function collectWikipediaSpells(
     clubTitlesIndexed: 0,
     careerTotalsParsed: 0,
     careerTotalsMissed: 0,
+    careerTotalsTrParsed: 0,
     nationalTotalsParsed: 0,
   };
 
@@ -174,6 +186,15 @@ export async function collectWikipediaSpells(
    * değişiyor ve `career-total.ts` başlığı İngilizceye göre arıyor.
    */
   const careerTotals = new Map<string, CareerTotal>();
+
+  /**
+   * Oyuncu QID → TÜRKÇE kulüp kariyer toplamı — §9.2 BR-65.
+   *
+   * İngilizcenin YEDEĞİ. Ayrı tutulur (İngilizceyle karışmaz); birleştirme ve
+   * öncelik `extract.ts`'te `mergeCareerTotals` ile yapılır ki Türkçe okuma da
+   * lig sayımızın çapraz denetiminden (`checkCareerTotals`) geçsin.
+   */
+  const careerTotalsTr = new Map<string, CareerTotal>();
 
   /**
    * Oyuncu QID → kıdemli millî caps/gol — §9.2 BR-64. `tr`/`en`'den okunur;
@@ -257,6 +278,18 @@ export async function collectWikipediaSpells(
             for (const playerId of playerIdList) {
               careerTotals.set(playerId, total);
               stats.careerTotalsParsed++;
+            }
+          }
+        }
+
+        // §9.2 BR-65 — Türkçe kariyer toplamı, AYNI tr metninden. İngilizcenin
+        // yedeği; öncelik ve birleştirme çağırana bırakılır (mergeCareerTotals).
+        if (site === "tr") {
+          const total = parseCareerTotalTr(text);
+          if (total !== null) {
+            for (const playerId of playerIdList) {
+              careerTotalsTr.set(playerId, total);
+              stats.careerTotalsTrParsed++;
             }
           }
         }
@@ -350,5 +383,12 @@ export async function collectWikipediaSpells(
     spells.push(...seen.values());
   }
 
-  return { spells, careerTotals, nationalTotals, unresolved, stats };
+  return {
+    spells,
+    careerTotals,
+    careerTotalsTr,
+    nationalTotals,
+    unresolved,
+    stats,
+  };
 }

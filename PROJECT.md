@@ -4143,6 +4143,20 @@ Eski bandlar ESKİ tanımda %11,5 ve %10,0 eliyordu; yeni bandlar (35 ve 10) ayn
 
 **Ölçüm yükümlülüğü:** koşudan sonra `npm run stats:measure` — millî caps kapsamı ARTAR, resmî maç/gol havuzu büyür; `STAT_DEVIATIONS` yeniden ölçülür, sabit güncellemesi ayrı ürün kararıdır.
 
+##### BR-65: Türkçe kariyer toplamı — kulüp maç/gol ikinci kaynağı (1 Eylül 2026)
+
+BR-64 millî tarafı doldurdu ama **"Resmî maç/gol" iki taraflıdır**: `scoreableWhere` bu iki mod için hem millî toplamı (BR-23) hem de **kulüp kariyer toplamını** (`clubCareerAppearances`/`clubCareerGoals`) şart koşar. Kulüp toplamı yalnızca **İngilizce** Vikipedi'nin "Career statistics" tablosundan okunuyordu (`parseCareerTotal`, §9.2). Ölçüldü (1 Eylül koşusu sonrası): millî capsi olan **23.479 oyuncunun** (668'i Türk) kulüp toplamı yok — **Eren Elmalı** bunun somut örneği: millî tarafı BR-64 ile doldu (25 maç) ama İngilizce makalesinde okunabilir kariyer tablosu olmadığı için "Resmî maç/gol"da hâlâ çıkmıyordu.
+
+**Veri Türkçe makalede VAR.** Türk oyuncuların tr.wiki maddesinde "Kariyer istatistikleri" tablosu genellikle dolu. İngilizce tabloyu nasıl okuyorsak Türkçesini de AYNI çekilmiş metinden okuyoruz (`parseCareerTotalTr`) — **yeni ağ isteği yok**.
+
+**Neden ayrı bir ayrıştırıcı — Türkçe biçim İngilizceden farklı.** İngilizce tablo Maç/Gol **çifti** tutar ve `parseCareerTotal` **asist sütunlu tabloyu bilerek REDDEDER** ("son iki sayı" orada gol/asist verirdi). Türkçe tabloların çoğu **üçlü**: Maç/Gol/Asist. Onları reddetmek Eren dâhil neredeyse herkesi dışarıda bırakırdı. Bu yüzden Türkçe taraf sütun grubunu **modeller**: en sağdaki grup "Toplam"dır, genişliği k (asist varsa 3, yoksa 2) satırın **son k sütunudur**; ilk ikisi Maç ve Gol, asist atılır. Aradaki boş asist hücresi (ör. Kenan Yıldız'ın Süper Kupa satırı) `null` sütun olarak korunduğu için Toplam grubunu kaydırmaz.
+
+**Aday seçimi İngilizceyle aynı (§2.7):** "Kariyer toplamı" etiketli satır varsa o (sonuncusu); yoksa ve TEK toplam satırı varsa o (tek kulüplü oyuncu); yoksa ve birden çok ara toplam varsa **SUSAR**. Ek olarak `% k` bütünlük denetimi (sütun sayısı grup genişliğinin katı değilse ret) ve akla yatkınlık kapısı (gol ≤ maç, ikisi de `MAX_CAREER_TALLY` altında) yanlış okumayı eler. Yedi gerçek makalede doğrulandı: Eren 236/6, Uğurcan 339/0, Kenan 103/22, Hakan 588/138, Cenk 458/160, Arda 163/27, Merih 200/8.
+
+**Çakışma: İngilizce öncelikli, Türkçe YEDEK** (§4.3 "Vikipedi ekler, ezmez"). `mergeCareerTotals` İngilizce okumayı korur, Türkçe yalnız İngilizcenin boş olduğu oyuncuyu doldurur. Birleştirme `checkCareerTotals`'tan **ÖNCE** yapılır: Türkçe okuma da lig sayımızla çapraz denetlenir (toplam, kapsamdaki lig maçları toplamından küçükse aritmetik olarak imkânsızdır, düşer).
+
+**Doğal sonuç: süzgeç yine DEĞİŞMEZ.** Kulüp toplamı dolunca oyuncu mevcut `scoreableWhere`'i kendiliğinden geçer. Eren'in kulüp toplamı (236/6) + millî (25/0) dolunca "Resmî maç" ve "Resmî gol"da doğru toplamla çıkar.
+
 #### Ölçüm: BR-14 — millî maç TOPLANMAZ, EN BÜYÜĞÜ alınır
 
 İlk kural "oyuncunun tüm millî takım maçlarını topla" idi. Bilinen sekiz oyuncuyla sınandı ve **4/8 tutturdu**. Sebep iki ayrı kirlilik:

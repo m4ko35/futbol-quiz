@@ -301,3 +301,243 @@ export function parseCareerTotal(wikitext: string): CareerTotal | null {
 
   return { appearances, goals };
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// TÜRKÇE KARİYER TOPLAMI — §9.2 BR-65
+//
+// NEDEN AYRI BİR AYRIŞTIRICI. İngilizce tablo maç/gol ÇİFTİ tutuyor ve asist
+// sütunu olan tabloyu `parseCareerTotal` bilerek REDDEDİYOR (son iki sayı
+// gol/asist verirdi). Türkçe tabloların ÇOĞU üçlü: Maç/Gol/Asist. Onları
+// reddetmek, doldurmak istediğimiz oyuncuların neredeyse tamamını (Eren Elmalı
+// dâhil) dışarıda bırakırdı. Bu yüzden Türkçe tarafı sütun grubunu MODELLER:
+// en sağdaki grup "Toplam"dır ve genişliği k (asist varsa 3, yoksa 2) satırın
+// son k sütunudur; ilk ikisi Maç ve Gol.
+//
+// YALNIZCA WIKIDATA/İNGİLİZCE BOŞKEN yedek olarak kullanılır (extract.ts).
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * Kulüp istatistik tablosunun başlığı — "=== Kulüp ... ===".
+ *
+ * TEK BİR "Kariyer istatistikleri" ÜST BAŞLIĞINA GÜVENİLMEZ, ölçüldü: kimi
+ * makalede (Eren Elmalı) tablo "== Kariyer istatistikleri ==" altındaki
+ * "=== Kulüp takımı istatistikleri ===" alt başlığında; kimisinde (Kenan
+ * Yıldız) doğrudan bir "=== Kulüp takım istatistikleri ===" başlığında, üst
+ * başlık YOK. Ortak olan tek şey: kulüp tablosunun hemen üstünde "Kulüp" ile
+ * başlayan bir başlık var. Bu yüzden başlık buradan aranır.
+ */
+const CLUB_HEADING_TR = /^(=+)\s*kul[üu]p\b/iu;
+
+/**
+ * Toplam satırının ETİKET hücresi — hem kulüp ara toplamı ("Toplam") hem de
+ * kariyer toplamı ("Kariyer toplamı"/"Kariyer toplam") başlığını yakalar.
+ * `^`-çapalı ve `g`'siz: satırın başından etiketin sonuna kadar siler.
+ *
+ * `toplam[^\s!|]*`: Türkçe ekini (`toplamı`) de yutar. Yalnız "toplam" yazsaydı
+ * geriye kalan "ı" sonraki hücre okumasını çürütürdü — ölçüldü.
+ */
+const TOTAL_LABEL_TR =
+  /^\s*!.*?\bcolspan\b[^|]*\|\s*'*(?:kariyer\s+)?toplam[^\s!|]*/iu;
+
+/** Yalnızca KARİYER toplamı — kulüp ara toplamlarından ayırır. */
+const CAREER_TOTAL_LABEL_TR =
+  /^\s*!.*?\bcolspan\b[^|]*\|\s*'*kariyer\s+toplam[^\s!|]*/iu;
+
+/**
+ * Asist sütunu işareti. Varlığı sütun grubunun ÜÇLÜ (Maç/Gol/Asist) olduğunu
+ * söyler; k=3 seçilir. Yokluğunda çift (Maç/Gol), k=2.
+ */
+const ASSIST_HEADER_TR = /\basist\b/iu;
+
+/**
+ * Türkçe kulüp istatistik tablosunun satırları; yoksa `null`.
+ *
+ * "Kulüp" ile başlayan HER başlık denenir; bölümündeki ilk wikitable'da bir
+ * toplam satırı (`TOTAL_LABEL_TR`) varsa o tablo döner. Toplam satırı olmayan
+ * tablo (düz metin "Kulüp kariyeri" bölümü) atlanır ve sonraki başlığa geçilir
+ * — böylece anlatı bölümü tabloyla karıştırılmaz.
+ */
+function clubTableLinesTr(wikitext: string): string[] | null {
+  const lines = wikitext.split("\n");
+
+  for (let h = 0; h < lines.length; h++) {
+    const heading = ANY_HEADING.exec(lines[h] ?? "");
+    if (heading === null || !CLUB_HEADING_TR.test(lines[h] ?? "")) continue;
+
+    const level = (heading[1] ?? "==").length;
+
+    // Bölüm sınırı: aynı ya da üst düzeyde bir sonraki başlık.
+    let end = lines.length;
+    for (let i = h + 1; i < lines.length; i++) {
+      const next = ANY_HEADING.exec(lines[i] ?? "");
+      if (next !== null && (next[1] ?? "").length <= level) {
+        end = i;
+        break;
+      }
+    }
+
+    const table: string[] = [];
+    let inside = false;
+    for (let i = h + 1; i < end; i++) {
+      const line = lines[i] ?? "";
+      if (!inside) {
+        if (TABLE_START.test(line)) inside = true;
+        continue;
+      }
+      if (TABLE_END.test(line)) break;
+      table.push(line);
+    }
+
+    if (table.some((line) => TOTAL_LABEL_TR.test(line))) return table;
+    // Uygun tablo yok; sonraki "Kulüp" başlığını dene.
+  }
+
+  return null;
+}
+
+/**
+ * Bir satırı SÜTUN dizisine çözer (colspan genişletilmiş).
+ *
+ * `numbersIn`'den farkı: boş/yok hücreyi ATMAZ, `null` sütun olarak tutar —
+ * çünkü Toplam grubunu SAĞDAN k sütun sayarak buluyoruz ve aradaki boş bir
+ * asist hücresi (ör. Kenan Yıldız'ın Süper Kupa satırı) sütunu kaydırmamalı.
+ * `colspan="3"|` gibi boş bir grup, k adet `null` sütuna açılır.
+ *
+ * İÇERİKLİ ama okunamayan hücre (`36+`, `?`) satırı çürütür (`null` döner) —
+ * §2.7, yanlış sayı üretmektense hiç üretmemek.
+ */
+function rowColumns(text: string): (number | null)[] | null {
+  // Etiket silindikten sonra boş kalan satır (değerler alt satırda) sütun
+  // üretmez; aksi hâlde başa sahte bir `null` düşer ve `% k` bütünlüğü bozulurdu.
+  if (text.trim().length === 0) return [];
+
+  const columns: (number | null)[] = [];
+
+  // Satır başındaki işaretçileri at: `||14` / `!!25` gibi bir satır aksi hâlde
+  // başta sahte bir boş hücre (`null`) üretir ve `% k` bütünlüğünü kaydırırdı.
+  // `| değer || …` (araya boşluk giren) gerçek boş hücreyi ise korur.
+  const body = text.trim().replace(/^[!|]+/u, "");
+
+  for (const rawCell of body.split(/!!|\|\|/u)) {
+    let colspan = 1;
+    let content = rawCell;
+    // Hücre `attr…|değer` biçimindeyse colspan attr'de, değer son `|`'den sonra.
+    if (rawCell.includes("|")) {
+      const attrs = rawCell.slice(0, rawCell.lastIndexOf("|"));
+      content = rawCell.slice(rawCell.lastIndexOf("|") + 1);
+      const match = /colspan\s*=\s*"?(\d+)"?/iu.exec(attrs);
+      if (match?.[1] !== undefined) {
+        const n = Number.parseInt(match[1], 10);
+        if (Number.isFinite(n) && n >= 1 && n <= 30) colspan = n;
+      }
+    }
+
+    const value = stripNoise(content).replace(/^\s*!/u, "").trim();
+
+    let cell: number | null;
+    if (ABSENT_CELL.test(value)) {
+      cell = null;
+    } else {
+      const digits = /^([\d,]+)$/u.exec(value);
+      if (digits?.[1] === undefined) return null;
+      const parsed = Number.parseInt(digits[1].replace(/,/gu, ""), 10);
+      if (!Number.isFinite(parsed)) return null;
+      cell = parsed;
+    }
+
+    columns.push(cell);
+    for (let i = 1; i < colspan; i++) columns.push(null);
+  }
+
+  return columns;
+}
+
+/**
+ * Türkçe kulüp kariyerinin toplam maç ve golü; okunamazsa `null`.
+ *
+ * Aday seçimi `parseCareerTotal` ile AYNI mantık: "Kariyer toplamı" etiketli
+ * satır varsa o (sonuncusu); yoksa ve TEK toplam satırı varsa o (tek kulüplü
+ * oyuncu); yoksa ve birden çok toplam satırı varsa SUSULUR (§2.7).
+ *
+ * AKLA YATKINLIK KAPISI İngilizceyle aynı: gol ≤ maç ve ikisi de
+ * `MAX_CAREER_TALLY` altında. Ayrıca `% k` bütünlük denetimi, sütun sayısı grup
+ * genişliğinin katı değilse satırı reddeder — yanlış k ya da bozuk satır burada
+ * yakalanır.
+ */
+export function parseCareerTotalTr(wikitext: string): CareerTotal | null {
+  const table = clubTableLinesTr(wikitext);
+  if (table === null) return null;
+
+  const k = table.some((line) => ASSIST_HEADER_TR.test(line)) ? 3 : 2;
+
+  const candidates: {
+    readonly career: boolean;
+    readonly cols: (number | null)[];
+  }[] = [];
+
+  for (let i = 0; i < table.length; i++) {
+    const line = table[i] ?? "";
+    if (!TOTAL_LABEL_TR.test(line)) continue;
+
+    const cols = rowColumns(line.replace(TOTAL_LABEL_TR, ""));
+    if (cols === null) continue;
+
+    let broken = false;
+    for (let j = i + 1; j < table.length; j++) {
+      const next = table[j] ?? "";
+      if (ROW_SEPARATOR.test(next) || TOTAL_LABEL_TR.test(next)) break;
+      const more = rowColumns(next);
+      if (more === null) {
+        broken = true;
+        break;
+      }
+      cols.push(...more);
+    }
+    if (broken) continue;
+
+    // Grup genişliğinin katı değilse satır bozuk okundu (sahte hücre ya da
+    // yanlış k); sayı üretmeyen (yalnız etiket) satır da aday değildir.
+    if (cols.length >= k && cols.length % k === 0) {
+      candidates.push({ career: CAREER_TOTAL_LABEL_TR.test(line), cols });
+    }
+  }
+
+  const careerRows = candidates.filter((row) => row.career);
+  const chosen =
+    careerRows.length > 0
+      ? careerRows[careerRows.length - 1]
+      : candidates.length === 1
+        ? candidates[0]
+        : undefined;
+
+  if (chosen === undefined) return null;
+
+  // Toplam grubu = son k sütun; ilk ikisi Maç ve Gol (asist, varsa, atılır).
+  const { cols } = chosen;
+  const appearances = cols[cols.length - k];
+  const goals = cols[cols.length - k + 1];
+  if (appearances === undefined || appearances === null) return null;
+  if (goals === undefined || goals === null) return null;
+
+  if (appearances > MAX_CAREER_TALLY || goals > MAX_CAREER_TALLY) return null;
+  if (goals > appearances) return null;
+
+  return { appearances, goals };
+}
+
+/**
+ * İngilizce (öncelikli) ve Türkçe (yedek) kariyer toplamlarını birleştirir —
+ * §9.2 BR-65.
+ *
+ * "Vikipedi ekler, ezmez" (§4.3): İngilizce okuma VARSA o kalır; Türkçe yalnız
+ * İngilizcenin boş olduğu oyuncuyu doldurur. Sonuç `checkCareerTotals`'a girer,
+ * yani Türkçe okuma da lig sayımızla çapraz denetlenir.
+ */
+export function mergeCareerTotals(
+  preferred: ReadonlyMap<string, CareerTotal>,
+  fallback: ReadonlyMap<string, CareerTotal>,
+): Map<string, CareerTotal> {
+  const merged = new Map(fallback);
+  for (const [playerId, total] of preferred) merged.set(playerId, total);
+  return merged;
+}
