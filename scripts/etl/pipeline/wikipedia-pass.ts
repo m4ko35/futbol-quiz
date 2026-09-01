@@ -10,7 +10,9 @@ import {
 } from "../sources/wikipedia/career-total";
 import {
   parseInfoboxSpells,
+  parseSeniorNationalCaps,
   type InfoboxSpell,
+  type NationalTotal,
 } from "../sources/wikipedia/infobox";
 import type { WikipediaSpell } from "./merge-wikipedia";
 
@@ -93,6 +95,8 @@ export interface WikipediaPassStats {
   careerTotalsParsed: number;
   /** İngilizce makalesi olup kariyer toplamı OKUNAMAYAN oyuncu. */
   careerTotalsMissed: number;
+  /** Kıdemli millî caps bilgi kutusundan okunan oyuncu — §9.2 BR-64. */
+  nationalTotalsParsed: number;
 }
 
 export interface WikipediaPassResult {
@@ -104,6 +108,14 @@ export interface WikipediaPassResult {
    * ikinci kez ayrıştırılır, yeni bir ağ isteği YOKTUR.
    */
   readonly careerTotals: ReadonlyMap<string, CareerTotal>;
+  /**
+   * Oyuncu QID → kıdemli A millî takım caps/golü (§9.2 BR-64).
+   *
+   * Wikidata'nın YEDEĞİ: çağıran yalnızca `nationalCaps` boşken uygular. Aynı
+   * bilgi kutusu metninden okunur, yeni ağ isteği yok. `tr`/`en`'den; iki dil
+   * de verirse WIKI_SITES sırasındaki ilki (tr) kazanır.
+   */
+  readonly nationalTotals: ReadonlyMap<string, NationalTotal>;
   /**
    * Çözülemeyen satırlar. Uzunluğu `stats.unmatchedClubLinks`'e EŞİTTİR —
    * sayaç ile liste ayrışırsa biri yanlıştır (testle tutuluyor).
@@ -150,6 +162,7 @@ export async function collectWikipediaSpells(
     clubTitlesIndexed: 0,
     careerTotalsParsed: 0,
     careerTotalsMissed: 0,
+    nationalTotalsParsed: 0,
   };
 
   /**
@@ -161,6 +174,12 @@ export async function collectWikipediaSpells(
    * değişiyor ve `career-total.ts` başlığı İngilizceye göre arıyor.
    */
   const careerTotals = new Map<string, CareerTotal>();
+
+  /**
+   * Oyuncu QID → kıdemli millî caps/gol — §9.2 BR-64. `tr`/`en`'den okunur;
+   * İLK dil kazanır (WIKI_SITES'ta tr önce), o yüzden `has` denetimiyle yazılır.
+   */
+  const nationalTotals = new Map<string, NationalTotal>();
 
   /** Dil başına `makale adı → kulüp QID`. */
   const clubIndex = new Map<WikiSite, Map<string, string>>();
@@ -242,6 +261,19 @@ export async function collectWikipediaSpells(
           }
         }
 
+        // §9.2 BR-64 — kıdemli millî caps/gol, AYNI metinden. tr/en okunur;
+        // İLK dil kazanır (tr önce), o yüzden yazmadan önce `has` denetlenir.
+        if (site === "tr" || site === "en") {
+          const national = parseSeniorNationalCaps(text, site);
+          if (national !== null) {
+            for (const playerId of playerIdList) {
+              if (nationalTotals.has(playerId)) continue;
+              nationalTotals.set(playerId, national);
+              stats.nationalTotalsParsed++;
+            }
+          }
+        }
+
         // DİL AÇIKÇA VERİLİR. `tr`/`en` numaralı alan kullanıyor, `it`/`de`/
         // `fr` konumsal üçlü; ayrıştırıcı hangi vikiden geldiğini tahmin etmez.
         const rows = parseInfoboxSpells(text, site);
@@ -318,5 +350,5 @@ export async function collectWikipediaSpells(
     spells.push(...seen.values());
   }
 
-  return { spells, careerTotals, unresolved, stats };
+  return { spells, careerTotals, nationalTotals, unresolved, stats };
 }

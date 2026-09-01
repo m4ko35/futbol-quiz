@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applyPlayerStats,
+  fillNationalFromWikipedia,
   nationalCapsFrom,
   nationalMembershipFrom,
   physicalFrom,
@@ -431,5 +432,73 @@ describe("applyPlayerStats", () => {
 
     expect(base.nationalCaps).toBeNull();
     expect(base.nationality).toBeNull();
+  });
+});
+
+describe("fillNationalFromWikipedia — §9.2 BR-64", () => {
+  const player: NormalizedPlayer = {
+    wikidataId: "Q-yunus",
+    name: "Yunus Akgün",
+    searchKey: "yunus akgun",
+    birthDate: null,
+    nationality: "TR",
+    citizenships: ["TR"],
+    birthCountry: "TR",
+    position: "midfielder",
+    genderQid: null,
+    nationalCaps: null,
+    nationalGoals: null,
+    nationalTeamMember: false,
+    heightCm: null,
+    weightKg: null,
+    languageCount: null,
+  };
+
+  /** Wikidata caps'i BOŞken Vikipedi toplamı doldurur + üyelik true olur. */
+  it("caps null + Vikipedi toplamı → caps/gol dolar, üye=true", () => {
+    const [filled] = fillNationalFromWikipedia(
+      [player],
+      new Map([["Q-yunus", { caps: 21, goals: 4 }]]),
+    );
+    expect(filled).toMatchObject({
+      nationalCaps: 21,
+      nationalGoals: 4,
+      nationalTeamMember: true,
+    });
+  });
+
+  /** Wikidata caps VARSA Vikipedi EZMEZ (§4.3, "Vikipedi ekler, ezmez"). */
+  it("caps doluysa Vikipedi'ye dokunmaz", () => {
+    const withCaps: NormalizedPlayer = {
+      ...player,
+      nationalCaps: 104,
+      nationalGoals: 22,
+      nationalTeamMember: true,
+    };
+    const [same] = fillNationalFromWikipedia(
+      [withCaps],
+      new Map([["Q-yunus", { caps: 99, goals: 99 }]]),
+    );
+    expect(same).toMatchObject({ nationalCaps: 104, nationalGoals: 22 });
+  });
+
+  /** Vikipedi toplamı YOKSA oyuncu değişmez (caps null kalır). */
+  it("Vikipedi toplamı yoksa oyuncu değişmez", () => {
+    const [same] = fillNationalFromWikipedia([player], new Map());
+    expect(same?.nationalCaps).toBeNull();
+    expect(same?.nationalTeamMember).toBe(false);
+  });
+
+  /** Vikipedi capsi var ama golü null → gol null yazılır (maç yine dolar). */
+  it("Vikipedi golü null ise caps dolar, gol null kalır", () => {
+    const [filled] = fillNationalFromWikipedia(
+      [player],
+      new Map([["Q-yunus", { caps: 30, goals: null }]]),
+    );
+    expect(filled).toMatchObject({
+      nationalCaps: 30,
+      nationalGoals: null,
+      nationalTeamMember: true,
+    });
   });
 });

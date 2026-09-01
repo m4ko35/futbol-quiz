@@ -1,6 +1,7 @@
 import { toSearchKey } from "../../../src/domain/value-objects/search-key";
 import { toSeasonYear } from "../../../src/domain/value-objects/season";
 import { OUT_OF_SCOPE_GENDER_QIDS, WD } from "../leagues";
+import type { NationalTotal } from "../sources/wikipedia/infobox";
 import { int, qid, str, type SparqlBinding } from "../sources/wikidata/schemas";
 import { toCommonsFileUrl } from "./crest-url";
 
@@ -922,6 +923,37 @@ export function applyPlayerStats(
       heightCm: size?.heightCm ?? null,
       weightKg: size?.weightKg ?? null,
       languageCount,
+    };
+  });
+}
+
+/**
+ * §9.2 BR-64 — Wikidata'da millî caps'i olmayan oyuncuyu Vikipedi kıdemli millî
+ * toplamıyla DOLDURUR.
+ *
+ * VİKİDATA ÖNCELİKLİ (§4.3, "Vikipedi ekler, ezmez"): caps ZATEN doluysa satıra
+ * hiç dokunulmaz. Caps null + Vikipedi toplamı varsa caps VE gol birlikte
+ * (aynı satırdan, karışık kaynak yok) yazılır ve `nationalTeamMember` true olur
+ * — kıdemli bir toplamın varlığı üyeliğin kendisidir.
+ *
+ * Doğal sonuç: caps dolunca oyuncu mevcut `scoreableWhere`'i (caps NOT null)
+ * kendiliğinden geçer; süzgeç değişmez, gizlenen küme küçülür.
+ */
+export function fillNationalFromWikipedia(
+  players: readonly NormalizedPlayer[],
+  nationalTotals: ReadonlyMap<string, NationalTotal>,
+): NormalizedPlayer[] {
+  return players.map((player) => {
+    if (player.nationalCaps !== null) return player;
+
+    const wp = nationalTotals.get(player.wikidataId);
+    if (wp === undefined) return player;
+
+    return {
+      ...player,
+      nationalCaps: wp.caps,
+      nationalGoals: wp.goals,
+      nationalTeamMember: true,
     };
   });
 }

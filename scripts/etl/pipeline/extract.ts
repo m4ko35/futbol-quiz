@@ -27,6 +27,7 @@ import {
 } from "../sources/wikidata/queries";
 import { int, qid, str, type SparqlBinding } from "../sources/wikidata/schemas";
 import type { CareerTotal } from "../sources/wikipedia/career-total";
+import type { NationalTotal } from "../sources/wikipedia/infobox";
 import {
   checkCareerTotals,
   type CareerTotalConflict,
@@ -50,6 +51,7 @@ import { mergeWikipediaSpells } from "./merge-wikipedia";
 import {
   applyPlayerStats,
   dedupeBy,
+  fillNationalFromWikipedia,
   isInScope,
   labelsFrom,
   looksLikeYouthOrReserve,
@@ -725,6 +727,8 @@ export async function extractDataset(
   /** §9.2 — çapraz denetimi geçen kulüp kariyer toplamları. */
   let careerTotals: ReadonlyMap<string, CareerTotal> = new Map();
   let careerTotalConflicts: CareerTotalConflict[] = [];
+  /** §9.2 BR-64 — Vikipedi kıdemli millî toplamı (Wikidata caps'i yedeği). */
+  let nationalTotals: ReadonlyMap<string, NationalTotal> = new Map();
 
   if (options.skipWikipedia === true) {
     console.log("\n[5/5] Vikipedi katmanı atlandı (--skip-wikipedia).");
@@ -944,6 +948,13 @@ export async function extractDataset(
     });
     careerTotals = checked.accepted;
     careerTotalConflicts = [...checked.conflicts];
+    // §9.2 BR-64 — kıdemli millî toplam; aşağıda Wikidata caps'i boş olanlara
+    // yedek olarak uygulanır (return'de `fillNationalFromWikipedia`).
+    nationalTotals = pass.nationalTotals;
+    console.log(
+      `      millî caps (Vikipedi 2. kaynak): ` +
+        `${pass.stats.nationalTotalsParsed} oyuncu okundu (Wikidata boşsa uygulanır)`,
+    );
 
     const missed = pass.stats.careerTotalsMissed;
     const read = pass.stats.careerTotalsParsed;
@@ -1059,7 +1070,9 @@ export async function extractDataset(
 
   return {
     clubs: mergedClubs,
-    players: scopedPlayers,
+    // §9.2 BR-64 — Wikidata caps'i boş olan oyuncuya Vikipedi kıdemli millî
+    // toplamı yedek olarak DOLDURULUR (Wikidata öncelikli, ezmez).
+    players: fillNationalFromWikipedia(scopedPlayers, nationalTotals),
     spells: finalSpells,
     selectableClubIds,
     fetchedClubIds,

@@ -64,24 +64,48 @@ const INFOBOX_NAMES =
  * Alan adı şemaları — dil başına bir tane.
  *
  * ALAN ADLARI TAM EŞLEŞİR, önek olarak aranmaz. §4.3'ün 6. kuralı (altyapı ve
- * millî takım okunmaz) bu sayede kendiliğinden sağlanır: `altyapıkulübü1`,
- * `youthclubs1`, `millitakım1`, `nationalteam1` ve `nationalcaps1` hiçbir
- * şemayla tam eşleşmez, dolayısıyla hiç görünmezler. Toplam satırları
- * (`totalcaps`, `totalgoals`) numarasız oldukları için yine dışarıda kalır.
+ * millî takım KULÜP DÖNEMİ olarak okunmaz) `parseInfoboxSpells` tarafında
+ * kendiliğinden sağlanır: kariyer ayrıştırıcısı yalnızca `club`/`years`/`caps`/
+ * `goals` alanlarını sayar; `altyapıkulübü1`, `millitakım1`, `nationalcaps1`
+ * hiçbiri kulüp dönemine dönüşmez.
+ *
+ * MİLLÎ ALANLAR AYRI BİR AMAÇ İÇİN eklendi (§9.2 BR-64): `parseSeniorNationalCaps`
+ * bunları kıdemli A millî takım caps/gol İKİNCİ KAYNAĞI olarak okur — kulüp
+ * dönemleriyle karışmaz, ayrı fonksiyon, ayrı çıktı.
  */
 interface FieldScheme {
   readonly club: string;
   readonly years: readonly string[];
   readonly caps: string;
   readonly goals: string;
+  /** §9.2 BR-64 — millî takım satırı; kıdemli caps/gol yalnızca buradan okunur. */
+  readonly nationalTeam: string;
+  readonly nationalCaps: string;
+  readonly nationalGoals: string;
 }
 
 const SCHEMES: readonly FieldScheme[] = [
   // `kulüpyil` (noktasız ı) editörler arasında yaygın bir varyant; ikisi de
   // kabul edilir, çünkü tanınmayan alan adı hata vermez — sessizce veri
   // kaybettirir.
-  { club: "kulüp", years: ["kulüpyıl", "kulüpyil"], caps: "maç", goals: "gol" },
-  { club: "clubs", years: ["years"], caps: "caps", goals: "goals" },
+  {
+    club: "kulüp",
+    years: ["kulüpyıl", "kulüpyil"],
+    caps: "maç",
+    goals: "gol",
+    nationalTeam: "millitakım",
+    nationalCaps: "millimaç",
+    nationalGoals: "milligol",
+  },
+  {
+    club: "clubs",
+    years: ["years"],
+    caps: "caps",
+    goals: "goals",
+    nationalTeam: "nationalteam",
+    nationalCaps: "nationalcaps",
+    nationalGoals: "nationalgoals",
+  },
 ];
 
 /** Bağlantı hedefi olarak kabul edilmeyen ad alanları. */
@@ -208,6 +232,79 @@ export function parseInfoboxSpells(
   }
 
   return spells.sort((a, b) => a.index - b.index).map((e) => e.spell);
+}
+
+/** Kıdemli A millî takım toplamı — §9.2 BR-64. Gol okunamazsa `null`. */
+export interface NationalTotal {
+  readonly caps: number;
+  readonly goals: number | null;
+}
+
+/** Akla yatkın en yüksek A millî maç — rekor ~200 (Bader Al-Mutawa 196). */
+export const MAX_NATIONAL_CAPS = 220;
+/** Akla yatkın en yüksek A millî gol — rekor ~130 (Ronaldo). */
+export const MAX_NATIONAL_GOALS = 150;
+
+/**
+ * ALTYAPI / OLİMPİK satırını tanır — bunlar KIDEMLİ değildir.
+ *
+ * BR-14'ün "en büyüğü al" kuralı burada YANILIR: bilgi kutusu her yaş grubunu
+ * ayrı satıra yazar ve genç oyuncuda altyapı capsi A millîyi aşar (Yunus U-17
+ * 24 > A millî 21). O yüzden kıdemli, sayıyla değil ADLA seçilir: aşağıdaki
+ * işaretlerin HİÇBİRİNİ taşımayan satır kıdemlidir. `{{fbu|…}}` tr altyapı
+ * şablonu, `{{fb|…}}` (u'suz) kıdemlidir.
+ */
+const YOUTH_NATIONAL_TEAM =
+  /\{\{\s*fbu\b|\bunder[-\s]?\d{1,2}\b|\bu[-\s]?\d{1,2}\b|olympic|olimpik|ümit|amat[öo]r/iu;
+
+/**
+ * Kıdemli A millî takım caps/golü — bilgi kutusundan, §9.2 BR-64.
+ *
+ * VİKİDATA YEDEĞİDİR: çağıran bunu yalnızca `nationalCaps` boşken kullanır
+ * (§4.3, "Vikipedi ekler, ezmez"). Yalnızca `tr`/`en` numaralı-alan şeması;
+ * `it`/`de`/`fr` bilgi kutuları farklı yapıda ve kapsam dışıdır.
+ *
+ * SAFTIR: ağ yok, yalnızca metin ayrıştırır.
+ */
+export function parseSeniorNationalCaps(
+  wikitext: string,
+  site: ParserSite = "tr",
+): NationalTotal | null {
+  // it/de/fr — farklı bilgi kutusu yapısı, milli satır numaralı alan değil.
+  if (NATIVE_SCHEMES[site] !== undefined) return null;
+
+  const body = findInfobox(wikitext);
+  if (body === null) return null;
+
+  const fields = splitFields(body);
+  const scheme = pickScheme(fields);
+  if (scheme === null) return null;
+
+  let best: NationalTotal | null = null;
+
+  for (const name of fields.keys()) {
+    const index = fieldIndex(name, scheme.nationalTeam);
+    if (index === null) continue;
+
+    // Altyapı/olimpik satırı ADLA elenir — BR-14 max kuralının yanıldığı yer.
+    if (YOUTH_NATIONAL_TEAM.test(fields.get(name) ?? "")) continue;
+
+    const caps = parseTally(fields.get(`${scheme.nationalCaps}${index}`));
+    if (caps === null || caps > MAX_NATIONAL_CAPS) continue;
+
+    const goals = parseTally(fields.get(`${scheme.nationalGoals}${index}`));
+    // Gol maçı aşamaz (BR-22'nin millî karşılığı) ve rekoru aşamaz; aşan sayı
+    // ayrıştırma kusurudur → golü null'a düşür, ama caps'i koru (caps birincil).
+    const cleanGoals =
+      goals !== null && (goals > caps || goals > MAX_NATIONAL_GOALS)
+        ? null
+        : goals;
+
+    // Birden çok kıdemli satır kalırsa (allegiance değişimi) en çok capsli.
+    if (best === null || caps > best.caps) best = { caps, goals: cleanGoals };
+  }
+
+  return best;
 }
 
 /** Bilgi kutusu şablonunun GÖVDESİNİ döner (adı ve dış ayraçları olmadan). */

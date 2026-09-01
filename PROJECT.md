@@ -4125,6 +4125,24 @@ Eski bandlar ESKİ tanımda %11,5 ve %10,0 eliyordu; yeni bandlar (35 ve 10) ayn
 
 **Çevrimdışı örneklem gerçeği yukarı sapıtmıştı, kayda geçiyor:** 60 kişilik örneklem BR-15 havuzunda %78,3 demişti, gerçek koşuda **%66,3** çıktı (2.662 → 1.766). Bir dahaki tahmin bu farkı bilerek yapılsın.
 
+##### BR-64: Vikipedi ikinci kaynağı — millî caps/gol (1 Eylül 2026)
+
+27 Ağustos rafinesi "oynadı ama caps yok" oyuncuyu dürüstçe GİZLİYOR (350 oyuncu; **Yunus Akgün, Uğurcan Çakır, Mert Hakan Yandaş, Kenan Yıldız**…). Ürün sahibi ölçtü: bu oyuncular Türkiye'de tanınıyor ve "resmî maç/gol" aramasında "sonuç yok" veriyorlar — kabul edilemez. Sebep tek tek **Wikidata boşluğu** (güncel milliler için `P54`/`P1350` ifadesi girilmemiş); Türkiye millî takımı doğru algılanıyor (Çalhanoğlu 104, Şükür 112 tam), eksik olanlar hep yeni oyuncular.
+
+**Veri Vikipedi bilgi kutusunda VAR.** Kulüp kariyer toplamını nasıl Vikipedi'den okuyorsak (`parseCareerTotal`), millî caps/golü de AYNI bilgi kutusundan okuyoruz — kaynak açık, **yeni ağ isteği yok** (metin zaten çekiliyor).
+
+**Kıdemli takımı ADLA ayırt eder, EN BÜYÜĞÜ ile DEĞİL — BR-14'ten ayrıldığı yer.** BR-14 Wikidata'da "millî maç en büyüğü alınır" der çünkü yerleşik oyuncuda A millî capsi altyapıyı ezici çoğunlukla aşar (Buffon A 176 vs U-21 11). Bilgi kutusunda ise bütün altyapı takımları (U-16…U-21) AYRI satırlardadır ve **genç oyuncuda altyapı capsi kıdemliyi AŞAR**: Yunus U-17 24 maç, A millî **21** maç — "en büyüğü" 24 verirdi (yanlış). Kıdemli = takım adında `U-\d` / `under-\d` / `{{fbu}}` / olympic / ümit / amatör **bulunmayan** satır; birden çok kıdemli kalırsa (allegiance değişimi) en çok capsli olan.
+
+**Diller: tr + en** (numaralı alanlar — tr `millitakım/millimaç/milligol`, en `nationalteam/nationalcaps/nationalgoals`). `it`/`de`/`fr` farklı yapı, **kapsam dışı**: Türk oyuncular tr/en makalesi kullanır. İki dil de varsa `WIKI_SITES` sırasındaki ilki kazanır (tr önce).
+
+**Çakışma: Wikidata öncelikli, Vikipedi YEDEK** (§4.3'ün "Vikipedi ekler, ezmez" ilkesi). Vikipedi caps'i YALNIZCA Wikidata `nationalCaps` **null** iken kullanılır; caps + gol BİRLİKTE (aynı satırdan, karışık kaynak yok). Vikipedi bir kıdemli toplam verince o oyuncu `nationalTeamMember = true` olur — üyeliğin kendisi de dolar.
+
+**Doğal sonuç: süzgeç DEĞİŞMEZ.** Yunus'un caps'i (21) dolunca mevcut `scoreableWhere`'i (caps NOT null) kendiliğinden geçer ve **DOĞRU** resmî toplamla (kulüp + 21) aranabilir olur. BR-23 gizleme kuralı yerinde kalır; yalnız gizlenen küme küçülür (caps'i artık bilinen oyuncular çıkar). Süzgeci gevşetmeye ya da eksik toplam göstermeye gerek kalmaz.
+
+**Akla yatkınlık:** caps ≤ 220 (rekor ~200), gol ≤ caps ve ≤ 150; aşan satır ayrıştırma kusurudur ve atlanır (§2.7 — yanlış sayı göstermektense hiç göstermemek).
+
+**Ölçüm yükümlülüğü:** koşudan sonra `npm run stats:measure` — millî caps kapsamı ARTAR, resmî maç/gol havuzu büyür; `STAT_DEVIATIONS` yeniden ölçülür, sabit güncellemesi ayrı ürün kararıdır.
+
 #### Ölçüm: BR-14 — millî maç TOPLANMAZ, EN BÜYÜĞÜ alınır
 
 İlk kural "oyuncunun tüm millî takım maçlarını topla" idi. Bilinen sekiz oyuncuyla sınandı ve **4/8 tutturdu**. Sebep iki ayrı kirlilik:

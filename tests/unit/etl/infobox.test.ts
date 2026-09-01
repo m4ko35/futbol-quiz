@@ -5,6 +5,7 @@ import {
   looksLikeLoan,
   parseClubLink,
   parseInfoboxSpells,
+  parseSeniorNationalCaps,
   parseTally,
   parseYearRange,
 } from "../../../scripts/etl/sources/wikipedia/infobox";
@@ -284,5 +285,83 @@ describe("looksLikeLoan", () => {
     ["[[Southampton F.C.|Southampton]]", false],
   ])("%s → %s", (raw, expected) => {
     expect(looksLikeLoan(raw)).toBe(expected);
+  });
+});
+
+describe("parseSeniorNationalCaps — §9.2 BR-64", () => {
+  /** Bardakçı: 4 altyapı `{{fbu}}` + 1 kıdemli `{{fb|TUR}}` = 30/2. */
+  it("Türkçe kutuda kıdemli `{{fb}}` satırını okur, `{{fbu}}` altyapıları eler", () => {
+    expect(parseSeniorNationalCaps(BARDAKCI_INFOBOX, "tr")).toEqual({
+      caps: 30,
+      goals: 2,
+    });
+  });
+
+  /** Bertrand: U17–U21 + "Great Britain Olympic" elenir, England A = 19/1. */
+  it("İngilizce kutuda U-takımlarını VE olimpik takımı eler, A millîyi alır", () => {
+    expect(parseSeniorNationalCaps(BERTRAND_INFOBOX, "en")).toEqual({
+      caps: 19,
+      goals: 1,
+    });
+  });
+
+  /**
+   * BR-14'ten AYRILDIĞI yer: altyapı capsi kıdemliyi AŞSA da kıdemli seçilir.
+   * Yunus gerçeği (U-17 24 > A millî 21); "en büyüğü al" 24 verirdi (yanlış).
+   */
+  it("altyapı capsi kıdemliyi aşsa bile kıdemliyi seçer (max DEĞİL)", () => {
+    const box = [
+      "{{Futbolcu bilgi kutusu",
+      "| kulüp1 = [[A]]",
+      "| maç1 = 100",
+      "| millitakım1 = {{fbu|17|TUR|name=Türkiye U-17}}",
+      "| millimaç1 = 24",
+      "| milligol1 = 4",
+      "| millitakım2 = {{fb|TUR|name=Türkiye}}",
+      "| millimaç2 = 21",
+      "| milligol2 = 4",
+      "}}",
+    ].join("\n");
+    expect(parseSeniorNationalCaps(box, "tr")).toEqual({ caps: 21, goals: 4 });
+  });
+
+  it("yalnızca altyapı varsa null (kıdemli A millî kaydı yok)", () => {
+    const box = [
+      "{{Futbolcu bilgi kutusu",
+      "| kulüp1 = [[A]]",
+      "| maç1 = 50",
+      "| millitakım1 = {{fbu|19|TUR|name=Türkiye U-19}}",
+      "| millimaç1 = 10",
+      "| milligol1 = 2",
+      "}}",
+    ].join("\n");
+    expect(parseSeniorNationalCaps(box, "tr")).toBeNull();
+  });
+
+  it("millî alan hiç yoksa null", () => {
+    const box = "{{Futbolcu bilgi kutusu\n| kulüp1 = [[A]]\n| maç1 = 50\n}}";
+    expect(parseSeniorNationalCaps(box, "tr")).toBeNull();
+  });
+
+  /** Gol maçı aşarsa ayrıştırma kusurudur: caps kalır, gol null (§2.7). */
+  it("gol caps'i aşarsa golü null'a düşürür, caps'i korur", () => {
+    const box = [
+      "{{Futbolcu bilgi kutusu",
+      "| kulüp1 = [[A]]",
+      "| maç1 = 50",
+      "| millitakım1 = {{fb|TUR|name=Türkiye}}",
+      "| millimaç1 = 10",
+      "| milligol1 = 99",
+      "}}",
+    ].join("\n");
+    expect(parseSeniorNationalCaps(box, "tr")).toEqual({
+      caps: 10,
+      goals: null,
+    });
+  });
+
+  /** it/de/fr farklı yapı — kapsam dışı, her zaman null. */
+  it("native diller (it/de/fr) için null döner", () => {
+    expect(parseSeniorNationalCaps(BARDAKCI_INFOBOX, "de")).toBeNull();
   });
 });
