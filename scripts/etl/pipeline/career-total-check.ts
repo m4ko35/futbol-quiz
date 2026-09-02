@@ -22,7 +22,19 @@ import type { NormalizedSpell } from "./normalize";
  * SESSİZCE DÜZELTMEZ. Değeri lig sayımıza yükseltmek ya da farkı kapatmak
  * akla gelebilir; ikisi de uydurma olurdu. `null` sıfır olmadığı gibi tahmin
  * de değildir (§2.7) — kayıt düşer, gerekçesi raporlanır.
+ *
+ * KÜÇÜK BİR PAY BIRAKILIR (`TALLY_SLACK = 2`), 2 Eylül 2026'da ölçülerek
+ * eklendi. İki toplam İKİ BAĞIMSIZ TOPLAMADIR: bizimki dönem dönem
+ * (`Spell.appearances/goals`), Vikipedi'ninki tablonun toplam satırı. Bir-iki
+ * birimlik fark ÇELİŞKİ değil, kaynak gürültüsüdür — Ozan Tufan: kariyer golü
+ * 43, bizim dönem toplamımız 44 (bir dönem golü bir fazla) ve bu 1 fark bütün
+ * kulüp toplamını düşürüyordu. Ölçüm (2.395 çatışma): fark 1-2 olan **%14
+ * (331)**, tam Ozan gibi yakın-eşleşmeler; buna karşılık gerçek kusurlar çok
+ * büyük — fark 11+ olan **%69 (1.655)** (Popescu 77↔87, Beye 262↔359). `2`
+ * payı ilkini kurtarır, ikinciyi reddeder. Pay MUTLAKTIR (yüzde değil): küçük
+ * sayıda (gol) yüzde kırılgan olurdu.
  */
+export const TALLY_SLACK = 2;
 
 /** Lig sayımızla çelişen bir kariyer toplamı. */
 export interface CareerTotalConflict {
@@ -119,11 +131,11 @@ export function checkCareerTotals(input: {
     const reason: CareerTotalConflict["reason"] | null =
       parsed.appearances !== null &&
       leagueAppearances !== null &&
-      parsed.appearances < leagueAppearances
+      parsed.appearances < leagueAppearances - TALLY_SLACK
         ? "appearances"
         : parsed.goals !== null &&
             leagueGoals !== null &&
-            parsed.goals < leagueGoals
+            parsed.goals < leagueGoals - TALLY_SLACK
           ? "goals"
           : null;
 

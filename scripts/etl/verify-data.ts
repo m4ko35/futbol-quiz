@@ -5,6 +5,7 @@ import { PrismaStatMatchRepository } from "../../src/infrastructure/db/repositor
 import { PrismaWhichMoreRepository } from "../../src/infrastructure/db/repositories/prisma-which-more-repository";
 import { Prisma, PrismaClient } from "../../src/generated/prisma";
 import { MIN_SPELLS_FOR_SELECTABLE } from "./leagues";
+import { TALLY_SLACK } from "./pipeline/career-total-check";
 import { MAX_SPELL_TALLY, POSITIONS } from "./pipeline/normalize";
 
 /**
@@ -694,7 +695,10 @@ async function verifyClubCareerTotals(): Promise<void> {
         AND "clubCareerAppearances" IS NOT NULL
         AND "clubCareerGoals" > "clubCareerAppearances"
     `),
-    // Bütün kulvarların toplamı, yalnız ligden küçük olamaz.
+    // Bütün kulvarların toplamı, yalnız ligden küçük olamaz. `TALLY_SLACK` payı
+    // ETL kapısıyla AYNI olmalı: kapı 1-2 birimlik kaynak gürültüsünü kabul
+    // ediyor (Ozan Tufan: kariyer golü 43, dönem toplamı 44), verify de aynı
+    // payı tanımazsa o kayıtları bu kez reddederdi (§9.2 TALLY_SLACK).
     prisma.$queryRaw<{ n: bigint }[]>(Prisma.sql`
       SELECT COUNT(*) AS n FROM (
         SELECT p.id,
@@ -705,7 +709,7 @@ async function verifyClubCareerTotals(): Promise<void> {
         JOIN spells s ON s.playerId = p.id AND s.isYouth = 0
         WHERE p."clubCareerGoals" IS NOT NULL
         GROUP BY p.id
-        HAVING eksik = 0 AND total < lig
+        HAVING eksik = 0 AND total < lig - ${TALLY_SLACK}
       )
     `),
   ]);

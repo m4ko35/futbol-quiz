@@ -75,6 +75,39 @@ describe("checkCareerTotals — bütün, parçasından küçük olamaz", () => {
     expect(result.accepted.size).toBe(1);
   });
 
+  /**
+   * OZAN TUFAN VAKASI — iki bağımsız toplam arası 1-2 birimlik fark ÇELİŞKİ
+   * değil kaynak gürültüsüdür (`TALLY_SLACK = 2`). Kariyer golü 43, dönem
+   * toplamımız 44; bu 1 fark bütün kulüp toplamını düşürüyordu.
+   */
+  it("1 birimlik fark kaynak gürültüsüdür, kayıt GEÇER", () => {
+    const result = checkCareerTotals({
+      careerTotals: new Map([["Q1", { appearances: 365, goals: 43 }]]),
+      spells: [spell({ appearances: 332, goals: 44 })],
+    });
+
+    expect(result.conflicts).toEqual([]);
+    expect(result.accepted.get("Q1")).toEqual({ appearances: 365, goals: 43 });
+  });
+
+  it("pay sınırı: 2 birim fark GEÇER, 3 birim DÜŞER", () => {
+    // gol farkı tam 2 → pay içinde, geçer
+    expect(
+      checkCareerTotals({
+        careerTotals: new Map([["Q1", { appearances: 100, goals: 18 }]]),
+        spells: [spell({ appearances: 100, goals: 20 })],
+      }).accepted.size,
+    ).toBe(1);
+
+    // gol farkı 3 → payı aşar, düşer
+    const dropped = checkCareerTotals({
+      careerTotals: new Map([["Q1", { appearances: 100, goals: 17 }]]),
+      spells: [spell({ appearances: 100, goals: 20 })],
+    });
+    expect(dropped.accepted.size).toBe(0);
+    expect(dropped.conflicts[0]?.reason).toBe("goals");
+  });
+
   it("birden çok dönem TOPLANIR", () => {
     const result = checkCareerTotals({
       careerTotals: new Map([["Q1", { appearances: 250, goals: 30 }]]),
