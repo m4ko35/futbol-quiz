@@ -4157,6 +4157,19 @@ BR-64 millî tarafı doldurdu ama **"Resmî maç/gol" iki taraflıdır**: `score
 
 **Doğal sonuç: süzgeç yine DEĞİŞMEZ.** Kulüp toplamı dolunca oyuncu mevcut `scoreableWhere`'i kendiliğinden geçer. Eren'in kulüp toplamı (236/6) + millî (25/0) dolunca "Resmî maç" ve "Resmî gol"da doğru toplamla çıkar.
 
+##### BR-16 süzgeci resmî maç/gol'de domain'e HİZALANDI (2 Eylül 2026)
+
+Yukarıdaki iki maddede "süzgeç değişmez" derken kastedilen, caps/kulüp toplamı **dolan** oyuncunun süzgeci kendiliğinden geçmesiydi. Ama süzgecin kendisinde, BR-23'ün üç durumundan biri için ölçülmüş bir **ayrışma** vardı ve gerçek testte ortaya çıktı: A millî takımda **hiç oynamamış** (`nationalTeamMember=false`/`null`) genç oyuncular resmî maç/gol aramasında **çıkmıyordu**.
+
+**Kök sebep: seçici ile sunucu ayrışmış — YANLIŞ yönde.** Cevap ucu (`findStatValue`) BR-23'ü doğru uyguluyor: `officialTotal(kulüp, nationalContribution(member, caps, ...))`. Üye değilse (`member≠true`) millî katkı **0**, yani resmî maç = kulüp maçı ve bu HESAPLANIR (Kazımcan Karataş 90, Tarık Çetin 137…). Cevap ucu bu oyuncuyu KABUL ediyordu. Ama arama süzgeci (`scoreableWhere`) hâlâ eski `nationalCaps NOT NULL`'ı şart koşuyor ve onları GİZLİYORDU. Yani sunucu "bu geçerli cevap" derken seçici oyuncuyu hiç göstermiyordu — bu, §9.2'nin defalarca uyardığı seçici/sunucu ayrışmasının ta kendisi (bu kez zararı: gerçek oyuncu hiç bulunamıyor).
+
+**Düzeltme: süzgeç, cevap ucunun üç durumuyla birebir eşitlendi.**
+
+- **Resmî maç** görünür ⟺ `clubCareerAppearances` dolu **VE** `(caps dolu VEYA member≠true)`. Gizlenen TEK durum: `member=true` + `caps=null` (oynadı ama sayı bilinmiyor — Bardakçı/Yunus, BR-23'ün asıl gizleme durumu).
+- **Resmî gol** görünür ⟺ `clubCareerGoals` dolu **VE** `[(caps dolu VE nationalGoals dolu) VEYA (caps yok VE member≠true)]`.
+
+`nationalCaps` (ham "A millî maç") sorusu DEĞİŞMEDİ: üye olmayanın millî maç sayısı gerçekten yok, o soruda hâlâ elenir. "Hangisi daha" modu (which-more) zaten domain'i doğrudan uyguladığı için etkilenmedi. Bu değişiklik yalnız kod (`scoreableWhere`) — yeni ETL gerekmez.
+
 #### Ölçüm: BR-14 — millî maç TOPLANMAZ, EN BÜYÜĞÜ alınır
 
 İlk kural "oyuncunun tüm millî takım maçlarını topla" idi. Bilinen sekiz oyuncuyla sınandı ve **4/8 tutturdu**. Sebep iki ayrı kirlilik:
@@ -4352,7 +4365,7 @@ kullanıcının kendisine ait.
 
 - **BR-14 — Millî maç tek takımdan.** Bir oyuncunun millî maç sayısı, **tek bir millî takım için** yaptığı en çok maçtır. Toplama, U-21 kayıtlarını ve FIFA dışı takımları da katıp yanlış sonuç verir (yukarıda ölçüldü).
 - **BR-15 — Günün oyuncusu tam veri ister.** Seçilebilmesi için altı istatistiğin **hepsi** dolu olmalıdır. Eksik veriyle soru sorulmaz; "bilinmiyor" bir cevap değildir.
-- **BR-16 — Cevap havuzu istatistik başınadır.** Kullanıcının bir istatistik için seçebileceği oyuncular, **o istatistiği dolu olanlardır**. Altı istatistiğin kesişimiyle sınırlamak havuzu gereksiz daraltırdı; kullanıcı gol sorusunda boyu bilinmeyen birini seçebilmelidir.
+- **BR-16 — Cevap havuzu istatistik başınadır.** Kullanıcının bir istatistik için seçebileceği oyuncular, **o istatistiği dolu olanlardır**. Altı istatistiğin kesişimiyle sınırlamak havuzu gereksiz daraltırdı; kullanıcı gol sorusunda boyu bilinmeyen birini seçebilmelidir. Resmî maç/gol'de "dolu" = cevap ucunun BR-23 ile HESAPLADIĞI toplam null değil; süzgeç bununla birebir eşittir (üye olmayanın millî katkısı 0, gösterilir — §9.2 "BR-16 süzgeci … domain'e HİZALANDI").
 - **BR-17 — Bir oyuncu bir kez.** Aynı oyuncu birden çok istatistikte kullanılamaz; kullanıcı **her istatistik için ayrı** bir isim verir.
 - **BR-18 — Puan yayılıma göre.** Bir seçimin puanı
   `100 × max(0, 1 − |seçilen − hedef| / (2 × sd))`

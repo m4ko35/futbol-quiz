@@ -441,9 +441,34 @@ function scoreableWhere(key: StatKey | undefined): Prisma.PlayerWhereInput {
   // Kulüp SAYISI kapsama bağlı kalıyor: bir profesyonel dönem yeter.
   if (key === "clubs") return { spells: { some: { isYouth: false } } };
 
-  return key === "appearances"
-    ? { clubCareerAppearances: { not: null }, nationalCaps: { not: null } }
-    : { clubCareerGoals: { not: null }, nationalGoals: { not: null } };
+  // BR-23 — resmî toplam ÜÇ DURUMLUDUR ve süzgeç, cevap ucunun (`findStatValue`)
+  // uyguladığı `officialTotal(kulüp, nationalContribution(member, caps, …))` ile
+  // BİREBİR aynı olmalıdır. Ayrışırsa seçici gösterir/gizler, sunucu tersini
+  // yapar (§9.2, ölçülmüş kusur sınıfı). `nationalContribution`:
+  //   · caps VAR                 → değer (maçta caps, golde nationalGoals)
+  //   · caps YOK, member = true  → null (oynadı, sayı bilinmiyor → GİZLE)
+  //   · caps YOK, member ≠ true  → 0    (hiç oynamadı → resmî toplam = kulüp)
+  // `member ≠ true`, hem `false` hem `null` (henüz ölçülmemiş) demektir; null
+  // yedeği domain'de de 0'a düşer, o yüzden burada ikisi de açıkça listelenir.
+  if (key === "appearances") {
+    return {
+      clubCareerAppearances: { not: null },
+      OR: [
+        { nationalCaps: { not: null } },
+        { nationalTeamMember: false },
+        { nationalTeamMember: null },
+      ],
+    };
+  }
+
+  return {
+    clubCareerGoals: { not: null },
+    OR: [
+      { nationalCaps: { not: null }, nationalGoals: { not: null } },
+      { nationalCaps: null, nationalTeamMember: false },
+      { nationalCaps: null, nationalTeamMember: null },
+    ],
+  };
 }
 
 /**

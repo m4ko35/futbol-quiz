@@ -504,13 +504,30 @@ describe("GET /api/players?stat= — BR-16", () => {
   });
 
   /**
-   * BR-23'ün İKİ YARISI AYRI AYRI ARANIR. Millî yarısı olmayan oyuncu resmî
-   * maç sorusunda cevap OLAMAZ — ama kulüp sayısında olabilir. Süzgeç ile
-   * sunucunun ayrışması ölçülmüş bir kusur sınıfı (§9.2).
+   * BR-23 — süzgeç, cevap ucunun ÜÇ durumuyla birebir aynı (§9.2 "BR-16 …
+   * domain'e HİZALANDI"). Millî takımda HİÇ oynamamış oyuncunun (üyelik yok →
+   * millî katkı 0) resmî maç/gol toplamı HESAPLANIR, dolayısıyla aramada ÇIKAR;
+   * cevap ucu da onu kabul ediyor (yukarıdaki test). Ayrışması ölçülmüş bir
+   * kusur sınıfı: seçici ile sunucu aynı oyuncuyu aynı yönde değerlendirmeli.
    */
-  it("maç süzgeci millî yarısı olmayanı da eler", async () => {
-    expect(await search("q=Oyuncu&stat=appearances")).not.toContain("capsiz");
+  it("maç/gol süzgeci millî takımda HİÇ oynamamışı da GÖSTERİR (BR-23)", async () => {
+    expect(await search("q=Oyuncu&stat=appearances")).toContain("capsiz");
+    expect(await search("q=Oyuncu&stat=goals")).toContain("capsiz");
     expect(await search("q=Oyuncu&stat=clubs")).toContain("capsiz");
+  });
+
+  /**
+   * Ama üyeliği OLAN ama maç sayısı EKSİK oyuncu (Bardakçı/Yunus durumu, BR-23'ün
+   * asıl gizleme hâli) resmî maç/gol'de GİZLENİR — cevap ucu da reddediyor.
+   */
+  it("maç/gol süzgeci üye-ama-sayısız oyuncuyu GİZLER (BR-23)", async () => {
+    // "Üye Sayısız" → searchKey "uye sayisiz"; "Sayisiz" onunla eşleşir,
+    // "capsiz"le (millisiz oyuncu) eşleşmez — süzgeci yalnız bu oyuncuda sınar.
+    expect(await search("q=Sayisiz&stat=appearances")).not.toContain(
+      "uyesayisiz",
+    );
+    expect(await search("q=Sayisiz&stat=goals")).not.toContain("uyesayisiz");
+    expect(await search("q=Sayisiz&stat=clubs")).toContain("uyesayisiz");
   });
 
   it("tanınmayan istatistik adını reddeder", async () => {
