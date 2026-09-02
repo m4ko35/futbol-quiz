@@ -125,6 +125,7 @@ describe("pickNationality — BR-38 kademeleri", () => {
     expect(
       pickNationality({
         citizenships: ["BR", "IT"],
+        sportCountries: [],
         nationalTeamCountry: "IT",
         birthCountry: "BR",
       }),
@@ -133,27 +134,85 @@ describe("pickNationality — BR-38 kademeleri", () => {
     expect(
       pickNationality({
         citizenships: ["AR", "ES", "IT"],
+        sportCountries: [],
         nationalTeamCountry: "AR",
         birthCountry: "AR",
       }),
     ).toBe("AR");
   });
 
+  /** Millî takım Wikidata'da olsa bile onun ülkesi P1532'yi de EZER. */
+  it("millî takım ülkesi P1532'yi de yener", () => {
+    expect(
+      pickNationality({
+        citizenships: ["DE"],
+        sportCountries: ["TR"],
+        nationalTeamCountry: "DE",
+        birthCountry: "DE",
+      }),
+    ).toBe("DE");
+  });
+
   it("millî takımı olmayan tek vatandaşlıkta o vatandaşlık", () => {
     expect(
       pickNationality({
         citizenships: ["TR"],
+        sportCountries: [],
         nationalTeamCountry: null,
         birthCountry: null,
       }),
     ).toBe("TR");
   });
 
+  /**
+   * §5.3.1 (2 Eylül 2026) — millî takımı Wikidata'da OLMAYAN oyuncuda P1532
+   * spor ülkesi vatandaşlıktan ÖNCE gelir. Salih Özcan/Mert Müldür: caps'i
+   * BR-64 doldurdu, tek P1532 = TR; vatandaşlık DE/AT'e düşülmez.
+   */
+  it("millî takım yoksa tek P1532 vatandaşlığı yener", () => {
+    expect(
+      pickNationality({
+        citizenships: ["DE"],
+        sportCountries: ["TR"],
+        nationalTeamCountry: null,
+        birthCountry: "DE",
+      }),
+    ).toBe("TR");
+  });
+
+  /**
+   * Çift P1532 (gençlik + kıdemli) — doğum ülkesi elenir. Kaan Ayhan: spor
+   * {DE, TR}, Almanya doğumlu → TR.
+   */
+  it("çift P1532'de doğum ülkesi elenir", () => {
+    expect(
+      pickNationality({
+        citizenships: ["DE", "TR"],
+        sportCountries: ["DE", "TR"],
+        nationalTeamCountry: null,
+        birthCountry: "DE",
+      }),
+    ).toBe("TR");
+  });
+
+  /** Kıdemli takımı DOĞUM ülkesi olan: çift P1532 doğum-dışı BOŞ → doğum ülkesi. */
+  it("çift P1532 hepsi... değil ama doğum-dışı boşsa doğum ülkesi", () => {
+    expect(
+      pickNationality({
+        citizenships: ["DE"],
+        sportCountries: ["DE"],
+        nationalTeamCountry: null,
+        birthCountry: "DE",
+      }),
+    ).toBe("DE");
+  });
+
   /** İkinci kademe: Icardi millî takımı olmasaydı doğum ülkesi ayırırdı. */
-  it("millî takım yoksa doğum ülkesi ayırır", () => {
+  it("millî takım/P1532 yoksa doğum ülkesi ayırır", () => {
     expect(
       pickNationality({
         citizenships: ["AR", "IT"],
+        sportCountries: [],
         nationalTeamCountry: null,
         birthCountry: "AR",
       }),
@@ -168,6 +227,7 @@ describe("pickNationality — BR-38 kademeleri", () => {
   it("hiçbiri ayırmıyorsa sonuç HER KOŞUDA aynı", () => {
     const input = {
       citizenships: ["IT", "AR", "ES"],
+      sportCountries: [],
       nationalTeamCountry: null,
       birthCountry: "FR",
     } as const;
@@ -184,6 +244,7 @@ describe("pickNationality — BR-38 kademeleri", () => {
     expect(
       pickNationality({
         citizenships: [],
+        sportCountries: [],
         nationalTeamCountry: null,
         birthCountry: "TR",
       }),
@@ -195,6 +256,7 @@ describe("pickNationality — BR-38 kademeleri", () => {
     expect(
       pickNationality({
         citizenships: ["FR", "SN"],
+        sportCountries: [],
         nationalTeamCountry: null,
         birthCountry: "DE",
       }),

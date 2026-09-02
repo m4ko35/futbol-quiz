@@ -465,6 +465,7 @@ describe("isInScope — erkek ligi kapsamı", () => {
     birthDate: null,
     nationality: null,
     citizenships: [],
+    sportCountries: [],
     birthCountry: null,
     position: null,
     genderQid,

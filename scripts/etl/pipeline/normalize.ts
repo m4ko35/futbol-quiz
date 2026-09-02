@@ -37,6 +37,12 @@ export interface NormalizedPlayer {
   nationality: string | null;
   /** Ham vatandaşlıklar (`P27`) — BR-38'in girdisi; tekil ve sıralı. */
   citizenships: readonly string[];
+  /**
+   * Spor için ülke(ler) (`P1532`) — BR-38'in millî takımdan SONRA, vatandaşlıktan
+   * ÖNCE gelen kademesi (2 Eylül 2026). Millî takımı Wikidata'da olmayan çifte
+   * vatandaşlıda spor uyruğunu verir. Çok değerli olabilir; tekil ve sıralı.
+   */
+  sportCountries: readonly string[];
   /** Doğum ülkesi (`P19` → `P17`) — BR-38'in üçüncü kademesi. */
   birthCountry: string | null;
   position: string | null;
@@ -468,6 +474,7 @@ export function toPlayer(
   if (name === undefined || name === null) return null;
 
   const citizenship = normalizeCountryCode(str(binding, "countryCode"));
+  const sportCountry = normalizeCountryCode(str(binding, "sportCode"));
 
   return {
     wikidataId: id,
@@ -478,6 +485,7 @@ export function toPlayer(
     // bilinmiyor. Burada yalnızca ham girdi toplanır.
     nationality: null,
     citizenships: citizenship === null ? [] : [citizenship],
+    sportCountries: sportCountry === null ? [] : [sportCountry],
     birthCountry: normalizeCountryCode(str(binding, "birthCountryCode")),
     position: normalizePosition(str(binding, "positionLabel")),
     genderQid: qid(binding, "gender") ?? null,
@@ -525,6 +533,9 @@ export function playersFrom(
       ...existing,
       citizenships: [
         ...new Set([...existing.citizenships, ...player.citizenships]),
+      ].sort(),
+      sportCountries: [
+        ...new Set([...existing.sportCountries, ...player.sportCountries]),
       ].sort(),
       birthCountry: existing.birthCountry ?? player.birthCountry,
       position: existing.position ?? player.position,
@@ -593,23 +604,46 @@ export function labelsFrom(
 /**
  * BR-38 — futbol uyruğu, hukuki vatandaşlık değil.
  *
- * SIRA KEYFÎ DEĞİL, ÖLÇÜLDÜ (§5.3.1). Üç sinyalin hiçbiri tek başına
- * yetmiyor:
+ * SIRA KEYFÎ DEĞİL, ÖLÇÜLDÜ (§5.3.1). Sinyallerin hiçbiri tek başına yetmiyor:
  *
  *   vatandaşlık  → Messi İspanyol, Icardi İtalyan   (keyfî: son satır kazanır)
  *   doğum ülkesi → Thiago Motta Brezilyalı          (oysa İtalya'da oynadı)
  *   MİLLÎ TAKIM  → ikisi de doğru
  *
- * Çünkü sorulan şey zaten futbol uyruğudur. Millî takımı olmayanlarda doğum
- * ülkesi ikinci kademe; o da ayırmıyorsa alfabetik sıra ALINIR ama doğru
- * olduğu İDDİA EDİLMEZ — amacı yalnızca sonucun her koşuda aynı çıkmasıdır.
+ * Çünkü sorulan şey zaten futbol uyruğudur. Sıra: (1) millî takım ülkesi
+ * (Wikidata caps), (2) `P1532` spor ülkesi, (3) vatandaşlık, (4) doğum ülkesi.
+ *
+ * `P1532` ULUSAL TAKIMDAN SONRA, VATANDAŞLIKTAN ÖNCE (2 Eylül 2026). Sebebi
+ * ölçüldü: millî takımı Wikidata'da OLMAYAN (senior caps'i BR-64 ile Vikipedi
+ * bilgi kutusundan dolan) çifte vatandaşlıklarda uyruk doğum ülkesine düşüp
+ * yanlış çıkıyordu — Kaan Ayhan → DE, Mert Müldür → AT, Salih Özcan → DE. P1532
+ * spor uyruğunu doğrudan verir: Salih/Müldür'de tek değer TR.
+ *
+ * ÇİFT SPOR ÜLKESİNDE (gençlik bir ülke, kıdemli başka) ayraç DOĞUM ÜLKESİNİ
+ * ELER: yurt dışında doğup A millîyi değiştirenlerin kalıbı (Kaan spor {DE,TR},
+ * doğum DE → TR). Elemeden sonra tek kalırsa o; hepsi doğum ülkesiyse doğum
+ * ülkesi; hâlâ belirsizse vatandaşlığa düşülür. (Not: kıdemli takımı doğum
+ * ülkesi OLAN + yurt dışında gençlik oynamış nadir oyuncuda bu ayraç yanılır;
+ * o durum için BR-64 kıdemli takım ülkesi ayracı ayrı bir iş olarak duruyor.)
  */
 export function pickNationality(input: {
   readonly citizenships: readonly string[];
+  readonly sportCountries: readonly string[];
   readonly nationalTeamCountry: string | null;
   readonly birthCountry: string | null;
 }): string | null {
   if (input.nationalTeamCountry !== null) return input.nationalTeamCountry;
+
+  const sport = [...new Set(input.sportCountries)].sort();
+  if (sport.length === 1) return sport[0] ?? null;
+  if (sport.length > 1) {
+    const nonBirth = sport.filter((code) => code !== input.birthCountry);
+    if (nonBirth.length === 1) return nonBirth[0] ?? null;
+    if (nonBirth.length === 0 && input.birthCountry !== null) {
+      return input.birthCountry;
+    }
+    // Birden çok doğum-dışı spor ülkesi: ayraç yetmiyor, vatandaşlığa düş.
+  }
 
   const unique = [...new Set(input.citizenships)].sort();
   if (unique.length === 0) return null;
@@ -911,6 +945,7 @@ export function applyPlayerStats(
       ...player,
       nationality: pickNationality({
         citizenships: player.citizenships,
+        sportCountries: player.sportCountries,
         nationalTeamCountry:
           national === undefined
             ? null

@@ -31,6 +31,7 @@ const player = (id: string): NormalizedPlayer => ({
   birthDate: null,
   nationality: null,
   citizenships: [],
+  sportCountries: [],
   birthCountry: null,
   position: null,
   genderQid: null,

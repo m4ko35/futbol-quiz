@@ -253,17 +253,25 @@ SELECT ?st ?player ?start ?startPrecision ?end ?endPrecision ?apps ?goals ?acq W
  * `birthCountryCode` BR-38'in üçüncü kademesi: millî takımı olmayan çift
  * vatandaşlıklıda doğum ülkesi belirleyici. Tek başına yeterli değil —
  * Thiago Motta'yı Brezilyalı yapardı — o yüzden millî takımdan SONRA gelir.
+ *
+ * `sportCode` (`P1532` "spor için ülke") BR-38'e 2 Eylül 2026'da eklendi:
+ * millî takımı Wikidata'da OLMAYAN (caps'i Vikipedi bilgi kutusundan/BR-64 gelen)
+ * çifte vatandaşlı oyuncularda uyruk yanlış çıkıyordu (Kaan Ayhan → DE, Mert
+ * Müldür → AT, Salih Özcan → DE). P1532 spor uyruğunu VATANDAŞLIKTAN daha iyi
+ * verir: Salih/Müldür'de tek değer TR; Kaan'da {DE, TR} (gençlik + kıdemli).
+ * Çok değerlidir; çağıran `playersFrom`'da kimliğe göre toplanır.
  */
 export function playerDetails(playerQids: readonly string[]): string {
   const values = playerQids.map((id) => `wd:${assertQid(id)}`).join(" ");
 
   return `
-SELECT ?player ?playerLabel ?dob ?positionLabel ?countryCode ?birthCountryCode ?gender WHERE {
+SELECT ?player ?playerLabel ?dob ?positionLabel ?countryCode ?birthCountryCode ?sportCode ?gender WHERE {
   VALUES ?player { ${values} }
   OPTIONAL { ?player wdt:P569 ?dob }
   OPTIONAL { ?player wdt:P413 ?position }
   OPTIONAL { ?player wdt:P27/wdt:P297 ?countryCode }
   OPTIONAL { ?player wdt:P19/wdt:P17/wdt:P297 ?birthCountryCode }
+  OPTIONAL { ?player wdt:P1532/wdt:P297 ?sportCode }
   OPTIONAL { ?player wdt:P21 ?gender }
   SERVICE wikibase:label { bd:serviceParam wikibase:language "${LABEL_LANGUAGES}". }
 }`.trim();
