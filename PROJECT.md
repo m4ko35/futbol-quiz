@@ -1138,6 +1138,21 @@ oyuncularda geri düşülecek bir Wikidata değeri yok.
 
 > **Ölçüm iki kez düzeltildi ve ikisi de aynı hataydı.** Kadro şablonu ayrıştırıcısı `name=[[Başlık|Görünen ad]]` alanını **iç boru işaretinde** kesiyordu; alan ayracıyla bağlantı ayracı aynı karakter. Sonuç: 1.503 oyuncu "makalesi yok" sayıldı ve kapsam %34,4 göründü. Aynı hata bilgi kutusu ayrıştırıcısında tekrarlandı; kariyer okunan oyuncu 5.532 yerine 2.425 göründü. **Wikitext'te `|` bölmek, ancak `[[…]]` ve `{{…}}` derinliği sayılarak yapılabilir** — üretim ayrıştırıcısı bunu zaten doğru yapıyor, tuzağa düşen ölçüm betiğiydi.
 
+##### YENİDEN UYGULANDI — kazanç artık istatistik modunda da GERÇEK (2 Eylül 2026)
+
+Yukarıdaki "kazanç istatistik modunda DEĞİL / yalnızca 12 oyuncu" ölçümü BR-64/65'ten (Vikipedi ikinci kaynağı: millî caps + kulüp toplamı, §9.2) **önceydi** ve artık geçerli değil. Keşfedilen oyuncu Wikidata `P54`'e ihtiyaç duymadan clubApp'i Vikipedi kariyer tablosundan, caps'i bilgi kutusundan alabiliyor — yani istatistik havuzuna da girebiliyor.
+
+Ürün sahibi bu sonucu ölçtürüp katmanı yeniden açtırdı. Kullanıcının bildirdiği 5 eksik oyuncudan **3'ü Resmî maç modunda görünür oldu**: Semih Kılıçsoy (107/21, caps 4), Emirhan Topçu (176/4, caps 2), Junior Olaitan (Benin, 166/25, caps 40). Kalan 2'si (Eskihellaç, Wagner Pina) kariyer toplamı Vikipedi'de ayrıştırılamadığı için ızgara-modu (clubApp `null`); kimlik çözümü temiz — Junior Olaitan doğru kişiye (Michael değil), Wagner Pina doğru QID'ye bağlandı.
+
+| Alan   |    Önce |       Sonra |
+| ------ | ------: | ----------: |
+| Oyuncu | 132.902 | **136.437** |
+| Dönem  | 406.676 | **415.635** |
+
+Çapa 29/29, `db:verify` KABUL BAŞARILI.
+
+**BAYRAK YAPIŞKAN DEĞİL.** `--apply-squad-discovery` bir koşu bayrağıdır; bayraksız sonraki ETL gölge moduna döner ve bu 3.535 oyuncuyu dönemsiz-temizlikle **siler**. Keşfi korumak isteyen her koşu bayrağı taşımalı.
+
 #### 4.3.1 Arma kaynağı ve lisansı
 
 Kulüp armaları **üç kaynaktan, bu sırayla** aranır ve **yalnızca özgür lisanslı** olanlar kabul edilir:
@@ -3519,6 +3534,14 @@ Genişletilmiş bütçe ve önbellek doğru çalıştı ama **yetmedi**. İkinci
 > **ÜST DÜZEY ETİKET DEĞİŞTİRİLEMEZ.** Önbellek dosya adı `${etiket}.${sorgu-özeti}.json` biçimindedir; etiketi değiştirmek var olan önbelleği görünmez kılar. `queryBatch` üst düzey çağrıda etiketi aynen geçirir, yalnızca bölünmüş alt gruplara `-a` / `-b` ekler — onlar zaten yeni sorgudur. Değişiklikte bu, çağrı yerlerinin etiketleri farkla karşılaştırılarak doğrulandı.
 
 **Yalnızca uç nokta kaynaklı hatada bölünür.** Karar `error.cause instanceof TransientError` ile verilir. Şema uyuşmazlığı gibi bir kusur bölünerek çözülmez; küçülen gruplarla aynı hatayı tekrarlamak gerçek sebebi gizlerdi.
+
+#### Sorgu-metni anahtarının öbür yüzü: dönem evreni sessizce donar (2 Eylül 2026)
+
+Anahtarın sorgu metni olması bölmede kazanç sağlar (yukarı), ama bir bedeli vardır: **önbellek zamana göre değil sorguya göre geçersiz olur, yani hiç eskimez.** `spellsAtClub(clubQid)` sorgu metni değişmediği sürece, o kulübün dönemleri önbelleğin oluşturulduğu GÜNE donar. O günden sonra Wikidata'ya eklenen kapsanan-kulüp `P54` ifadeleri — yeni transferler, yeni açılan oyuncu maddeleri — veri kümesine **hiç girmez** ve bunu hiçbir kapı söylemez (§2.7: sessizlik kanıt değildir).
+
+**Ölçüldü (2 Eylül 2026).** Kullanıcı istatistik modunda eksik güncel oyuncular bildirdi. Oğuz Aydın Wikidata'da tam (P54 → Fenerbahçe `Q6601875` = izlenen seçilebilir QID, ad `tr`/`en`/`mul`, doğum, erkek) ama veri kümesinde **0 dönemle YOKtu**. Sebep boru hattı kusuru değildi: Fenerbahçe dönem önbelleği 3 Ağustos'ta donmuştu ve Oğuz o dosyada yok; canlı sorgu onu döndürüyor. 1.502 dönem önbelleğinin tamamı 28 Temmuz–7 Ağustos aralığındaydı — yaz transfer dönemi boyunca evren donmuştu.
+
+**Çare:** `rm scripts/etl/.cache/spells-*.json` sonra `npm run etl`. Taze kadro çekilir. Oğuz düzeldi (clubApp 267, Resmî maç'ta görünür), evren +161 net oyuncu. Maliyet: koşu uzar — yeni oyuncular künye/caps/fiziksel toplu-sorgu gruplarının sınırlarını kaydırıp o önbellekleri de geçersiz kılar, hepsi yeniden çekilir. Bu, `db:crests`'in her tam koşudan sonra tekrar gerekmesiyle (aşağı, 4. koşu) aynı sınıfta bir bakım adımıdır: tam ETL kulüpleri yeniden yazar, arma künyesi sıfırlanır.
 
 #### Kapı işini yaptı: arma künyesi iş akışında yoktu (4. koşu)
 
