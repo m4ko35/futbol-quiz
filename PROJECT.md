@@ -2334,17 +2334,41 @@ SSRF budur. Kuralın bugünkü hâli:
 > yapılır. Adres hiçbir zaman kullanıcı girdisinden, bir yanıttan ya da bir
 > yapılandırma değerinden **türetilmez**; yönlendirme takip edilmez.
 
-Bugünkü liste **iki** adrestir ve uzaması bir karar gerektirir:
+Bugünkü liste **üç** adrestir ve uzaması bir karar gerektirir:
 
 | Adres                                 | Ne için                    | Nerede                |
 | ------------------------------------- | -------------------------- | --------------------- |
 | Turso hesap veritabanı                | hesap, tur, skor           | hesap yolları         |
 | `https://oauth2.googleapis.com/token` | yetkilendirme kodu → jeton | yalnızca giriş dönüşü |
+| `https://api.resend.com/emails`       | geri bildirim e-postası    | geri bildirim ucu     |
 
 Google'ın **anahtar seti ucu listede YOKTUR** ve olmasına gerek de yok:
 kimlik jetonunun imzası doğrulanmıyor, çünkü jeton bize Google'ın jeton
 ucundan **doğrudan TLS üzerinden** geliyor (§11.10). Yani ağ yüzeyi bir uçla
 sınırlı kaldı.
+
+#### Kural ÜÇÜNCÜ kez gevşetildi (geri bildirim) — gerekçe ayrı
+
+Öneri/şikayet formu (sağ altta yüzen düğme, her sayfada) kullanıcının mesajını
+işletmeciye **e-posta** olarak iletir; bu, tanım gereği istek yolundan yapılan
+bir dış çağrıdır. Taşıyıcı Resend'in HTTPS API'sidir
+(`src/infrastructure/email/feedback-mailer.ts`) ve `google.ts` ile **aynı
+savunma biçiminde** yazılmıştır: adres kodda sabit (`RESEND_ENDPOINT`),
+`redirect: "error"`, zaman aşımı, ayrıntı yalnızca loga (§6.3).
+
+**BU BİR AÇIK RÖLE DEĞİLDİR ve ayrım tam burada.** Alıcı (`to`) her zaman
+`CONTACT_EMAIL`'dir ve **sunucuda sabittir** — kullanıcı NEREYE gönderileceğini
+seçemez. Gövdeden yalnızca iki şey gelir: mesaj metni (postanın gövdesine) ve
+yanıt adresi (`reply_to` başlığına). Yanıt adresi Zod `z.email()`'den geçtiği
+için satır sonu (CRLF) taşıyamaz; başlık enjeksiyonu bu yüzden mümkün değil.
+Yani §7.4'ün gerçek konusu olan **kullanıcının belirlediği bir adrese istek**
+hiç doğmuyor: adres kullanıcıdan değil ortamdan geliyor.
+
+**ÖZELLİK KAPALI OLABİLİR ve varsayılan budur.** `RESEND_API_KEY` (veya
+`CONTACT_EMAIL`) yoksa `feedbackEmailEnv()` `null` döner: form çizilmez, düğme
+`mailto`ya düşer (istemci tarafı bir bağlantı, ağ turu değil) ve istek yolunda
+**hiçbir** yeni çağrı olmaz. Yani üçüncü adres yalnızca anahtar tanımlıyken
+canlanır; tanımsız bir kurulumda liste hâlâ iki adrestir.
 
 ### 7.5 İstek Hızı Sınırlama
 
@@ -3248,6 +3272,8 @@ Bu, `next/image` kullanılmamasının ölçülmemiş bir yan etkisiydi (gerekçe
 **Yürürlükteki koruma başlıkları** (§7.3, next.config): `Permissions-Policy` kamera, mikrofon, konum ve ödeme API'lerini tamamen kapatır; `interest-cohort=()` tarayıcı tabanlı ilgi alanı gruplamasını reddeder; `X-DNS-Prefetch-Control: off` ziyaret edilen alan adlarının önceden çözülüp sızmasını engeller.
 
 **İletişim adresi `SITE_INDEXABLE` ile KENETLİDİR.** KVKK aydınlatma yükümlülüğü başvurulacak bir adres ister; adressiz bir metin eksiktir. Ortam doğrulaması bunu yapısal hâle getirir: `SITE_INDEXABLE=true` verilip `CONTACT_EMAIL` verilmezse **uygulama başlamaz** (§7.6). Gerekçe §7.11'in gerekçesiyle aynı — unutulan bir yapılandırma siteyi sessizce eksik hâlde yayına sokmamalı. Geliştirmede etki yok: `SITE_INDEXABLE` öntanımlı `false`.
+
+**GERİ BİLDİRİM FORMU E-POSTA İŞLER ve bu beyan edilmelidir (§7.4).** Sağ alttaki form açıksa (`RESEND_API_KEY` tanımlı), kullanıcının yazdığı **e-posta adresi** ve **mesaj**, site sahibine bir e-posta olarak iletilir. Adres yalnızca yanıt için kullanılır (`reply_to`); ikisi de sitenin veritabanına **yazılmaz** — yalnızca postayı ileten servise (**Resend**, üçüncü taraf) ve site sahibinin posta kutusuna gider. Form **isteğe bağlıdır**; oyunlar onsuz oynanır. Anahtar tanımsızsa form hiç çizilmez ve düğme kullanıcının **kendi** posta uygulamasını açar (`mailto`) — o hâlde sitemiz hiçbir şey işlemez, kullanıcı doğrudan e-posta gönderir ve Resend devrede olmaz. Metnin gizlilik sayfasındaki karşılığı da aynı koşula bağlıdır: `feedbackEmailEnabled()` yalnızca form açıkken ilgili bölümü ve Resend'i beyan eder.
 
 ---
 

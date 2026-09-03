@@ -2,8 +2,13 @@ import type { Metadata } from "next";
 import { Barlow, Barlow_Condensed, Geist_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import { connection } from "next/server";
+import { FeedbackLink } from "@/components/feedback-link";
 import { SiteHeader } from "@/components/site-header";
-import { accountsEnabled, serverEnv } from "@/infrastructure/config/env";
+import {
+  accountsEnabled,
+  feedbackEmailEnabled,
+  serverEnv,
+} from "@/infrastructure/config/env";
 import { THEME_BOOT_SCRIPT } from "@/lib/theme";
 
 import "./globals.css";
@@ -209,6 +214,17 @@ export default async function RootLayout({
             ve 404 ile hata ekranı da gezinmeye kavuşuyor. */}
         <SiteHeader showLeaderboard={accountsEnabled()} />
         {children}
+        {/*
+          ÖNERİ/ŞİKAYET DÜZENDE, HER SAYFADA — sağ altta yüzen bir düğme.
+          Altbilgi hata/404 ekranlarında yok (veri kümesine bağlı, sayfa
+          başına); bu düğme yalnız `CONTACT_EMAIL`'e bağlı, o yüzden burada
+          güvenle durur ve gerçekten her sayfada görünür. `fixed` olduğu için
+          düzenin flex akışını etkilemez. Adres tanımsızsa bileşen hiç çizilmez.
+        */}
+        <FeedbackLink
+          email={serverEnv().CONTACT_EMAIL}
+          formEnabled={feedbackEmailEnabled()}
+        />
       </body>
     </html>
   );

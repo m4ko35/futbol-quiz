@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PageShell } from "@/components/page-shell";
 import { SiteFooter } from "@/components/site-footer";
-import { serverEnv } from "@/infrastructure/config/env";
+import { feedbackEmailEnabled, serverEnv } from "@/infrastructure/config/env";
 import { datasets } from "@/infrastructure/db/repositories";
 
 /**
@@ -35,11 +35,14 @@ export const metadata: Metadata = {
 };
 
 /** Metnin son gözden geçirildiği tarih — §7.18 ölçümüyle aynı gün. */
-const LAST_REVIEWED = "16 Ağustos 2026";
+const LAST_REVIEWED = "3 Eylül 2026";
 
 export default async function PrivacyPage() {
   const { CONTACT_EMAIL } = serverEnv();
   const dataGeneratedAt = await datasets.getGeneratedAt();
+  // Geri bildirim formu yalnızca açıkken e-posta işler; kapalıyken (mailto
+  // yedeği ya da hiç) beyan edilecek bir işleme yok (§7.4, §7.18).
+  const feedbackForm = feedbackEmailEnabled();
 
   return (
     <PageShell>
@@ -180,6 +183,25 @@ export default async function PrivacyPage() {
         </p>
       </section>
 
+      {feedbackForm && (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-xl font-semibold">Geri bildirim gönderirseniz</h2>
+          <p className="max-w-prose">
+            Sağ alttaki geri bildirim formuna yazdığınız{" "}
+            <strong>e-posta adresiniz</strong> ve <strong>mesajınız</strong>,
+            site sahibine bir e-posta olarak iletilir. E-posta adresiniz
+            yalnızca size <strong>yanıt verebilmek</strong> için kullanılır.
+          </p>
+          <p className="max-w-prose">
+            Bu bilgiler sitenin veritabanına <strong>kaydedilmez</strong>;
+            yalnızca e-posta olarak site sahibinin posta kutusuna düşer ve
+            postayı ileten servisin (<strong>Resend</strong>, aşağıda)
+            altyapısından geçer. Formu kullanmak{" "}
+            <strong>isteğe bağlıdır</strong> — oyunları oynamak için gerekmez.
+          </p>
+        </section>
+      )}
+
       <section className="flex flex-col gap-3">
         <h2 className="text-xl font-semibold">Üçüncü taraflar</h2>
         <p className="max-w-prose">
@@ -195,6 +217,14 @@ export default async function PrivacyPage() {
           altyapısından geçer. Sağlayıcı kendi sunucu kayıtlarını kendi
           politikasına göre tutar.
         </p>
+        {feedbackForm && (
+          <p className="max-w-prose">
+            <strong>Resend.</strong> Geri bildirim formunu gönderdiğinizde
+            mesajınız ve e-posta adresiniz, postayı ileten Resend (bir e-posta
+            servisi) üzerinden site sahibine ulaşır. Resend bu iletiyi kendi
+            altyapısında işler ve kayıtlarını kendi politikasına göre tutar.
+          </p>
+        )}
         <p className="max-w-prose text-sm text-muted">
           Bunların dışında hiçbir üçüncü tarafa veri aktarılmaz. Sitede reklam
           ağı, analitik aracı, sosyal medya düğmesi ve gömülü içerik yoktur.
@@ -209,8 +239,19 @@ export default async function PrivacyPage() {
             <strong> oturum çerezi</strong> vardır ve o zorunlu-tekniktir.
           </li>
           <li>
-            E-posta, telefon veya gerçek ad <strong>hiç istenmez</strong> —
-            hesap açarken bile.
+            {feedbackForm ? (
+              <>
+                Oyun oynamak ve hesap açmak için e-posta, telefon veya gerçek ad{" "}
+                <strong>hiç istenmez</strong>. E-posta adresiniz yalnızca geri
+                bildirim formuna <strong>kendiniz</strong> yazarsanız alınır
+                (yukarıya bakın).
+              </>
+            ) : (
+              <>
+                E-posta, telefon veya gerçek ad <strong>hiç istenmez</strong> —
+                hesap açarken bile.
+              </>
+            )}
           </li>
           <li>Analitik, ısı haritası veya oturum kaydı aracı yoktur.</li>
           <li>Reklam gösterilmez, reklam profili çıkarılmaz.</li>

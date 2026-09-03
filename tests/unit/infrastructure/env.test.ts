@@ -149,3 +149,60 @@ describe("hesap yapılandırması — §11", () => {
     expect(() => mod.serverEnv()).toThrow(/Ortam yapılandırması geçersiz/u);
   });
 });
+
+/**
+ * §7.4 — geri bildirim postası (sunucudan e-posta) YA TAM YA KAPALI.
+ *
+ * İki ön koşul birlikte gerekir: posta anahtarı (Resend) VE nereye
+ * gönderileceği (CONTACT_EMAIL). Biri eksikse özellik kapanır — bir hata değil,
+ * form yerine `mailto` yedeği çizilir.
+ */
+async function loadFeedback(overrides: Record<string, string>) {
+  vi.resetModules();
+  for (const [key, value] of Object.entries({ ...BASE_ENV, ...overrides })) {
+    vi.stubEnv(key, value);
+  }
+  return import("@/infrastructure/config/env");
+}
+
+describe("geri bildirim postası — §7.4", () => {
+  it("anahtar + adres birlikteyken AÇIKTIR ve alıcı CONTACT_EMAIL'dir", async () => {
+    const mod = await loadFeedback({
+      RESEND_API_KEY: "re_x",
+      CONTACT_EMAIL: "sahip@ornek.test",
+    });
+
+    expect(mod.feedbackEmailEnabled()).toBe(true);
+    const cfg = mod.feedbackEmailEnv();
+    expect(cfg?.to).toBe("sahip@ornek.test");
+    expect(cfg?.apiKey).toBe("re_x");
+    // Varsayılan gönderen: alan adı gerektirmeyen paylaşımlı adres.
+    expect(cfg?.from).toContain("onboarding@resend.dev");
+  });
+
+  it("anahtar yoksa KAPALI (mailto yedeğine düşer)", async () => {
+    const mod = await loadFeedback({ CONTACT_EMAIL: "sahip@ornek.test" });
+
+    expect(mod.feedbackEmailEnabled()).toBe(false);
+    expect(mod.feedbackEmailEnv()).toBeNull();
+  });
+
+  it("CONTACT_EMAIL yoksa KAPALI — nereye gönderileceği belli değil", async () => {
+    const mod = await loadFeedback({ RESEND_API_KEY: "re_x" });
+
+    expect(mod.feedbackEmailEnabled()).toBe(false);
+    expect(mod.feedbackEmailEnv()).toBeNull();
+  });
+
+  it("FEEDBACK_FROM_EMAIL verilince gönderen o adrestir", async () => {
+    const mod = await loadFeedback({
+      RESEND_API_KEY: "re_x",
+      CONTACT_EMAIL: "sahip@ornek.test",
+      FEEDBACK_FROM_EMAIL: "geri@alanadi.test",
+    });
+
+    expect(mod.feedbackEmailEnv()?.from).toBe(
+      "Futbol Quiz <geri@alanadi.test>",
+    );
+  });
+});

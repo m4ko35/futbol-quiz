@@ -64,6 +64,26 @@ const ServerEnvSchema = z
     CONTACT_EMAIL: z.email().optional(),
 
     /**
+     * Geri bildirim formunun posta anahtarı — Resend (§7.4).
+     *
+     * İSTEĞE BAĞLI ve bu bilinçli: anahtar yoksa özellik kapanır ve düğme
+     * `mailto`ya düşer (aşağıdaki `feedbackEmailEnv`). Yarım yapılandırma —
+     * anahtar var ama `CONTACT_EMAIL` yok — bir hata değil, yine kapalı: nereye
+     * göndereceği belli olmadan form açılmaz.
+     */
+    RESEND_API_KEY: z.string().min(1).optional(),
+
+    /**
+     * Geri bildirim postasının GÖNDEREN adresi (§7.4).
+     *
+     * Verilmezse Resend'in paylaşımlı `onboarding@resend.dev` adresi kullanılır;
+     * o adres yalnızca hesabın DOĞRULANMIŞ alıcısına (yani `CONTACT_EMAIL` sana
+     * aitse) gönderebilir — alan adı kaydetmeden çalışır. Kendi alan adını
+     * Resend'de doğruladıktan sonra buraya o alandan bir adres yazılır.
+     */
+    FEEDBACK_FROM_EMAIL: z.email().optional(),
+
+    /**
      * Hesaplar ve lider tablosu (§11) — BEŞİ BİRLİKTE İSTEĞE BAĞLIDIR.
      *
      * Tek tek zorunlu yapmak, bugün yayında olan siteyi ilk dağıtımda
@@ -223,4 +243,46 @@ export function accountsEnv(): AccountsEnv | null {
 /** Hesap özelliği bu kurulumda açık mı? (§11) */
 export function accountsEnabled(): boolean {
   return accountsEnv() !== null;
+}
+
+/**
+ * Geri bildirim POSTALAMA yapılandırması — kapalıysa `null` (§7.4).
+ *
+ * `accountsEnv` ile AYNI KALIP: iki ön koşul birlikte gerekir (posta anahtarı
+ * VE nereye gönderileceği), biri eksikse özellik kapalıdır ve bu bir hata
+ * değildir — çağıran (`layout`) formu göstermez, düğme `mailto`ya düşer.
+ *
+ * ALICI HER ZAMAN `CONTACT_EMAIL`'DİR, kullanıcı girdisinden GELMEZ (§7.4):
+ * form açık bir röle değil, tek ve sabit bir adrese gider.
+ */
+export interface FeedbackEmailEnv {
+  readonly apiKey: string;
+  /** Postanın "Ad <adres>" biçimli gönderen alanı. */
+  readonly from: string;
+  /** Alıcı — sabit, `CONTACT_EMAIL`. */
+  readonly to: string;
+}
+
+/** Resend'in alan adı doğrulaması gerektirmeyen paylaşımlı gönderen adresi. */
+const DEFAULT_FEEDBACK_FROM = "onboarding@resend.dev";
+
+export function feedbackEmailEnv(): FeedbackEmailEnv | null {
+  const env = serverEnv();
+
+  if (env.RESEND_API_KEY === undefined || env.CONTACT_EMAIL === undefined) {
+    return null;
+  }
+
+  const fromAddress = env.FEEDBACK_FROM_EMAIL ?? DEFAULT_FEEDBACK_FROM;
+
+  return {
+    apiKey: env.RESEND_API_KEY,
+    from: `Futbol Quiz <${fromAddress}>`,
+    to: env.CONTACT_EMAIL,
+  };
+}
+
+/** Geri bildirim formu (sunucudan e-posta) bu kurulumda açık mı? (§7.4) */
+export function feedbackEmailEnabled(): boolean {
+  return feedbackEmailEnv() !== null;
 }
