@@ -220,6 +220,60 @@ describe("checkCareerTotals — bütün, parçasından küçük olamaz", () => {
     const result = checkCareerTotals({ careerTotals: new Map(), spells: [] });
 
     expect(result.accepted.size).toBe(0);
+    expect(result.reconciled.size).toBe(0);
     expect(result.conflicts).toEqual([]);
+  });
+});
+
+/**
+ * DAR YEDEK (§9.2, 2 Eylül 2026) — çelişen toplam DÜŞMEZ, lig sayımızla
+ * alan-bazlı max'a uzlaştırılır. `accepted` çelişeni dışlar (yukarıdaki
+ * testler), `reconciled` ise onu uzlaştırılmış hâliyle taşır ve YAZILAN budur.
+ */
+describe("checkCareerTotals — reconciled: çelişen düşmez, alan-bazlı max'a uzlaşır", () => {
+  it("EMRE AKBABA: maç bayat okunmuş → max(247,293) / max(71,78)", () => {
+    // Ölçüldü: en Vikipedi 247/71, bizim lig sayımız 293/78 (son dönemler
+    // makaleye eklenmemiş). Düşmek yerine güncel sayımıza uzlaşır.
+    const r = checkCareerTotals({
+      careerTotals: new Map([["Q1", { appearances: 247, goals: 71 }]]),
+      spells: [spell({ appearances: 293, goals: 78 })],
+    });
+
+    expect(r.accepted.size).toBe(0); // temiz geçmedi
+    expect(r.conflicts[0]?.reason).toBe("appearances");
+    expect(r.reconciled.get("Q1")).toEqual({ appearances: 293, goals: 78 });
+  });
+
+  it("POPESCU: yalnız gol bayat — maçta Vikipedi büyük, o alan KORUNUR", () => {
+    // 642/77 ↔ 623/87: maç Vikipedi'de büyük (kapsam dışı kariyer), gol bayat.
+    // max maçı Vikipedi'den, golü lig sayımızdan alır.
+    const r = checkCareerTotals({
+      careerTotals: new Map([["Q1", { appearances: 642, goals: 77 }]]),
+      spells: [spell({ appearances: 623, goals: 87 })],
+    });
+
+    expect(r.accepted.size).toBe(0);
+    expect(r.reconciled.get("Q1")).toEqual({ appearances: 642, goals: 87 });
+  });
+
+  it("uzlaştırılan değer HER İKİ alanda da lig sayımızdan küçük olamaz", () => {
+    const r = checkCareerTotals({
+      careerTotals: new Map([["Q1", { appearances: 100, goals: 3 }]]),
+      spells: [spell({ appearances: 200, goals: 50 })],
+    });
+
+    const v = r.reconciled.get("Q1");
+    expect(v?.appearances).toBeGreaterThanOrEqual(200);
+    expect(v?.goals).toBeGreaterThanOrEqual(50);
+  });
+
+  it("temiz geçen kayıt reconciled'de aynen durur (accepted ⊆ reconciled)", () => {
+    const r = checkCareerTotals({
+      careerTotals: new Map([["Q1", { appearances: 1099, goals: 830 }]]),
+      spells: [spell({ appearances: 758, goals: 600 })],
+    });
+
+    expect(r.accepted.get("Q1")).toEqual({ appearances: 1099, goals: 830 });
+    expect(r.reconciled.get("Q1")).toEqual({ appearances: 1099, goals: 830 });
   });
 });

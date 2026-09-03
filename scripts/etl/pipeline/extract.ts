@@ -961,7 +961,9 @@ export async function extractDataset(
       careerTotals: mergedTotals,
       spells: finalSpells,
     });
-    careerTotals = checked.accepted;
+    // DAR YEDEK (§9.2): `accepted` değil `reconciled` yazılır — çelişenler
+    // düşmez, lig sayımızla alan-bazlı max'a uzlaştırılır.
+    careerTotals = checked.reconciled;
     careerTotalConflicts = [...checked.conflicts];
     // §9.2 BR-64 — kıdemli millî toplam; aşağıda Wikidata caps'i boş olanlara
     // yedek olarak uygulanır (return'de `fillNationalFromWikipedia`).
@@ -977,7 +979,7 @@ export async function extractDataset(
       `      kariyer toplamı: ${read} en okundu · +${trFilled} tr yedek ` +
         `(${pass.stats.careerTotalsTrParsed} tr toplam) · ${missed} en makale ` +
         `okunamadı · ${checked.conflicts.length} kayıt lig sayımızdan KÜÇÜK ` +
-        `çıktı ve düştü`,
+        `çıktı ve lig sayımızla uzlaştırıldı`,
     );
     for (const conflict of checked.conflicts.slice(0, 5)) {
       console.log(

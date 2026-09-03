@@ -695,10 +695,13 @@ async function verifyClubCareerTotals(): Promise<void> {
         AND "clubCareerAppearances" IS NOT NULL
         AND "clubCareerGoals" > "clubCareerAppearances"
     `),
-    // Bütün kulvarların toplamı, yalnız ligden küçük olamaz. `TALLY_SLACK` payı
-    // ETL kapısıyla AYNI olmalı: kapı 1-2 birimlik kaynak gürültüsünü kabul
-    // ediyor (Ozan Tufan: kariyer golü 43, dönem toplamı 44), verify de aynı
-    // payı tanımazsa o kayıtları bu kez reddederdi (§9.2 TALLY_SLACK).
+    // Bütün kulvarların toplamı, yalnız ligden küçük olamaz. ARTIK bu kapı
+    // normalde 0 bulur: `career-total-check.ts` reddedilen toplamı düşürmeyip
+    // lig sayımızla alan-bazlı max'a UZLAŞTIRIYOR (dar yedek, §9.2), yani
+    // yazılan değer her zaman en az lig sayımız kadar. Kapı yine de kalır:
+    // uzlaştırma bozulursa ya da eski koşudan kalma bir kayıt küçükse yakalar.
+    // `TALLY_SLACK` payı ETL kapısıyla AYNI kalır (slack içinde kabul edilen
+    // Ozan Tufan gibi kayıtları verify de reddetmesin).
     prisma.$queryRaw<{ n: bigint }[]>(Prisma.sql`
       SELECT COUNT(*) AS n FROM (
         SELECT p.id,

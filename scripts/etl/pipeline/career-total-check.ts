@@ -19,9 +19,24 @@ import type { NormalizedSpell } from "./normalize";
  * eksik, ya yanlış satır okunmuş, ya da iki kaynak farklı oyuncudan
  * bahsediyor. Üçünde de doğru davranış aynı: **sayıyı yazma**.
  *
- * SESSİZCE DÜZELTMEZ. Değeri lig sayımıza yükseltmek ya da farkı kapatmak
- * akla gelebilir; ikisi de uydurma olurdu. `null` sıfır olmadığı gibi tahmin
- * de değildir (§2.7) — kayıt düşer, gerekçesi raporlanır.
+ * REDDEDİLEN TOPLAM DÜŞMEZ, LİG SAYIMIZA UZLAŞTIRILIR — dar yedek (2 Eylül
+ * 2026). Önceki davranış kaydı düşürüp `null` bırakıyordu; ama bu, elimizdeki
+ * GERÇEK ölçümü (lig sayımız) de çöpe atıyordu. Reddin olağan sebebi Vikipedi
+ * toplamının BAYAT olmasıdır — oyuncunun son dönemleri makaleye eklenmemiş —
+ * ve bizim lig sayımız o alanda daha günceldir. Bu bir tahmin değil ÖLÇÜMdür,
+ * yani §2.7 çiğnenmez. Yazılan değer iki toplamın ALAN-BAZLI max'ıdır:
+ * `max(Vikipedi maç, lig maç)` ve `max(Vikipedi gol, lig gol)`. Böylece
+ * Vikipedi'nin daha büyük olduğu alan (kapsam dışı kariyeri içeren) korunur,
+ * bayat olduğu alan lig sayımızla düzeltilir; kör tahmin yok, ölçülmüş iki
+ * sayıdan büyüğü alınır. Kural yine geçerli: küçük çıkan okuma OLDUĞU GİBİ
+ * yazılmaz — ama artık `null` değil, uzlaştırılmış max yazılır (`reconciled`).
+ *
+ * NEDEN YALNIZCA ÇELİŞENLER (dar), toplamı olmayan HERKESE değil (geniş) —
+ * ölçüldü (2 Eylül, 71.783 aday). Toplamı hiç olmayan 69.710 oyuncuya lig
+ * sayımızı yazmak, doğru kişiyi bulduğumuzu doğrulamadan (Vikipedi toplamının
+ * VARLIĞI o doğrulamadır) ve kapsam dışı kariyeri kör biçimde eksik sayarak
+ * istatistik havuzunu ~4 katına çıkarırdı. Çelişenler (2.073) ise kişinin
+ * doğrulandığı, yalnızca sayının bayatladığı kümedir — güvenli olan budur.
  *
  * KÜÇÜK BİR PAY BIRAKILIR (`TALLY_SLACK = 2`), 2 Eylül 2026'da ölçülerek
  * eklendi. İki toplam İKİ BAĞIMSIZ TOPLAMADIR: bizimki dönem dönem
@@ -48,9 +63,14 @@ export interface CareerTotalConflict {
 }
 
 export interface CareerTotalCheckResult {
-  /** Denetimi geçen kayıtlar — yazılabilir. */
+  /** Temiz geçen kayıtlar (Vikipedi toplamı, lig sayımızdan küçük değil). */
   readonly accepted: ReadonlyMap<string, CareerTotal>;
-  /** Düşen kayıtlar, gerekçesiyle. */
+  /**
+   * YAZILACAK değer: temiz geçenler + çelişenlerin lig sayımızla uzlaştırılmış
+   * (alan-bazlı max) hâli. `accepted`'ı KAPSAR; dar yedek (§9.2) buradadır.
+   */
+  readonly reconciled: ReadonlyMap<string, CareerTotal>;
+  /** Lig sayımızdan küçük çıkıp uzlaştırılan kayıtlar, gerekçesiyle (rapor). */
   readonly conflicts: readonly CareerTotalConflict[];
 }
 
@@ -104,6 +124,13 @@ function leagueTallies(
   return result;
 }
 
+/** İki ölçümün büyüğü; biri null ise öteki, ikisi de null ise null. */
+function maxTally(a: number | null, b: number | null): number | null {
+  if (a === null) return b;
+  if (b === null) return a;
+  return Math.max(a, b);
+}
+
 /**
  * Kariyer toplamlarını kendi lig sayımızla karşılaştırır.
  *
@@ -121,6 +148,7 @@ export function checkCareerTotals(input: {
   const league = leagueTallies(input.spells);
 
   const accepted = new Map<string, CareerTotal>();
+  const reconciled = new Map<string, CareerTotal>();
   const conflicts: CareerTotalConflict[] = [];
 
   for (const [playerId, parsed] of input.careerTotals) {
@@ -141,16 +169,26 @@ export function checkCareerTotals(input: {
 
     if (reason === null) {
       accepted.set(playerId, parsed);
-    } else {
-      conflicts.push({
-        playerWikidataId: playerId,
-        parsed,
-        leagueAppearances,
-        leagueGoals,
-        reason,
-      });
+      reconciled.set(playerId, parsed);
+      continue;
     }
+
+    conflicts.push({
+      playerWikidataId: playerId,
+      parsed,
+      leagueAppearances,
+      leagueGoals,
+      reason,
+    });
+
+    // DAR YEDEK: düşürme yerine alan-bazlı max ile uzlaştır (yukarıdaki doc).
+    // Çelişkide lig sayımız her iki alanda da doludur; `maxTally`'nin null
+    // dalları yalnızca teorik korumadır.
+    reconciled.set(playerId, {
+      appearances: maxTally(parsed.appearances, leagueAppearances),
+      goals: maxTally(parsed.goals, leagueGoals),
+    });
   }
 
-  return { accepted, conflicts };
+  return { accepted, reconciled, conflicts };
 }
