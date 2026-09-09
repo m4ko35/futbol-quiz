@@ -1,0 +1,52 @@
+[
+  {
+    "id": "TC001",
+    "title": "clubsearchapi_validquery_returnsmatchingclubs",
+    "description": "Test GET /api/clubs with a valid query parameter q and optional limit and league filter to ensure it returns 200 with matching clubs data."
+  },
+  {
+    "id": "TC002",
+    "title": "playersearchapi_missingqueryparam_returnsvalidationerror",
+    "description": "Test GET /api/players without the required query parameter q to verify it returns 400 VALIDATION_ERROR with a Turkish error message."
+  },
+  {
+    "id": "TC003",
+    "title": "commonplayersapi_sameclubselection_returnsvalidationerror",
+    "description": "Test GET /api/common-players with clubA and clubB set to the same club to confirm it returns 400 VALIDATION_ERROR due to the SAME_CLUB rule."
+  },
+  {
+    "id": "TC004",
+    "title": "gridapi_postanswer_validpayload_returnscorrectness",
+    "description": "Test POST /api/grid/answer with a valid JSON body containing row, col, and playerId to verify it returns 200 with correctness data using server-derived criteria."
+  },
+  {
+    "id": "TC005",
+    "title": "statmatchapi_postanswer_withvalidstatkey_returnsscore",
+    "description": "Test POST /api/stat-match/answer with a valid statKey and playerId to ensure it returns 200 with computed score and trueValue."
+  },
+  {
+    "id": "TC006",
+    "title": "hangisidahaapi_postanswer_withvalidchoice_returnscorrectness",
+    "description": "Test POST /api/hangisi-daha/answer with a valid JSON body describing the round choice to verify it returns 200 with correctness and revealed values."
+  },
+  {
+    "id": "TC007",
+    "title": "geribildirimapi_postfeedback_withvalidinput_sendsmail",
+    "description": "Test POST /api/geri-bildirim with valid email and message to check it returns 200 with sent true or 500 INTERNAL_ERROR if mail provider is unreachable."
+  },
+  {
+    "id": "TC008",
+    "title": "lidertablosuapi_postreport_withoutlogin_returnsvalidationerror",
+    "description": "Test POST /api/lider-tablosu/bildir without a session cookie to confirm it returns 400 VALIDATION_ERROR with the message \"Bildirmek için giriş yapmalısın.\"."
+  },
+  {
+    "id": "TC009",
+    "title": "authapi_postkayit_withoutsession_returnsauthfailure",
+    "description": "Test POST /api/auth/kayit without an authenticated session to verify it returns an auth-gated failure response."
+  },
+  {
+    "id": "TC010",
+    "title": "odaapi_postcreate_withoutlogin_returnsauthfailure",
+    "description": "Test POST /api/oda without a session cookie to ensure it returns an auth-gated failure response because rooms require login."
+  }
+]

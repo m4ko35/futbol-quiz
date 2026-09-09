@@ -1,0 +1,706 @@
+[
+  {
+    "id": "TC001",
+    "title": "Fill a grid cell with a valid player",
+    "description": "Verifies that a guest can open a grid cell, search for a matching footballer, and successfully fill the cell.",
+    "category": "Izgara Oyunu",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /izgara"
+      },
+      {
+        "type": "action",
+        "description": "Open a grid cell"
+      },
+      {
+        "type": "action",
+        "description": "Search for a footballer"
+      },
+      {
+        "type": "action",
+        "description": "Select a suggested player"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the cell is filled"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify no rejection feedback is visible"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC002",
+    "title": "Solve the daily statistic guess and view the result",
+    "description": "Verifies that a player can be searched, selected, and submitted in statistic mode, then the correct value and score are shown.",
+    "category": "Istatistik Modu",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /istatistik"
+      },
+      {
+        "type": "action",
+        "description": "Search for a footballer"
+      },
+      {
+        "type": "action",
+        "description": "Select the player"
+      },
+      {
+        "type": "action",
+        "description": "Submit the guess"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the correct statistic value is revealed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a score result is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC003",
+    "title": "Complete a daily statistic guess and see the result",
+    "description": "This verifies that a guest can search for a player on the statistics mode, submit a guess, and see the revealed value and score.",
+    "category": "Istatistik",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /istatistik"
+      },
+      {
+        "type": "action",
+        "description": "Search for a player"
+      },
+      {
+        "type": "action",
+        "description": "Select the player from the results"
+      },
+      {
+        "type": "action",
+        "description": "Submit the guess"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the correct value is revealed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the score is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC004",
+    "title": "View common players between two different clubs",
+    "description": "Verifies that a guest can choose two different clubs on the home page and see the list of players who appeared for both clubs.",
+    "category": "Ortak Oyuncular",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open the first club selector"
+      },
+      {
+        "type": "action",
+        "description": "Choose a club"
+      },
+      {
+        "type": "action",
+        "description": "Open the second club selector"
+      },
+      {
+        "type": "action",
+        "description": "Choose a different club"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify common players are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC005",
+    "title": "Choose different clubs and see shared players",
+    "description": "This verifies that a guest can select two different clubs on the shared-players page and see the list of players who played for both clubs.",
+    "category": "Ortak Oyuncular",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Select the first club"
+      },
+      {
+        "type": "action",
+        "description": "Select a different second club"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify shared players are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC006",
+    "title": "Choose the higher player in a comparison round",
+    "description": "Verifies that a visitor can play a comparison round, receive correct or incorrect feedback, and advance to the next round.",
+    "category": "Hangisi Daha",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /hangisi-daha"
+      },
+      {
+        "type": "action",
+        "description": "Choose one of the two players"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify feedback about the comparison result is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the next round is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC007",
+    "title": "Reject an invalid grid answer",
+    "description": "This verifies that the 3x3 grid rejects a player who does not match the selected cell criteria and shows feedback.",
+    "category": "Izgara",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /izgara"
+      },
+      {
+        "type": "action",
+        "description": "Open an empty grid cell"
+      },
+      {
+        "type": "action",
+        "description": "Search for a player that does not match the cell criteria"
+      },
+      {
+        "type": "action",
+        "description": "Select the invalid player"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify invalid answer feedback is visible"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC008",
+    "title": "Choose the higher player and see a correct result",
+    "description": "This verifies that in the which-more game, choosing the player with the higher statistic shows a correct result and advances to the next round.",
+    "category": "Hangisi Daha",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /hangisi-daha"
+      },
+      {
+        "type": "action",
+        "description": "Review the two player options"
+      },
+      {
+        "type": "action",
+        "description": "Choose the player with the higher statistic"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a correct result is displayed"
+      },
+      {
+        "type": "action",
+        "description": "Continue to the next match"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the next match is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC009",
+    "title": "Prevent selecting the same club twice",
+    "description": "This verifies that choosing the same club for both sides is blocked and the user sees validation feedback.",
+    "category": "Ortak Oyuncular",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Select a club for the first side"
+      },
+      {
+        "type": "action",
+        "description": "Select the same club for the second side"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a same-club validation error is visible"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC010",
+    "title": "Submit valid feedback from any page",
+    "description": "This verifies that a visitor can open the floating feedback form, submit a valid email and message, and see the submission state.",
+    "category": "Geri Bildirim Formu",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open the floating feedback form"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with a valid email address"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the message field with a helpful feedback message"
+      },
+      {
+        "type": "action",
+        "description": "Submit the form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a feedback submission state is visible"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC011",
+    "title": "Choose the lower player and see an incorrect result",
+    "description": "This verifies that in the which-more game, choosing the player with the lower statistic shows an incorrect result and advances to the next round.",
+    "category": "Hangisi Daha",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /hangisi-daha"
+      },
+      {
+        "type": "action",
+        "description": "Review the two player options"
+      },
+      {
+        "type": "action",
+        "description": "Choose the player with the lower statistic"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an incorrect result is displayed"
+      },
+      {
+        "type": "action",
+        "description": "Continue to the next match"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the next match is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC012",
+    "title": "See feedback for an incorrect statistic guess",
+    "description": "Verifies that a wrong daily statistic guess is accepted as a submission and shows feedback with the true value and outcome.",
+    "category": "Istatistik Modu",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /istatistik"
+      },
+      {
+        "type": "action",
+        "description": "Search for a footballer"
+      },
+      {
+        "type": "action",
+        "description": "Select an incorrect player"
+      },
+      {
+        "type": "action",
+        "description": "Submit the guess"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify feedback about the guess result is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the correct statistic value is revealed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC013",
+    "title": "Prevent choosing the same club twice",
+    "description": "Verifies that selecting the same club in both selectors shows validation and does not display shared-player results.",
+    "category": "Ortak Oyuncular",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open the first club selector"
+      },
+      {
+        "type": "action",
+        "description": "Choose a club"
+      },
+      {
+        "type": "action",
+        "description": "Open the second club selector"
+      },
+      {
+        "type": "action",
+        "description": "Choose the same club"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a validation message is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify common players are not displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC014",
+    "title": "Show empty state when two clubs share no players",
+    "description": "This verifies that the shared-players page shows an empty state when the selected clubs have no common players.",
+    "category": "Ortak Oyuncular",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Select the first club"
+      },
+      {
+        "type": "action",
+        "description": "Select a club with no shared players as the second side"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an empty state message is visible"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC015",
+    "title": "View the public leaderboard scores",
+    "description": "This verifies that a visitor can open the leaderboard page and see the public scores table.",
+    "category": "Lider Tablosu",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /lider-tablosu"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify leaderboard scores are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC016",
+    "title": "Switch between light and dark theme",
+    "description": "This verifies that a visitor can toggle the site theme and see the interface update accordingly.",
+    "category": "Tema Degistirme",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click the theme toggle in the header"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the interface switches to a different theme state"
+      },
+      {
+        "type": "action",
+        "description": "Click the theme toggle in the header again"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the interface returns to the original theme state"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC017",
+    "title": "Continue to the next statistics round after guessing",
+    "description": "This verifies that after submitting a statistics guess, the user can move on to the next round.",
+    "category": "Istatistik",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /istatistik"
+      },
+      {
+        "type": "action",
+        "description": "Search for a player"
+      },
+      {
+        "type": "action",
+        "description": "Select the player from the results"
+      },
+      {
+        "type": "action",
+        "description": "Submit the guess"
+      },
+      {
+        "type": "action",
+        "description": "Continue to the next round"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the next round is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC018",
+    "title": "Report a displayed name with a fixed reason",
+    "description": "This verifies that a visitor can open the report flow from the leaderboard, choose one of the fixed reasons, and submit the report.",
+    "category": "Lider Tablosu",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /lider-tablosu"
+      },
+      {
+        "type": "action",
+        "description": "Open the report action for a displayed name"
+      },
+      {
+        "type": "action",
+        "description": "Select a fixed report reason"
+      },
+      {
+        "type": "action",
+        "description": "Submit the report"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a report confirmation is visible"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC019",
+    "title": "Keep the selected theme after reload",
+    "description": "This verifies that a chosen theme remains active after the page is reloaded.",
+    "category": "Tema Degistirme",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click the theme toggle in the header"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the theme change to apply"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the chosen theme is still active after reload"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC020",
+    "title": "Show feedback validation for an invalid email",
+    "description": "This verifies that the feedback form blocks submission when the email address is invalid and shows email validation feedback.",
+    "category": "Geri Bildirim Formu",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open the floating feedback form"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with an invalid email address"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the message field with a helpful feedback message"
+      },
+      {
+        "type": "action",
+        "description": "Submit the form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an email validation message is visible"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC021",
+    "title": "Show feedback validation for a short message",
+    "description": "This verifies that the feedback form blocks submission when the message is too short and shows message length validation feedback.",
+    "category": "Geri Bildirim Formu",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open the floating feedback form"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with a valid email address"
+      },
+      {
+        "type": "action",
+        "description": "Fill in a short message in the message field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a message length validation message is visible"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC022",
+    "title": "Report a displayed name from the leaderboard",
+    "description": "Verifies that a visitor can choose a fixed report reason for a leaderboard entry and submit the report successfully.",
+    "category": "Lider Tablosu",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /lider-tablosu"
+      },
+      {
+        "type": "action",
+        "description": "Open the report flow for a displayed name"
+      },
+      {
+        "type": "action",
+        "description": "Select a report reason"
+      },
+      {
+        "type": "action",
+        "description": "Submit the report"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a report confirmation is visible"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC023",
+    "title": "Read the privacy notice",
+    "description": "This verifies that a visitor can open the privacy notice page and read the data processing information.",
+    "category": "Gizlilik Bildirimi",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /gizlilik"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the privacy notice content is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the data processing information is displayed"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC024",
+    "title": "Read the sources and licenses page",
+    "description": "This verifies that a visitor can open the sources page and view attribution and license information.",
+    "category": "Arma Kaynaklari ve Lisanslar",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /kaynaklar"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the source attribution information is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the license information is displayed"
+      }
+    ],
+    "priority": "Low"
+  }
+]
