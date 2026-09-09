@@ -25,6 +25,14 @@ import {
 
 const bodySchema = z.object({ displayName: z.string().max(200) });
 
+/**
+ * Auth alt sistemi §6.3'ün `{ error: { code, message, traceId } }` zarfını
+ * KULLANMAZ; sade `{ error: "mesaj" }` döner. §6.3'e yazılan kapsam notu bunu
+ * açıkça tanır: bu yüzey OAuth/form yüzeyidir ve durumları (`401` giriş akışı
+ * sona erdi, `409` ad zaten alınmış) o dört koda anlamını yitirmeden oturmaz.
+ * §6.3'ün DEĞİŞMEYEN yarısı burada da geçerli: mesaj yığın izi/SQL/yol
+ * sızdırmaz, ayrıntı yalnızca loga gider.
+ */
 function jsonError(status: number, message: string): Response {
   return new Response(JSON.stringify({ error: message }), {
     status,

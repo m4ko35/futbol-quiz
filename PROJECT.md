@@ -1933,6 +1933,8 @@ Alan **kimlik iddiası taşımaz.** BR-36 gereği tetiklenen çiftlerin bir kıs
 
 **Kural:** `INTERNAL_ERROR` yanıtı asla istisna mesajı, yığın izi (stack trace), SQL parçası veya dosya yolu içermez. Bunlar yalnızca sunucu loguna `traceId` ile yazılır.
 
+**Bu zarf oyun/veri JSON API'sinindir (§6.4 ve sonrası).** Kimlik ve oturum alt sistemi (§11) tarayıcı-form ve OAuth yönlendirmesiyle çalışır; yanıtları bu zarfa uymaz ve uymak zorunda değildir: `302` yönlendirme, boş gövde (`204`) ya da sade `{ "error": "mesaj" }` dönebilir. İki sebep: uçların çoğu JSON değil yönlendirme üretir, ve `POST /api/auth/kayit` gibi JSON dönenlerin durumları (`401` giriş akışı sona erdi, `409` ad zaten alınmış) yukarıdaki dört koda anlamını yitirmeden oturmaz — onları zorlamak ya §6.3'ü yeni kodlarla genişletmek ya da ayrı hataları tek `VALIDATION_ERROR`'a düşürmek olurdu. **Değişmeyen yarı her iki yüzeyde de geçerlidir:** hiçbir hata yanıtı — zarfı ne olursa olsun — istisna mesajı, yığın izi, SQL parçası ya da dosya yolu sızdırmaz; ayrıntı yalnızca loga gider. (Buna karşılık lider tablosu bildirimi gibi **veri API'si** uçları §6.3 içinde kalır: `bildir`, girişsiz isteğe `401` eklemek yerine bilerek `400 VALIDATION_ERROR` döner.)
+
 ### 6.4 Izgara uçları
 
 Beşi de 3×3 ızgara modunundur (§9.1). Üçü okuma, ikisi cevap doğrulama — ikinci cevap ucunun neden ayrı durduğu aşağıda.
