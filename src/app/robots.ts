@@ -43,5 +43,9 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
       disallow: "/api/",
     },
     host: SITE_URL,
+    // §7.11: site haritasının adresini `robots.txt`'ten bildirmek keşfin
+    // standart yolu — botlar elle gönderim olmadan da bulur. Yalnızca
+    // indekslenebilir dalda; kapalıyken harita boştur, işaret etmek tutarsız.
+    sitemap: `${SITE_URL.replace(/\/$/u, "")}/sitemap.xml`,
   };
 }

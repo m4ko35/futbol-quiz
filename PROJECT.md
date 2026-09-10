@@ -2578,11 +2578,20 @@ SITE_INDEXABLE tanımsız →  robots.txt: Disallow: /
                            <meta name="robots" content="noindex, nofollow, nocache">
 
 SITE_INDEXABLE=true    →  robots.txt: Allow: / + Disallow: /api/
+                                        + Sitemap: <SITE_URL>/sitemap.xml
                            <meta name="robots" content="index, follow">
 ```
 
 Aynı derleme çıktısı iki değeri de doğru yansıtıyor; yeniden derleme
 gerekmiyor.
+
+**`robots.txt` site haritasının adresini bildirir.** İndekslenebilir dalda
+`Sitemap: <SITE_URL>/sitemap.xml` satırı eklenir. Tarayıcılar site haritasını
+elle gönderilmeden de bulur; bu, keşfin standart yoludur ve `robots.txt`'yi
+zaten okuyan her botu (yalnızca Google Search Console'a bağlı olanları değil)
+kapsar. Satır **yalnızca** `SITE_INDEXABLE=true` iken üretilir: kapalıyken harita
+zaten boş ve `robots.txt` "`Disallow: /`" diyor; boş bir haritaya işaret etmek
+tutarsız olurdu. Adres `SITE_URL`'den türetilir, sabit değildir.
 
 **Paylaşım meta verisi.** `metadataBase` olmadan Open Graph alanları göreli kalır ve hiçbir sohbet uygulaması onları çözemez; bağlantı başlıksız gri bir kutu olarak görünür. `SITE_URL` bu tabanı verir.
 
