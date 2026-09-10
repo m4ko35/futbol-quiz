@@ -26,7 +26,7 @@ import { currentUser } from "@/lib/auth/current-user";
  */
 
 export const metadata: Metadata = {
-  title: "Lider Tablosu — Futbol Quiz",
+  title: "Lider Tablosu — Futbol Challenge",
   alternates: { canonical: "/lider-tablosu" },
   description:
     "Günlük istatistik bulmacasını çözenlerin sıralaması: günlük, haftalık ve tüm zamanlar.",

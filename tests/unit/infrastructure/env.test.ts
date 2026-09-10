@@ -202,7 +202,7 @@ describe("geri bildirim postası — §7.4", () => {
     });
 
     expect(mod.feedbackEmailEnv()?.from).toBe(
-      "Futbol Quiz <geri@alanadi.test>",
+      "Futbol Challenge <geri@alanadi.test>",
     );
   });
 });

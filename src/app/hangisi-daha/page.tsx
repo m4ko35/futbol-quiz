@@ -16,7 +16,7 @@ import { datasets } from "@/infrastructure/db/repositories";
  */
 
 export const metadata: Metadata = {
-  title: "Hangisi Daha — Futbol Quiz",
+  title: "Hangisi Daha — Futbol Challenge",
   alternates: { canonical: "/hangisi-daha" },
   description:
     "Bir istatistik seçin, iki futbolcuyu karşılaştırın. Doğru bildiğiniz " +

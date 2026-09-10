@@ -9,7 +9,7 @@
  * SATIR İÇİ SVG, dosya değil: `img` ile yüklenen bir SVG `currentColor`
  * çözemez ve ayrıca bir ağ isteği daha demektir. İşaret üç şekilden ibaret.
  *
- * `aria-hidden`: yanındaki "Futbol Quiz" yazısı zaten okunuyor; işareti ayrıca
+ * `aria-hidden`: yanındaki "Futbol Challenge" yazısı zaten okunuyor; işareti ayrıca
  * seslendirmek aynı bilgiyi iki kez söylemek olurdu (WCAG 1.1.1 süsleme).
  */
 

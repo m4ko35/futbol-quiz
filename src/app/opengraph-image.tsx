@@ -22,7 +22,7 @@ import { ImageResponse } from "next/og";
  */
 
 // `alt` bir HTML meta değeridir (görselin İÇİNE çizilmez); burada Türkçe serbest.
-export const alt = "Futbol Quiz — iki kulübün ortak oyuncularını bul";
+export const alt = "Futbol Challenge — iki kulübün ortak oyuncularını bul";
 
 export const size = { width: 1200, height: 630 };
 
@@ -68,7 +68,7 @@ export default function OpenGraphImage(): ImageResponse {
               lineHeight: 1,
             }}
           >
-            Futbol Quiz
+            Futbol Challenge
           </div>
           <div style={{ fontSize: 46, color: "#96a3b6", marginTop: 20 }}>
             Ortak oyuncular

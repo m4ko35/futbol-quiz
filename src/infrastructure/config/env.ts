@@ -277,7 +277,7 @@ export function feedbackEmailEnv(): FeedbackEmailEnv | null {
 
   return {
     apiKey: env.RESEND_API_KEY,
-    from: `Futbol Quiz <${fromAddress}>`,
+    from: `Futbol Challenge <${fromAddress}>`,
     to: env.CONTACT_EMAIL,
   };
 }

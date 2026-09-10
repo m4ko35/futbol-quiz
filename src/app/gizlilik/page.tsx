@@ -28,7 +28,7 @@ import { datasets } from "@/infrastructure/db/repositories";
  */
 
 export const metadata: Metadata = {
-  title: "Gizlilik Bildirimi — Futbol Quiz",
+  title: "Gizlilik Bildirimi — Futbol Challenge",
   alternates: { canonical: "/gizlilik" },
   description:
     "Bu sitenin hangi verileri işlediği, nereye gittiği ve ne kadar saklandığı.",

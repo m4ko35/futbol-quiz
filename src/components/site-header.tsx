@@ -70,7 +70,7 @@ export function SiteHeader({ showLeaderboard }: SiteHeaderProps) {
         >
           <BrandMark className="h-7 w-7 shrink-0 text-accent" />
           <span className="text-base font-semibold tracking-tight">
-            Futbol Quiz
+            Futbol Challenge
           </span>
         </Link>
 

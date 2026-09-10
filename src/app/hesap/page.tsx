@@ -17,7 +17,7 @@ import { currentUser } from "@/lib/auth/current-user";
  */
 
 export const metadata: Metadata = {
-  title: "Hesabım — Futbol Quiz",
+  title: "Hesabım — Futbol Challenge",
   robots: { index: false, follow: false },
 };
 

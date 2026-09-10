@@ -16,7 +16,7 @@ import { currentUser } from "@/lib/auth/current-user";
  */
 
 export const metadata: Metadata = {
-  title: "Giriş — Futbol Quiz",
+  title: "Giriş — Futbol Challenge",
   description:
     "Günlük bulmacayı çözüp lider tablosunda yer almak için Google ile giriş yapın.",
   // Giriş ekranının arama sonuçlarında işi yok.

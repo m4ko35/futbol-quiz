@@ -51,7 +51,7 @@ const geistMono = Geist_Mono({
 /** Tek satırda kalması için ayrı: lint istisnası yalnızca o satırı kapsıyor. */
 const bootScript = { __html: THEME_BOOT_SCRIPT };
 
-const TITLE = "Futbol Quiz — Ortak Oyuncular";
+const TITLE = "Futbol Challenge — Ortak Oyuncular";
 const DESCRIPTION =
   "İki futbol kulübü seçin, ikisinde de forma giymiş oyuncuları görün. " +
   "Yirmi dört üst ligin tarihsel kadroları: Avrupa, MLS ve Suudi Pro Lig.";
@@ -77,14 +77,14 @@ const STRUCTURED_DATA = {
     "@graph": [
       {
         "@type": "WebSite",
-        name: "Futbol Quiz",
+        name: "Futbol Challenge",
         url: SITE_URL,
         inLanguage: "tr-TR",
         description: DESCRIPTION,
       },
       {
         "@type": "WebApplication",
-        name: "Futbol Quiz",
+        name: "Futbol Challenge",
         url: SITE_URL,
         applicationCategory: "GameApplication",
         operatingSystem: "Web",
@@ -109,14 +109,14 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: TITLE,
   description: DESCRIPTION,
-  applicationName: "Futbol Quiz",
+  applicationName: "Futbol Challenge",
   robots: serverEnv().SITE_INDEXABLE
     ? { index: true, follow: true }
     : { index: false, follow: false, nocache: true },
   openGraph: {
     type: "website",
     locale: "tr_TR",
-    siteName: "Futbol Quiz",
+    siteName: "Futbol Challenge",
     title: TITLE,
     description: DESCRIPTION,
     url: "/",

@@ -30,7 +30,7 @@ import { roomPageContext } from "@/lib/http/room-request";
  */
 
 export const metadata: Metadata = {
-  title: "Oda — Futbol Quiz",
+  title: "Oda — Futbol Challenge",
   /**
    * ODA ADRESİ İNDEKSLENMEZ ve bu bir tercih değil: kod paylaşılan bir SIRDIR
    * (BR-55). Arama sonuçlarında görünen bir oda adresi, kodu herkese açık

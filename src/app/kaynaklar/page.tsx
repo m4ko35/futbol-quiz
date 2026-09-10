@@ -19,7 +19,7 @@ import { datasets, repositories } from "@/infrastructure/db/repositories";
  */
 
 export const metadata: Metadata = {
-  title: "Arma Kaynakları ve Lisanslar — Futbol Quiz",
+  title: "Arma Kaynakları ve Lisanslar — Futbol Challenge",
   alternates: { canonical: "/kaynaklar" },
   description:
     "Sitede gösterilen kulüp armalarının kaynakları, lisansları ve yazarları.",

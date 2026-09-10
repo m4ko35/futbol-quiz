@@ -17,7 +17,7 @@ import { currentUser } from "@/lib/auth/current-user";
  */
 
 export const metadata: Metadata = {
-  title: "Oda — Futbol Quiz",
+  title: "Oda — Futbol Challenge",
   description: "Arkadaşına bir oda kodu gönder, aynı futbolcuya karşı yarışın.",
   // Kişiye özel bir denetim ekranı; arama sonuçlarında işi yok.
   robots: { index: false, follow: false },

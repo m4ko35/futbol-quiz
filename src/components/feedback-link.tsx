@@ -33,7 +33,7 @@ export interface FeedbackLinkProps {
 }
 
 /** Mailto yedeğinin konusu; form kipinde konu sunucuda belirlenir. */
-const SUBJECT = "Futbol Quiz — Öneri / Şikayet";
+const SUBJECT = "Futbol Challenge — Öneri / Şikayet";
 
 export function FeedbackLink({ email, formEnabled }: FeedbackLinkProps) {
   if (formEnabled) return <FeedbackWidget />;

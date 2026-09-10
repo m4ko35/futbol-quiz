@@ -11,7 +11,7 @@ import { sendViaResend } from "@/infrastructure/email/feedback-mailer";
 
 const CONFIG: FeedbackEmailEnv = {
   apiKey: "re_test_key",
-  from: "Futbol Quiz <onboarding@resend.dev>",
+  from: "Futbol Challenge <onboarding@resend.dev>",
   to: "sahip@ornek.test",
 };
 
@@ -55,7 +55,7 @@ describe("sendViaResend — §7.4", () => {
     // ALICI KULLANICIDAN DEĞİL, config'ten (CONTACT_EMAIL). Açık röle değil.
     expect(body.to).toBe("sahip@ornek.test");
     expect(body.reply_to).toBe("kullanici@ornek.test");
-    expect(body.from).toBe("Futbol Quiz <onboarding@resend.dev>");
+    expect(body.from).toBe("Futbol Challenge <onboarding@resend.dev>");
     expect(String(body.text)).toContain("Sitede bir oyuncu eksik görünüyor.");
   });
 

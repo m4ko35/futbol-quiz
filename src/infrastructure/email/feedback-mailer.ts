@@ -26,7 +26,7 @@ import { describeError, log } from "@/lib/logger";
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
 
 /** Gelen postanın konusu; kutuda öneri/şikayeti ayırt etmeyi kolaylaştırır. */
-const SUBJECT = "Futbol Quiz — Öneri / Şikayet";
+const SUBJECT = "Futbol Challenge — Öneri / Şikayet";
 
 /**
  * Zaman aşımı — 10 saniye. `google.ts` ile aynı gerekçe: sınırsız beklemek,
@@ -41,7 +41,7 @@ const ROUTE = "/api/geri-bildirim";
  * yazılıyor ki işletmeci postayı okurken kimin yazdığını görsün.
  */
 function bodyText(email: FeedbackEmail): string {
-  return `Futbol Quiz sitesinden yeni bir geri bildirim.\n\nYanıt adresi: ${email.replyTo}\n\n${email.message}\n`;
+  return `Futbol Challenge sitesinden yeni bir geri bildirim.\n\nYanıt adresi: ${email.replyTo}\n\n${email.message}\n`;
 }
 
 /**

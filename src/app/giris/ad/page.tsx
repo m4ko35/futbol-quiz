@@ -18,7 +18,7 @@ import { PENDING_COOKIE, readPendingValue } from "@/lib/auth/session";
  */
 
 export const metadata: Metadata = {
-  title: "Ad seç — Futbol Quiz",
+  title: "Ad seç — Futbol Challenge",
   robots: { index: false, follow: false },
 };
 
