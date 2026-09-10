@@ -52,6 +52,18 @@ on:
         description: "BR-60: kadro keşfiyle bulunan oyuncuları YÜKLE (tek kaynak)"
         type: boolean
         default: false
+      dil_atla:
+        # §8.2 — WDQS'in dil-sayısı ucu (`player-languages-*`) 9–10 Eyl 2026'da
+        # İKİ koşuyu üst üste 5,5 saatlik tavana çarptırıp iptal ettirdi: HTTP
+        # 504/429 fırtınası, yeniden-deneme + ikiye-bölme süre bütçesinin
+        # tamamını yiyor ve koşu BR-42 kapısına bile varamıyor. Bu bayrak dil
+        # ucunu HİÇ denemez (`--skip-languages`); languageCount null kalır
+        # (BR-41 null-yedeği) ve WDQS iyi bir günde ayrı bir koşuda doldurulur.
+        # ÖNTANIMLI KAPALI: dil sayısı normalde çekilmeli, atlama bir kaçış
+        # kapısıdır.
+        description: "Dil sayısı çekimini ATLA (WDQS çökerse; languageCount null)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write # sürüm (release) varlığı yüklemek için
@@ -122,7 +134,7 @@ jobs:
       - name: ETL
         # Bayrak GİRDİDEN gelir, olay türünden değil: zamanlanmış koşu asla
         # kendiliğinden silmez.
-        run: npm run etl -- ${{ inputs.vikipedi_karari && '--vikipedi-karari' || '' }} ${{ inputs.kadro_kesfi && '--apply-squad-discovery' || '' }}
+        run: npm run etl -- ${{ inputs.vikipedi_karari && '--vikipedi-karari' || '' }} ${{ inputs.kadro_kesfi && '--apply-squad-discovery' || '' }} ${{ inputs.dil_atla && '--skip-languages' || '' }}
         env:
           DATABASE_URL: file:./dev.db
           # ETL'in zorunlu yapılandırması (scripts/etl/config.ts). Eksik
