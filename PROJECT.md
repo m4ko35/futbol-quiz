@@ -2463,12 +2463,12 @@ Paylaşımlı bir sayaca (Vercel KV / Upstash vb.) geçiş, `RateLimiter` port'u
 
 Geçişli bağımlılıklardaki açıklar, üst paketleri **düşürmek yerine** alt sürümleri yukarı sabitleyerek kapatıldı:
 
-| Paket          | Zorlanan  | Kapatılan açık                                                    | Neden önemli                                             |
-| -------------- | --------- | ----------------------------------------------------------------- | -------------------------------------------------------- |
-| `sharp`        | `^0.35.3` | libvips CVE-2026-33327/33328/35590/35591 (`GHSA-f88m-g3jw-g9cj`)  | **Çalışma zamanı** — görsel işleme                       |
-| `postcss`      | `^8.5.23` | sourceMappingURL üzerinden yol geçişi (`GHSA-r28c-9q8g-f849` vb.) | Derleme zamanı CSS işleme                                |
-| `nanoid`       | `^3.3.17` | özel üreteçte sonsuz döngü (`GHSA-2v37-7h3g-55p8`)                | Derleme zamanı — `next → postcss`                        |
-| `deepmerge-ts` | `^8.0.1`  | özyinelemeli nesnede yığın tükenmesi (`GHSA-ggr8-5vv4-36mx`)      | Derleme/CLI — `@prisma/client → prisma → @prisma/config` |
+| Paket          | Zorlanan  | Kapatılan açık                                                                                                | Neden önemli                                             |
+| -------------- | --------- | ------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `sharp`        | `^0.35.4` | libvips CVE-2026-33327/33328/35590/35591 (`GHSA-f88m-g3jw-g9cj`); libheif `GHSA-rgj7-g3m4-5g8c` (13 Eyl 2026) | **Çalışma zamanı** — görsel işleme                       |
+| `postcss`      | `^8.5.23` | sourceMappingURL üzerinden yol geçişi (`GHSA-r28c-9q8g-f849` vb.)                                             | Derleme zamanı CSS işleme                                |
+| `nanoid`       | `^3.3.17` | özel üreteçte sonsuz döngü (`GHSA-2v37-7h3g-55p8`)                                                            | Derleme zamanı — `next → postcss`                        |
+| `deepmerge-ts` | `^8.0.1`  | özyinelemeli nesnede yığın tükenmesi (`GHSA-ggr8-5vv4-36mx`)                                                  | Derleme/CLI — `@prisma/client → prisma → @prisma/config` |
 
 > **`nanoid` girdisi bir SÜRÜM ARALIĞI sorunu değil, KİLİT sorunuydu ve bu yüzden kayda değer.** `postcss@8.5.23` zaten `^3.3.16` istiyordu, yani yamalı sürüm aralığın içindeydi; `package-lock.json` sadece eski çözünürlükte (`3.3.16`) donmuştu. Bir `npm update` de kapatırdı. `overrides` yine de tercih edildi: aralık izin veriyor diye kilidin bir daha aşağı düşmeyeceğinin garantisi yok, ve tablo bu satırın neden var olduğunu taşıyor. Çözülen sürüm `3.3.18`.
 >
@@ -2479,6 +2479,17 @@ Geçişli bağımlılıklardaki açıklar, üst paketleri **düşürmek yerine**
 > Bu açık da **CI'ı kırmızı tuttu ama görünmüyordu**: `typecheck` daha önce düşüyordu (bkz. §8.3'teki hesap istemcisi kusuru), yani `audit:ci` adımına hiç sıra gelmiyordu. Kırık bir kapının arkasında ikinci bir kırık kapı duruyordu.
 
 > `npm audit fix --force` **kullanılmaz**: önerdiği "düzeltme" `next@9.3.3` ve `eslint-config-next@12.0.4` gibi yıllar öncesine dönüşlerdir; net etkisi güvenliği azaltmaktır.
+
+#### `next` sürüm çivisi güvenlik için yükseltildi (13 Eylül 2026)
+
+`next` bir override değil, **doğrudan ve tam sürümle çivilenmiş** bir bağımlılıktır (`16.2.12`). `next 16.0.0 – 16.3.2` aralığı iki **critical** açık taşıyordu ve bunlar sharp'a değil Next çekirdeğine aitti; override ile kapatılamazdı:
+
+- **Windows-host RCE** (`GHSA-p293-qw3h-jr36`) — üretimde **geçersiz**: dağıtım Vercel/**Linux** üzerinde. Yalnızca yerel Windows dev sunucusunu ilgilendirir, o da internete açık değil.
+- **AVIF Image-Optimization RCE** (`GHSA-2xp9-vwfh-vxw4`) — görsel optimizasyon ucunu ilgilendirir. Yüzey dardır (`images.remotePatterns` yalnız `upload.wikimedia.org`'a açık, rastgele AVIF beslenemez) ama uç yine de açıktır.
+
+İkisi de kritik olduğundan satıcının yamaladığı **`16.3.5`**'e çıkıldı — 16.x içinde bir minor bump, ana sürüm değişmedi; `eslint-config-next` de `16.3.5`'e eşlendi. Bu, `audit fix --force`'un dayattığı yıllar öncesine dönüşün TAM TERSİ: ileri, dar bir adım.
+
+**Doğrulandı:** `audit:ci` **0**; `verify` yeşil; ve §7.3 nonce denetimi bump'tan sonra üretim derlemesinde tekrar ölçüldü — `/`, `/gizlilik`, `/izgara` sunucu HTML'inde **nonce'suz script 0**, CSP başlığı yerinde. Next'in nonce enjeksiyonu 16.3.5'te de çalışıyor, yani CSP sessizce kırılmadı.
 
 #### Kabul edilmiş istisna: `brace-expansion` (dev-only)
 
