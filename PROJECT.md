@@ -2642,6 +2642,19 @@ tutarsız olurdu. Adres `SITE_URL`'den türetilir, sabit değildir.
 
 **Diğer.** 404 sayfası Türkçedir (arayüz dili TR — §1.2) ve denenen adresi **yansıtmaz**: adresi sayfaya basmak, kullanıcı girdisini sayfaya basmanın en kolay yoludur ve buna hiçbir sebep yok (§6.3). Simge, iskeletten kalan Next logosu yerine uygulamanın kendi işaretidir — iki kesişen çember, yani `A ∩ B`.
 
+#### SEO içeriği ve anahtar kelime stratejisi (14 Eylül 2026)
+
+**Sorun: oyun sayfaları METİN bakımından ince.** Her indekslenebilir sayfa büyük ölçüde etkileşimli bir bileşendir (ızgara, seçici, tur). Arama motoru metinle sıralar; sunucu HTML'inde neredeyse yalnızca bir başlıktan ibaret bir sayfa, Google'a sıralayacak çok az şey verir. Site 10 Eylül'de yayına çıkıp birkaç gün sonra hâlâ aramalarda görünmeyince kök sebep ikiydi: indeksleme henüz yeni (birkaç gün–hafta) **ve** sayfalar ince.
+
+**Karar: her indekslenebilir sayfa iki metin taşır.**
+
+1. **Anahtar-kelime hedefli `description`** (per-page, §7.11'in mevcut deseni). Sayfanın ne YAPTIĞINI aranan sözcüklerle söyler.
+2. **Kısa, doğru bir tanıtım bölümü** ("… nedir / nasıl oynanır"), oyunun ALTINDA, altbilginin üstünde, ikincil tonda (`text-muted`). Oyunu bozmaz (etkileşim üstte kalır), ama Google'a indekslenecek metin ve kullanıcıya kısa bir rehber verir.
+
+**Hedeflenen sözcükler MARKA DEĞİL, İŞLEVDİR.** "Futbol challenge" jenerik ve kalabalık bir terim (aynı adlı bir YouTube kanalı + TikTok/YouTube "football challenge" videoları onu tutuyor); yeni bir siteyi oraya çıkarmak gerçekçi değil. Bunun yerine oyunların gerçekte ne yaptığını anlatan Türkçe long-tail hedeflenir: "ortak oyuncu (bulucu)", "iki takımda da oynayan futbolcular", "futbol ızgara oyunu", "futbolcu istatistik tahmin", "iki futbolcu karşılaştırma". (Doğrudan rakip `linkupfc.app` tam da "ortak oyuncu bulucu"da sıralanıyor — asıl savaş alanı bu.)
+
+**Metin gerçeği söyler.** §7.18'in kuralı burada da geçerli: tanıtım bölümleri uydurma övgü değil, oyunun gerçekten ne yaptığının kısa dökümüdür. Anahtar-kelime doldurma (keyword stuffing) yapılmaz; sözcükler cümlenin içinde doğal durur.
+
 ### 7.12 Tasarım Sistemi
 
 **Neden değişti.** İlk arayüz iki değişken taşıyordu: `--background` ve `--foreground`. Derinlik `opacity` ve `currentColor` saydamlıklarıyla üretiliyordu. Ölçülünce iki sorun çıktı:

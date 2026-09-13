@@ -23,8 +23,9 @@ export const metadata: Metadata = {
   title: "3×3 Izgara — Futbol Challenge",
   alternates: { canonical: "/izgara" },
   description:
-    "Her gün yeni bir 3×3 ızgara. Satır ve sütun ölçütlerinin ikisini birden " +
-    "sağlayan futbolcuları bulun.",
+    "Futbol ızgara oyunu: her gün yeni bir 3×3 bulmaca. Satır ve sütun " +
+    "ölçütlerini (kulüp, ülke, ödül) birden karşılayan futbolcuları bulun. " +
+    "Ücretsiz Türkçe futbol bilgi oyunu.",
 };
 
 export default async function GridPage() {
@@ -50,6 +51,25 @@ export default async function GridPage() {
   return (
     <PageShell>
       <GridQuiz grid={grid} curatedClubs={curatedClubs} />
+
+      {/* SEO/tanıtım bölümü — §7.11. Oyunun altında, ikincil tonda. */}
+      <section className="flex flex-col gap-3 border-t border-line pt-8">
+        <h2 className="text-lg font-semibold">
+          Futbol ızgara oyunu nasıl oynanır?
+        </h2>
+        <p className="max-w-prose text-sm text-muted">
+          Her gün yeni bir 3×3 ızgara. Her satırın ve her sütunun bir ölçütü
+          (bir kulüp, ülke ya da ödül) vardır. Bir hücreyi doldurmak için, o
+          satır ile sütunun ikisini birden karşılayan bir futbolcu yazın —
+          örneğin belirli bir kulüpte oynamış ve belirli bir ülkeden olan bir
+          isim.
+        </p>
+        <p className="max-w-prose text-sm text-muted">
+          Dokuz hücreyi de doğru isimlerle doldurmaya çalışın. Izgara her gün
+          yenilenir ve herkes aynı bulmacayı oynar; ne kadar çok futbolcu
+          biliyorsanız o kadar çok hücre açarsınız.
+        </p>
+      </section>
 
       <SiteFooter dataGeneratedAt={dataGeneratedAt} />
     </PageShell>

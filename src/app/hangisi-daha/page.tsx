@@ -19,8 +19,8 @@ export const metadata: Metadata = {
   title: "Hangisi Daha — Futbol Challenge",
   alternates: { canonical: "/hangisi-daha" },
   description:
-    "Bir istatistik seçin, iki futbolcuyu karşılaştırın. Doğru bildiğiniz " +
-    "sürece seri uzar.",
+    "İki futbolcuyu karşılaştır: hangisi daha çok gol, asist veya maç " +
+    "yaptı? Doğru bildikçe serin uzar. Ücretsiz Türkçe futbol tahmin oyunu.",
 };
 
 export default async function WhichMorePage() {
@@ -29,6 +29,22 @@ export default async function WhichMorePage() {
   return (
     <PageShell>
       <WhichMoreQuiz />
+
+      {/* SEO/tanıtım bölümü — §7.11. Oyunun altında, ikincil tonda. */}
+      <section className="flex flex-col gap-3 border-t border-line pt-8">
+        <h2 className="text-lg font-semibold">
+          &quot;Hangisi daha&quot; nasıl oynanır?
+        </h2>
+        <p className="max-w-prose text-sm text-muted">
+          Bir istatistik seçin (gol, asist, maç…) ve karşınıza gelen iki
+          futbolcudan hangisinin o alanda daha yüksek olduğunu tahmin edin. İki
+          futbolcuyu karşılaştırıp doğru olanı seçin.
+        </p>
+        <p className="max-w-prose text-sm text-muted">
+          Doğru bildikçe seriniz uzar; bir yanlış seriyi sıfırlar. Ücretsiz bir
+          futbol tahmin oyunu, hesap gerekmez.
+        </p>
+      </section>
 
       <SiteFooter dataGeneratedAt={dataGeneratedAt} />
     </PageShell>

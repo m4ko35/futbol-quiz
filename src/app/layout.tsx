@@ -54,8 +54,9 @@ const bootScript = { __html: THEME_BOOT_SCRIPT };
 
 const TITLE = "Futbol Challenge — Ortak Oyuncular";
 const DESCRIPTION =
-  "İki futbol kulübü seçin, ikisinde de forma giymiş oyuncuları görün. " +
-  "Yirmi dört üst ligin tarihsel kadroları: Avrupa, MLS ve Suudi Pro Lig.";
+  "Ortak oyuncu bulucu: iki futbol kulübü seçin, ikisinde de forma giymiş " +
+  "futbolcuları görün. Yirmi dört üst ligin tarihsel kadroları — Avrupa, MLS " +
+  "ve Suudi Pro Lig. Ücretsiz Türkçe futbol oyunu.";
 
 /** Paylaşım tabanı ve JSON-LD adresleri aynı kaynaktan; iki kez okumamak için. */
 const SITE_URL = serverEnv().SITE_URL;

@@ -49,6 +49,26 @@ export default async function Home() {
         playerCount={playerCount}
       />
 
+      {/*
+        SEO/TANITIM BÖLÜMÜ (§7.11). Oyunun ALTINDA, ikincil tonda: etkileşim
+        üstte kalır, buradaki metin Google'a indekslenecek içerik ve kullanıcıya
+        kısa rehber verir. Anahtar sözcükler işlevseldir (marka değil).
+      */}
+      <section className="flex flex-col gap-3 border-t border-line pt-8">
+        <h2 className="text-lg font-semibold">Ortak oyuncu nedir?</h2>
+        <p className="max-w-prose text-sm text-muted">
+          Ortak oyuncular, iki farklı kulüpte de forma giymiş futbolculardır.
+          İki takım seçin; kariyeri boyunca her ikisinde de oynamış futbolcuları
+          anında listeleyin. Avrupa&apos;nın büyük liglerinden MLS ve Suudi Pro
+          Lig&apos;e, yirmi dört üst ligin tarihsel kadroları taranır.
+        </p>
+        <p className="max-w-prose text-sm text-muted">
+          Bir futbol bilgi oyunu ve ortak oyuncu bulucu: &quot;bu iki takımda da
+          kim oynadı?&quot; sorusunu saniyeler içinde yanıtlar. Hesap gerekmez,
+          ücretsizdir; ilerlemeniz yalnızca tarayıcınızda tutulur.
+        </p>
+      </section>
+
       <SiteFooter dataGeneratedAt={dataGeneratedAt} />
     </PageShell>
   );

@@ -25,8 +25,9 @@ export const metadata: Metadata = {
   title: "İstatistik Eşleştirme — Futbol Challenge",
   alternates: { canonical: "/istatistik" },
   description:
-    "Her gün bir futbolcu ve istatistikleri. Her sayıya en yakın değere " +
-    "sahip başka oyuncuları bulun.",
+    "Futbolcu istatistik tahmin oyunu: her gün bir futbolcunun gol, asist " +
+    "ve maç sayıları. Her değere en yakın başka futbolcuları bulun. " +
+    "Ücretsiz futbol bilme oyunu.",
 };
 
 export default async function StatMatchPage() {
@@ -110,6 +111,21 @@ export default async function StatMatchPage() {
           ? {}
           : { beforeStats: <RoomEntryBar signedIn={user !== null} /> })}
       />
+
+      {/* SEO/tanıtım bölümü — §7.11. Oyunun altında, ikincil tonda. */}
+      <section className="flex flex-col gap-3 border-t border-line pt-8">
+        <h2 className="text-lg font-semibold">İstatistik eşleştirme oyunu</h2>
+        <p className="max-w-prose text-sm text-muted">
+          Her gün bir futbolcu ve kariyer istatistikleri (gol, asist, maç ve
+          daha fazlası) gösterilir. Göreviniz, verilen her sayıya en yakın
+          değere sahip başka futbolcuları bulmak.
+        </p>
+        <p className="max-w-prose text-sm text-muted">
+          Bir futbolcu istatistik tahmin oyunu: futbolcuların rakamlarını ne
+          kadar iyi biliyorsanız, tahminleriniz o kadar yaklaşır. Hesapsız
+          oynanır, ücretsizdir.
+        </p>
+      </section>
 
       <SiteFooter dataGeneratedAt={dataGeneratedAt} />
     </PageShell>
