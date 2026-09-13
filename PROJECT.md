@@ -2275,6 +2275,24 @@ Denetim, CSP veya render moduna dokunan her değişiklikten sonra üretim derlem
 
 Son sütun §7.12'nin görünüm seçicisiyle geldi: `<head>`'e **elle yazılmış** ilk script eklendiği için denetim baştan koşuldu. Ölçüm, tema script'inin nonce'u gerçekten taşıdığını ayrıca doğruluyor — taşımasaydı `'strict-dynamic'` onu bloklardı ve tercih sessizce hiç uygulanmazdı.
 
+> **Ziyaret ölçümü CSP'ye DOKUNMADAN sığdı — 13 Eylül 2026.** Vercel Web
+> Analytics (`@vercel/analytics/next`) eklendiğinde `proxy.ts` DEĞİŞMEDİ ve bu
+> kasıtlı: bileşen katı nonce+`strict-dynamic` CSP'sine üç sebeple zaten uyuyor.
+> **(1)** `<Analytics/>` sunucuda `null` render eder — SSR HTML'ine yeni bir
+> `<script>` etiketi girmez, dolayısıyla yukarıdaki nonce denetimini etkilemez.
+> Ölçüldü (13 Eylül, üretim derlemesi + `next start`): `/` (22 script) ve
+> `/gizlilik` (29 script) sunucu HTML'inde **nonce'suz script 0**, `_vercel/insights`
+> izi **yok** — yani bileşen SSR'a hiçbir script eklemedi, 80/80 oranı korunur.
+> **(2)** Script yalnızca tarayıcıda,
+> `document.createElement("script")` ile enjekte edilir; Next'in nonce'lu
+> bundle'ından yüklendiği için `'strict-dynamic'` onu Next'in kendi chunk
+> yükleyicisiyle **aynı mekanizmayla** güvenilir sayar — ayrı bir `script-src`
+> kaynağı gerekmez. **(3)** Ölçüm beacon'ı aynı kökene (`/_vercel/insights/*`)
+> gider, `connect-src 'self'` altında kalır — yeni bir `connect-src` girdisi de
+> gerekmez. Yani bir üçüncü taraf script'inin aksine (bu doküman gtag örneğini
+> `script-src`/`connect-src` uzatarak gösterir), birinci-taraf + aynı-köken
+> tasarımı CSP'yi hiç genişletmeden çalışır. Gizlilik tarafı §7.18'de.
+
 #### `style-src-attr` tavizinin durumu
 
 Faz 3'te ölçüldü: sayfada **0 adet** `style="..."` özniteliği ve **0 adet** `<style>` bloğu var. Taviz şu an ATIL. Faz 4'te armalar eklendi ama `next/image` KULLANILMADI (aşağıya bkz.), dolayısıyla direktif hâlâ tetiklenmiyor. Kaldırılmadı: bir sonraki görsel ihtiyacında sessizce kırılan bir CSP'yi teşhis etmek, atıl bir direktifi taşımaktan pahalıdır. Direktifin kod çalıştırma riski yoktur (yalnızca öznitelikleri kapsar).
@@ -2371,6 +2389,12 @@ hiç doğmuyor: adres kullanıcıdan değil ortamdan geliyor.
 `mailto`ya düşer (istemci tarafı bir bağlantı, ağ turu değil) ve istek yolunda
 **hiçbir** yeni çağrı olmaz. Yani üçüncü adres yalnızca anahtar tanımlıyken
 canlanır; tanımsız bir kurulumda liste hâlâ iki adrestir.
+
+> **Ziyaret ölçümü (Vercel Web Analytics) §7.4'ün KONUSU DEĞİLDİR — 13 Eylül 2026.** Ölçüm beacon'ı **sunucudan değil**, ziyaretçinin tarayıcısından çıkar
+> ve **kendi kökenimize** (`/_vercel/insights/*`) gider; barındırıcının kenarı
+> bunu kendi arka ucuna iletir. §7.4 sunucunun istek yolunda dış bir adrese
+> çıkmasını düzenler; burada sunucu hiçbir yere çıkmıyor. Bu yüzden yukarıdaki
+> **üç adreslik liste değişmez**. Ölçümün gizlilik ve CSP tarafı §7.18'de.
 
 ### 7.5 İstek Hızı Sınırlama
 
@@ -3270,7 +3294,17 @@ Dokuz bileşende hâlâ yok ve **bu doğru**: `brand-mark` ile `club-mark` sabit
 | IP adresi              | `X-Forwarded-For` başlığı          | Yalnızca **bellekteki** kova    | Kova dolunca atılır    |
 | İstek kaydı            | Sunucu logu                        | Barındırma sağlayıcısı          | Sağlayıcının süresi    |
 
-**Hesap yok, çerez yok, izleyici yok.** Ölçüldü: kod tabanında `document.cookie` ve `cookies()` **hiç geçmiyor**; `package.json`'da analitik paketi yok. Oturum olmadığı için §7.9'un önbellek politikası da güvenli — yanıtlar yalnızca sorgu parametrelerine bağlı.
+**Hesap yok, çerez yok.** _(İzleme için aşağıdaki 13 Eylül güncellemesine bakın — 11 Ağustos ölçümünde izleyici yoktu, sonra tek bir anonim ölçüm eklendi.)_ Ölçüldü: kod tabanında `document.cookie` ve `cookies()` **hiç geçmiyor**. Oturum olmadığı için §7.9'un önbellek politikası da güvenli — yanıtlar yalnızca sorgu parametrelerine bağlı.
+
+**13 EYLÜL 2026 — ZİYARET ÖLÇÜMÜ EKLENDİ (Vercel Web Analytics).** Yayından sonra "siteye kaç kişi giriyor, nereden geliyorlar" sorusunu yanıtlayabilmek için **tek** bir ölçüm aracı eklendi. Bu, yukarıdaki 11 Ağustos ölçümünün "analitik/izleyici yok" beyanını bu tarihten itibaren günceller — kaldırılan değil, **değiştirilen** bir karardır. `package.json`'da artık `@vercel/analytics` **vardır**.
+
+**Neden bu araç.** Seçenekler arasında kasıtlı olarak en gizlilik-koruyanı seçildi:
+
+- **Çerezsiz.** Hiçbir tanımlama çerezi yazmaz; `document.cookie` hâlâ kullanılmıyor. KVKK/GDPR rıza bandı gerektirmez.
+- **Anonim.** Kişisel veri veya parmak izi toplamaz; ziyaretçiyi ne ziyaretler ne de siteler arası **bağlar**. Yalnızca toplu sayımlar üretir: sayfa görüntüleme, tekil ziyaret (günlük, anonim), yönlendiren alan (referrer), ülke, cihaz/tarayıcı türü. Oda kodu gibi dinamik yol parçaları desene indirgenir (`/oda/[kod]`); ham değer panoya taşınmaz.
+- **Birinci taraf.** Veri, zaten barındırıcımız olan Vercel'de kalır; yeni bir üçüncü şirkete gitmez. Beacon kendi kökenimize gider — §7.4 bu yüzden değişmez.
+
+**CSP değişmedi** (§7.3): bileşen sunucuda `null` render eder ve script'i tarayıcıda `createElement` ile enjekte eder; katı nonce+`strict-dynamic` politikası onu genişletmeden kapsar. **Sayfadaki karşılığı:** `/gizlilik` bu aracı artık açıkça beyan eder ("Üçüncü taraflar" + "Ziyaret ölçümü" bölümleri) ve "hiçbir izleyici yok" cümlesi "tek bir anonim, çerezsiz sayaç var" olarak yeniden yazıldı. Kural korundu — **metin koddan türetilir**: kod artık bir ölçüm aracı içerdiği için metin de onu anlatır.
 
 **IP adresi diske YAZILMAZ ve LOGLANMAZ.** `resolveClientKey` (§7.5) başlıktan bir dize çıkarır, 64 karaktere kırpar ve `TokenBucketRateLimiter`'ın `Map` anahtarı yapar. Bu anahtar hiçbir log satırına girmez: `api-handler.ts` yalnızca `traceId`, rota, durum kodu ve süre yazar. `traceId` her istekte yeniden üretilen rastgele bir değerdir — istekleri birbirine bağlamaz, kullanıcıyı tanımlamaz.
 

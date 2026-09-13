@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Barlow, Barlow_Condensed, Geist_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import { connection } from "next/server";
+import { Analytics } from "@vercel/analytics/next";
 import { FeedbackLink } from "@/components/feedback-link";
 import { SiteHeader } from "@/components/site-header";
 import {
@@ -225,6 +226,23 @@ export default async function RootLayout({
           email={serverEnv().CONTACT_EMAIL}
           formEnabled={feedbackEmailEnabled()}
         />
+        {/*
+          ZİYARET ÖLÇÜMÜ — Vercel Web Analytics (§7.18, 13 Eylül 2026).
+
+          Çerezsiz, anonim, birinci taraf: yalnızca toplu sayımlar (sayfa
+          görüntüleme, ülke, cihaz, referrer) üretir; ziyaretçiyi bağlamaz,
+          kişisel veri toplamaz. Gizlilik beyanı `/gizlilik`'te.
+
+          CSP'YE DOKUNMADI (§7.3): bu bileşen sunucuda `null` render eder
+          (SSR HTML'ine script eklemez, nonce denetimi değişmez) ve script'i
+          yalnızca tarayıcıda `createElement` ile enjekte eder — Next'in
+          nonce'lu bundle'ından yüklendiği için `'strict-dynamic'` onu chunk
+          yükleyicisiyle aynı biçimde kapsar. Beacon aynı kökene
+          (`/_vercel/insights/*`) gider, `connect-src 'self'` altında kalır;
+          bu yüzden §7.4'ün adres listesi de değişmez (istemci beacon'ı,
+          sunucu çıkışı değil).
+        */}
+        <Analytics />
       </body>
     </html>
   );

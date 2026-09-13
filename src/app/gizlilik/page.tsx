@@ -8,15 +8,16 @@ import { datasets } from "@/infrastructure/db/repositories";
 /**
  * Gizlilik bildirimi ve KVKK aydınlatma metni — PROJECT.md §7.18.
  *
- * METİN KODDAN TÜRETİLDİ, ŞABLONDAN DEĞİL. Hazır gizlilik metinleri çerezden,
- * analitikten ve reklam ortaklarından söz eder; bu sitede üçü de yok. Olmayan
- * bir işlemeyi beyan etmek, olanı gizlemekle aynı kapıya çıkar — ikisi de
- * metni gerçeğe uymayan bir belgeye çevirir.
+ * METİN KODDAN TÜRETİLDİ, ŞABLONDAN DEĞİL. Hazır gizlilik metinleri reklam
+ * ortaklarından ve izleme çerezlerinden söz eder; bu sitede ikisi de yok.
+ * Analitik ise VAR ama anonim ve çerezsiz — o yüzden gizlenmez, olduğu gibi
+ * beyan edilir. Olmayan bir işlemeyi beyan etmek de olanı gizlemek de metni
+ * gerçeğe uymayan bir belgeye çevirir; ikisinden de kaçınılır.
  *
  * Buradaki her cümlenin kodda bir karşılığı var ve §7.18'de ölçüldü:
- *   · izleyici yok     → `package.json`'da analitik paketi yok
- *   · IP loglanmıyor   → `api-handler.ts` yalnızca traceId/rota/durum/süre yazar
- *   · Wikimedia görür  → `club-mark.tsx` düz `<img>` kullanıyor, vekil yok
+ *   · ölçüm anonim/çerezsiz → `@vercel/analytics`, `document.cookie` yok
+ *   · IP loglanmıyor        → `api-handler.ts` yalnızca traceId/rota/durum/süre yazar
+ *   · Wikimedia görür       → `club-mark.tsx` düz `<img>` kullanıyor, vekil yok
  *
  * BİR CÜMLE DEĞİŞTİRİLECEKSE önce §7.18 güncellenir. Metin ile davranış
  * ayrışırsa yanlış olan metindir ve yanlış beyan, beyan etmemekten kötüdür.
@@ -25,6 +26,13 @@ import { datasets } from "@/infrastructure/db/repositories";
  * geçersiz kıldı: "hesap yok", "çerez yok" ve "size ait saklanan kayıt yok".
  * Üçü de artık DOĞRU DEĞİL ve metin buna göre düzeltildi — kuralın kendisi
  * (metin koddan türetilir, şablondan değil) korunarak.
+ *
+ * 13 EYLÜL 2026'DA ZİYARET ÖLÇÜMÜ EKLENDİ (§7.18). "Ziyaretçi izleyen hiçbir
+ * araç yok" ve "analitik aracı yoktur" cümleleri geçersiz kaldı: Vercel Web
+ * Analytics eklendi. Anonim, çerezsiz ve birinci taraf olduğu için metin onu
+ * yeni bir "Ziyaret ölçümü" bölümüyle dürüstçe beyan eder; "olmayanlar"
+ * listesinde yalnızca gerçekten olmayanlar (ısı haritası, oturum kaydı,
+ * parmak izi, reklam) kalır.
  */
 
 export const metadata: Metadata = {
@@ -35,7 +43,7 @@ export const metadata: Metadata = {
 };
 
 /** Metnin son gözden geçirildiği tarih — §7.18 ölçümüyle aynı gün. */
-const LAST_REVIEWED = "3 Eylül 2026";
+const LAST_REVIEWED = "13 Eylül 2026";
 
 export default async function PrivacyPage() {
   const { CONTACT_EMAIL } = serverEnv();
@@ -51,7 +59,10 @@ export default async function PrivacyPage() {
           Gizlilik Bildirimi
         </h1>
         <p className="max-w-prose text-lg text-muted">
-          Bu sitede reklam yok ve ziyaretçi izleyen hiçbir araç yok. Hesap açmak{" "}
+          Bu sitede reklam yok ve sizi tanımlayan hiçbir izleyici yok. Tek
+          istisna, kaç kişinin uğradığını görmek için kullanılan{" "}
+          <strong>anonim ve çerezsiz</strong> bir ziyaret sayacıdır (aşağıda
+          &quot;Ziyaret ölçümü&quot;). Hesap açmak{" "}
           <strong>isteğe bağlıdır</strong>: oyunların tamamı hesapsız oynanır,
           hesap yalnızca lider tablosunda yer almak için gerekir. Aşağıdaki
           metin genel bir şablon değil; sitenin gerçekten ne yaptığının dökümü.
@@ -148,6 +159,34 @@ export default async function PrivacyPage() {
       </section>
 
       <section className="flex flex-col gap-3">
+        <h2 className="text-xl font-semibold">Ziyaret ölçümü</h2>
+        <p className="max-w-prose">
+          Sitenin kaç kişi tarafından ziyaret edildiğini görmek için{" "}
+          <strong>Vercel Web Analytics</strong> adlı anonim bir ölçüm aracı
+          kullanılır. Bu araç <strong>çerez yazmaz</strong> ve sizi tanımlayacak
+          hiçbir bilgi toplamaz.
+        </p>
+        <p className="max-w-prose">Yalnızca toplu ve anonim sayımlar üretir:</p>
+        <ul className="flex max-w-prose list-disc flex-col gap-1 ps-5">
+          <li>Hangi sayfaların, kaç kez görüntülendiği.</li>
+          <li>
+            Günlük tekil ziyaretçi sayısı — anonim; aynı kişiyi günler arasında
+            veya başka sitelerde <strong>takip etmez</strong>.
+          </li>
+          <li>
+            Hangi siteden geldiğiniz (yönlendiren adres), ülke ve cihaz/tarayıcı
+            türü gibi genel bilgiler.
+          </li>
+        </ul>
+        <p className="max-w-prose">
+          Bu veriler <strong>toplu</strong> tutulur: tek tek ziyaretçilere
+          inilmez, kişisel profil çıkarılmaz ve reklam için kullanılmaz. Ölçüm,
+          sitenin barındırıcısı olan <strong>Vercel</strong> tarafından işlenir
+          (aşağıda &quot;Üçüncü taraflar&quot;).
+        </p>
+      </section>
+
+      <section className="flex flex-col gap-3">
         <h2 className="text-xl font-semibold">Hesap açarsanız</h2>
         <p className="max-w-prose">
           Hesap açmak isteğe bağlıdır ve yalnızca lider tablosunda yer almak
@@ -212,10 +251,12 @@ export default async function PrivacyPage() {
           yönlendirme politikası yalnızca alan adını paylaşır.
         </p>
         <p className="max-w-prose">
-          <strong>Barındırma sağlayıcısı.</strong> Site bir bulut sağlayıcısında
-          çalışır ve her internet isteği gibi bu istekler de sağlayıcının
-          altyapısından geçer. Sağlayıcı kendi sunucu kayıtlarını kendi
-          politikasına göre tutar.
+          <strong>Vercel (barındırma ve ziyaret ölçümü).</strong> Site Vercel
+          adlı bulut sağlayıcısında çalışır; her internet isteği gibi
+          bağlantılarınız da onun altyapısından geçer ve Vercel kendi sunucu
+          kayıtlarını kendi politikasına göre tutar. Yukarıda anlatılan anonim
+          ziyaret ölçümü de <strong>aynı sağlayıcıda</strong> işlenir — veri
+          ayrı bir üçüncü şirkete gönderilmez.
         </p>
         {feedbackForm && (
           <p className="max-w-prose">
@@ -227,7 +268,8 @@ export default async function PrivacyPage() {
         )}
         <p className="max-w-prose text-sm text-muted">
           Bunların dışında hiçbir üçüncü tarafa veri aktarılmaz. Sitede reklam
-          ağı, analitik aracı, sosyal medya düğmesi ve gömülü içerik yoktur.
+          ağı, sosyal medya düğmesi ve gömülü içerik yoktur; tek ölçüm aracı
+          yukarıda beyan edilen anonim, çerezsiz ziyaret sayacıdır.
         </p>
       </section>
 
@@ -253,7 +295,11 @@ export default async function PrivacyPage() {
               </>
             )}
           </li>
-          <li>Analitik, ısı haritası veya oturum kaydı aracı yoktur.</li>
+          <li>
+            Isı haritası, oturum kaydı veya parmak izi aracı yoktur. Ziyaret
+            ölçümü vardır ama anonim ve çerezsizdir (yukarıda &quot;Ziyaret
+            ölçümü&quot;).
+          </li>
           <li>Reklam gösterilmez, reklam profili çıkarılmaz.</li>
           <li>
             Tarayıcı tabanlı ilgi alanı gruplaması site tarafından reddedilir.
