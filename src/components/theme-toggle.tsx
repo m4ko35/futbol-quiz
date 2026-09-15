@@ -87,7 +87,7 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
   return (
     <fieldset
       className={
-        "flex items-center gap-0.5 rounded-full border border-line bg-background p-1 " +
+        "flex items-center gap-0.5 rounded-lg border border-line bg-background p-1 " +
         (className ?? "")
       }
     >
@@ -102,7 +102,7 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
         return (
           <label
             key={option.id}
-            className={`flex h-11 w-11 cursor-pointer items-center justify-center rounded-full transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent ${
+            className={`flex h-11 w-11 cursor-pointer items-center justify-center rounded-md transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent ${
               isCurrent
                 ? "bg-accent text-accent-fg shadow-card"
                 : "text-muted hover:bg-surface hover:text-foreground"

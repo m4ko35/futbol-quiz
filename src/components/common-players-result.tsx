@@ -123,7 +123,9 @@ function PlayerRow({
   return (
     <li className="grid border-b border-line transition-colors last:border-b-0 hover:bg-surface-2 sm:grid-cols-[1.05fr_1fr_1fr]">
       <div className="min-w-0 px-4 py-3 sm:border-r sm:border-line">
-        <p className="font-bold tracking-tight">{player.name}</p>
+        <p className="font-display text-lg leading-tight font-bold tracking-tight">
+          {player.name}
+        </p>
         {/*
           İKİ ALAN DA ÇEVRİLİR. `position` veritabanında dilden bağımsız
           anahtar tutar (BR-40), `nationality` ise ISO kodu — ikisi de ham

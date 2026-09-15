@@ -6,6 +6,7 @@ import type { LeagueSummary } from "@/application/ports/club-repository";
 import { countryName } from "@/lib/country-name";
 import { ClubMark } from "./club-mark";
 import { CountryFlag } from "./country-flag";
+import { DataLabel } from "./data-label";
 
 /**
  * Kulüp seçici — WAI-ARIA "combobox with listbox popup" deseni.
@@ -303,7 +304,7 @@ export function ClubPicker({
     <div className="flex flex-col gap-2">
       <label
         htmlFor={inputId}
-        className="text-xs font-semibold tracking-wide text-muted uppercase"
+        className="font-display text-xs font-semibold tracking-wide text-muted uppercase"
       >
         {label}
       </label>
@@ -598,20 +599,29 @@ export function ClubPicker({
         <div className="flex items-center justify-between gap-3 rounded-lg border border-accent bg-accent-soft px-3 py-2.5">
           <span className="flex min-w-0 items-center gap-2.5">
             <ClubMark club={selected} size={28} />
-            <span className="truncate font-semibold">{selected.shortName}</span>
+            <span className="truncate font-display text-base font-bold tracking-tight">
+              {selected.shortName}
+            </span>
           </span>
-          <button
-            type="button"
-            className="shrink-0 rounded-md px-2 py-3 text-sm font-medium text-accent underline underline-offset-2 hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-            onClick={() => {
-              onSelect(null);
-              // Seçim kaldırıldığında odak arama kutusuna dönmeli; aksi hâlde
-              // klavye kullanıcısı sayfanın başına savrulur.
-              requestAnimationFrame(() => inputRef.current?.focus());
-            }}
-          >
-            Değiştir
-          </button>
+          <span className="flex shrink-0 items-center gap-2">
+            {/* "SEÇİLDİ" — kaydın tamamlandığını bir bakışta söyler (editorial
+                data-label). Renk accent; metin ham kalır, büyük harf CSS ile. */}
+            <DataLabel className="text-accent max-[380px]:hidden">
+              Seçildi
+            </DataLabel>
+            <button
+              type="button"
+              className="rounded-md px-2 py-3 text-sm font-medium text-accent underline underline-offset-2 hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              onClick={() => {
+                onSelect(null);
+                // Seçim kaldırıldığında odak arama kutusuna dönmeli; aksi hâlde
+                // klavye kullanıcısı sayfanın başına savrulur.
+                requestAnimationFrame(() => inputRef.current?.focus());
+              }}
+            >
+              Değiştir
+            </button>
+          </span>
         </div>
       )}
 

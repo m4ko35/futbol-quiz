@@ -51,7 +51,7 @@ export function SiteHeader({ showLeaderboard }: SiteHeaderProps) {
   const pathname = usePathname();
 
   return (
-    <header className="border-b border-line bg-surface">
+    <header className="sticky top-0 z-40 border-b border-line bg-surface/85 backdrop-blur-md">
       {/*
         SIRA GENİŞLİĞE GÖRE DEĞİŞİYOR, BİLEŞEN İKİ KEZ BASILMIYOR.
 
@@ -69,7 +69,7 @@ export function SiteHeader({ showLeaderboard }: SiteHeaderProps) {
           className="order-1 flex items-center gap-2 rounded-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
         >
           <BrandMark className="h-7 w-7 shrink-0 text-accent" />
-          <span className="text-base font-semibold tracking-tight">
+          <span className="font-display text-xl font-bold tracking-tight uppercase">
             Futbol Challenge
           </span>
         </Link>
@@ -83,9 +83,28 @@ export function SiteHeader({ showLeaderboard }: SiteHeaderProps) {
         {showLeaderboard && (
           <Link
             href="/lider-tablosu"
-            className="order-2 ms-auto rounded-md px-2 py-3 text-sm font-medium text-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:order-3 sm:ms-0"
+            className="font-display order-2 ms-auto inline-flex items-center gap-1.5 rounded-md px-2.5 py-2.5 text-sm font-semibold tracking-wide text-muted uppercase transition-colors hover:bg-surface hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:order-3 sm:ms-0"
           >
-            Lider Tablosu
+            {/* Kupa — satır içi SVG (§7.12: glif değil SVG; Material Symbols
+                harici fontu CSP `font-src 'self'` ile engellenir). */}
+            <svg
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              focusable="false"
+              className="h-4 w-4 text-accent"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M7 4h10v4a5 5 0 0 1-10 0V4Z" />
+              <path d="M7 5H5v2a3 3 0 0 0 3 3" />
+              <path d="M17 5h2v2a3 3 0 0 1-3 3" />
+              <path d="M12 13v4" />
+              <path d="M8.5 20h7l-.5-3h-6l-.5 3Z" />
+            </svg>
+            <span>Lider Tablosu</span>
           </Link>
         )}
 
