@@ -54,6 +54,10 @@ yarn-error.log*
 # Strix (yerel guvenlik taramasi) ciktisi — arac uretti, kaynak degil
 /strix_runs/
 
+# Stitch tasarim teslimatlari + arayuz yenileme brief/plan (referans, kaynak degil)
+/tasarim/
+/stitch-arayuz-brifi.md
+
 # vercel
 .vercel
 

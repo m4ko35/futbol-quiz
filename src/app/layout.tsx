@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Barlow, Barlow_Condensed, Geist_Mono } from "next/font/google";
+import { Manrope, Barlow_Condensed, Geist_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import { connection } from "next/server";
 import { Analytics } from "@vercel/analytics/next";
@@ -22,11 +22,15 @@ import "./globals.css";
  * o dört harfi yedek bir sistem fontundan tamamlıyor: Türkçe metnin çoğu
  * kelimesi iki ayrı fontla çiziliyor. Kusur uzun süre gözden kaçtı çünkü
  * sayfa "çalışıyor" görünüyor — bozulan şey yalnızca harflerin biçimi.
+ *
+ * GÖVDE YÜZÜ MANROPE (arayüz yenileme, §7.12). Değişken (variable) bir font
+ * olduğu için `weight` dizisi VERİLMEZ — eksen tümüyle yüklenir ve gereken
+ * ağırlıklar (400 gövde, 600/700 vurgulu) tek dosyadan çözülür. `latin-ext`
+ * yine ZORUNLU: Manrope da o alt kümeyi taşır, Türkçe harfler korunur.
  */
-const bodyFont = Barlow({
+const bodyFont = Manrope({
   variable: "--font-body",
   subsets: ["latin", "latin-ext"],
-  weight: ["400", "500", "600", "700"],
 });
 
 /**

@@ -2829,11 +2829,23 @@ Palet göz kararıyla seçilip kapıya çarptırılmadı: kapının matematiği 
 paletlere uygulanarak **tasarımın içine alındı**. Kapı ilk denemede geçti
 (88 ölçüm).
 
-##### Tipografi: Barlow Condensed / Barlow
+##### Tipografi: Barlow Condensed (başlık/veri) / Manrope (gövde)
 
 Geist bırakıldı. **Sıkıştırılmış bir başlık yüzü + geniş bir gövde yüzü** spor
 basınının kendi dilidir: aynı genişlikte daha çok harf, daha güçlü bir dikey
 ritim.
+
+> **GÖVDE YÜZÜ MANROPE'A GEÇTİ — 16 Eylül 2026 (arayüz yenileme, Faz 0).** Aşağıdaki
+> "sıkıştırılmış başlık + geniş gövde" gerekçesi AYNEN geçerli; değişen yalnızca
+> geniş gövde yüzünün kimliği: **Barlow → Manrope**. Manrope değişken (variable) bir
+> geometrik grotesk, küçük punto ve uzun metinde okunurluğu yüksek — editorial
+> yönün gövde/mikro-metin yüzü. **Barlow Condensed başlıklarda ve veri/etiketlerde
+> KALIR** (`h1,h2,h3` kuralı ve `--font-condensed` değişmez), Geist Mono da kalır.
+> Değişen tek yer `--font-body`'nin kaynağı (`layout.tsx`); `globals.css`'teki
+> `var(--font-body)` bildirimi ve `latin-ext` kuralı aynı — Manrope da `latin-ext`
+> taşır (Türkçe `ı/İ/ğ/ş` korunur, derlemeden doğrulandı). Aşağıdaki "gövde fontu
+> hiç uygulanmıyordu" dersi bu yüzden hâlâ geçerli: değişken adı korunarak sessiz
+> düşme tuzağı tekrarlanmadı.
 
 **Russo One önerildi ve elendi.** Güzel olmadığı için değil: bir _başlık_ yüzü
 ve tek ağırlığı var (400). Lider tablosu gibi veri yoğun bir ekranda okumayı
