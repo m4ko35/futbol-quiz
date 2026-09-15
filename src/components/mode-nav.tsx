@@ -61,7 +61,7 @@ export function ModeNav({ current, className }: ModeNavProps) {
     <nav
       aria-label="Oyun modları"
       className={
-        "flex flex-wrap items-center gap-1 rounded-full border border-line bg-background p-1 " +
+        "flex flex-wrap items-center gap-1 rounded-lg border border-line bg-background p-1 " +
         (className ?? "")
       }
     >
@@ -80,10 +80,10 @@ export function ModeNav({ current, className }: ModeNavProps) {
               İÇERİYOR ("Ortak" ⊂ "Ortak Oyuncu").
             */
             aria-label={mode.title}
-            className={`rounded-full px-2.5 py-3 text-sm whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:px-3 ${
+            className={`font-display rounded-md px-2.5 py-3 text-base uppercase tracking-wide whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:px-3.5 ${
               isCurrent
-                ? "bg-accent font-semibold text-accent-fg shadow-card"
-                : "font-medium text-muted hover:bg-surface hover:text-foreground"
+                ? "bg-accent font-bold text-accent-fg shadow-card"
+                : "font-semibold text-muted hover:bg-surface hover:text-foreground"
             }`}
           >
             {/*
