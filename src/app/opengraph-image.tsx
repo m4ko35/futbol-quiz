@@ -57,7 +57,10 @@ export default function OpenGraphImage(): ImageResponse {
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: "44px" }}>
-        {/* eslint-disable-next-line @next/next/no-img-element -- ImageResponse (Satori) yalnızca <img> çizer; next/image çalışmaz. */}
+        {/* ImageResponse (Satori) yalnızca <img> çizer; next/image çalışmaz.
+            `no-img-element` bu metadata görsel rotasında eslint-config-next
+            tarafından zaten muaf; inline disable CI'da (Linux) "kullanılmıyor"
+            uyarısı veriyordu (§8.3). */}
         <img width={196} height={196} src={MARK_DATA_URI} alt="" />
         <div style={{ display: "flex", flexDirection: "column" }}>
           <div

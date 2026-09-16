@@ -165,6 +165,19 @@ const eslintConfig = defineConfig([
     },
   },
 
+  // ─── Metadata görsel rotaları: `<img>` zorunlu (§8.3, §7.11) ───────────
+  // `app/opengraph-image.tsx` Satori (`ImageResponse`) içinde `<img>` KULLANIR;
+  // next/image orada çalışmaz. `@next/next/no-img-element` bu rotayı CI'da
+  // (Linux) muaf tutuyor ama Windows yerelde tetikliyor — inline `eslint-disable`
+  // bir ortamda "kullanılmıyor" uyarısı veriyordu. Kuralı bu dosya için açıkça
+  // kapatmak ortam sezgisini ELER: iki ortam da deterministik olarak temiz.
+  {
+    files: ["**/opengraph-image.tsx"],
+    rules: {
+      "@next/next/no-img-element": "off",
+    },
+  },
+
   // Prettier en sonda: biçimlendirmeyle çakışan kuralları kapatır.
   prettier,
 ]);
