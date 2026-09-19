@@ -96,7 +96,7 @@ function Row({
           className={
             row.rank <= 3
               ? "font-display text-2xl leading-none font-bold tabular-nums"
-              : "text-base tabular-nums text-muted"
+              : "font-display text-base tabular-nums text-muted"
           }
         >
           {row.rank}
@@ -110,10 +110,11 @@ function Row({
           <ReportNameDialog displayName={row.displayName} />
         )}
       </td>
-      <td className="px-3 py-3 text-right text-base font-semibold tabular-nums">
+      {/* Puan tablonun manşet sayısı — condensed editorial yüz (§7.12). */}
+      <td className="px-3 py-3 text-right font-display text-base font-bold tabular-nums">
         {row.points}
       </td>
-      <td className="px-3 py-3 text-right tabular-nums text-muted">
+      <td className="px-3 py-3 text-right font-display tabular-nums text-muted">
         {row.days}
       </td>
     </tr>
@@ -186,7 +187,10 @@ export default async function LeaderboardPage({ searchParams }: PageProps) {
               {active?.label} dönemi sıralaması
             </caption>
             <thead>
-              <tr className="border-b border-line text-xs tracking-wide text-muted uppercase">
+              {/* Sütun başlıkları editorial etiket idyomunda: condensed
+                  (font-display), büyük harf, tracking'li — DataLabel ile aynı
+                  ritim; th'ler tr'den miras alır. */}
+              <tr className="border-b border-line font-display text-xs font-semibold tracking-[0.08em] text-muted uppercase">
                 <th scope="col" className="px-3 py-2.5 text-right">
                   Sıra
                 </th>
