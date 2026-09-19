@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { DataLabel } from "./data-label";
 
 /**
  * Mod künyesi ve skor tabelası — PROJECT.md §7.15.
@@ -54,9 +55,9 @@ export function ModeHeader({
         {/* Boşluk etiketin ÜZERİNDE değil ALTINDA: etiket yokken başlık
             künyenin tepesine oturuyor, ölü bir aralık kalmıyor. */}
         {eyebrow !== undefined && (
-          <p className="mb-1 text-[0.65rem] font-extrabold tracking-[0.13em] text-muted uppercase">
+          <DataLabel as="p" className="mb-1 text-muted">
             {eyebrow}
-          </p>
+          </DataLabel>
         )}
         <h1 className="text-2xl font-extrabold tracking-tight text-balance sm:text-[1.625rem]">
           {title}
@@ -130,15 +131,19 @@ export function Scoreboard({ cells, lit = false, label }: ScoreboardProps) {
           // küçülüyor. Sayı KISALTILMIYOR (§2.7) — yalnızca punto iniyor.
           className="min-w-[3.5rem] border-r border-line px-2.5 py-2 text-right last:border-r-0 sm:min-w-[4.75rem] sm:px-4"
         >
-          <p className="text-[0.65rem] font-extrabold tracking-[0.13em] text-muted uppercase">
+          <DataLabel as="p" className="text-muted">
             {cell.label}
-          </p>
+          </DataLabel>
+          {/* Sayı EDITORIAL condensed yüzle (§7.12): Barlow tabular-nums'ı
+              taşır, spor tabelasının dikey ritmini verir. Ağırlık 700 —
+              yüklü olan (layout.tsx `weight: ["600","700"]`); 800 sentetik
+              olurdu. */}
           <p
             className={
-              "font-extrabold tabular-nums " +
+              "font-display font-bold tabular-nums " +
               (cell.small
-                ? "pt-1.5 text-base tracking-tight sm:text-lg"
-                : "text-2xl leading-none tracking-[-0.035em] sm:text-3xl") +
+                ? "pt-1.5 text-lg tracking-tight sm:text-xl"
+                : "text-3xl leading-none tracking-tight sm:text-4xl") +
               (cell.tone === undefined ? "" : " " + TONE_CLASS[cell.tone])
             }
           >

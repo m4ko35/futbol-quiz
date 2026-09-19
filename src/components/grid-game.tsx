@@ -22,6 +22,7 @@ import {
   type CellState,
   type GameState,
 } from "@/lib/grid-storage";
+import { DataLabel } from "./data-label";
 import { ModeHeader, Scoreboard } from "./mode-header";
 import { PlayerPicker } from "./player-picker";
 import { Button } from "./ui/button";
@@ -467,11 +468,15 @@ function CriterionLabel({
   readonly criterion: GridCriterionDto;
 }) {
   return (
-    <span className="flex h-full flex-col items-center justify-center gap-0.5 rounded-xl bg-background px-2 py-3 text-center">
-      <span className="leading-tight text-balance">{criterion.label}</span>
-      <span className="text-[0.7rem] font-medium tracking-wide text-muted uppercase">
-        {criterion.kind === "club" ? "kulüp" : "uyruk"}
+    <span className="flex h-full flex-col items-center justify-center gap-1 rounded-xl bg-background px-2 py-3 text-center">
+      {/* Ölçüt adı VERİDİR — kulüp/uyruk. Editorial imza: condensed (§7.12),
+          oyuncu adlarıyla aynı yüz. Büyük harf DEĞİL: özel ad. */}
+      <span className="font-display leading-tight font-bold tracking-tight text-balance">
+        {criterion.label}
       </span>
+      <DataLabel className="text-muted">
+        {criterion.kind === "club" ? "kulüp" : "uyruk"}
+      </DataLabel>
     </span>
   );
 }
@@ -511,7 +516,7 @@ function Cell({ answer, isOpen, disabled, label, onOpen }: CellProps) {
         >
           {isCorrect ? "✓" : "✗"}
         </span>
-        <span className="leading-tight font-medium text-balance">
+        <span className="font-display leading-tight font-bold tracking-tight text-balance">
           {answer.playerName}
         </span>
         <span className="sr-only">

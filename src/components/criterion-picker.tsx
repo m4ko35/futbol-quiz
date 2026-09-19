@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import type { GridCriterionRefDto } from "@/application/use-cases/custom-grid";
+import { DataLabel } from "./data-label";
 
 /**
  * Ölçüt seçici — "Sen kur" ızgarasında bir eksene kulüp ya da ülke koymak için
@@ -206,10 +207,12 @@ export function CriterionPicker({
               setActiveIndex(index);
             }}
           >
-            <span className="font-medium">{option.label}</span>
-            <span className="shrink-0 text-[0.7rem] font-medium tracking-wide text-muted uppercase">
-              {option.kind === "club" ? "kulüp" : "uyruk"}
+            <span className="font-display font-bold tracking-tight">
+              {option.label}
             </span>
+            <DataLabel className="shrink-0 text-muted">
+              {option.kind === "club" ? "kulüp" : "uyruk"}
+            </DataLabel>
           </li>
         ))}
       </ul>
