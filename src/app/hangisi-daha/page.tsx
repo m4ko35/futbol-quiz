@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   title: "Hangisi Daha — Futbol Challenge",
   alternates: { canonical: "/hangisi-daha" },
   description:
-    "İki futbolcuyu karşılaştır: hangisi daha çok gol, asist veya maç " +
+    "İki futbolcuyu karşılaştır: hangisi daha çok gol, maç veya millî maç " +
     "yaptı? Doğru bildikçe serin uzar. Ücretsiz Türkçe futbol tahmin oyunu.",
 };
 
@@ -36,7 +36,7 @@ export default async function WhichMorePage() {
           &quot;Hangisi daha&quot; nasıl oynanır?
         </h2>
         <p className="max-w-prose text-sm text-muted">
-          Bir istatistik seçin (gol, asist, maç…) ve karşınıza gelen iki
+          Bir istatistik seçin (gol, maç, kulüp sayısı…) ve karşınıza gelen iki
           futbolcudan hangisinin o alanda daha yüksek olduğunu tahmin edin. İki
           futbolcuyu karşılaştırıp doğru olanı seçin.
         </p>

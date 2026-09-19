@@ -7,6 +7,7 @@ import type {
   WhichMorePlayerDto,
   WhichMoreRoundDto,
 } from "@/application/use-cases/which-more";
+import { DataLabel } from "./data-label";
 import { ModeHeader, Scoreboard } from "./mode-header";
 import { Button } from "./ui/button";
 import { STAT_KEYS, type StatKey } from "@/domain/services/stat-match";
@@ -750,7 +751,9 @@ function PlayerCard({
       }`}
     >
       <span className="flex w-full items-start justify-between gap-2">
-        <span className="text-lg leading-tight font-bold">{player.name}</span>
+        <span className="font-display text-lg leading-tight font-bold tracking-tight">
+          {player.name}
+        </span>
 
         {chain !== null && (
           <span
@@ -791,7 +794,11 @@ function PlayerCard({
             className="animate-duel-reveal flex flex-col gap-2"
             style={{ animationDelay: `${String(revealDelayMs)}ms` }}
           >
-            <span className="text-4xl leading-none font-black tabular-nums">
+            {/* Açılan değer düellonun doruğu; condensed editorial yüz (§7.12),
+                tabelayla + öbür modlarla aynı tabular-nums ritmi. Ağırlık 700
+                (yüklü); 900 sentetik olurdu. Birim iç içe span'de font-display'i
+                miras alır. */}
+            <span className="font-display text-4xl leading-none font-bold tabular-nums">
               {String(value)}{" "}
               <span className="text-sm font-bold tracking-wide text-muted uppercase">
                 {unit}
@@ -1049,9 +1056,9 @@ function StatPicker({
         animasyon yeniden koşuyor.
       */}
       <div className="animate-duel-enter rounded-2xl border-2 border-line-strong bg-surface px-5 py-6 shadow-card sm:px-7">
-        <p className="text-[0.65rem] font-extrabold tracking-[0.13em] text-muted uppercase">
+        <DataLabel as="p" className="text-muted">
           Sorulacak soru
-        </p>
+        </DataLabel>
         <p
           key={`${statKey}-${direction}`}
           className="animate-duel-swap mt-2 text-2xl leading-tight font-black tracking-tight text-balance sm:text-4xl"
