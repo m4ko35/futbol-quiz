@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
+import { DataLabel } from "@/components/data-label";
 import { PageShell } from "@/components/page-shell";
 import { SiteFooter } from "@/components/site-footer";
 import { buttonClasses } from "@/components/ui/button";
@@ -85,7 +86,9 @@ export default async function LoginPage({ searchParams }: PageProps) {
         </a>
 
         <div className="flex max-w-prose flex-col gap-2 text-sm text-muted">
-          <p className="font-semibold text-foreground">Ne saklıyoruz</p>
+          <DataLabel as="p" className="text-foreground">
+            Ne saklıyoruz
+          </DataLabel>
           <ul className="flex list-disc flex-col gap-1.5 pl-5">
             <li>
               Google hesabınızın kimlik numarasının{" "}
@@ -97,7 +100,9 @@ export default async function LoginPage({ searchParams }: PageProps) {
             </li>
           </ul>
 
-          <p className="font-semibold text-foreground">Ne saklamıyoruz</p>
+          <DataLabel as="p" className="text-foreground">
+            Ne saklamıyoruz
+          </DataLabel>
           <ul className="flex list-disc flex-col gap-1.5 pl-5">
             <li>
               <strong>E-posta adresiniz.</strong> Google&apos;dan yalnızca

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { AccountActions } from "@/components/account-actions";
+import { DataLabel } from "@/components/data-label";
 import { PageShell } from "@/components/page-shell";
 import { SiteFooter } from "@/components/site-footer";
 import { accountsEnabled } from "@/infrastructure/config/env";
@@ -43,7 +44,9 @@ export default async function AccountPage() {
 
       <section className="flex flex-col gap-4 rounded-xl border border-line bg-surface p-6 shadow-card">
         <div className="flex max-w-prose flex-col gap-2 text-sm text-muted">
-          <p className="font-semibold text-foreground">Bu hesapta tutulanlar</p>
+          <DataLabel as="p" className="text-foreground">
+            Bu hesapta tutulanlar
+          </DataLabel>
           <ul className="flex list-disc flex-col gap-1.5 pl-5">
             <li>Görünen adın: {user.displayName}</li>
             <li>
