@@ -72,7 +72,7 @@ export default async function CreditsPage() {
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-sm">
               <thead>
-                <tr className="border-b border-line text-left">
+                <tr className="border-b border-line text-left font-display text-xs font-semibold tracking-[0.08em] text-muted uppercase">
                   <th scope="col" className="py-2 pr-4 font-semibold">
                     Kulüp
                   </th>
