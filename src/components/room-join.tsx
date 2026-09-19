@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback } from "react";
+import { DataLabel } from "./data-label";
 import { useJoinRoom } from "./use-join-room";
 import { Button } from "./ui/button";
 
@@ -48,9 +49,9 @@ export function RoomJoin({ code }: { readonly code: string }) {
 
       <section className="flex flex-col gap-4 rounded-2xl border border-accent bg-accent-soft p-5 shadow-card">
         <div className="flex flex-col gap-1">
-          <p className="text-[0.65rem] font-extrabold tracking-[0.13em] text-muted uppercase">
+          <DataLabel as="p" className="text-muted">
             Oda kodu
-          </p>
+          </DataLabel>
           <p className="font-mono text-4xl font-bold tracking-[0.2em] text-accent sm:text-5xl">
             {code}
           </p>

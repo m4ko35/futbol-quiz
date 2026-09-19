@@ -2,6 +2,7 @@ import type { ScoredAnswerDto } from "@/application/use-cases/answer-names";
 import type { RoomDto, RoomSideDto } from "@/application/use-cases/rooms";
 import type { StatDto } from "@/application/use-cases/daily-stat-match";
 import type { StatKey } from "@/domain/services/stat-match";
+import { DataLabel } from "./data-label";
 
 /**
  * Oda sonucu — iki turun YAN YANA karşılaştırması (PROJECT.md §12, BR-62).
@@ -104,7 +105,7 @@ function ResultRow({
   return (
     <li className="flex flex-col gap-2.5 rounded-xl border border-line bg-surface px-4 py-3.5 shadow-card">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <span className="text-xs font-semibold tracking-wide text-muted uppercase">
+        <DataLabel className="text-muted">
           {stat.label}
           {stat.scoped && (
             <>
@@ -112,8 +113,8 @@ function ResultRow({
               <span className="sr-only"> (yalnızca yirmi dört lig)</span>
             </>
           )}
-        </span>
-        <span className="text-2xl font-bold text-accent tabular-nums">
+        </DataLabel>
+        <span className="font-display text-2xl font-bold text-accent tabular-nums">
           {String(stat.value)}
         </span>
       </div>
@@ -151,10 +152,13 @@ function ResultSide({
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm">
       <span className="flex min-w-0 items-baseline gap-2">
-        <span className="shrink-0 text-xs font-semibold tracking-wide text-muted uppercase">
-          {who}
-        </span>
-        <span className={"truncate " + (leads ? "font-bold" : "font-medium")}>
+        <DataLabel className="shrink-0 text-muted">{who}</DataLabel>
+        {/* Oyuncu adi condensed (§7.12); yon 700/600 — ikisi de yuklu. */}
+        <span
+          className={
+            "truncate font-display " + (leads ? "font-bold" : "font-semibold")
+          }
+        >
           {answer?.playerName ?? "—"}
         </span>
       </span>

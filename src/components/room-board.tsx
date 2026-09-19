@@ -19,6 +19,7 @@ import { pollDelay, pollPhase, pollSignature } from "@/lib/room-polling";
 import { readErrorMessage } from "@/lib/http/error-message";
 import { searchPlayersForStat } from "@/lib/http/player-search";
 import type { StatMatchState } from "@/lib/stat-match-storage";
+import { DataLabel } from "./data-label";
 import { ModeHeader, Scoreboard } from "./mode-header";
 import { RoomResult, sidePoints } from "./room-result";
 import { StatMatchGame } from "./stat-match-game";
@@ -523,9 +524,9 @@ function RoomCodeCard({ code }: { readonly code: string }) {
   return (
     <section className="flex flex-col gap-4 rounded-2xl border border-accent bg-accent-soft p-5 shadow-card">
       <div className="flex flex-col gap-1">
-        <p className="text-[0.65rem] font-extrabold tracking-[0.13em] text-muted uppercase">
+        <DataLabel as="p" className="text-muted">
           Oda kodu
-        </p>
+        </DataLabel>
         <p className="font-mono text-4xl font-bold tracking-[0.2em] text-accent sm:text-5xl">
           {code}
         </p>
