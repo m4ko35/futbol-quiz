@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { DataLabel } from "@/components/data-label";
 
 /**
  * Sayfa düzeyinde hata ekranı — PROJECT.md §6.3.
@@ -19,9 +20,16 @@ export default function GlobalError({
 }) {
   return (
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center gap-5 px-6 py-16">
-      <h1 className="text-3xl font-bold tracking-tight">
-        Bir şeyler ters gitti
-      </h1>
+      {/* Editorial çapa: severity kicker'da. `warn` (alarm-kırmızısı değil):
+          hata kurtarılabilir, "Yeniden dene" var. */}
+      <div className="flex flex-col gap-1">
+        <DataLabel as="p" className="text-warn">
+          Beklenmeyen hata
+        </DataLabel>
+        <h1 className="text-3xl font-bold tracking-tight">
+          Bir şeyler ters gitti
+        </h1>
+      </div>
 
       <p className="text-muted">
         İstek işlenirken beklenmeyen bir hata oluştu. Sayfayı yeniden
