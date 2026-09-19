@@ -31,6 +31,7 @@ import {
   writeStatMatch,
   type StatMatchState,
 } from "@/lib/stat-match-storage";
+import { DataLabel } from "./data-label";
 import { ModeHeader, Scoreboard } from "./mode-header";
 import { PlayerPicker } from "./player-picker";
 import { Button, buttonClasses } from "./ui/button";
@@ -670,7 +671,7 @@ function StatRow({ stat, answer, disabled, isOpen, onOpen }: StatRowProps) {
   return (
     <li className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-surface px-4 py-3.5 shadow-card">
       <span className="flex flex-col">
-        <span className="text-xs font-semibold tracking-wide text-muted uppercase">
+        <DataLabel className="text-muted">
           {stat.label}
           {stat.scoped && (
             <>
@@ -678,10 +679,11 @@ function StatRow({ stat, answer, disabled, isOpen, onOpen }: StatRowProps) {
               <span className="sr-only"> (yalnızca yirmi dört lig)</span>
             </>
           )}
-        </span>
+        </DataLabel>
         {/* Hedef sayı ekranın SORUSUDUR; etiketiyle aynı ağırlıkta durduğunda
-            hangi değeri yakalamaya çalıştığınız bir bakışta okunmuyordu. */}
-        <span className="text-3xl font-bold text-accent tabular-nums">
+            hangi değeri yakalamaya çalıştığınız bir bakışta okunmuyordu.
+            Condensed editorial yüz (§7.12): tabelayla aynı tabular-nums ritmi. */}
+        <span className="font-display text-3xl font-bold text-accent tabular-nums">
           {String(stat.value)}
         </span>
       </span>
@@ -698,7 +700,9 @@ function StatRow({ stat, answer, disabled, isOpen, onOpen }: StatRowProps) {
         </Button>
       ) : (
         <span className="flex flex-col items-end gap-1 text-sm">
-          <span className="font-semibold">{answer.playerName}</span>
+          <span className="font-display font-bold tracking-tight">
+            {answer.playerName}
+          </span>
           {/* Puan bandı RENKLE de gösterilir ama renk tek gösterge değildir
               (WCAG 1.4.1): yüzde zaten rozetin metninde yazılı. */}
           <span
