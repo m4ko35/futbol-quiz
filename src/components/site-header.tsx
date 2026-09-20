@@ -53,15 +53,18 @@ export function SiteHeader({ showLeaderboard }: SiteHeaderProps) {
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-surface/85 backdrop-blur-md">
       {/*
-        SIRA GENİŞLİĞE GÖRE DEĞİŞİYOR, BİLEŞEN İKİ KEZ BASILMIYOR.
+        STITCH DÜZENİ: marka solda, mod şeridi ORTADA, sağda tek bir küme
+        (Lider Tablosu + görünüm). Bileşen İKİ KEZ BASILMIYOR (aynı adı taşıyan
+        iki radyo/nav grubu erişilebilirlik ağacında kalabalık yapardı);
+        yerleşim yalnızca `order` ve `mx-auto` ile değişiyor:
 
-        Dar ekranda dört mod etiketi tek başına bir satır dolduruyor; görünüm
-        seçicisi de aynı satıra sığmıyordu. Çözüm ikinci bir kopya BASMAK
-        değil (aynı adı taşıyan iki radyo grubu erişilebilirlik ağacında
-        kalabalık yapardı) — `order` ile yerleşim değişiyor:
+          dar : [marka] [sağ küme] / [modlar — tam genişlik]
+          geniş: [marka] [modlar — orta] [sağ küme]
 
-          dar : [marka] [görünüm] / [modlar — tam genişlik]
-          geniş: [marka] [modlar] [görünüm]
+        KAYNAK SIRASI marka → küme → şerit: dar ekranda odak sırası görünümle
+        birebir uyar (küme üstte, şerit altta). Geniş ekranda şerit görsel
+        olarak ortaya alınır (`sm:mx-auto`) — bu tek satırlık reflow'un doğal
+        bedeli, önceki düzende de vardı.
       */}
       <div className="mx-auto flex w-full max-w-4xl flex-wrap items-center gap-x-4 gap-y-3 px-5 py-3 sm:px-6">
         <Link
@@ -75,52 +78,51 @@ export function SiteHeader({ showLeaderboard }: SiteHeaderProps) {
         </Link>
 
         {/*
-          LİDER TABLOSU MOD ŞERİDİNE KONMADI ve bu bilinçli: şerit dört OYUN
-          MODUNU taşıyor, tablo ise bir mod değil. Oraya beşinci bir öğe
-          eklemek hem yerleşimi bozardı (§7.17'de dört öğeyle ölçüldü) hem de
-          kullanıcıya "beşinci bir oyun" diye okunurdu.
+          SAĞ KÜME — Lider Tablosu + görünüm TEK GRUP (Stitch gibi). Dar ekranda
+          `ms-auto` ile markanın karşısına, geniş ekranda mod şeridinin sağına
+          yaslanır. Görünüm seçicisinin 44px dokunma hedefi KORUNUR
+          (erişilebilirlik); küme yalnızca hizasıyla derli toplu görünür.
+
+          LİDER TABLOSU mod ŞERİDİNE değil bu kümeye konuyor ve bu bilinçli:
+          şerit dört OYUN MODUNU taşır, tablo bir mod değil — beşinci öğe hem
+          yerleşimi bozar (§7.17) hem "beşinci oyun" diye okunurdu.
         */}
-        {showLeaderboard && (
-          <Link
-            href="/lider-tablosu"
-            className="font-display order-2 ms-auto inline-flex items-center gap-1.5 rounded-md px-2.5 py-2.5 text-sm font-semibold tracking-wide text-muted uppercase transition-colors hover:bg-surface hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:order-3 sm:ms-0"
-          >
-            {/* Kupa — satır içi SVG (§7.12: glif değil SVG; Material Symbols
-                harici fontu CSP `font-src 'self'` ile engellenir). */}
-            <svg
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-              focusable="false"
-              className="h-4 w-4 text-accent"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+        <div className="order-2 ms-auto flex items-center gap-1.5 sm:order-3 sm:ms-0">
+          {showLeaderboard && (
+            <Link
+              href="/lider-tablosu"
+              className="font-display inline-flex items-center gap-1.5 rounded-md px-2.5 py-2.5 text-sm font-semibold tracking-wide text-muted uppercase transition-colors hover:bg-surface hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             >
-              <path d="M7 4h10v4a5 5 0 0 1-10 0V4Z" />
-              <path d="M7 5H5v2a3 3 0 0 0 3 3" />
-              <path d="M17 5h2v2a3 3 0 0 1-3 3" />
-              <path d="M12 13v4" />
-              <path d="M8.5 20h7l-.5-3h-6l-.5 3Z" />
-            </svg>
-            <span>Lider Tablosu</span>
-          </Link>
-        )}
+              {/* Kupa — satır içi SVG (§7.12: glif değil SVG; Material Symbols
+                  harici fontu CSP `font-src 'self'` ile engellenir). */}
+              <svg
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+                focusable="false"
+                className="h-4 w-4 text-accent"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M7 4h10v4a5 5 0 0 1-10 0V4Z" />
+                <path d="M7 5H5v2a3 3 0 0 0 3 3" />
+                <path d="M17 5h2v2a3 3 0 0 1-3 3" />
+                <path d="M12 13v4" />
+                <path d="M8.5 20h7l-.5-3h-6l-.5 3Z" />
+              </svg>
+              <span>Lider Tablosu</span>
+            </Link>
+          )}
+          <ThemeToggle />
+        </div>
 
-        {/* Bağlantı yokken görünüm seçicisi sağa yaslanmayı DEVRALIR; yoksa
-            marka işaretinin hemen yanına yapışırdı. */}
-        <ThemeToggle
-          className={
-            showLeaderboard
-              ? "order-2 sm:order-4"
-              : "order-2 ms-auto sm:order-4"
-          }
-        />
-
+        {/* Mod şeridi geniş ekranda ORTALANIR (`sm:mx-auto`); dar ekranda tam
+            genişlikte alt satıra iner (`order-3 w-full`). */}
         <ModeNav
           current={modeFromPath(pathname)}
-          className="order-3 w-full justify-center sm:order-2 sm:ms-auto sm:w-auto"
+          className="order-3 w-full justify-center sm:order-2 sm:mx-auto sm:w-auto"
         />
       </div>
     </header>

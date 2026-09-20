@@ -87,7 +87,9 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
   return (
     <fieldset
       className={
-        "flex items-center gap-0.5 rounded-lg border border-line bg-background p-1 " +
+        // Dış boşluk dar (kompakt küme); ama her seçenek 44px dokunma hedefini
+        // korur (erişilebilirlik) — küçülen kutu değil, yalnızca kenar boşluğu.
+        "flex items-center gap-0.5 rounded-lg border border-line bg-background p-0.5 " +
         (className ?? "")
       }
     >
