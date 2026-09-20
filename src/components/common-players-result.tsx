@@ -1,18 +1,34 @@
+"use client";
+
+import { useMemo, useState } from "react";
 import type {
   CommonPlayerDto,
   CommonPlayersResultDto,
   SpellDto,
 } from "@/application/dto/common-players-dto";
+import type { ClubDto } from "@/application/dto/club-dto";
 import type { DegeneratePair } from "@/domain/services/club-pair-quality";
 import { countryName } from "@/lib/country-name";
 import { positionName } from "@/lib/position-name";
 import { ClubMark } from "./club-mark";
+import { DataLabel } from "./data-label";
 
 /**
- * Ortak oyuncu listesi — PROJECT.md §6.2 yanıtının görünümü.
+ * Ortak oyuncu sonucu — PROJECT.md §6.2 yanıtının görünümü (arayüz yenileme).
  *
- * Sunum bileşeni: iş mantığı içermez, veri getirmez. Aldığı DTO'yu gösterir.
- * ESLint bu klasörden `@/infrastructure` importunu zaten engelliyor (§2.1).
+ * DEFTER DEĞİL, DOSYA: sonuç artık sıkışık bir tablo değil, her oyuncunun bir
+ * KART olduğu editorial bir döküm. Üstte gerçek sayılarla bir özet bandı, sonra
+ * döneme/ada sıralanabilen kartlar. Bu bir SUNUM değişikliğidir; hangi veri
+ * geldiği (DTO) ve nasıl geldiği (use-case/API) AYNI.
+ *
+ * İSTEMCİ BİLEŞENİ: sıralama durumu (döneme/ada) burada yaşıyor. Veri getirmez,
+ * iş kuralı barındırmaz; ESLint bu klasörden `@/infrastructure` importunu zaten
+ * engelliyor (§2.1).
+ *
+ * VERİ DÜRÜSTLÜĞÜ (§5.2): tasarımın veride KARŞILIĞI OLMAYAN alanları
+ * (fotoğraf, forma numarası, ince mevki, kupa/başarı satırı, şiirsel başlık)
+ * arayüze KONMADI. Sıra numarası forma numarasının yerine gerçek sıradır; başlık
+ * iki kulübün gerçek adıdır; özet sayıları DTO'dan hesaplanır.
  */
 
 export interface CommonPlayersResultProps {
@@ -46,6 +62,55 @@ export function formatSpell(spell: SpellDto): string {
   return `${String(startYear)} – ${String(endYear)}`;
 }
 
+function allSpells(player: CommonPlayerDto): readonly SpellDto[] {
+  return [...player.spellsAtA, ...player.spellsAtB];
+}
+
+/**
+ * Özet bandının "kümülatif gol"ü: KAYITLI gollerin toplamı.
+ *
+ * `goals === null` "sıfır" değil "bilinmiyor" (§2.7); toplama katılmaz. Sayı bu
+ * yüzden "en az bu kadar" anlamı taşır — uydurma değil, ölçülen gollerin
+ * toplamıdır.
+ */
+function cumulativeGoals(players: readonly CommonPlayerDto[]): number {
+  let total = 0;
+  for (const player of players) {
+    for (const spell of allSpells(player)) {
+      if (spell.goals !== null) total += spell.goals;
+    }
+  }
+  return total;
+}
+
+/** Özet bandının dönem aralığı — bilinen en erken ve en geç yıl. */
+function yearRange(players: readonly CommonPlayerDto[]): string {
+  let min = Infinity;
+  let max = -Infinity;
+  for (const player of players) {
+    for (const spell of allSpells(player)) {
+      for (const year of [spell.startYear, spell.endYear]) {
+        if (year === null) continue;
+        min = Math.min(min, year);
+        max = Math.max(max, year);
+      }
+    }
+  }
+  if (min === Infinity) return "—";
+  return min === max ? String(min) : `${String(min)} – ${String(max)}`;
+}
+
+/** Sıralama için oyuncunun bilinen en erken yılı; bilinmiyorsa sona atılır. */
+function earliestYear(player: CommonPlayerDto): number {
+  let min = Infinity;
+  for (const spell of allSpells(player)) {
+    if (spell.startYear !== null) min = Math.min(min, spell.startYear);
+  }
+  return min;
+}
+
+type SortMode = "donem" | "ad";
+
 function SpellBadges({ spells }: { spells: readonly SpellDto[] }) {
   return (
     <ul className="flex flex-wrap gap-1.5">
@@ -53,23 +118,19 @@ function SpellBadges({ spells }: { spells: readonly SpellDto[] }) {
         <li
           key={index}
           /*
-            SOL KENAR ÇİZGİSİ DÖNEMİN TÜRÜNÜ TAŞIR. Rozet artık bir "etiket"
-            değil, defterdeki bir kayıt: soldaki kalın kenar mürekkep izi gibi
-            duruyor ve üç durumu birbirinden ayırıyor — normal, kiralık, kanıtsız.
-            Renk hiçbirinde TEK gösterge değil; kiralıkta "kiralık" sözcüğü,
-            kanıtsızda "kaynakta ayrıntı yok" metni ve kesik çizgi de var
-            (WCAG 1.4.1).
+            SOL KENAR ÇİZGİSİ DÖNEMİN TÜRÜNÜ TAŞIR. Rozet bir "etiket" değil,
+            defterdeki bir kayıt: soldaki kalın kenar mürekkep izi gibi duruyor
+            ve üç durumu birbirinden ayırıyor — normal, kiralık, kanıtsız. Renk
+            hiçbirinde TEK gösterge değil; kiralıkta "kiralık" sözcüğü, kanıtsızda
+            "kaynakta ayrıntı yok" metni ve kesik çizgi de var (WCAG 1.4.1).
           */
           className={
             "inline-flex items-baseline gap-2 rounded-sm border border-l-2 px-2 py-1 text-xs whitespace-nowrap " +
             (!spell.hasEvidence
-              ? // BR-8: kanıtsız dönem `note` rolünde. `muted` DEĞİL: ikisi de
-                // gri görünüyordu ve kanıtsız dönem sıradan ikincil metinden
-                // ayırt edilemiyordu. `note` kaynağın sustuğu yeri işaretler.
-                "border-dashed border-note bg-note-soft text-note italic"
+              ? "border-dashed border-note bg-note-soft text-note italic"
               : spell.isLoan
                 ? "border-line border-l-warn bg-warn-soft"
-                : "border-line border-l-line-strong bg-surface-2")
+                : "border-line border-l-line-strong bg-surface")
           }
         >
           {spell.hasEvidence ? (
@@ -96,6 +157,12 @@ function SpellBadges({ spells }: { spells: readonly SpellDto[] }) {
               {spell.appearances} maç
             </span>
           )}
+
+          {/* GOL DE GÖSTERİLİR (arayüz yenileme). `null` "bilinmiyor" demek
+              (§2.7) ve gizlenir; "0 gol" ancak veri gerçekten 0 derse yazılır. */}
+          {spell.goals !== null && (
+            <span className="tabular-nums text-muted">{spell.goals} gol</span>
+          )}
         </li>
       ))}
     </ul>
@@ -105,118 +172,152 @@ function SpellBadges({ spells }: { spells: readonly SpellDto[] }) {
 /** Listede kanıtsız dönem var mı? Varsa açıklama gösterilir (BR-8). */
 function hasUnevidencedSpell(players: readonly CommonPlayerDto[]): boolean {
   return players.some((player) =>
-    [...player.spellsAtA, ...player.spellsAtB].some(
-      (spell) => !spell.hasEvidence,
-    ),
-  );
-}
-
-function PlayerRow({
-  player,
-  clubAName,
-  clubBName,
-}: {
-  player: CommonPlayerDto;
-  clubAName: string;
-  clubBName: string;
-}) {
-  return (
-    <li className="grid border-b border-line transition-colors last:border-b-0 hover:bg-surface-2 sm:grid-cols-[1.05fr_1fr_1fr]">
-      <div className="min-w-0 px-4 py-3 sm:border-r sm:border-line">
-        <p className="font-display text-lg leading-tight font-bold tracking-tight">
-          {player.name}
-        </p>
-        {/*
-          İKİ ALAN DA ÇEVRİLİR. `position` veritabanında dilden bağımsız
-          anahtar tutar (BR-40), `nationality` ise ISO kodu — ikisi de ham
-          hâliyle kullanıcıya hiçbir şey söylemez. Uyruk burada ham KOD olarak
-          basılıyordu ve oyuncu seçicisi aynı değeri çeviriyordu; iki ekran
-          aynı oyuncuyu iki farklı biçimde gösteriyordu.
-        */}
-        <p className="text-xs text-muted">
-          {[
-            positionName(player.position),
-            player.nationality === null
-              ? null
-              : countryName(player.nationality),
-          ]
-            .filter((value) => value !== null)
-            .join(" · ") || "bilgi yok"}
-        </p>
-      </div>
-
-      <ClubCell club={clubAName} spells={player.spellsAtA} bordered />
-      <ClubCell club={clubBName} spells={player.spellsAtB} />
-    </li>
+    allSpells(player).some((spell) => !spell.hasEvidence),
   );
 }
 
 /**
- * Bir kulübün hücresi.
+ * Bir kulüpteki dönem(ler) kartı — arma + kısa ad + dönem rozetleri.
  *
- * KULÜP ADI GENİŞ EKRANDA GİZLENİR AMA SİLİNMEZ — `sm:sr-only`, `sm:hidden`
- * DEĞİL. Ad, geniş ekranda defterin sabit başlığında bir kez yazılı; her
- * satırda tekrarlanması 55 oyunculuk bir sonuçta aynı iki adı 110 kez basmak
- * demekti. Ama `display:none` yardımcı teknolojiden de gizler ve o kullanıcı
- * "1993 – 2002, 240 maç" satırını hangi kulübe ait olduğunu bilmeden okurdu:
- * ızgara başlığı ile hücre arasında programatik bir bağ yok. `sr-only` ikisini
- * birden çözüyor — gözden kalkıyor, ekran okuyucuda kalıyor.
+ * KULÜP ADI HER KARTTA YAZILI. Dar ekranda kartlar alt alta gelince "240 maç"
+ * satırının hangi kulübe ait olduğu ancak buradan okunur; geniş ekranda da
+ * sabit bir başlık yerine her kartın kendi künyesi duruyor.
  */
-function ClubCell({
+function ClubSpellCard({
   club,
   spells,
-  bordered = false,
 }: {
-  club: string;
-  spells: readonly SpellDto[];
-  bordered?: boolean;
+  readonly club: ClubDto;
+  readonly spells: readonly SpellDto[];
 }) {
   return (
-    <div
-      className={"px-4 py-3 " + (bordered ? "sm:border-r sm:border-line" : "")}
-    >
-      <p className="mb-1.5 text-[0.65rem] font-extrabold tracking-[0.13em] text-muted uppercase sm:sr-only sm:mb-0">
-        {club}
-      </p>
+    <div className="flex flex-col gap-2 rounded-lg border border-line bg-surface-2/40 px-3 py-2.5">
+      <div className="flex items-center gap-2">
+        <ClubMark club={club} size={20} />
+        <span className="truncate font-display text-sm font-bold tracking-tight">
+          {club.shortName}
+        </span>
+      </div>
       <SpellBadges spells={spells} />
     </div>
   );
 }
 
-/**
- * Defterin sabit sütun başlığı.
- *
- * DAR EKRANDA YOK (`hidden sm:grid`): üç sütun 390 px'e sığmıyor ve satırlar
- * zaten alt alta yığılıyor. Orada kulüp adı her hücrenin kendi etiketinde
- * duruyor — yani bilgi iki düzende de var, yalnızca yeri değişiyor.
- */
-function LedgerHead({
+function PlayerCard({
+  player,
+  rank,
   clubA,
   clubB,
+  index,
 }: {
-  clubA: CommonPlayersResultDto["clubA"];
-  clubB: CommonPlayersResultDto["clubB"];
+  readonly player: CommonPlayerDto;
+  readonly rank: number;
+  readonly clubA: ClubDto;
+  readonly clubB: ClubDto;
+  /** Kademeli animasyon gecikmesi için görünürdeki sıra. */
+  readonly index: number;
+}) {
+  /*
+    İKİ ALAN DA ÇEVRİLİR. `position` veritabanında dilden bağımsız anahtar tutar
+    (BR-40), `nationality` ise ISO kodu — ikisi de ham hâliyle kullanıcıya bir
+    şey söylemez. Mevki KABA'dır (§5.2): "Orta Saha" gösterilir, "Ofansif Orta
+    Saha" gibi ince etiketler UYDURULMAZ.
+  */
+  const meta =
+    [
+      positionName(player.position),
+      player.nationality === null ? null : countryName(player.nationality),
+    ]
+      .filter((value) => value !== null)
+      .join(" · ") || "bilgi yok";
+
+  return (
+    <li
+      className="animate-card-in rounded-xl border border-line bg-surface p-4 shadow-card"
+      // Kademeli açılış — geç kartlar sayfayı bekletmesin diye gecikme
+      // sınırlanıyor. CSP-güvenli (style-src-attr, proxy.ts).
+      style={{ animationDelay: `${String(Math.min(index, 10) * 35)}ms` }}
+    >
+      <div className="flex items-start gap-3">
+        {/* SIRA NUMARASI forma numarasının GERÇEK karşılığı (§5.2): tasarım
+            forma no gösteriyordu, veride yok; bu sonuçtaki sıradır. */}
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-2 font-display text-sm font-bold tabular-nums text-muted">
+          {rank}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="font-display text-lg leading-tight font-bold tracking-tight">
+            {player.name}
+          </p>
+          <p className="mt-0.5 text-xs text-muted">{meta}</p>
+        </div>
+      </div>
+
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <ClubSpellCard club={clubA} spells={player.spellsAtA} />
+        <ClubSpellCard club={clubB} spells={player.spellsAtB} />
+      </div>
+    </li>
+  );
+}
+
+/** Tek editorial sayı hücresi — condensed büyük sayı + veri etiketi. */
+function StatCell({
+  value,
+  label,
+}: {
+  readonly value: string;
+  readonly label: string;
 }) {
   return (
+    <div className="flex flex-col">
+      <span className="font-display text-3xl leading-none font-bold tabular-nums sm:text-4xl">
+        {value}
+      </span>
+      <DataLabel className="mt-1 text-muted">{label}</DataLabel>
+    </div>
+  );
+}
+
+function SortToggle({
+  sort,
+  onSort,
+}: {
+  readonly sort: SortMode;
+  onSort(sort: SortMode): void;
+}) {
+  const OPTIONS: readonly { readonly key: SortMode; readonly label: string }[] =
+    [
+      { key: "donem", label: "Döneme göre" },
+      { key: "ad", label: "Ada göre" },
+    ];
+
+  return (
     <div
-      aria-hidden="true"
-      className="hidden border-b-2 border-foreground bg-surface-2 sm:grid sm:grid-cols-[1.05fr_1fr_1fr]"
+      role="group"
+      aria-label="Sıralama"
+      className="inline-flex rounded-lg border border-line bg-surface p-0.5"
     >
-      <div className="border-r border-line px-4 py-2 text-[0.65rem] font-extrabold tracking-[0.13em] text-muted uppercase">
-        Oyuncu
-      </div>
-      {[clubA, clubB].map((club, index) => (
-        <div
-          key={club.id}
-          className={
-            "flex items-center gap-2 px-4 py-2 text-sm font-extrabold " +
-            (index === 0 ? "border-r border-line" : "")
-          }
-        >
-          <ClubMark club={club} size={22} />
-          <span className="truncate">{club.shortName}</span>
-        </div>
-      ))}
+      {OPTIONS.map((option) => {
+        const active = option.key === sort;
+        return (
+          <button
+            key={option.key}
+            type="button"
+            aria-pressed={active}
+            onClick={() => {
+              onSort(option.key);
+            }}
+            className={
+              "rounded-md px-3 py-1.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent " +
+              (active
+                ? "bg-accent text-accent-fg"
+                : "text-muted hover:text-foreground")
+            }
+          >
+            <DataLabel>{option.label}</DataLabel>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -227,10 +328,8 @@ function LedgerHead({
  * KİMLİK İDDİA ETMEZ. Kuralın tetiklendiği yedi çiftin ikisi (Condal /
  * Barcelona, Kharkiv / Metalist 1925) gerçekten ayrı kulüptür; "aynı kulüp"
  * demek orada düpedüz yanlış olurdu. Metin ölçülen olguyu söyler, olası
- * açıklamaları da olasılık olarak bırakır — kullanıcı ham sayıları görüp
- * kendisi karar verebilsin.
- *
- * Listenin ÜSTÜNDE durur: uyarı listeyi çerçeveliyor, dipnotu değil.
+ * açıklamaları da olasılık olarak bırakır. Listenin ÜSTÜNDE durur: uyarı
+ * listeyi çerçeveliyor, dipnotu değil.
  */
 function DegenerateNote({ pair }: { pair: DegeneratePair }) {
   return (
@@ -253,13 +352,29 @@ function DegenerateNote({ pair }: { pair: DegeneratePair }) {
 export function CommonPlayersResult({ result }: CommonPlayersResultProps) {
   const { clubA, clubB, count, players, degenerate } = result;
 
+  const [sort, setSort] = useState<SortMode>("donem");
+
+  const sorted = useMemo(() => {
+    const arr = [...players];
+    if (sort === "ad") {
+      arr.sort((a, b) => a.name.localeCompare(b.name, "tr"));
+    } else {
+      arr.sort(
+        (a, b) =>
+          earliestYear(a) - earliestYear(b) ||
+          a.name.localeCompare(b.name, "tr"),
+      );
+    }
+    return arr;
+  }, [players, sort]);
+
   if (count === 0) {
     return (
       <section
         aria-labelledby="sonuc-basligi"
         className="rounded-xl border border-line bg-surface p-8 text-center shadow-card"
       >
-        <h2 id="sonuc-basligi" className="text-lg font-semibold">
+        <h2 id="sonuc-basligi" className="font-display text-xl font-bold">
           {clubA.shortName} ve {clubB.shortName}
         </h2>
         <p className="mx-auto mt-2 max-w-prose text-sm text-muted">
@@ -273,74 +388,77 @@ export function CommonPlayersResult({ result }: CommonPlayersResultProps) {
     );
   }
 
+  const goals = cumulativeGoals(players);
+
   return (
-    <section aria-labelledby="sonuc-basligi" className="flex flex-col gap-4">
+    <section aria-labelledby="sonuc-basligi" className="flex flex-col gap-5">
       {/*
-        ERİŞİLEBİLİR AD AÇIKÇA VERİLİYOR — iki ayrı sebeple.
-
-        1. "∩" karakterini seslendiriciler tutarsız okur: kimi "kesişim" der,
-           kimi tamamen atlar. Sözcük ("ve") her okuyucuda aynı şeyi söyler.
-        2. Ad, iç içe elemanların metninden TÜRETİLSEYDİ aradaki boşluk CSS'e
-           bağlı kalırdı: `display` bilgisi olmayan bir ortamda ölçüldüğünde
-           "GalatasarayveArsenal1 ortak oyuncu" çıkıyor. Görsel `gap` ada
-           yansımıyor.
-
-        Ad ile görünen metin ANLAMCA aynı; yalnızca simge yerine sözcük ve
-        ayırıcılar netleştirilmiş durumda.
+        ÖZET BANDI — tasarımın "köprü" bandının DÜRÜST hâli. Şiirsel başlık ve
+        stok fotoğraf yok; başlık iki kulübün gerçek adı, sayılar DTO'dan
+        hesaplanıyor. `aria-label` "∩" yerine "ve" taşır: seslendiriciler bu
+        simgeyi tutarsız okur (kimi "kesişim" der, kimi atlar).
       */}
-      <h2
-        id="sonuc-basligi"
-        aria-label={`${clubA.shortName} ve ${clubB.shortName}, ${String(count)} ortak oyuncu`}
-        className="flex flex-wrap items-center gap-x-3 gap-y-2 text-lg font-semibold"
-      >
-        <span className="inline-flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-1.5 shadow-card">
-          <ClubMark club={clubA} size={24} />
-          {clubA.shortName}
-        </span>
-        <span className="text-muted">∩</span>
-        <span className="inline-flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-1.5 shadow-card">
-          <ClubMark club={clubB} size={24} />
-          {clubB.shortName}
-        </span>
-        <span className="rounded-full bg-accent px-3 py-1 text-sm font-semibold text-accent-fg">
-          {count} ortak oyuncu
-        </span>
-      </h2>
+      <header className="flex flex-col gap-3 rounded-2xl border border-line-strong bg-surface p-5 shadow-card sm:p-6">
+        <DataLabel className="text-accent">Ortak kayıt</DataLabel>
+        <h2
+          id="sonuc-basligi"
+          aria-label={`${clubA.shortName} ve ${clubB.shortName}, ${String(count)} ortak oyuncu`}
+          className="flex flex-wrap items-center gap-x-3 gap-y-2"
+        >
+          <span className="inline-flex items-center gap-2 font-display text-2xl leading-tight font-bold tracking-tight sm:text-3xl">
+            <ClubMark club={clubA} size={28} />
+            {clubA.shortName}
+          </span>
+          <span aria-hidden="true" className="text-2xl text-accent sm:text-3xl">
+            ∩
+          </span>
+          <span className="inline-flex items-center gap-2 font-display text-2xl leading-tight font-bold tracking-tight sm:text-3xl">
+            <ClubMark club={clubB} size={28} />
+            {clubB.shortName}
+          </span>
+        </h2>
+        <p className="text-sm text-muted">{count} ortak oyuncu bulundu.</p>
+        <div className="mt-1 flex flex-wrap gap-x-8 gap-y-3 border-t border-line pt-4">
+          <StatCell
+            value={goals.toLocaleString("tr-TR")}
+            label="Kümülatif gol"
+          />
+          <StatCell value={yearRange(players)} label="Dönem" />
+        </div>
+      </header>
 
       {/*
-        DOĞRULUK DEĞİL VARLIK DENETİMİ. Yanıt istemciye `as` ile geçiyor
-        (fetch sınırında Zod yok), yani tipin "null olabilir" demesi alanın
-        GELDİĞİNİ garanti etmiyor. Eksik alan `!== null` denetiminden geçip
-        bileşeni çökertirdi — ölçüldü, sahte yanıt kullanan bileşen testi
-        patladı. Eksik ölçüm uyarısızlığa düşer; sayfayı düşürmez.
+        DEĞİL DOĞRULUK, VARLIK DENETİMİ. Yanıt istemciye `as` ile geçiyor (fetch
+        sınırında Zod yok); eksik alan `!== null`'dan geçip bileşeni çökertirdi.
+        Eksik ölçüm uyarısızlığa düşer, sayfayı düşürmez.
       */}
       {degenerate ? <DegenerateNote pair={degenerate} /> : null}
 
-      {/*
-        DEFTER. Sonuç bir arama çıktısı gibi değil, bir kayıt dökümü gibi
-        okunmalı: sabit sütun başlığı, cetvelli satırlar, dönem hücreleri.
-        Başlık `ul`'un DIŞINDA duruyor — `ul` yalnızca `li` barındırabilir ve
-        bir başlık satırı bir liste öğesi değildir.
-      */}
-      <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-card">
-        <LedgerHead clubA={clubA} clubB={clubB} />
-        <ul>
-          {players.map((player) => (
-            <PlayerRow
-              key={player.id}
-              player={player}
-              clubAName={clubA.shortName}
-              clubBName={clubB.shortName}
-            />
-          ))}
-        </ul>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <DataLabel as="h3" size="md" className="text-muted">
+          Ortak futbolcular
+        </DataLabel>
+        <SortToggle sort={sort} onSort={setSort} />
       </div>
+
+      <ul className="flex flex-col gap-3">
+        {sorted.map((player, index) => (
+          <PlayerCard
+            key={player.id}
+            player={player}
+            rank={index + 1}
+            index={index}
+            clubA={clubA}
+            clubB={clubB}
+          />
+        ))}
+      </ul>
 
       {hasUnevidencedSpell(players) && (
         // BR-8 — §1.4. Kanıtsız kayıtlar ELENMİYOR çünkü eleme, uydurma
         // kayıtlarla birlikte doğru olanları da siliyor (ölçüldü). Elenmiyorsa
-        // da söylenmesi gerekir: kullanıcı hangi satıra ne kadar
-        // güvenebileceğini bilmelidir.
+        // da söylenmesi gerekir: kullanıcı hangi satıra ne kadar güvenebileceğini
+        // bilmelidir.
         <p className="rounded-xl border border-line bg-surface p-4 text-sm text-note">
           <span className="mr-1.5 inline-block rounded-md border border-dashed border-line-strong bg-note-soft px-1.5 py-0.5 text-xs">
             kaynakta ayrıntı yok

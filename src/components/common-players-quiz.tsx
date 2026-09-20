@@ -9,6 +9,7 @@ import { countryName } from "@/lib/country-name";
 import { readErrorMessage } from "@/lib/http/error-message";
 import { ClubPicker } from "./club-picker";
 import { CommonPlayersResult } from "./common-players-result";
+import { DataLabel } from "./data-label";
 import { ModeHeader, Scoreboard } from "./mode-header";
 
 /**
@@ -318,12 +319,20 @@ export function CommonPlayersQuiz({
           leagues={leagues}
           search={searchClubs}
         />
-        <span
+        {/* KESİŞİM DÜĞÜMÜ — sorunun ne olduğunu bir bakışta söyler: birleşim
+            değil KESİŞİM. Etiket seçicilerin etiketiyle, kutu da girdileriyle
+            hizalanır (ikisi de label + öğe yığını). Yalnızca geniş ekranda;
+            dar ekranda seçiciler alt alta gelince aradaki işaret anlamını
+            yitirirdi. */}
+        <div
           aria-hidden="true"
-          className="hidden pb-2.5 text-xl font-semibold text-muted sm:block"
+          className="hidden flex-col items-center gap-2 sm:flex"
         >
-          ∩
-        </span>
+          <DataLabel className="text-muted">Kesişim</DataLabel>
+          <span className="flex h-11 w-11 items-center justify-center rounded-xl border-2 border-accent bg-accent-soft text-2xl font-bold text-accent">
+            ∩
+          </span>
+        </div>
         <ClubPicker
           label="İkinci kulüp"
           selected={clubB}

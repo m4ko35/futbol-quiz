@@ -205,37 +205,74 @@ describe("CommonPlayersResult", () => {
   });
 });
 
-describe("defter düzeni", () => {
+describe("kart düzeni (arayüz yenileme)", () => {
   /**
-   * KULÜP ADI HER SATIRDA KALIR — geniş ekranda gözden kalksa bile.
-   *
-   * Ad, defterin sabit başlığında bir kez yazılı ve her satırda tekrarlanması
-   * 55 oyunculuk bir sonuçta aynı iki adı 110 kez basmak demekti. Ama
-   * gizlemenin yolu `display:none` OLAMAZ: o, yardımcı teknolojiden de gizler
-   * ve ekran okuyucu kullanıcısı "1993 – 2002, 240 maç" satırını hangi kulübe
-   * ait olduğunu bilmeden okurdu — ızgara başlığı ile hücre arasında
-   * programatik bir bağ yok.
-   *
-   * Bu test o bağı koruyor: satırın içinde iki kulübün adı da OKUNABİLİR
-   * olmalı. `sm:hidden`'a dönen bir "sadeleştirme" burada kırmızıya döner.
+   * KULÜP ADI HER KARTTA KALIR. Sonuç artık bir defter tablosu değil, her
+   * oyuncunun bir kart olduğu bir döküm; her kart içinde iki kulübün adı da
+   * kendi alt-kartında yazılı. "240 maç" satırının hangi kulübe ait olduğu
+   * ancak buradan okunur — dar ekranda alt alta gelen alt-kartlarda da,
+   * ekran okuyucuda da.
    */
-  it("kulüp adı satırın içinde okunabilir kalır", () => {
+  it("kulüp adı kartın içinde okunabilir kalır", () => {
     render(<CommonPlayersResult result={result()} />);
 
     const row = screen.getByText("Emmanuel Eboué").closest("li");
-    if (row === null) throw new Error("oyuncu satırı basılmadı");
+    if (row === null) throw new Error("oyuncu kartı basılmadı");
 
     expect(within(row).getByText("Galatasaray")).toBeInTheDocument();
     expect(within(row).getByText("Arsenal")).toBeInTheDocument();
   });
 
-  it("sabit başlık ekran okuyucuda TEKRARLANMAZ", () => {
-    // Başlık görsel bir yardımcı: adlar zaten her hücrede yazılı. Gizlenmeseydi
-    // ekran okuyucu iki kulüp adını da iki kez duyururdu.
+  /**
+   * SIRA NUMARASI GERÇEK SIRADIR (§5.2). Tasarım forma numarası gösteriyordu ve
+   * o veride yok; kartın rozeti sonuçtaki sıradır, uydurma değil.
+   */
+  it("oyuncu kartı sıra numarasını taşır", () => {
+    render(<CommonPlayersResult result={result({ count: 1 })} />);
+
+    const row = screen.getByText("Emmanuel Eboué").closest("li");
+    if (row === null) throw new Error("oyuncu kartı basılmadı");
+
+    expect(within(row).getByText("1")).toBeInTheDocument();
+  });
+});
+
+describe("özet bandı (arayüz yenileme)", () => {
+  /**
+   * KÜMÜLATİF GOL KAYITLI gollerin toplamıdır (§2.7): `null` "sıfır" değil
+   * "bilinmiyor"dur ve toplama katılmaz.
+   */
+  it("kayıtlı golleri toplar, bilinmeyeni sıfır saymaz", () => {
+    const data = result({
+      players: [
+        {
+          id: "p1",
+          name: "Gollü Oyuncu",
+          nationality: null,
+          position: null,
+          spellsAtA: [spell({ goals: 11 })],
+          spellsAtB: [spell({ goals: 5 }), spell({ goals: null })],
+        },
+      ],
+    });
+
+    render(<CommonPlayersResult result={data} />);
+
+    // 11 + 5 = 16; null olan dönem toplama katılmaz.
+    expect(screen.getByText("16")).toBeInTheDocument();
+  });
+
+  /** Döneme/ada sıralama sunulur (istemci sıralaması, veri değişmez). */
+  it("sıralama seçeneklerini sunar", () => {
     render(<CommonPlayersResult result={result()} />);
 
-    const head = screen.getByText("Oyuncu");
-    expect(head.closest('[aria-hidden="true"]')).not.toBeNull();
+    const group = screen.getByRole("group", { name: "Sıralama" });
+    expect(
+      within(group).getByRole("button", { name: /Döneme göre/u }),
+    ).toBeInTheDocument();
+    expect(
+      within(group).getByRole("button", { name: /Ada göre/u }),
+    ).toBeInTheDocument();
   });
 });
 
