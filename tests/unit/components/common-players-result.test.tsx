@@ -237,31 +237,7 @@ describe("kart düzeni (arayüz yenileme)", () => {
   });
 });
 
-describe("özet bandı (arayüz yenileme)", () => {
-  /**
-   * KÜMÜLATİF GOL KAYITLI gollerin toplamıdır (§2.7): `null` "sıfır" değil
-   * "bilinmiyor"dur ve toplama katılmaz.
-   */
-  it("kayıtlı golleri toplar, bilinmeyeni sıfır saymaz", () => {
-    const data = result({
-      players: [
-        {
-          id: "p1",
-          name: "Gollü Oyuncu",
-          nationality: null,
-          position: null,
-          spellsAtA: [spell({ goals: 11 })],
-          spellsAtB: [spell({ goals: 5 }), spell({ goals: null })],
-        },
-      ],
-    });
-
-    render(<CommonPlayersResult result={data} />);
-
-    // 11 + 5 = 16; null olan dönem toplama katılmaz.
-    expect(screen.getByText("16")).toBeInTheDocument();
-  });
-
+describe("sıralama (arayüz yenileme)", () => {
   /** Döneme/ada sıralama sunulur (istemci sıralaması, veri değişmez). */
   it("sıralama seçeneklerini sunar", () => {
     render(<CommonPlayersResult result={result()} />);

@@ -66,40 +66,6 @@ function allSpells(player: CommonPlayerDto): readonly SpellDto[] {
   return [...player.spellsAtA, ...player.spellsAtB];
 }
 
-/**
- * Özet bandının "kümülatif gol"ü: KAYITLI gollerin toplamı.
- *
- * `goals === null` "sıfır" değil "bilinmiyor" (§2.7); toplama katılmaz. Sayı bu
- * yüzden "en az bu kadar" anlamı taşır — uydurma değil, ölçülen gollerin
- * toplamıdır.
- */
-function cumulativeGoals(players: readonly CommonPlayerDto[]): number {
-  let total = 0;
-  for (const player of players) {
-    for (const spell of allSpells(player)) {
-      if (spell.goals !== null) total += spell.goals;
-    }
-  }
-  return total;
-}
-
-/** Özet bandının dönem aralığı — bilinen en erken ve en geç yıl. */
-function yearRange(players: readonly CommonPlayerDto[]): string {
-  let min = Infinity;
-  let max = -Infinity;
-  for (const player of players) {
-    for (const spell of allSpells(player)) {
-      for (const year of [spell.startYear, spell.endYear]) {
-        if (year === null) continue;
-        min = Math.min(min, year);
-        max = Math.max(max, year);
-      }
-    }
-  }
-  if (min === Infinity) return "—";
-  return min === max ? String(min) : `${String(min)} – ${String(max)}`;
-}
-
 /** Sıralama için oyuncunun bilinen en erken yılı; bilinmiyorsa sona atılır. */
 function earliestYear(player: CommonPlayerDto): number {
   let min = Infinity;
@@ -260,24 +226,6 @@ function PlayerCard({
   );
 }
 
-/** Tek editorial sayı hücresi — condensed büyük sayı + veri etiketi. */
-function StatCell({
-  value,
-  label,
-}: {
-  readonly value: string;
-  readonly label: string;
-}) {
-  return (
-    <div className="flex flex-col">
-      <span className="font-display text-3xl leading-none font-bold tabular-nums sm:text-4xl">
-        {value}
-      </span>
-      <DataLabel className="mt-1 text-muted">{label}</DataLabel>
-    </div>
-  );
-}
-
 function SortToggle({
   sort,
   onSort,
@@ -388,15 +336,15 @@ export function CommonPlayersResult({ result }: CommonPlayersResultProps) {
     );
   }
 
-  const goals = cumulativeGoals(players);
-
   return (
     <section aria-labelledby="sonuc-basligi" className="flex flex-col gap-5">
       {/*
         ÖZET BANDI — tasarımın "köprü" bandının DÜRÜST hâli. Şiirsel başlık ve
-        stok fotoğraf yok; başlık iki kulübün gerçek adı, sayılar DTO'dan
-        hesaplanıyor. `aria-label` "∩" yerine "ve" taşır: seslendiriciler bu
-        simgeyi tutarsız okur (kimi "kesişim" der, kimi atlar).
+        stok fotoğraf yok; başlık iki kulübün gerçek adı. Kümülatif gol / dönem
+        gibi TOPLAM sayılar kaldırıldı: tüm ortak oyuncuların iki kulüpteki
+        gollerini toplamak anlamlı bir ölçü değildi. `aria-label` "∩" yerine
+        "ve" taşır: seslendiriciler bu simgeyi tutarsız okur (kimi "kesişim"
+        der, kimi atlar).
       */}
       <header className="flex flex-col gap-3 rounded-2xl border border-line-strong bg-surface p-5 shadow-card sm:p-6">
         <DataLabel className="text-accent">Ortak kayıt</DataLabel>
@@ -418,13 +366,6 @@ export function CommonPlayersResult({ result }: CommonPlayersResultProps) {
           </span>
         </h2>
         <p className="text-sm text-muted">{count} ortak oyuncu bulundu.</p>
-        <div className="mt-1 flex flex-wrap gap-x-8 gap-y-3 border-t border-line pt-4">
-          <StatCell
-            value={goals.toLocaleString("tr-TR")}
-            label="Kümülatif gol"
-          />
-          <StatCell value={yearRange(players)} label="Dönem" />
-        </div>
       </header>
 
       {/*
