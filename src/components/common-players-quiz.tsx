@@ -7,6 +7,7 @@ import type { LeagueSummary } from "@/application/ports/club-repository";
 import type { PopularPair } from "@/application/use-cases/popular-pairs";
 import { MAX_CLUB_RESULTS } from "@/application/use-cases/search-clubs";
 import { readErrorMessage } from "@/lib/http/error-message";
+import { ClubMark } from "./club-mark";
 import { ClubPicker } from "./club-picker";
 import { CommonPlayersResult } from "./common-players-result";
 import { DataLabel } from "./data-label";
@@ -332,10 +333,10 @@ export function CommonPlayersQuiz({
       {popularPairs.length > 0 && (
         <section
           aria-label="Popüler karşılaştırmalar"
-          className="-mt-3 flex flex-col gap-2.5"
+          className="-mt-3 flex flex-col items-center gap-2.5"
         >
           <DataLabel className="text-muted">Popüler karşılaştırmalar</DataLabel>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap justify-center gap-2">
             {popularPairs.map((pair) => {
               const active =
                 (clubA?.id === pair.a.id && clubB?.id === pair.b.id) ||
@@ -350,21 +351,24 @@ export function CommonPlayersQuiz({
                     setClubB(pair.b);
                   }}
                   className={
-                    "rounded-full border px-4 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent " +
+                    "inline-flex max-w-full items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent " +
                     (active
                       ? "border-accent bg-accent text-accent-fg"
                       : "border-line bg-surface text-muted hover:border-line-strong hover:text-foreground")
                   }
                 >
-                  {/* METİN-ÖNCELİKLİ (Stitch çipleri gibi): arma yok. "×" görsel
-                      ayraç, aria-hidden — erişilebilir ad iki kulübün adıdır.
-                      Ad KIRPILMAZ; "Internazionale Milano" gibi uzun kısa adlar
-                      artık tam okunur. */}
-                  {pair.a.shortName}
-                  <span aria-hidden="true" className="mx-1.5 opacity-60">
+                  {/* Armalar iki uçta çerçeveler (aria-hidden — ad zaten metinde).
+                      "×" görsel ayraç. Adlar min-w-0 + truncate: masaüstünde tam
+                      okunur, yalnızca çip ekrana sığmayacak kadar darsa (dar
+                      telefonda "Internazionale Milano") son çare olarak kırpılır
+                      — sayfa yatay kaymaz. */}
+                  <ClubMark club={pair.a} size={18} />
+                  <span className="min-w-0 truncate">{pair.a.shortName}</span>
+                  <span aria-hidden="true" className="shrink-0 opacity-60">
                     ×
                   </span>
-                  {pair.b.shortName}
+                  <span className="min-w-0 truncate">{pair.b.shortName}</span>
+                  <ClubMark club={pair.b} size={18} />
                 </button>
               );
             })}
