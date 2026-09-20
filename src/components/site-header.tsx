@@ -53,18 +53,19 @@ export function SiteHeader({ showLeaderboard }: SiteHeaderProps) {
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-surface/85 backdrop-blur-md">
       {/*
-        STITCH DÜZENİ: marka solda, mod şeridi ORTADA, sağda tek bir küme
-        (Lider Tablosu + görünüm). Bileşen İKİ KEZ BASILMIYOR (aynı adı taşıyan
-        iki radyo/nav grubu erişilebilirlik ağacında kalabalık yapardı);
-        yerleşim yalnızca `order` ve `mx-auto` ile değişiyor:
+        İKİ SATIR, HER GENİŞLİKTE: üst satır marka (sol) + sağ küme (Lider
+        Tablosu + görünüm, SAĞ ÜST); mod şeridi tam genişlikte ALT SATIR.
 
-          dar : [marka] [sağ küme] / [modlar — tam genişlik]
-          geniş: [marka] [modlar — orta] [sağ küme]
+          [marka] .......... [sağ küme]
+          [modlar — tam genişlik]
 
-        KAYNAK SIRASI marka → küme → şerit: dar ekranda odak sırası görünümle
-        birebir uyar (küme üstte, şerit altta). Geniş ekranda şerit görsel
-        olarak ortaya alınır (`sm:mx-auto`) — bu tek satırlık reflow'un doğal
-        bedeli, önceki düzende de vardı.
+        Tek satıra sığdırmaya çalışmıyoruz: dört mod etiketi + marka + küme
+        birlikte dar/orta ekranlarda taşıp çirkin sarıyordu. Ayrı bir mod
+        şeridi satırı hem her genişlikte dengeli durur hem odak sırası
+        (marka → küme → şerit) görünümle birebir uyar.
+
+        Bileşen İKİ KEZ BASILMIYOR (aynı adı taşıyan iki nav/radyo grubu
+        erişilebilirlik ağacında kalabalık yapardı) — `order` ile tek kopya.
       */}
       <div className="mx-auto flex w-full max-w-4xl flex-wrap items-center gap-x-4 gap-y-3 px-5 py-3 sm:px-6">
         <Link
@@ -78,16 +79,15 @@ export function SiteHeader({ showLeaderboard }: SiteHeaderProps) {
         </Link>
 
         {/*
-          SAĞ KÜME — Lider Tablosu + görünüm TEK GRUP (Stitch gibi). Dar ekranda
-          `ms-auto` ile markanın karşısına, geniş ekranda mod şeridinin sağına
-          yaslanır. Görünüm seçicisinin 44px dokunma hedefi KORUNUR
-          (erişilebilirlik); küme yalnızca hizasıyla derli toplu görünür.
+          SAĞ KÜME — Lider Tablosu + görünüm TEK GRUP, her genişlikte SAĞ ÜSTTE
+          (`ms-auto` markanın karşısına yaslar). Görünüm seçicisinin 44px
+          dokunma hedefi KORUNUR (erişilebilirlik).
 
           LİDER TABLOSU mod ŞERİDİNE değil bu kümeye konuyor ve bu bilinçli:
           şerit dört OYUN MODUNU taşır, tablo bir mod değil — beşinci öğe hem
           yerleşimi bozar (§7.17) hem "beşinci oyun" diye okunurdu.
         */}
-        <div className="order-2 ms-auto flex items-center gap-1.5 sm:order-3 sm:ms-0">
+        <div className="order-2 ms-auto flex items-center gap-1.5">
           {showLeaderboard && (
             <Link
               href="/lider-tablosu"
@@ -118,11 +118,11 @@ export function SiteHeader({ showLeaderboard }: SiteHeaderProps) {
           <ThemeToggle />
         </div>
 
-        {/* Mod şeridi geniş ekranda ORTALANIR (`sm:mx-auto`); dar ekranda tam
-            genişlikte alt satıra iner (`order-3 w-full`). */}
+        {/* Mod şeridi HER GENİŞLİKTE tam genişlikte alt satırda ve ortalı
+            (`order-3 w-full justify-center`). */}
         <ModeNav
           current={modeFromPath(pathname)}
-          className="order-3 w-full justify-center sm:order-2 sm:mx-auto sm:w-auto"
+          className="order-3 w-full justify-center"
         />
       </div>
     </header>
