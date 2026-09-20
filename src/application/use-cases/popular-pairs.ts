@@ -23,12 +23,19 @@ interface PairQids {
   readonly b: string;
 }
 
-/** Küratörlü çiftler; hepsi CURATED_CLUB_QIDS içinde, yani db:verify kapsamında. */
+/**
+ * Küratörlü çiftler; hepsi CURATED_CLUB_QIDS içinde, yani db:verify kapsamında.
+ *
+ * ÜÇ ÇİFT, bilinçli: dört çip dar ekranda ikinci satıra taşıyordu; üçü tek
+ * satırda daha dengeli durur. Tema üç Türk devi × bir Avrupa devi. Eş kulüpler
+ * ÖRTÜŞMEYE göre seçildi (veriden ölçüldü) — çip boşa yakın bir sonuca
+ * götürmesin: Beşiktaş'ın Barcelona ile 8 ortak oyuncusu var (Valencia 11 idi
+ * ama Barcelona daha tanınır ve GS/FB'nin eşlerinden ayrı).
+ */
 const POPULAR_PAIR_QIDS: readonly PairQids[] = [
   { a: "Q495299", b: "Q8682" }, // Galatasaray × Real Madrid
-  { a: "Q6601875", b: "Q631" }, // Fenerbahçe × Internazionale
-  { a: "Q172567", b: "Q10333" }, // Beşiktaş × Valencia
-  { a: "Q7156", b: "Q15789" }, // Barcelona × Bayern München
+  { a: "Q6601875", b: "Q631" }, // Fenerbahçe × Internazionale Milano
+  { a: "Q172567", b: "Q7156" }, // Beşiktaş × Barcelona
 ];
 
 export interface PopularPair {

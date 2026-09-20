@@ -7,7 +7,6 @@ import type { LeagueSummary } from "@/application/ports/club-repository";
 import type { PopularPair } from "@/application/use-cases/popular-pairs";
 import { MAX_CLUB_RESULTS } from "@/application/use-cases/search-clubs";
 import { readErrorMessage } from "@/lib/http/error-message";
-import { ClubMark } from "./club-mark";
 import { ClubPicker } from "./club-picker";
 import { CommonPlayersResult } from "./common-players-result";
 import { DataLabel } from "./data-label";
@@ -351,23 +350,21 @@ export function CommonPlayersQuiz({
                     setClubB(pair.b);
                   }}
                   className={
-                    "inline-flex items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-semibold whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent " +
+                    "rounded-full border px-4 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent " +
                     (active
                       ? "border-accent bg-accent text-accent-fg"
                       : "border-line bg-surface text-muted hover:border-line-strong hover:text-foreground")
                   }
                 >
-                  <ClubMark club={pair.a} size={18} />
-                  <span className="max-w-[7rem] truncate">
-                    {pair.a.shortName}
-                  </span>
-                  <span aria-hidden="true" className="opacity-60">
+                  {/* METİN-ÖNCELİKLİ (Stitch çipleri gibi): arma yok. "×" görsel
+                      ayraç, aria-hidden — erişilebilir ad iki kulübün adıdır.
+                      Ad KIRPILMAZ; "Internazionale Milano" gibi uzun kısa adlar
+                      artık tam okunur. */}
+                  {pair.a.shortName}
+                  <span aria-hidden="true" className="mx-1.5 opacity-60">
                     ×
                   </span>
-                  <span className="max-w-[7rem] truncate">
-                    {pair.b.shortName}
-                  </span>
-                  <ClubMark club={pair.b} size={18} />
+                  {pair.b.shortName}
                 </button>
               );
             })}
