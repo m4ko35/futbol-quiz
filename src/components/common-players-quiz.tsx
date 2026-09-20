@@ -4,9 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ClubDto } from "@/application/dto/club-dto";
 import type { CommonPlayersResultDto } from "@/application/dto/common-players-dto";
 import type { LeagueSummary } from "@/application/ports/club-repository";
+import type { PopularPair } from "@/application/use-cases/popular-pairs";
 import { MAX_CLUB_RESULTS } from "@/application/use-cases/search-clubs";
 import { countryName } from "@/lib/country-name";
 import { readErrorMessage } from "@/lib/http/error-message";
+import { ClubMark } from "./club-mark";
 import { ClubPicker } from "./club-picker";
 import { CommonPlayersResult } from "./common-players-result";
 import { DataLabel } from "./data-label";
@@ -55,6 +57,8 @@ export interface CommonPlayersQuizProps {
   readonly clubCount: number;
   /** Veri kümesindeki oyuncu sayısı — künye tabelası. */
   readonly playerCount: number;
+  /** Hazır seçim çipleri — sunucuda QID'den çözülmüş küratörlü çiftler. */
+  readonly popularPairs: readonly PopularPair[];
 }
 
 /**
@@ -76,6 +80,7 @@ export function CommonPlayersQuiz({
   leagues,
   clubCount,
   playerCount,
+  popularPairs,
 }: CommonPlayersQuizProps) {
   const [clubA, setClubA] = useState<ClubDto | null>(null);
   const [clubB, setClubB] = useState<ClubDto | null>(null);
@@ -343,6 +348,61 @@ export function CommonPlayersQuiz({
           search={searchClubs}
         />
       </div>
+
+      {/*
+        POPÜLER KARŞILAŞTIRMALAR — hazır seçim çipleri (§9.2 ile aynı ruh:
+        tanınırlık bir ürün kararı). Tek tıkla iki kulübü birden doldurur;
+        boş ekranda "ne yazsam" tereddüdünü kaldırır. Çiftler sunucuda QID'den
+        çözülür (getPopularPairs); etiket kulübün GERÇEK kısa adıdır.
+
+        Etkin çip iki yönlü eşleşir: kullanıcı kulüpleri elle ters sırada da
+        seçebilir, kesişim simetriktir. Boş liste (bir kulüp çözülemezse)
+        bölümü hiç basmaz.
+      */}
+      {popularPairs.length > 0 && (
+        <section
+          aria-label="Popüler karşılaştırmalar"
+          className="-mt-3 flex flex-col gap-2.5"
+        >
+          <DataLabel className="text-muted">Popüler karşılaştırmalar</DataLabel>
+          <div className="flex flex-wrap gap-2">
+            {popularPairs.map((pair) => {
+              const active =
+                (clubA?.id === pair.a.id && clubB?.id === pair.b.id) ||
+                (clubA?.id === pair.b.id && clubB?.id === pair.a.id);
+              return (
+                <button
+                  key={`${pair.a.id}|${pair.b.id}`}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => {
+                    setClubA(pair.a);
+                    setClubB(pair.b);
+                  }}
+                  className={
+                    "inline-flex items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-semibold whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent " +
+                    (active
+                      ? "border-accent bg-accent text-accent-fg"
+                      : "border-line bg-surface text-muted hover:border-line-strong hover:text-foreground")
+                  }
+                >
+                  <ClubMark club={pair.a} size={18} />
+                  <span className="max-w-[7rem] truncate">
+                    {pair.a.shortName}
+                  </span>
+                  <span aria-hidden="true" className="opacity-60">
+                    ×
+                  </span>
+                  <span className="max-w-[7rem] truncate">
+                    {pair.b.shortName}
+                  </span>
+                  <ClubMark club={pair.b} size={18} />
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Durum bölgesi. `aria-live` ile ekran okuyucu, sonuç geldiğinde
           kullanıcıyı bilgilendirir — görsel değişimi göremeyen kullanıcı

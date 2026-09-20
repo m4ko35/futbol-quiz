@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getPopularPairs } from "@/application/use-cases/popular-pairs";
 import { listLeagues, searchClubs } from "@/application/use-cases/search-clubs";
 import { CommonPlayersQuiz } from "@/components/common-players-quiz";
 import { PageShell } from "@/components/page-shell";
@@ -23,16 +24,25 @@ export const metadata: Metadata = {
  */
 export default async function Home() {
   // Hepsi birbirinden bağımsız; sırayla beklemek boşuna gecikme olurdu.
-  const [initialClubs, dataGeneratedAt, selectableClubs, playerCount, leagues] =
-    await Promise.all([
-      searchClubs({}, { clubs: repositories.clubs }),
-      datasets.getGeneratedAt(),
-      datasets.countSelectableClubs(),
-      datasets.countPlayers(),
-      // BR-37 — lig listesi sunucuda hazırlanır; ayrı bir API ucu açmak yeni
-      // bir hız sınırı yüzeyi ve ilk açılışta fazladan bir istek demekti (§6.1).
-      listLeagues({ clubs: repositories.clubs }),
-    ]);
+  const [
+    initialClubs,
+    dataGeneratedAt,
+    selectableClubs,
+    playerCount,
+    leagues,
+    popularPairs,
+  ] = await Promise.all([
+    searchClubs({}, { clubs: repositories.clubs }),
+    datasets.getGeneratedAt(),
+    datasets.countSelectableClubs(),
+    datasets.countPlayers(),
+    // BR-37 — lig listesi sunucuda hazırlanır; ayrı bir API ucu açmak yeni
+    // bir hız sınırı yüzeyi ve ilk açılışta fazladan bir istek demekti (§6.1).
+    listLeagues({ clubs: repositories.clubs }),
+    // Popüler karşılaştırma çipleri QID'den GÜNCEL kulüplere sunucuda çözülür;
+    // kimlikler her ETL koşusunda değiştiği için istemciye sabit id gömülemez.
+    getPopularPairs({ clubs: repositories.clubs }),
+  ]);
 
   return (
     <PageShell>
@@ -47,6 +57,7 @@ export default async function Home() {
         leagues={leagues}
         clubCount={selectableClubs}
         playerCount={playerCount}
+        popularPairs={popularPairs}
       />
 
       {/*

@@ -120,6 +120,7 @@ function renderQuiz(
       leagues={[]}
       clubCount={906}
       playerCount={132263}
+      popularPairs={[]}
       {...overrides}
     />,
   );
@@ -274,5 +275,51 @@ describe("CommonPlayersQuiz", () => {
 
     const options = screen.getAllByRole("option").map((o) => o.textContent);
     expect(options.some((text) => text?.includes("Galatasaray"))).toBe(false);
+  });
+});
+
+describe("CommonPlayersQuiz — popüler karşılaştırma çipleri", () => {
+  const PAIRS = [{ a: CLUBS[0] as ClubDto, b: CLUBS[1] as ClubDto }];
+
+  it("çip yokken bölüm hiç basılmaz", () => {
+    renderQuiz({ popularPairs: [] });
+
+    expect(
+      screen.queryByRole("region", { name: "Popüler karşılaştırmalar" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("çip tıklanınca iki kulübü de doldurur ve sonucu getirir", async () => {
+    const user = userEvent.setup();
+    renderQuiz({ popularPairs: PAIRS });
+
+    // İki combobox açıkken (hiç seçim yok) çip tıklanır.
+    await user.click(
+      screen.getByRole("button", { name: /Galatasaray.*Arsenal/u }),
+    );
+
+    // İki kulüp de seçildiği için sonuç isteği tetiklenir ve gösterilir.
+    expect(await screen.findByText("Emmanuel Eboué")).toBeInTheDocument();
+    // Her iki seçici de "seçili" hâline geçtiği için arama kutusu kalmaz.
+    expect(screen.queryAllByRole("combobox")).toHaveLength(0);
+  });
+
+  it("seçili çifte karşılık gelen çip aria-pressed taşır", async () => {
+    const user = userEvent.setup();
+    renderQuiz({ popularPairs: PAIRS });
+
+    expect(
+      screen.getByRole("button", { name: /Galatasaray.*Arsenal/u }),
+    ).toHaveAttribute("aria-pressed", "false");
+
+    await user.click(
+      screen.getByRole("button", { name: /Galatasaray.*Arsenal/u }),
+    );
+    await screen.findByText("Emmanuel Eboué");
+
+    // Çip yeniden çizilir; taze olarak sorgulanır.
+    expect(
+      screen.getByRole("button", { name: /Galatasaray.*Arsenal/u }),
+    ).toHaveAttribute("aria-pressed", "true");
   });
 });
