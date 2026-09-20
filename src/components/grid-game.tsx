@@ -22,6 +22,7 @@ import {
   type CellState,
   type GameState,
 } from "@/lib/grid-storage";
+import { formatTurkishIsoDate } from "@/lib/format-date";
 import { DataLabel } from "./data-label";
 import { ModeHeader, Scoreboard } from "./mode-header";
 import { PlayerPicker } from "./player-picker";
@@ -137,6 +138,7 @@ export function GridGame({
   const [openCell, setOpenCell] = useState<CellRef | null>(null);
   const [isChecking, setIsChecking] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
+  const [shareStatus, setShareStatus] = useState<string | null>(null);
 
   /*
    * BOYUT IZGARADAN OKUNUR (BR-27). Ayrı bir prop olarak taşınsaydı iki
@@ -153,6 +155,78 @@ export function GridGame({
   const finished = isGameOver(state.guessesUsed, answers.length, size);
   const remaining = guesses - state.guessesUsed;
   const usedPlayerIds = new Set(answers.map((cell) => cell.playerId));
+
+  /**
+   * TEMİZLE — ızgarayı sıfırlar (§9.1'de skor/sıralama yok, yani kayıpsız).
+   *
+   * Yıkıcı olduğu için önce onay istenir. Günlük ızgarada depoya boş durum
+   * yazılır; "Sen kur" turunda (date yok) yalnızca yerel durum sıfırlanır —
+   * `submit`'teki aynı iki kaynak ayrımı.
+   */
+  const clear = useCallback(() => {
+    if (
+      !window.confirm("Izgarayı temizlemek ilerlemenizi silecek. Emin misiniz?")
+    ) {
+      return;
+    }
+    setOpenCell(null);
+    setFailure(null);
+    setShareStatus(null);
+    if (date === undefined) setLocal(emptyGame(""));
+    else writeSavedGame(emptyGame(date));
+  }, [date]);
+
+  /**
+   * Paylaşılacak metin — Wordle tarzı emoji ızgara + skor + bağlantı.
+   *
+   * NADİRLİK YOK: yalnızca kullanıcının kendi sonucu (doğru/yanlış/boş). Emoji
+   * yalnızca PAYLAŞ METNİNDE; arayüzdeki önizleme renkli karelerle çizilir
+   * (§7.12: arayüzde emoji ikon kullanılmaz, ama paylaşım metni bir istisna —
+   * hedef sosyal/mesaj uygulaması ve kare ızgara oranın kendisidir).
+   */
+  const buildShareText = useCallback((): string => {
+    const rows: string[] = [];
+    for (let r = 0; r < size; r += 1) {
+      let line = "";
+      for (let c = 0; c < size; c += 1) {
+        const answer = state.cells[cellKey({ row: r, column: c })];
+        line +=
+          answer?.status === "correct"
+            ? "🟩"
+            : answer?.status === "wrong"
+              ? "🟥"
+              : "⬜";
+      }
+      rows.push(line);
+    }
+    const head =
+      date === undefined
+        ? "Futbol Challenge — 3×3 Izgara"
+        : `Futbol Challenge — 3×3 Izgara · ${formatTurkishIsoDate(date)}`;
+    const score = `${String(solvedCells)}/${String(size * size)} doğru`;
+    const url = `${window.location.origin}/izgara`;
+    return [head, score, "", ...rows, "", url].join("\n");
+  }, [state, size, date, solvedCells]);
+
+  const share = useCallback(async (): Promise<void> => {
+    const text = buildShareText();
+    // Mobil paylaşım varsa dene; kullanıcı iptal ederse ya da yoksa panoya kopyala.
+    if (typeof navigator.share === "function") {
+      try {
+        await navigator.share({ text });
+        setShareStatus("Paylaşıldı.");
+        return;
+      } catch {
+        // iptal / hata: panoya kopyalamaya düş.
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      setShareStatus("Skor panoya kopyalandı.");
+    } catch {
+      setShareStatus("Paylaşım bu tarayıcıda desteklenmiyor.");
+    }
+  }, [buildShareText]);
 
   const submit = useCallback(
     async (cell: CellRef, player: PlayerDto): Promise<void> => {
@@ -297,20 +371,33 @@ export function GridGame({
                 aşağıdaki metinde zaten var.
               */}
               <td className="p-0 align-bottom">
-                <span
+                <div
                   aria-hidden="true"
-                  className="flex flex-wrap gap-1 px-2 pb-2"
+                  className="flex flex-col gap-1.5 px-2 pb-2"
                 >
-                  {Array.from({ length: guesses }, (_, index) => (
+                  {/* Tamamlanma çubuğu — çözülen/toplam. Görsel; sayı tabelada
+                      ve alttaki metinde zaten yazılı (§7.15). */}
+                  <span className="block h-1.5 w-full overflow-hidden rounded-full bg-line">
                     <span
-                      key={index}
-                      className={
-                        "block h-2 w-2 rounded-[1px] border border-line-strong " +
-                        (index < state.guessesUsed ? "bg-line-strong" : "")
-                      }
+                      className="block h-full rounded-full bg-correct transition-[width] duration-300"
+                      style={{
+                        width: `${String(Math.round((solvedCells / (size * size)) * 100))}%`,
+                      }}
                     />
-                  ))}
-                </span>
+                  </span>
+                  {/* Deneme işaretleri — harcanan haklar dolu. */}
+                  <span className="flex flex-wrap gap-1">
+                    {Array.from({ length: guesses }, (_, index) => (
+                      <span
+                        key={index}
+                        className={
+                          "block h-2 w-2 rounded-[1px] border border-line-strong " +
+                          (index < state.guessesUsed ? "bg-line-strong" : "")
+                        }
+                      />
+                    ))}
+                  </span>
+                </div>
               </td>
               {grid.columns.map((column, index) => (
                 <th
@@ -452,7 +539,78 @@ export function GridGame({
           )}
         </div>
       )}
+
+      {/*
+        İŞLEM ÇUBUĞU — Temizle (ilerleme varsa) ve Skoru paylaş (oyun bitince).
+        "Cevapları gör" (pes et) sunucunun cevabı hesaplamasını gerektiriyor;
+        ayrı bir adımda gelecek.
+      */}
+      {(answers.length > 0 || finished) && (
+        <div className="flex flex-wrap items-center gap-3">
+          {answers.length > 0 && (
+            <Button variant="outline" size="md" onClick={clear}>
+              Temizle
+            </Button>
+          )}
+          {finished && (
+            <>
+              <SharePreview cells={state.cells} size={size} />
+              <Button
+                size="md"
+                onClick={() => {
+                  void share();
+                }}
+              >
+                Skoru paylaş
+              </Button>
+            </>
+          )}
+          {shareStatus !== null && (
+            <span
+              role="status"
+              aria-live="polite"
+              className="text-sm text-muted"
+            >
+              {shareStatus}
+            </span>
+          )}
+        </div>
+      )}
     </div>
+  );
+}
+
+/**
+ * Paylaş önizlemesi — hücre durumlarının renkli kare ızgarası.
+ *
+ * Arayüzde EMOJİ YOK (§7.12): önizleme gerçek renk tokenlarıyla çizilir;
+ * emoji yalnızca kopyalanan paylaşım METNİNDE. `aria-hidden`: skor zaten
+ * yanındaki metinde ve tabelada yazılı.
+ */
+function SharePreview({
+  cells,
+  size,
+}: {
+  readonly cells: Readonly<Record<string, CellState>>;
+  readonly size: number;
+}) {
+  return (
+    <span aria-hidden="true" className="inline-flex flex-col gap-0.5">
+      {Array.from({ length: size }, (_, r) => (
+        <span key={r} className="flex gap-0.5">
+          {Array.from({ length: size }, (_, c) => {
+            const answer = cells[cellKey({ row: r, column: c })];
+            const tone =
+              answer?.status === "correct"
+                ? "bg-correct"
+                : answer?.status === "wrong"
+                  ? "bg-wrong"
+                  : "bg-line";
+            return <span key={c} className={`h-3 w-3 rounded-[2px] ${tone}`} />;
+          })}
+        </span>
+      ))}
+    </span>
   );
 }
 
@@ -469,6 +627,10 @@ function CriterionLabel({
 }) {
   return (
     <span className="flex h-full flex-col items-center justify-center gap-1 rounded-xl bg-background px-2 py-3 text-center">
+      {/* Ölçüt türü ikonu — kulüp mü uyruk mu, bir bakışta. GENEL bir simge:
+          belirli bir arma/bayrak iddia etmez (DTO yalnızca `kind` taşır);
+          `aria-hidden`, çünkü tür zaten alttaki "kulüp"/"uyruk" metninde. */}
+      <CriterionIcon kind={criterion.kind} />
       {/* Ölçüt adı VERİDİR — kulüp/uyruk. Editorial imza: condensed (§7.12),
           oyuncu adlarıyla aynı yüz. Büyük harf DEĞİL: özel ad. */}
       <span className="font-display leading-tight font-bold tracking-tight text-balance">
@@ -478,6 +640,32 @@ function CriterionLabel({
         {criterion.kind === "club" ? "kulüp" : "uyruk"}
       </DataLabel>
     </span>
+  );
+}
+
+/** Ölçüt türü rozeti — kulüp için kalkan, uyruk için flama. Süsleme (§7.12). */
+function CriterionIcon({ kind }: { readonly kind: GridCriterionDto["kind"] }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+      className="h-4 w-4 text-muted"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {kind === "club" ? (
+        <path d="M12 3 5 6v5c0 4 3 6.9 7 8 4-1.1 7-4 7-8V6l-7-3Z" />
+      ) : (
+        <>
+          <path d="M6 21V4" />
+          <path d="M6 4h11l-2.4 3.4L17 11H6" />
+        </>
+      )}
+    </svg>
   );
 }
 
@@ -531,7 +719,7 @@ function Cell({ answer, isOpen, disabled, label, onOpen }: CellProps) {
       type="button"
       disabled={disabled}
       aria-expanded={isOpen}
-      className="group flex h-24 w-full items-center justify-center rounded-xl border-2 border-dashed border-line-strong bg-background text-sm transition-colors hover:border-accent hover:bg-accent-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-line-strong disabled:hover:bg-background sm:h-28"
+      className="group flex h-24 w-full flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-line-strong bg-background text-sm transition-colors hover:border-accent hover:bg-accent-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-line-strong disabled:hover:bg-background sm:h-28"
       onClick={onOpen}
     >
       <span
@@ -539,6 +727,14 @@ function Cell({ answer, isOpen, disabled, label, onOpen }: CellProps) {
         className="text-2xl leading-none font-light text-muted transition-colors group-hover:text-accent"
       >
         +
+      </span>
+      {/* Görünen ipucu — aria-hidden, çünkü erişilebilir ad zaten aşağıdaki
+          sr-only etikette ("... için oyuncu seçin"); ikisi birlikte okunmasın. */}
+      <span
+        aria-hidden="true"
+        className="font-display text-[0.7rem] font-semibold tracking-wide text-muted uppercase transition-colors group-hover:text-accent"
+      >
+        Futbolcu seç
       </span>
       <span className="sr-only">{label} için oyuncu seçin</span>
     </button>

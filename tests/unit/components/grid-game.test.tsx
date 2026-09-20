@@ -463,6 +463,90 @@ describe("GridGame — oyun sonu", () => {
   });
 });
 
+describe("GridGame — Temizle ve paylaş (arayüz yenileme)", () => {
+  /** Bitmiş bir oyun durumu: 4 doğru + 5 yanlış = 4/9. */
+  function finishedState() {
+    window.localStorage.setItem(
+      "futbol-quiz:grid",
+      JSON.stringify({
+        date: GRID.date,
+        guessesUsed: MAX_GUESSES,
+        cells: Object.fromEntries(
+          Array.from({ length: MAX_GUESSES }, (_, i) => [
+            `${String(Math.floor(i / 3))}:${String(i % 3)}`,
+            {
+              status: i < 4 ? "correct" : "wrong",
+              playerId: `p${String(i)}`,
+              playerName: `Oyuncu ${String(i)}`,
+            },
+          ]),
+        ),
+      }),
+    );
+    resetSavedGameCache();
+  }
+
+  it("ilerleme yokken Temizle GÖSTERİLMEZ", () => {
+    setup();
+
+    expect(
+      screen.queryByRole("button", { name: "Temizle" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("Temizle ızgarayı sıfırlar (onaylanınca)", async () => {
+    const { user } = setup();
+
+    await answerCell(user, /Barcelona ve Arsenal/u);
+    await waitFor(() => {
+      expect(screen.getByText(/1\/9 doğru/u)).toBeInTheDocument();
+    });
+
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    await user.click(screen.getByRole("button", { name: "Temizle" }));
+    confirmSpy.mockRestore();
+
+    await waitFor(() => {
+      expect(screen.getByText(/0\/9 doğru · 9 hak kaldı/u)).toBeInTheDocument();
+    });
+  });
+
+  it("onay reddedilirse Temizle ilerlemeyi KORUR", async () => {
+    const { user } = setup();
+
+    await answerCell(user, /Barcelona ve Arsenal/u);
+    await waitFor(() => {
+      expect(screen.getByText(/1\/9 doğru/u)).toBeInTheDocument();
+    });
+
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    await user.click(screen.getByRole("button", { name: "Temizle" }));
+    confirmSpy.mockRestore();
+
+    expect(screen.getByText(/1\/9 doğru/u)).toBeInTheDocument();
+  });
+
+  it("oyun bitince skoru panoya kopyalar (nadirlik yok)", async () => {
+    finishedState();
+
+    // jsdom'da navigator.share yok; paylaş panoya düşer. userEvent.setup()
+    // kendi clipboard stub'ını kurar, yazılanı readText ile geri okuyoruz.
+    const { user } = setup();
+    await user.click(screen.getByRole("button", { name: "Skoru paylaş" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/panoya kopyalandı/iu)).toBeInTheDocument();
+    });
+
+    const text = await navigator.clipboard.readText();
+    expect(text).toContain("Futbol Challenge");
+    expect(text).toContain("4/9 doğru");
+    // Wordle tarzı emoji ızgara; nadirlik/yüzde YOK.
+    expect(text).toMatch(/🟩/u);
+    expect(text).not.toMatch(/%|[Nn]adirlik/u);
+  });
+});
+
 /**
  * §9.1 — "Sen kur" ızgarası (BR-25): tarih YOK, dolayısıyla ilerleme de
  * saklanmaz.
