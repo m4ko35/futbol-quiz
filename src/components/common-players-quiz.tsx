@@ -1,12 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { ClubDto } from "@/application/dto/club-dto";
 import type { CommonPlayersResultDto } from "@/application/dto/common-players-dto";
 import type { LeagueSummary } from "@/application/ports/club-repository";
 import type { PopularPair } from "@/application/use-cases/popular-pairs";
 import { MAX_CLUB_RESULTS } from "@/application/use-cases/search-clubs";
-import { countryName } from "@/lib/country-name";
 import { readErrorMessage } from "@/lib/http/error-message";
 import { ClubMark } from "./club-mark";
 import { ClubPicker } from "./club-picker";
@@ -186,48 +185,17 @@ export function CommonPlayersQuiz({
   }, [clubA, clubB, pairKey]);
 
   /*
-    TABELA SONUCA GÖRE DEĞİŞİR — §7.15.
+    TABELA YALNIZCA SONUÇTA — §7.15.
 
-    Boş durumda veri kümesinin büyüklüğünü, sonuç geldiğinde sonucun kendisini
-    taşır. Aynı yerde, aynı bileşende: kullanıcı sayının nereye yazılacağını
-    bir kez öğreniyor. Sonuç geldiğinde tabela ayrıca VURGULANIYOR (`lit`);
-    bugünkü arayüzün en çok eleştirilen yanı sonucun sessizce belirmesiydi.
+    Veri kümesinin büyüklüğü artık üstteki "Veri kümesi" şeridinde (aşağıda);
+    aynı üç sayıyı boş durumda tabelada da göstermek, aynı sayıyı iki yerde
+    yaşatmak olurdu (§7.15 bunu açıkça reddediyor). Bu yüzden boş durumda tabela
+    BASILMAZ; yalnızca sonuç geldiğinde belirir ve VURGULANIR (`lit`) — bugünkü
+    arayüzün en çok eleştirilen yanı sonucun sessizce belirmesiydi.
   */
-  /**
-   * Kapsam şeridindeki ülkeler — koddan ada, tekrarsız, Türkçe sırayla.
-   *
-   * `useMemo`: liste sunucudan gelen sabit bir dizi ama `countryName` her
-   * çağrıda `Intl.DisplayNames`e gidiyor ve bileşen her tuş vuruşunda yeniden
-   * çiziliyor.
-   */
-  const countries = useMemo(
-    () =>
-      [...new Set(leagues.map((league) => countryName(league.country)))].sort(
-        (a, b) => a.localeCompare(b, "tr"),
-      ),
-    [leagues],
-  );
-
   const found = state.status === "success" ? state.result : undefined;
   const scoreboard =
-    found === undefined ? (
-      <Scoreboard
-        label="Veri kümesi"
-        cells={[
-          {
-            label: "Kulüp",
-            value: clubCount.toLocaleString("tr-TR"),
-            tone: "accent",
-          },
-          { label: "Lig", value: leagues.length.toLocaleString("tr-TR") },
-          {
-            label: "Oyuncu",
-            value: playerCount.toLocaleString("tr-TR"),
-            small: true,
-          },
-        ]}
-      />
-    ) : (
+    found === undefined ? undefined : (
       <Scoreboard
         label="Sonuç"
         lit={found.count > 0}
@@ -260,55 +228,58 @@ export function CommonPlayersQuiz({
       />
 
       {/*
-        KAPSAM BAŞTA SÖYLENİR (§1.3, §5.2). Ajax veya Porto arayan kullanıcı
-        hiçbir şey bulamayacak; bunu keşfetmek için başarısız aramalar yapmak
-        zorunda kalırsa siteyi bozuk sanar.
+        VERİ KÜMESİ ŞERİDİ — §7.15 "Kapsam bandı → veri kümesi şeridi".
 
-        LİG LİSTESİ ARTIK VERİDEN GELİYOR. Önceki metin yirmi dört ligin adını
-        düzyazı içinde ELLE sayıyordu — kapsam genişlediği gün sessizce
-        yalan söyleyecek bir liste. Aynı sınıftaki kusur ("345 kulüp") §5.2'de
-        zaten bir kez ölçülmüştü; ikinci kez oluşmasın diye tek kaynak veri.
+        Kapsamın büyüklüğünü üç sayıda söyler; sayılar VERİDEN geliyor (elle
+        yazılan bir kapsam sayısı §5.2'de bir kez sessizce yalan söylemişti:
+        "345 kulüp"). Bu şerit ortak oyuncu modunda dataset ölçeğinin TEK yeri
+        (tabela sonuca ayrıldı — aynı sayı iki yerde yaşamıyor).
+
+        "CANLI" DEĞİL "VERİ KÜMESİ": veri periyodik bir ETL anlık görüntüsü
+        (altbilgideki "son güncelleme"); "canlı" demek gerçek zamanlılık iddia
+        eder ve o tarihle çelişirdi (§5.2). Nokta da nabız atmaz.
+
+        Eski ülke çip bulutu KALDIRILDI: "hangi ülkeler" bilgisi seçicinin lig
+        gözatında (BR-37) ve boş sonuç metninde zaten duruyor; her zaman görünen
+        bir bulut aynı şeyi ikinci kez, daha ağır taşıyordu.
       */}
-      <section aria-label="Veri kapsamı" className="flex flex-col gap-2.5">
-        <p className="text-sm text-note">
-          <span className="mr-2 text-[0.65rem] font-extrabold tracking-[0.13em] uppercase">
-            Kapsam
+      <section
+        aria-label="Veri kümesi"
+        className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-line bg-surface px-4 py-3"
+      >
+        <span className="inline-flex items-center gap-2">
+          <span
+            aria-hidden="true"
+            className="h-2 w-2 shrink-0 rounded-full bg-accent"
+          />
+          <DataLabel className="text-muted">Veri kümesi</DataLabel>
+        </span>
+        <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
+          <span>
+            <strong className="font-semibold tabular-nums text-foreground">
+              {leagues.length.toLocaleString("tr-TR")}
+            </strong>{" "}
+            lig
           </span>
-          Yirmi dört üst ligin{" "}
-          <strong className="font-semibold text-foreground">tarihsel</strong>{" "}
-          kadroları —{" "}
-          <strong className="font-semibold tabular-nums text-foreground">
-            {clubCount.toLocaleString("tr-TR")}
-          </strong>{" "}
-          kulüp. Bu liglerin dışındaki kariyerler yer almaz.
-        </p>
-        {/*
-          KUSUR: BURADA HAM ISO KODU YAZIYORDU. Şerit `league.country`
-          basıyordu, yani kullanıcı `GB`, `SA`, `CZ`, `PT` görüyordu. Aynı
-          kusur kulüp seçicisinde bir kez bulunup düzeltilmişti (§7.14);
-          ikinci nüshası burada kalmış. `countryName` (§7.12) aynı depoda
-          duruyor ve 170 kodun tamamını Türkçeye çeviriyor.
-
-          LİG DEĞİL ÜLKE LİSTELENİYOR. Şerit ligler üzerinden dönüyordu ve
-          İngiltere ile İskoçya veride aynı `GB` kodunu taşıdığı için aynı
-          rozet İKİ KEZ çıkıyordu — bir listede iki özdeş öğe bilgi taşımaz.
-          Lig SAYISI zaten üstteki cümlede yazılı; şeridin söyleyebileceği
-          yeni şey hangi ülkeler olduğu.
-
-          `title` KALDIRILDI. Ad yalnızca ipucu balonunda duruyordu: klavyeyle
-          erişilemez, dokunmatikte hiç açılmaz. Bilgi artık görünen metnin
-          kendisi.
-        */}
-        <ul aria-label="Kapsanan ülkeler" className="flex flex-wrap gap-1.5">
-          {countries.map((name) => (
-            <li
-              key={name}
-              className="rounded-md border border-line bg-surface px-2 py-1 text-xs font-semibold text-muted"
-            >
-              {name}
-            </li>
-          ))}
-        </ul>
+          <span aria-hidden="true" className="text-line-strong">
+            •
+          </span>
+          <span>
+            <strong className="font-semibold tabular-nums text-foreground">
+              {clubCount.toLocaleString("tr-TR")}
+            </strong>{" "}
+            kulüp
+          </span>
+          <span aria-hidden="true" className="text-line-strong">
+            •
+          </span>
+          <span>
+            <strong className="font-semibold tabular-nums text-foreground">
+              {playerCount.toLocaleString("tr-TR")}
+            </strong>{" "}
+            futbolcu
+          </span>
+        </span>
       </section>
 
       {/* İki seçici arasındaki "∩", sorunun ne olduğunu bir bakışta söyler:

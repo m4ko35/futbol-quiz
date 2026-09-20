@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ClubDto } from "@/application/dto/club-dto";
@@ -132,6 +138,30 @@ describe("CommonPlayersQuiz", () => {
 
     expect(screen.getByText(/iki kulüp seçin/iu)).toBeInTheDocument();
     expect(screen.getAllByRole("combobox")).toHaveLength(2);
+  });
+
+  it("veri kümesi şeridi lig/kulüp/futbolcu sayılarını gösterir", () => {
+    renderQuiz({
+      leagues: [
+        { wikidataId: "Q1", name: "Süper Lig", country: "TR", clubCount: 3 },
+      ],
+      clubCount: 906,
+      playerCount: 132263,
+    });
+
+    // Sayılar VERİDEN gelir; boş durumda tabela değil bu şerit taşır (§7.15).
+    const strip = screen.getByRole("region", { name: "Veri kümesi" });
+    expect(within(strip).getByText("1")).toBeInTheDocument(); // 1 lig
+    expect(within(strip).getByText("906")).toBeInTheDocument();
+    expect(within(strip).getByText("132.263")).toBeInTheDocument();
+  });
+
+  it("boş durumda 'Sonuç' tabelası basılmaz (sayı iki yerde yaşamaz)", () => {
+    renderQuiz();
+
+    expect(
+      screen.queryByRole("group", { name: "Sonuç" }),
+    ).not.toBeInTheDocument();
   });
 
   it("tek kulüp seçiliyken istek ATMAZ", async () => {

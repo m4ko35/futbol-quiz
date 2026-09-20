@@ -3224,7 +3224,9 @@ Alan silinmedi, **isteğe bağlı** oldu ve yalnızca gerçek bilgi taşıdığ�
 
 #### Tabela CANLI, statik bir künye değil
 
-Ortak oyuncu modunda tabela boş durumda veri kümesinin büyüklüğünü taşıyor (`Kulüp 906 · Lig 24 · Oyuncu 132.263`), sonuç geldiğinde sonucun kendisine geçiyor (`Ortak oyuncu 55 · Dönem 147`) ve **vurgulanıyor**. Aynı yer, aynı bileşen: kullanıcı sayının nereye yazılacağını bir kez öğreniyor.
+Izgara ve istatistik modlarında tabela boş durumda ilerlemeyi taşıyor (`0/9`, `0/6`), oynadıkça akıyor ve tamamlanınca **vurgulanıyor**.
+
+Ortak oyuncu modunda boş durumda gösterilecek bir "ilerleme" yok. Veri kümesinin büyüklüğü (`24 lig · 907 kulüp · 132.263 futbolcu`) artık sayfanın en üstündeki **veri kümesi şeridinde** (aşağıda, "Kapsam bandı → veri kümesi şeridi"); tabela bu modda yalnızca **sonuç** geldiğinde beliriyor (`Ortak oyuncu 55 · Dönem 147`) ve **vurgulanıyor**. Böylece aynı üç sayı iki yerde yaşamıyor — şerit ölçeği, tabela sonucu taşır.
 
 Vurgu (`lit`) bir süsleme değil: bugünkü arayüzün en çok eleştirilen yanı, sonucun sessizce belirmesiydi. Boş tabela ile dolu tabela aynı görünemez.
 
@@ -3236,7 +3238,7 @@ Bu yüzden künye **sunucu sayfasında değil, mod bileşeninin içinde** duruyo
 
 | Mod            | Boş durum                     | Canlı                          | Vurgu (`lit`)         |
 | -------------- | ----------------------------- | ------------------------------ | --------------------- |
-| Ortak Oyuncu   | `Kulüp · Lig · Oyuncu`        | `Ortak oyuncu · Dönem`         | Sonuç boş değilse     |
+| Ortak Oyuncu   | tabela yok (ölçek şeritte)    | `Ortak oyuncu · Dönem`         | Sonuç boş değilse     |
 | Günün Izgarası | `Doğru 0/9 · Hak 9`           | aynı hücreler, sayılar akar    | Oyun bittiğinde       |
 | Günün Oyuncusu | `Cevaplanan 0/6 · Ortalama —` | `Cevaplanan n/6 · Ortalama %n` | Tur tamamlanınca      |
 | Hangisi Daha   | tabela yok (kurulum)          | `Seri n`                       | Seri sıfırdan büyükse |
@@ -3263,9 +3265,15 @@ Tabeladaki oyuncu sayısı `DatasetRepository.countPlayers()`'tan geliyor; `coun
 
 **Süzgeç yok, bilinçli.** Kulüplerde `isSelectable` var çünkü kullanıcı onları bir listeden **seçiyor**; oyuncuda böyle bir kavram yok — her oyuncu bir sonuçta görünebilir. Buraya bir süzgeç eklemek, tabeladaki sayı ile sonuçlarda karşılaşılabilecek oyuncu kümesini ayırırdı.
 
-#### Kapsam bandı artık VERİDEN geliyor
+#### Kapsam bandı → veri kümesi şeridi
 
-Kapsam bildirimi (§1.3) yirmi dört ligin adını **düzyazı içinde elle sayıyordu** — kapsam genişlediği gün sessizce eskiyecek bir liste, yani `345 kulüp` ile aynı sınıftan bir kusur. Metin kısaltıldı ve lig listesi, seçicinin zaten kullandığı `listLeagues()` çıktısından üretilen ülke kodu etiketlerine dönüştü. Tek kaynak veri.
+Kapsam bildirimi (§1.3) önce yirmi dört ligin adını **düzyazı içinde elle sayıyordu** — kapsam genişlediği gün sessizce eskiyecek bir liste, yani `345 kulüp` ile aynı sınıftan bir kusur. Sonra bu, seçicinin `listLeagues()` çıktısından üretilen bir **ülke kodu etiketleri bulutuna** dönüştü: tek kaynak veriydi ama görsel olarak ağırdı — yirmi dört çip, seçicilerin önünde bir etiket bulutu.
+
+Şimdi kapsam, sayfanın en üstünde ince tek satırlık bir **veri kümesi şeridine** indi: bir işaret noktası + `VERİ KÜMESİ` etiketi, ardından üç sayı (`24 lig · 907 kulüp · 132.263 futbolcu`). Sayılar hâlâ VERİDEN geliyor (`listLeagues().length`, `countSelectableClubs`, `countPlayers`), elle yazılmıyor; §7.15'in "künye canlı" kuralıyla aynı — bu şerit artık ortak oyuncu modunda dataset ölçeğinin TEK yeri (tabela sonuca ayrıldı, sayı iki yerde yaşamıyor).
+
+**Şeritte "CANLI" yazmıyor, bilinçli.** Stitch tasarımı bu şeridi "canlı veri tabanı" diye etiketliyordu; oysa veri periyodik bir ETL anlık görüntüsü (altbilgideki "son güncelleme" tarihi bunu söyler). "Canlı" demek gerçek zamanlı bir tazelik iddia eder ve o tarihle çelişirdi (§5.2). Etiket bu yüzden "Veri kümesi", nokta da nabız atmıyor.
+
+**"Hangi ülkeler" bilgisi neden artık şeritte değil.** Ülke bulutunun tek işi, kapsanmayan bir kulübü arayan kullanıcının siteyi bozuk sanmasını önlemekti (§1.3/§5.2). O sinyal kaybolmadı, yer değiştirdi: kullanıcı bir seçiciyi açtığında lig/ülke listesini (BR-37 gözat) görüyor ve boş sonuç durumu kapsamı açıkça söylüyor ("veri kümesi yirmi dört ligi kapsar…"). Her zaman görünen bir çip bulutu aynı bilgiyi ikinci kez, daha ağır biçimde taşıyordu.
 
 ### 7.16 Sonuç Defteri
 
