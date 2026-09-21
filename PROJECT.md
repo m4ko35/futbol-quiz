@@ -3279,18 +3279,20 @@ Bu yüzden künye **sunucu sayfasında değil, mod bileşeninin içinde** duruyo
 
 #### Dört modun tabelası
 
-| Mod            | Boş durum                     | Canlı                                    | Vurgu (`lit`)         |
-| -------------- | ----------------------------- | ---------------------------------------- | --------------------- |
-| Ortak Oyuncu   | tabela yok (ölçek şeritte)    | `Ortak oyuncu · Dönem`                   | Sonuç boş değilse     |
-| Günün Izgarası | **durum bandı** (aşağıda)     | `Doğru n/9` + çubuk, `Hak n` + kalkanlar | Oyun bittiğinde       |
-| Günün Oyuncusu | `Cevaplanan 0/6 · Ortalama —` | `Cevaplanan n/6 · Ortalama %n`           | Tur tamamlanınca      |
-| Hangisi Daha   | tabela yok (kurulum)          | `Seri n`                                 | Seri sıfırdan büyükse |
+| Mod            | Boş durum                  | Canlı                                                   | Vurgu (`lit`)         |
+| -------------- | -------------------------- | ------------------------------------------------------- | --------------------- |
+| Ortak Oyuncu   | tabela yok (ölçek şeritte) | `Ortak oyuncu · Dönem`                                  | Sonuç boş değilse     |
+| Günün Izgarası | **durum bandı** (aşağıda)  | `Doğru n/9` + çubuk, `Hak n` + kalkanlar                | Oyun bittiğinde       |
+| Günün Oyuncusu | **durum bandı** (aşağıda)  | `Cevaplanan n/6` + segment şeridi, `Ortalama %n` + band | Tur tamamlanınca      |
+| Hangisi Daha   | tabela yok (kurulum)       | `Seri n`                                                | Seri sıfırdan büyükse |
 
 Renk **sonuç dilinden** geliyor (§7.12): ızgarada doğru hücre sayısı `correct`, kalan hak azaldıkça `warn` ve bittiğinde `wrong`; istatistikte ortalama BR-18'in puan bandına göre. Hepsinde renk yalnızca destekleyici — sayı zaten yazılı (WCAG 1.4.1).
 
 **Sayaçlar `aria-live` içinde kaldı.** Künyeye taşınmak, sayının değişmesini yalnızca görsel bir olaya çevirmemeli; her modda tabelayı saran bir `aria-live="polite"` var.
 
-**IZGARADA TABELA AYRI BİR DURUM BANDINA DÖNDÜ (§9.1).** Diğer üç mod sayaçları künyenin sağ ucunda taşır; ızgara ise künyenin ALTINDA, tablonun ÜSTÜNDE iki hücreli belirgin bir bant kullanır — `Doğru n/9` bir tamamlanma çubuğuyla, `Hak n` kalan hakları gösteren kalkanlarla. Neden ayrı: ızgarada durum iki BOYUTLU (hangi hücreler çözüldü + kaç hak kaldı) ve tek satırlık bir sayaç bunu taşıyamıyordu; bant hem daha okunur hem de sol üst köşeyi ilerleme işaretlerinden kurtarıp ızgaranın KİMLİĞİNE (n×n) bıraktı. Sayılar ekran okuyucuya bandın içindeki tek bir `aria-live` özetiyle bildirilir; görünen çubuk/kalkanlar `aria-hidden` (renk tek gösterge değil, sayı yazılı — WCAG 1.4.1).
+**IZGARA VE İSTATİSTİK TABELAYI AYRI BİR DURUM BANDINA TAŞIDI (§9.1/§9.2).** Ortak oyuncu ve hangisi-daha sayaçları künyenin sağ ucunda taşır; ızgara ve istatistik ise künyenin ALTINDA, oyunun ÜSTÜNDE iki hücreli belirgin bir bant kullanır. Izgarada `Doğru n/9` bir tamamlanma çubuğuyla, `Hak n` kalan hakları gösteren kalkanlarla; istatistikte `Cevaplanan n/6` her segmenti o istatistiğin PUAN BANDIYLA renklenen bir segment şeridiyle (hem ilerleme hem kalite bir bakışta), `Ortalama %n` bir band etiketiyle (`isabetli`/`yakın`/`uzak`). Neden ayrı: bu iki modda durum tek satırlık bir sayaca sığmıyordu; bant hem daha okunur hem de künyenin sağ ucunu **hızlı kısayollara** (`actions`: "Sen kur"/"Sen seç" ve "Nasıl oynanır" çapaları) bıraktı, ızgarada ayrıca sol üst köşeyi ilerleme işaretlerinden kurtarıp ızgaranın KİMLİĞİNE (n×n) bıraktı. Sayılar ekran okuyucuya bandın içindeki tek bir `aria-live` özetiyle bildirilir; görünen şerit/çubuk/kalkan/etiket `aria-hidden` (renk tek gösterge değil, sayı yazılı — WCAG 1.4.1).
+
+**İSTATİSTİK BANDI STITCH'İN DÖRT HÜCRESİNE İNMEDİ, İKİDE KALDI — bilinçli.** Stitch'in bandı dört hücreliydi: `toplam puan /400`, `ilerleme`, `ortalama isabet · son 30 günün en iyi %12'sinde`, `kalan kategori`. İkisi UYDURMA (§5.2): bir kullanıcının puan geçmişini ya da percentilini tutmuyoruz, `/400` gibi kümülatif bir tavan da yok (puan cevap başına 0–100, tur puanı bunların ORTALAMASI). "Kalan" ise "cevaplanan"la birebir tümleyendir (6 − n), ızgaradaki "hak"tan farklı olarak ayrı bir bilgi taşımaz. Geriye gerçek olan iki eksen kalıyor — ne kadarı cevaplandı ve ne kadar isabetli — ve bant tam onları taşıyor.
 
 #### Künye oyun bileşeninin İÇİNDE, sayfada değil
 
@@ -4705,6 +4707,15 @@ kullanıcının kendisine ait.
 #### Kapsam bildirimi
 
 Maç, gol ve kulüp sayısı **yalnızca §1.3 kapsamındaki yirmi dört ligi** sayar. Boca Juniors veya Flamengo'da geçen yıllar bu sayılara **girmez**. (Ajax bir zamanlar bu cümlenin örneğiydi; 12 lig turundan beri kapsamda — kapsam büyüdükçe örnek de tazelenmek zorunda.) Arayüz bunu istatistiğin yanında söyler; söylemezse kullanıcı bildiği gerçek toplamla karşılaştırıp siteyi yanlış sanır — §1.3'ün kapsam bildirimi kuralının aynısı.
+
+#### Sunum: durum bandı, zengin satır, paylaş (Stitch dili)
+
+İstatistik modu Stitch'in görsel dilini aldı; **içeriğini değil.** Stitch dört "kategori" çiziyordu (`Kariyer Golü` · `Kariyer Asisti` · `Kulüp & Millî Maç` · `Kazanılan Kupa`), topluluk konsensüsü tablosu, radar grafiği ve percentil rozetleri. Bunların çoğu UYDURMAYDI (§5.2): **asist** ve **kupa** veri kümesinde yok, o gün herkesin tahminini toplayıp sunmuyoruz, kullanıcı puan geçmişi tutmuyoruz. Alınan şey düzen ve tipografi oldu, gerçek altı istatistik ve gerçek puanlama korundu:
+
+- **Durum bandı** (§7.15) — künyenin sağ ucundaki iki hücreli tabela künyenin altına, iki hücreli belirgin bir banda taşındı: `Cevaplanan n/6` her segmenti puan bandıyla renkli bir segment şeridiyle, `Ortalama %n` bir band etiketiyle. Neden iki hücre (Stitch'in dördü değil): yukarıdaki §7.15 kutusuna bakınız.
+- **Zengin satır** — cevaplanan istatistik satırı artık isim ve `değer · %puan` rozetinin yanında **işaretli farkı** (`hedeften +39` / `-273`) ve **band sözcüğünü** (`isabetli`/`yakın`/`uzak`) yazıyor. Sayı doğrusu (`NumberLine`) bunu zaten KONUM olarak gösteriyordu; buradaki katkı aynı bilgiyi SAYIYLA vermek. Puan formülü değişmedi (BR-18); band sözcüğü yalnızca renge ek bir metin göstergesi (WCAG 1.4.1).
+- **Skoru paylaş** — tur bitince Wordle tarzı bir emoji şeridi (`🟩` ≥%80, `🟨` ≥%50, `🟥` altı) + ortalama + bağlantı; arayüzdeki önizleme emoji DEĞİL, renk tokenlı kareler (§7.12). Nadirlik/percentil YOK, yalnızca kullanıcının kendi bandları. Izgaradaki paylaşımla aynı kural (§9.1).
+- **Kısayollar ve "Nasıl oynanır"** — künyenin `actions` yuvasında "Sen seç" ve "Nasıl oynanır" çapaları; sayfanın altındaki iki düz tanıtım paragrafı, ızgaradakiyle aynı **üç kartlı** düzene döndü (Hedef Metriğe Yaklaşın / Fark ve Puan / Tek Kullanım — hepsi GERÇEK kural: BR-16/BR-18/BR-17) + gerçek veri kümesi sayılarını taşıyan bir kapsam şeridi. Stitch'in "logaritmik fark skalası" etiketi kullanılmadı: puan logaritmik değil, farkı istatistiğin yayılımına bölen bir penceredir (BR-18).
 
 ---
 

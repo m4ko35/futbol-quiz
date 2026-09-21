@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { getDailyStatMatch } from "@/application/use-cases/daily-stat-match";
 import { getStoredRound } from "@/application/use-cases/stored-round";
+import { listLeagues } from "@/application/use-cases/search-clubs";
+import { DataLabel } from "@/components/data-label";
 import { PageShell } from "@/components/page-shell";
 import { RoomEntryBar } from "@/components/room-entry-bar";
 import { SiteFooter } from "@/components/site-footer";
@@ -30,14 +32,45 @@ export const metadata: Metadata = {
     "bulun. Ücretsiz futbol bilme oyunu.",
 };
 
+/**
+ * "Nasıl oynanır" kartları — hepsi GERÇEK kural (BR-16/BR-18/BR-17).
+ *
+ * Stitch iki düz paragrafı yerine üç kart çiziyordu; kartların İÇERİĞİ ise
+ * uydurmaydı ("logaritmik fark skalası", nadirlik). Gerçek kurallar kondu.
+ * İçerik statik, bu yüzden modül düzeyinde bir sabit — her istekte yeniden
+ * kurulmasına gerek yok (ızgara sayfasındaki `HOW_TO_RULES` ile aynı desen).
+ */
+const HOW_TO_RULES: readonly {
+  readonly title: string;
+  readonly body: string;
+}[] = [
+  {
+    title: "Hedefe Yaklaşın",
+    body: "Her istatistik için, değeri günün oyuncusuna en yakın olduğunu düşündüğünüz BAŞKA bir futbolcu seçin. Soru oyuncuyu tanımak değil, başkalarının büyüklüklerini bilmek.",
+  },
+  {
+    title: "Fark ve Puan",
+    body: "Puan, tahmininizin farkını o istatistiğin kendi yayılımına bölerek hesaplanır; ne kadar yakınsanız o kadar yüksek. Boy ile gol aynı kuralla, ölçeklerinden bağımsız puanlanır.",
+  },
+  {
+    title: "Tek Kullanım",
+    body: "Bir futbolcuyu yalnızca bir istatistikte kullanabilirsiniz; aynı isim iki değeri birden yakalayamaz. Oyun farklı büyüklükler için farklı isimler ister.",
+  },
+];
+
 export default async function StatMatchPage() {
   const now = new Date();
 
-  const [daily, dataGeneratedAt, user] = await Promise.all([
-    getDailyStatMatch(now, repositories),
-    datasets.getGeneratedAt(),
-    currentUser(),
-  ]);
+  const [daily, dataGeneratedAt, user, leagues, clubCount, playerCount] =
+    await Promise.all([
+      getDailyStatMatch(now, repositories),
+      datasets.getGeneratedAt(),
+      currentUser(),
+      // "Kapsam" şeridinin GERÇEK sayıları (§5.2): uydurma değil, veri kümesi.
+      listLeagues({ clubs: repositories.clubs }),
+      datasets.countSelectableClubs(),
+      datasets.countPlayers(),
+    ]);
 
   /**
    * SAKLANAN TUR SUNUCUDA OKUNUR (§11, BR-43).
@@ -112,19 +145,92 @@ export default async function StatMatchPage() {
           : { beforeStats: <RoomEntryBar signedIn={user !== null} /> })}
       />
 
-      {/* SEO/tanıtım bölümü — §7.11. Oyunun altında, ikincil tonda. */}
-      <section className="flex flex-col gap-3 border-t border-line pt-8">
-        <h2 className="text-lg font-semibold">İstatistik eşleştirme oyunu</h2>
-        <p className="max-w-prose text-sm text-muted">
-          Her gün bir futbolcu ve kariyer istatistikleri (gol, maç, kulüp
-          sayısı, boy ve daha fazlası) gösterilir. Göreviniz, verilen her sayıya
-          en yakın değere sahip başka futbolcuları bulmak.
-        </p>
-        <p className="max-w-prose text-sm text-muted">
-          Bir futbolcu istatistik tahmin oyunu: futbolcuların rakamlarını ne
-          kadar iyi biliyorsanız, tahminleriniz o kadar yaklaşır. Hesapsız
-          oynanır, ücretsizdir.
-        </p>
+      {/*
+        SEO/tanıtım bölümü — §7.11. Oyunun altında, ikincil tonda. Stitch'in üç
+        kartlı düzeni (§9.2): kartlar GERÇEK kurallar (BR-16/BR-18/BR-17);
+        Stitch'in "logaritmik fark skalası"/nadirlik içeriği uydurmaydı (§5.2) —
+        gerçek kurallarla değiştirildi. Kapsam şeridi de gerçek sayıları taşır.
+      */}
+      <section
+        id="nasil-oynanir"
+        className="flex scroll-mt-24 flex-col gap-5 border-t border-line pt-8"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+          <h2 className="text-lg font-semibold">
+            İstatistik eşleştirme oyunu nasıl oynanır?
+          </h2>
+          <DataLabel className="text-muted">Resmî kurallar</DataLabel>
+        </div>
+
+        {/* Numara ROZETİ süsleme (aria-hidden): kurallar sıralı adımlar değil,
+            üç eş kural — `ul`, `ol` değil. */}
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {HOW_TO_RULES.map((rule, index) => (
+            <li
+              key={rule.title}
+              className="flex flex-col gap-2 rounded-xl border border-line bg-surface p-4"
+            >
+              <span
+                aria-hidden="true"
+                className="font-display flex h-7 w-7 items-center justify-center rounded-full bg-accent-soft text-sm font-bold tabular-nums text-accent"
+              >
+                {index + 1}
+              </span>
+              <h3 className="font-display text-base font-bold tracking-tight">
+                {rule.title}
+              </h3>
+              <p className="text-sm text-muted">{rule.body}</p>
+            </li>
+          ))}
+        </ul>
+
+        {/* KAPSAM ŞERİDİ — gerçek veri kümesi sayıları (§5.2). */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-line bg-surface px-4 py-3">
+          <span className="inline-flex items-center gap-2">
+            <svg
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              focusable="false"
+              className="h-4 w-4 shrink-0 text-accent"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <ellipse cx="12" cy="6" rx="7" ry="3" />
+              <path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6" />
+              <path d="M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6" />
+            </svg>
+            <DataLabel className="text-muted">Kapsam</DataLabel>
+          </span>
+          <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
+            <span>
+              <strong className="font-semibold tabular-nums text-foreground">
+                {leagues.length.toLocaleString("tr-TR")}
+              </strong>{" "}
+              lig
+            </span>
+            <span aria-hidden="true" className="text-line-strong">
+              •
+            </span>
+            <span>
+              <strong className="font-semibold tabular-nums text-foreground">
+                {clubCount.toLocaleString("tr-TR")}
+              </strong>{" "}
+              kulüp
+            </span>
+            <span aria-hidden="true" className="text-line-strong">
+              •
+            </span>
+            <span>
+              <strong className="font-semibold tabular-nums text-foreground">
+                {playerCount.toLocaleString("tr-TR")}
+              </strong>{" "}
+              futbolcu
+            </span>
+          </span>
+        </div>
       </section>
 
       <SiteFooter dataGeneratedAt={dataGeneratedAt} />
