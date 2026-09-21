@@ -29,6 +29,7 @@ function deps(names: readonly string[]): {
     findNames: base.findNames.bind(base),
     findPlayableCriteria: base.findPlayableCriteria.bind(base),
     matchesAll: base.matchesAll.bind(base),
+    findExampleMatching: base.findExampleMatching.bind(base),
     search(query) {
       lastQuery = { term: query.term, limit: query.limit };
       return base.search(query);

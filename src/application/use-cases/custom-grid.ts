@@ -7,6 +7,7 @@ import {
 import { clubId, type PlayerId } from "@/domain/value-objects/identifiers";
 import { countryName } from "@/lib/country-name";
 import type { GridDeps } from "../game-modes/grid/generate";
+import type { RevealedCellDto } from "./daily-grid";
 import {
   DEFAULT_CLUB_RESULTS,
   MAX_CLUB_RESULTS,
@@ -117,6 +118,60 @@ export async function checkCustomAnswer(
   return {
     correct: await deps.players.matchesAll(input.playerId, [row, column]),
   };
+}
+
+export interface RevealCustomInput {
+  /** Açığa çıkarılacak hücreler; her biri satır ve sütun ölçütüyle (BR-26). */
+  readonly cells: readonly {
+    readonly row: CriterionRef;
+    readonly column: CriterionRef;
+  }[];
+  /** Kullanıcının kendi yerleştirdiği oyuncular — örneklerden dışlanır (BR-10). */
+  readonly used: readonly string[];
+}
+
+/**
+ * BR-66 — "Sen kur" ızgarasında pes eden kullanıcıya örnek cevaplar.
+ *
+ * `revealDailyGrid`'in kullanıcı ızgarası karşılığı: fark yalnızca ölçütlerin
+ * KAYNAĞINDA (BR-26 — gövdeden gelir, tohumdan üretilmez), `checkCustomAnswer`
+ * ile `checkAnswer` arasındaki farkın aynısı. Örnekler yine sırayla seçilir ve
+ * dışlama kümesi büyür: aynı futbolcu iki hücrede belirmez (BR-10 hissi).
+ */
+export async function revealCustomGrid(
+  input: RevealCustomInput,
+  deps: GridDeps,
+): Promise<RevealedCellDto[]> {
+  const chosen = new Set<string>(input.used);
+  const revealed: RevealedCellDto[] = [];
+
+  for (const [index, pair] of input.cells.entries()) {
+    const [row, column] = await resolveCriteria([pair.row, pair.column], deps);
+
+    if (row === undefined || column === undefined) {
+      throw new ValidationError("Satır ve sütun ölçütleri zorunludur.");
+    }
+    // "Barcelona × Barcelona" bir soru değildir (`isGridShapeValid`).
+    if (isSameCriterion(row, column)) {
+      throw new ValidationError("Satır ve sütun aynı ölçüt olamaz.");
+    }
+
+    const example = await deps.players.findExampleMatching(
+      [row, column],
+      chosen,
+    );
+    // Örneği bulunamayan hücre (tüm cevapları `used`'da) sessizce atlanır.
+    if (example === undefined) continue;
+
+    chosen.add(String(example.id));
+    revealed.push({
+      index,
+      playerId: String(example.id),
+      playerName: example.name,
+    });
+  }
+
+  return revealed;
 }
 
 /**

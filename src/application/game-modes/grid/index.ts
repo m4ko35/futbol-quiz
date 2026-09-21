@@ -7,13 +7,16 @@ import {
 import {
   checkCustomAnswer,
   listPlayableCriteria,
+  revealCustomGrid,
   type GridCriterionRefDto,
 } from "../../use-cases/custom-grid";
 import {
   checkAnswer,
   getDailyGrid,
+  revealDailyGrid,
   type CheckAnswerDto,
   type DailyGridDto,
+  type RevealedCellDto,
 } from "../../use-cases/daily-grid";
 import { defineGameMode } from "../registry";
 import type { RegisteredGameMode } from "../types";
@@ -88,10 +91,39 @@ export const gridInputSchema = z.discriminatedUnion("action", [
     // Ham dize markalı `PlayerId`'ye BURADA dönüşür — sınır tam olarak burası.
     playerId: z.string().refine(isValidIdentifier).transform(playerId),
   }),
+  // "Pes et → Cevapları gör" — günlük ızgara (BR-66). Boş hücrelerin
+  // koordinatları gelir; sunucu her biri için örnek cevap döndürür.
+  z.object({
+    action: z.literal("reveal"),
+    cells: z
+      .array(cellSchema)
+      .min(1)
+      .max(GRID_SIZE * GRID_SIZE),
+    // Kullanıcının kendi cevapları — örneklerden dışlanır (BR-10 hissi). Yalnızca
+    // dışlama kümesi; markalı kimliğe çevirmeye gerek yok.
+    used: z
+      .array(z.string().refine(isValidIdentifier))
+      .max(GRID_SIZE * GRID_SIZE)
+      .optional(),
+  }),
+  // "Pes et → Cevapları gör" — kullanıcı ızgarası (BR-66, BR-26). Ölçütler
+  // gövdeden gelir (koordinat değil), tıpkı `custom-answer` gibi.
+  z.object({
+    action: z.literal("custom-reveal"),
+    cells: z
+      .array(z.object({ row: criterionRefSchema, column: criterionRefSchema }))
+      .min(1)
+      .max(MAX_GRID_SIZE * MAX_GRID_SIZE),
+    used: z
+      .array(z.string().refine(isValidIdentifier))
+      .max(MAX_GRID_SIZE * MAX_GRID_SIZE)
+      .optional(),
+  }),
 ]);
 
 export type GridInput = z.output<typeof gridInputSchema>;
-export type GridOutput = DailyGridDto | CheckAnswerDto | GridCriterionRefDto[];
+export type GridOutput =
+  DailyGridDto | CheckAnswerDto | GridCriterionRefDto[] | RevealedCellDto[];
 
 export const GRID_MODE_ID = "grid";
 
@@ -122,6 +154,16 @@ export const gridMode: RegisteredGameMode = defineGameMode<
       case "answer":
         return checkAnswer(
           { now, cell: input.cell, playerId: input.playerId },
+          deps,
+        );
+      case "reveal":
+        return revealDailyGrid(
+          { now, cells: input.cells, used: input.used ?? [] },
+          deps,
+        );
+      case "custom-reveal":
+        return revealCustomGrid(
+          { cells: input.cells, used: input.used ?? [] },
           deps,
         );
     }

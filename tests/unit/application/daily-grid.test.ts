@@ -287,3 +287,59 @@ describe("checkAnswer — BR-12", () => {
     ).rejects.toThrow(ValidationError);
   });
 });
+
+describe("revealDailyGrid — BR-66", () => {
+  it("boş hücreler için geçerli örnek cevap döndürür", async () => {
+    const { revealDailyGrid } = await loadUseCase();
+    const fixture = gridFixture();
+
+    // Izgarayı öğren — hangi kulüplerin seçildiği tohuma bağlı, varsaymak
+    // kırılgan olurdu. Aynı tohum + aynı depo → aynı ızgara (BR-11).
+    const grid = await generateGrid(dailySeed(DAY), fixture.deps);
+    expect(grid).not.toBeNull();
+
+    const cells = [
+      { row: 0, column: 0 },
+      { row: 1, column: 2 },
+    ];
+    const revealed = await revealDailyGrid(
+      { now: DAY, cells, used: [] },
+      fixture.deps,
+    );
+
+    // `index` istekteki hücre sırasıdır.
+    expect(revealed.map((one) => one.index)).toEqual([0, 1]);
+
+    // Her örnek, kendi hücresinin iki ölçütünü de gerçekten sağlamalı.
+    for (const one of revealed) {
+      const cell = cells[one.index];
+      expect(cell).toBeDefined();
+      const row = grid!.rows[cell!.row];
+      const column = grid!.columns[cell!.column];
+      expect(row).toBeDefined();
+      expect(column).toBeDefined();
+
+      expect(
+        await fixture.deps.players.matchesAll(playerId(one.playerId), [
+          row!,
+          column!,
+        ]),
+      ).toBe(true);
+    }
+  });
+
+  /**
+   * Aralık dışı hücre bir SUNUCU hatası değil, geçersiz bir GİRDİDİR — 400,
+   * 500 değil (`checkAnswer` ile aynı kapı).
+   */
+  it("aralık dışı hücre ValidationError üretir", async () => {
+    const { revealDailyGrid, ValidationError } = await loadUseCase();
+
+    await expect(
+      revealDailyGrid(
+        { now: DAY, cells: [{ row: -1, column: 0 }], used: [] },
+        gridFixture().deps,
+      ),
+    ).rejects.toThrow(ValidationError);
+  });
+});

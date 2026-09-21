@@ -347,6 +347,58 @@ export class PrismaPlayerRepository implements PlayerRepository {
   }
 
   /**
+   * BR-66 — bir hücrenin örnek cevabı.
+   *
+   * `matchesAll`'ın tersi: orada "bu oyuncu sağlıyor mu" sorulur, burada
+   * "sağlayan biri var mı" — o yüzden kulüp koşulları `some` alt sorgusuyla
+   * `where`'e girer, sonradan bellekte sayılmaz. Sıra `search` ile birebir
+   * aynı (en çok maç, eşitlikte kimlik): örnek tanınır olsun ve tekrarlanabilir
+   * kalsın (§9.1).
+   */
+  async findExampleMatching(
+    criteria: readonly GridCriterion[],
+    exclude: ReadonlySet<string>,
+  ): Promise<Player | undefined> {
+    if (criteria.length === 0) return undefined;
+
+    const codes = criteria
+      .filter((c) => c.type === "nationality")
+      .map((c) => (c.type === "nationality" ? c.code : ""));
+    // Bir oyuncunun bu veri kümesinde tek uyruğu var (§9.1); iki uyruk aynı
+    // anda sağlanamaz, sorguya gitmeden boş.
+    if (codes.length > 1) return undefined;
+    const code = codes[0];
+
+    const clubConditions = criteria
+      .filter((c) => c.type === "club")
+      .map((c) => ({
+        // BR-2: altyapı dönemi ortaklık saymaz.
+        spells: {
+          some: { clubId: c.type === "club" ? c.clubId : "", isYouth: false },
+        },
+      }));
+
+    const row = await this.#prisma.player.findFirst({
+      where: {
+        ...(code === undefined ? {} : { nationality: code }),
+        ...(exclude.size === 0 ? {} : { id: { notIn: [...exclude] } }),
+        ...(clubConditions.length === 0 ? {} : { AND: clubConditions }),
+      },
+      // `search` ile aynı sıra — BR-66'nın "tanınır isim, tekrarlanabilir" şartı.
+      orderBy: [{ careerAppearances: "desc" }, { id: "asc" }],
+      select: { id: true, name: true, nationality: true, position: true },
+    });
+    if (row === null) return undefined;
+
+    return {
+      id: playerId(row.id),
+      name: row.name,
+      nationality: row.nationality,
+      position: row.position,
+    };
+  }
+
+  /**
    * Oyuncu araması (BR-12).
    *
    * `searchKey` üzerinden aranır — kulüp aramasıyla aynı normalizasyon

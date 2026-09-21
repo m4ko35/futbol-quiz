@@ -25,6 +25,8 @@ let answerRoute: typeof import("@/app/api/grid/answer/route");
 let playersRoute: typeof import("@/app/api/players/route");
 let criteriaRoute: typeof import("@/app/api/grid/criteria/route");
 let customAnswerRoute: typeof import("@/app/api/grid/custom-answer/route");
+let revealRoute: typeof import("@/app/api/grid/reveal/route");
+let customRevealRoute: typeof import("@/app/api/grid/custom-reveal/route");
 
 /** Üretim en az `GRID_SIZE + 1` kulüp ister; altı, seçim yapılabilecek kadar. */
 const CLUB_COUNT = 6;
@@ -132,6 +134,8 @@ beforeAll(async () => {
   playersRoute = await import("@/app/api/players/route");
   criteriaRoute = await import("@/app/api/grid/criteria/route");
   customAnswerRoute = await import("@/app/api/grid/custom-answer/route");
+  revealRoute = await import("@/app/api/grid/reveal/route");
+  customRevealRoute = await import("@/app/api/grid/custom-reveal/route");
 }, 120_000);
 
 afterAll(async () => {
@@ -599,5 +603,180 @@ describe("POST /api/grid/custom-answer — BR-26", () => {
 
     const response = await customAnswerRoute.POST(request);
     expect(response.status).toBe(400);
+  });
+});
+
+describe("POST /api/grid/reveal — BR-66", () => {
+  /** Izgaranın (row,col) hücresinin QID çiftini etiketlerden okur. */
+  async function pairFor(cell: {
+    row: number;
+    column: number;
+  }): Promise<[string, string]> {
+    const data = await fetchGrid();
+    const rowQid = String(data.rows[cell.row]?.label).replace("Kulüp ", "");
+    const colQid = String(data.columns[cell.column]?.label).replace(
+      "Kulüp ",
+      "",
+    );
+    return [rowQid, colQid];
+  }
+
+  /**
+   * REVEAL İLE ANSWER AYNI IZGARAYI GÖRÜR. Dönen örnek, KENDİ hücresine cevap
+   * ucundan sorulunca correct:true olmalı — sunucunun uydurmadığının, gerçekten
+   * o hücreyi çözen bir oyuncu döndürdüğünün kanıtı.
+   */
+  it("boş hücreler için aynı hücrede DOĞRU sayılan örnek cevap döner", async () => {
+    const cells = [
+      { row: 0, column: 0 },
+      { row: 1, column: 2 },
+    ];
+    const response = await revealRoute.POST(
+      post("/api/grid/reveal", { cells, used: [] }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data.map((one: { index: number }) => one.index)).toEqual([
+      0, 1,
+    ]);
+
+    for (const revealed of body.data as {
+      index: number;
+      playerId: string;
+      playerName: string;
+    }[]) {
+      expect(revealed.playerName.length).toBeGreaterThan(0);
+
+      const cell = cells[revealed.index];
+      const check = await answerRoute.POST(
+        post("/api/grid/answer", { cell, playerId: revealed.playerId }),
+      );
+      const checkBody = await check.json();
+      expect(checkBody.data).toEqual({ correct: true });
+    }
+  });
+
+  it("`used`'daki oyuncu örnek olarak dönmez", async () => {
+    const [rowQid, colQid] = await pairFor({ row: 0, column: 0 });
+    const ids = playersByPair.get(pairKey(rowQid, colQid));
+    const excluded = ids?.[0];
+    expect(excluded).toBeDefined();
+
+    const response = await revealRoute.POST(
+      post("/api/grid/reveal", {
+        cells: [{ row: 0, column: 0 }],
+        used: [excluded],
+      }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data[0].playerId).not.toBe(excluded);
+    // Dışlamaya rağmen hücrenin BAŞKA geçerli bir cevabı döner (havuzda 6 var).
+    expect(ids).toContain(body.data[0].playerId);
+  });
+
+  it("yanıt önbelleklenMEZ", async () => {
+    const response = await revealRoute.POST(
+      post("/api/grid/reveal", { cells: [{ row: 0, column: 0 }], used: [] }),
+    );
+
+    expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it.each([
+    ["hücre yok", { used: [] }],
+    ["boş hücre listesi", { cells: [], used: [] }],
+    ["aralık dışı hücre", { cells: [{ row: 9, column: 0 }], used: [] }],
+    [
+      "geçersiz used kimliği",
+      { cells: [{ row: 0, column: 0 }], used: ["a b"] },
+    ],
+    ["gövde dizi", []],
+  ])("geçersiz gövde (%s) → 400", async (_label, body) => {
+    const response = await revealRoute.POST(post("/api/grid/reveal", body));
+
+    expect(response.status).toBe(400);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+
+  /** İstemci bu uçtan başka bir eylem çağıramaz: `action` sunucuda sabitlenir. */
+  it("action alanı istemciden geçmez", async () => {
+    const response = await revealRoute.POST(
+      post("/api/grid/reveal", {
+        action: "daily",
+        cells: [{ row: 0, column: 0 }],
+        used: [],
+      }),
+    );
+
+    expect(response.status).toBe(200);
+  });
+});
+
+describe("POST /api/grid/custom-reveal — BR-66", () => {
+  const [first, second] = clubQids;
+  const refOf = (qid: string) => ({ kind: "club", id: clubIdOf(qid) });
+
+  it("boş hücre için, custom-answer'a sorulunca DOĞRU olan örnek döner", async () => {
+    const response = await customRevealRoute.POST(
+      post("/api/grid/custom-reveal", {
+        cells: [{ row: refOf(first ?? ""), column: refOf(second ?? "") }],
+        used: [],
+      }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data[0].index).toBe(0);
+
+    const check = await customAnswerRoute.POST(
+      post("/api/grid/custom-answer", {
+        row: refOf(first ?? ""),
+        column: refOf(second ?? ""),
+        playerId: body.data[0].playerId,
+      }),
+    );
+    const checkBody = await check.json();
+    expect(checkBody.data).toEqual({ correct: true });
+  });
+
+  it("satır ve sütun aynı ölçütse 400 döner", async () => {
+    const response = await customRevealRoute.POST(
+      post("/api/grid/custom-reveal", {
+        cells: [{ row: refOf(first ?? ""), column: refOf(first ?? "") }],
+        used: [],
+      }),
+    );
+
+    expect(response.status).toBe(400);
+  });
+
+  it("bilinmeyen kulüp 400 döner", async () => {
+    const response = await customRevealRoute.POST(
+      post("/api/grid/custom-reveal", {
+        cells: [
+          {
+            row: { kind: "club", id: "yokboylebirkulup" },
+            column: refOf(second ?? ""),
+          },
+        ],
+        used: [],
+      }),
+    );
+
+    expect(response.status).toBe(400);
+  });
+
+  it("yanıt paylaşılan önbelleğe girmez", async () => {
+    const response = await customRevealRoute.POST(
+      post("/api/grid/custom-reveal", {
+        cells: [{ row: refOf(first ?? ""), column: refOf(second ?? "") }],
+        used: [],
+      }),
+    );
+
+    expect(response.headers.get("cache-control")).toBe("no-store");
   });
 });

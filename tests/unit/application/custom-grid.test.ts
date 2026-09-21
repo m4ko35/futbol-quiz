@@ -3,6 +3,7 @@ import type { GridDeps } from "@/application/game-modes/grid/generate";
 import {
   checkCustomAnswer,
   listPlayableCriteria,
+  revealCustomGrid,
   type CriterionRef,
 } from "@/application/use-cases/custom-grid";
 import { ValidationError } from "@/domain/errors/domain-error";
@@ -167,6 +168,123 @@ describe("checkCustomAnswer — BR-26", () => {
     ).rejects.toBeInstanceOf(ValidationError);
   });
 });
+
+describe("revealCustomGrid — BR-66", () => {
+  it("boş hücreye iki ölçütü de sağlayan örnek cevap döndürür", async () => {
+    const { deps, a, b, y } = revealFixture();
+
+    const revealed = await revealCustomGrid(
+      { cells: [{ row: ref(a), column: ref(b) }], used: [] },
+      deps,
+    );
+
+    expect(revealed).toHaveLength(1);
+    expect(revealed[0]?.index).toBe(0);
+    // A∩B oyuncusudur (fixture'da X ya da Y).
+    expect([y.x, y.y]).toContain(revealed[0]?.playerId);
+  });
+
+  it("aynı futbolcu iki hücrede belirmez — sıralı dışlama", async () => {
+    const { deps, a, b, c } = revealFixture();
+
+    const revealed = await revealCustomGrid(
+      {
+        cells: [
+          { row: ref(a), column: ref(b) },
+          { row: ref(a), column: ref(c) },
+        ],
+        used: [],
+      },
+      deps,
+    );
+
+    expect(revealed.map((one) => one.index)).toEqual([0, 1]);
+    // İki hücre farklı oyuncu almalı; ilk hücrede seçilen ikincide dışlanır.
+    expect(revealed[0]?.playerId).not.toBe(revealed[1]?.playerId);
+  });
+
+  it("`used`'daki oyuncu örnek olarak seçilmez", async () => {
+    const { deps, a, b, y } = revealFixture();
+
+    const revealed = await revealCustomGrid(
+      { cells: [{ row: ref(a), column: ref(b) }], used: [y.x] },
+      deps,
+    );
+
+    // X dışlandı → A∩B'nin diğer oyuncusu Y döner.
+    expect(revealed[0]?.playerId).toBe(y.y);
+  });
+
+  it("örneği kalmayan hücre sessizce atlanır", async () => {
+    const { deps, a, b, y } = revealFixture();
+
+    // A∩B'nin iki oyuncusu da dışlandı: uydurulacak cevap yok, hücre düşer.
+    const revealed = await revealCustomGrid(
+      { cells: [{ row: ref(a), column: ref(b) }], used: [y.x, y.y] },
+      deps,
+    );
+
+    expect(revealed).toEqual([]);
+  });
+
+  it("satır ve sütun aynı ölçütse reddedilir", async () => {
+    const { deps, a } = revealFixture();
+
+    await expect(
+      revealCustomGrid(
+        { cells: [{ row: ref(a), column: ref(a) }], used: [] },
+        deps,
+      ),
+    ).rejects.toBeInstanceOf(ValidationError);
+  });
+});
+
+/**
+ * "Pes et" için küçük küme: A, B, C kulüpleri ve birden çok kulüpte oynamış
+ * oyuncular — sıralı dışlamanın (BR-10 hissi) sınanabilmesi için X üç kulüpte.
+ */
+function revealFixture(): {
+  deps: GridDeps;
+  a: string;
+  b: string;
+  c: string;
+  y: { x: string; y: string; z: string };
+} {
+  const a = "kulup-a";
+  const b = "kulup-b";
+  const c = "kulup-c";
+
+  const clubs = [
+    aClub({ id: clubId(a), shortName: "A" }),
+    aClub({ id: clubId(b), shortName: "B" }),
+    aClub({ id: clubId(c), shortName: "C" }),
+  ];
+
+  const spellsAt = (pid: string, ids: readonly string[]) =>
+    ids.map((id) => aSpell({ playerId: playerId(pid), clubId: clubId(id) }));
+
+  // Aday SIRASI önemli: fake, sıradaki İLK uygun oyuncuyu döndürür.
+  const x = aPlayer({ name: "X" });
+  const y = aPlayer({ name: "Y" });
+  const z = aPlayer({ name: "Z" });
+
+  const candidates: PlayerSpells[] = [
+    { player: x, spells: spellsAt(x.id, [a, b, c]) },
+    { player: y, spells: spellsAt(y.id, [a, b]) },
+    { player: z, spells: spellsAt(z.id, [a, c]) },
+  ];
+
+  return {
+    deps: {
+      clubs: new FakeClubRepository(clubs),
+      players: new FakePlayerRepository(candidates),
+    },
+    a,
+    b,
+    c,
+    y: { x: x.id, y: y.id, z: z.id },
+  };
+}
 
 /**
  * Bandın ALTINDA kalan bir kulüp içeren küçük küme.

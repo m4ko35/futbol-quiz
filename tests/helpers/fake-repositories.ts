@@ -249,6 +249,35 @@ export class FakePlayerRepository implements PlayerRepository {
   }
 
   /**
+   * BR-66 — bir hücrenin örnek cevabı.
+   *
+   * Gerçek depo `careerAppearances`'a göre sıralar; fake'te o alan yok, bu
+   * yüzden VERİLEN SIRADAKİ ilk uygun aday döner. Sözleşmenin ortak yanı test
+   * için yeterli: kriterlerin hepsini sağlayan ve `exclude` dışında bir oyuncu.
+   */
+  findExampleMatching(
+    criteria: readonly GridCriterion[],
+    exclude: ReadonlySet<string>,
+  ): Promise<Player | undefined> {
+    if (criteria.length === 0) return Promise.resolve(undefined);
+
+    const matches = (candidate: PlayerSpells) =>
+      criteria.every((criterion) =>
+        criterion.type === "club"
+          ? candidate.spells.some(
+              (spell) => spell.clubId === criterion.clubId && !spell.isYouth,
+            )
+          : candidate.player.nationality === criterion.code,
+      );
+
+    const found = this.#candidates.find(
+      (candidate) => !exclude.has(candidate.player.id) && matches(candidate),
+    );
+
+    return Promise.resolve(found?.player);
+  }
+
+  /**
    * BR-25 — bir eksene konabilecek ölçütler.
    *
    * Gerçek depo bandı SQL'de uyguluyor; burada aynı kural domain

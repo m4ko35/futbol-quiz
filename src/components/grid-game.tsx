@@ -5,6 +5,7 @@ import type { PlayerDto } from "@/application/dto/player-dto";
 import type {
   GridCriterionDto,
   GridRoundDto,
+  RevealedCellDto,
 } from "@/application/use-cases/daily-grid";
 import {
   cellKey,
@@ -88,6 +89,14 @@ export interface GridGameProps {
   checkAnswer(cell: CellRef, playerId: string): Promise<boolean>;
   /** Oyuncu arama; testlerde sahte bir uygulama verilir. */
   searchPlayers(term: string, signal: AbortSignal): Promise<PlayerDto[]>;
+  /**
+   * "Pes et → Cevapları gör" (BR-66): boş hücreler için örnek cevap ister.
+   *
+   * İSTEĞE BAĞLI — verilmezse "Pes et" düğmesi çıkmaz. `cells` boş hücrelerin
+   * sırasıdır; yanıttaki `index` bu sıraya karşılık gelir. `used`, aynı
+   * futbolcunun iki hücrede belirmemesi için kullanıcının kendi cevaplarıdır.
+   */
+  reveal?(cells: CellRef[], used: string[]): Promise<RevealedCellDto[]>;
 }
 
 /**
@@ -114,6 +123,7 @@ export function GridGame({
   onRestart,
   checkAnswer,
   searchPlayers,
+  reveal,
 }: GridGameProps) {
   const raw = useSyncExternalStore(
     subscribeToSavedGame,
@@ -137,6 +147,7 @@ export function GridGame({
 
   const [openCell, setOpenCell] = useState<CellRef | null>(null);
   const [isChecking, setIsChecking] = useState(false);
+  const [isRevealing, setIsRevealing] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   const [shareStatus, setShareStatus] = useState<string | null>(null);
 
@@ -175,6 +186,83 @@ export function GridGame({
     if (date === undefined) setLocal(emptyGame(""));
     else writeSavedGame(emptyGame(date));
   }, [date]);
+
+  /**
+   * PES ET → CEVAPLARI GÖR (BR-66).
+   *
+   * Boş hücreler için sunucudan örnek cevap ister ve oyunu bitirir. Açığa çıkan
+   * hücre `revealed` durumunu alır — `correct` DEĞİL: kullanıcı bulmadı,
+   * gösterildi (§5.2). Oyunu bitirmek için harcanmayan haklar tüketilmiş sayılır
+   * (`guessesUsed = guesses`); "pes etmek = kalan hakları bırakmaktır".
+   *
+   * `used`, kullanıcının kendi yerleştirdikleridir: aynı futbolcu hem cevapta
+   * hem örnekte görünmesin (BR-10 hissi). Sunucu örnekleri birbirinden de ayrı
+   * tutar.
+   */
+  const giveUp = useCallback(async (): Promise<void> => {
+    if (reveal === undefined) return;
+    if (
+      !window.confirm(
+        "Pes edilsin mi? Boş hücrelerin örnek cevapları gösterilecek ve oyun bitecek.",
+      )
+    ) {
+      return;
+    }
+
+    // Boş hücreler — sıra, yanıttaki `index` ile birebir eşleşir.
+    const unsolved: CellRef[] = [];
+    for (let r = 0; r < size; r += 1) {
+      for (let c = 0; c < size; c += 1) {
+        if (state.cells[cellKey({ row: r, column: c })] === undefined) {
+          unsolved.push({ row: r, column: c });
+        }
+      }
+    }
+    if (unsolved.length === 0) return;
+
+    const used = Object.values(state.cells).map((cell) => cell.playerId);
+
+    setOpenCell(null);
+    setFailure(null);
+    setShareStatus(null);
+    setIsRevealing(true);
+
+    try {
+      const cells = await reveal(unsolved, used);
+
+      const filled: Record<string, CellState> = {};
+      for (const one of cells) {
+        const target = unsolved[one.index];
+        if (target === undefined) continue;
+        filled[cellKey(target)] = {
+          status: "revealed",
+          playerId: one.playerId,
+          playerName: one.playerName,
+        };
+      }
+
+      if (date === undefined) {
+        setLocal((current) => ({
+          date: "",
+          cells: { ...current.cells, ...filled },
+          guessesUsed: guesses,
+        }));
+        return;
+      }
+
+      // Güncel durum YAZMA ANINDA depodan okunur — `submit`'teki aynı gerekçe.
+      const current = parseSavedGame(readSavedGame(), date) ?? emptyGame(date);
+      writeSavedGame({
+        date: current.date,
+        cells: { ...current.cells, ...filled },
+        guessesUsed: guesses,
+      });
+    } catch {
+      setFailure("Cevaplar getirilemedi. Lütfen tekrar deneyin.");
+    } finally {
+      setIsRevealing(false);
+    }
+  }, [reveal, size, state, date, guesses]);
 
   /**
    * Paylaşılacak metin — Wordle tarzı emoji ızgara + skor + bağlantı.
@@ -450,7 +538,10 @@ export function GridGame({
                         answer={answer}
                         isOpen={isOpen}
                         disabled={
-                          finished || isChecking || answer !== undefined
+                          finished ||
+                          isChecking ||
+                          isRevealing ||
+                          answer !== undefined
                         }
                         label={`${row.label} ve ${column.label}`}
                         onOpen={() => {
@@ -508,6 +599,12 @@ export function GridGame({
         </p>
       )}
 
+      {isRevealing && (
+        <p className="text-sm text-muted" aria-live="polite">
+          Cevaplar getiriliyor…
+        </p>
+      )}
+
       {failure !== null && (
         <p
           role="alert"
@@ -541,12 +638,26 @@ export function GridGame({
       )}
 
       {/*
-        İŞLEM ÇUBUĞU — Temizle (ilerleme varsa) ve Skoru paylaş (oyun bitince).
-        "Cevapları gör" (pes et) sunucunun cevabı hesaplamasını gerektiriyor;
-        ayrı bir adımda gelecek.
+        İŞLEM ÇUBUĞU — Pes et + Temizle (oyun sürerken) ve Skoru paylaş (bitince).
+        "Pes et" boş hücrelerin örnek cevaplarını gösterir ve oyunu bitirir
+        (BR-66); yalnızca `reveal` verildiğinde ve oyun sürerken görünür.
       */}
-      {(answers.length > 0 || finished) && (
+      {(answers.length > 0 ||
+        finished ||
+        (reveal !== undefined && !finished)) && (
         <div className="flex flex-wrap items-center gap-3">
+          {reveal !== undefined && !finished && (
+            <Button
+              variant="outline"
+              size="md"
+              disabled={isRevealing || isChecking}
+              onClick={() => {
+                void giveUp();
+              }}
+            >
+              Pes et
+            </Button>
+          )}
           {answers.length > 0 && (
             <Button variant="outline" size="md" onClick={clear}>
               Temizle
@@ -687,6 +798,23 @@ interface CellProps {
  */
 function Cell({ answer, isOpen, disabled, label, onOpen }: CellProps) {
   if (answer !== undefined) {
+    // AÇIĞA ÇIKAN HÜCRE (BR-66): ne doğru ne yanlış — gösterilen örnek cevap.
+    // Nötr ton (yeşil/kırmızı değil); kullanıcının bulduğu bir doğru gibi
+    // görünmesin. Durum metinle de belli ("Cevap" + sr-only), renkle değil.
+    if (answer.status === "revealed") {
+      return (
+        <div className="flex h-24 flex-col items-center justify-center gap-1 rounded-xl border-2 border-line-strong bg-surface px-2 text-center text-sm sm:h-28">
+          <DataLabel className="text-muted">Cevap</DataLabel>
+          <span className="font-display leading-tight font-bold tracking-tight text-balance text-muted">
+            {answer.playerName}
+          </span>
+          <span className="sr-only">
+            {label}: {answer.playerName} — cevap gösterildi
+          </span>
+        </div>
+      );
+    }
+
     const isCorrect = answer.status === "correct";
     return (
       <div

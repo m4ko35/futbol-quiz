@@ -19,6 +19,13 @@ export type CellState =
       readonly status: "wrong";
       readonly playerId: string;
       readonly playerName: string;
+    }
+  // "Pes et → Cevapları gör" ile açığa çıkan hücre (BR-66). Kullanıcının doğrusu
+  // (`correct`) DEĞİL, yanlış tahmini (`wrong`) de değil: gösterilen örnek cevap.
+  | {
+      readonly status: "revealed";
+      readonly playerId: string;
+      readonly playerName: string;
     };
 
 export interface GameState extends DailyRecord {
@@ -39,7 +46,9 @@ function isGameState(value: unknown): value is GameState {
   return Object.values(cells).every((cell) => {
     if (!isRecord(cell)) return false;
     return (
-      (cell["status"] === "correct" || cell["status"] === "wrong") &&
+      (cell["status"] === "correct" ||
+        cell["status"] === "wrong" ||
+        cell["status"] === "revealed") &&
       typeof cell["playerId"] === "string" &&
       typeof cell["playerName"] === "string"
     );

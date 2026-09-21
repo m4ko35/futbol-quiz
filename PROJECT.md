@@ -2031,6 +2031,49 @@ Beşi de 3×3 ızgara modunundur (§9.1). Üçü okuma, ikisi cevap doğrulama �
 
 **Geçersiz ölçüt `400` döner** ve sebebi gövdededir: bulunamayan/seçilemez kulüp, biçimsiz ülke kodu, ya da satır ile sütunun aynı ölçüt olması. Sessizce `correct:false` dönmek, kullanıcının kendi kurduğu ızgarada neden hep yanıldığını anlamamasına yol açardı.
 
+#### `POST /api/grid/reveal`
+
+"Pes et → Cevapları gör" — günün ızgarasında boş hücrelerin örnek cevapları (BR-66).
+
+| Alan             | Tip      | Zorunlu | Kural                                         |
+| ---------------- | -------- | ------- | --------------------------------------------- |
+| `cells`          | dizi     | evet    | 1–9 hücre; her biri `{row, column}` (0–2)     |
+| `cells[].row`    | int      | evet    | 0–2                                           |
+| `cells[].column` | int      | evet    | 0–2                                           |
+| `used`           | string[] | hayır   | En çok 9 geçerli kimlik; örneklerden dışlanır |
+
+```jsonc
+// 200 OK — ÖNBELLEKLENMEZ
+{
+  "data": [
+    { "index": 0, "playerId": "cms…", "playerName": "Rüştü Reçber" },
+    { "index": 2, "playerId": "cmt…", "playerName": "Alessandro Del Piero" },
+    // Örneği bulunamayan hücre (tüm cevapları `used`'da) LİSTEDE YOKTUR.
+  ],
+}
+```
+
+**`index` = istekteki hücrenin sırasıdır**, koordinatı değil: istemci gönderdiği `cells` dizisini biliyor, `index`'i kendi hücresine geri eşler. Sunucu koordinatı **kendi yeniden ürettiği** ızgaraya bakarak ölçüte çevirir (BR-11/BR-12 ile aynı: istemcinin ölçütüne güvenilmez).
+
+**NEDEN POST, `/api/grid/answer` ile aynı gerekçe.** Uç cevap döndürür; GET olsaydı cevaplar tarayıcı geçmişine, erişim loglarına ve paylaşılan önbelleğe URL olarak yazılırdı. `no-store`.
+
+**Cevap döndürmek sızıntı DEĞİL, tasarımdır (BR-66).** Sızıntı kuralı ızgaranın teslimini bağlar; bu uç kullanıcının pes ettikten sonra açıkça istediği eylemdir. Skor/sıralama olmadığı için bugün güvenli (§10.2).
+
+#### `POST /api/grid/custom-reveal`
+
+Kullanıcının kurduğu ızgarada boş hücrelerin örnek cevapları (BR-66, BR-26).
+
+| Alan                  | Tip      | Zorunlu | Kural                                          |
+| --------------------- | -------- | ------- | ---------------------------------------------- |
+| `cells`               | dizi     | evet    | 1–25 hücre; her biri `{row, column}` ref       |
+| `cells[].row.kind`    | string   | evet    | `club` ya da `nationality`                     |
+| `cells[].row.id`      | string   | evet    | Kulüp kimliği ya da alpha-2 ülke kodu          |
+| `cells[].column.kind` | string   | evet    | `club` ya da `nationality`                     |
+| `cells[].column.id`   | string   | evet    | Kulüp kimliği ya da alpha-2 ülke kodu          |
+| `used`                | string[] | hayır   | En çok 25 geçerli kimlik; örneklerden dışlanır |
+
+**NEDEN AYRI BİR UÇ**, `custom-answer` ile aynı gerekçe: burada ölçütler gövdeden gelir (BR-26), günlük ızgarada tohumdan üretilir. Koordinat GÖNDERİLMEZ; her hücre iki ölçütüyle taşınır. Yanıt `reveal` ile aynı şekildedir (`index` sıraya göre).
+
 #### `GET /api/players`
 
 | Parametre | Tip    | Zorunlu  | Kural                                  |
@@ -3969,6 +4012,7 @@ için yapıldı.
 - **BR-25 — Kullanıcı ızgarası KILAVUZLU kurulur.** "Sen kur" turunda satır adayları, seçilmiş üç sütunun **hepsiyle** BR-9 bandında kesişen ölçütlerle sınırlıdır; seçici yalnızca bunları gösterir. Serbest seçim ölçülerek elendi: rastgele altı kulübün %0,1'i geçerli ızgara veriyor (yukarıda).
 - **BR-26 — Kullanıcı ızgarasında ölçütler istemciden gelir.** Sunucu ölçütleri yeniden ÜRETMEZ, yalnızca **var olduklarını** doğrular (kulüp seçilebilir mi, ülke kodu tanınıyor mu) ve cevabı kimlikle denetler (BR-12). Bu kabul günlük ızgara için GEÇERSİZDİR: orada ızgara herkes için aynıdır ve tohumdan yeniden üretilir (BR-11).
 - **BR-27 — Kullanıcı ızgarasının boyutu seçilebilir.** "Sen kur" turunda boyut **2×2, 3×3, 4×4, 5×5** arasından seçilir; günlük ızgara **3×3 kalır** (BR-11 gereği herkes aynı ızgarayı görmeli). Diğer bütün kurallar boyuttan bağımsızdır: BR-9 bandı aynen uygulanır, BR-13'ün hak sayısı hücre sayısından türer, BR-25'in süzgeci seçilen **her** sütuna karşı çalışır.
+- **BR-66 — Pes eden kullanıcıya ÖRNEK cevaplar gösterilir.** _(§9.1 — UYGULANDI.)_ Kullanıcı "Pes et" derse boş kalan her hücreye, o hücrenin **iki ölçütünü birden** sağlayan bir örnek oyuncu yazılır ve oyun biter. Örnek **doğrulanmaz** — sunucu her hücre için en çok maç yapan uygun oyuncuyu döndürür (`search` ile aynı sıra, tanınır bir isim çıksın diye); eşitlikte sıra sabit (kimlik) ki iki çağrı aynı örneği versin. Örnekler **birbirinden ve kullanıcının kendi cevaplarından ayrıdır** (`used` dışlaması): aynı isim iki hücrede görünmez, BR-10'un hissi korunur. Açığa çıkan hücre **doğru sayılmaz**: skor yalnızca kullanıcının kendi bulduğu doğruları (`correct`) toplar, paylaşımda açığa çıkan hücre boş (⬜) durur. Uç (`/api/grid/reveal`, `/api/grid/custom-reveal`) cevap **döndürür** ve bu bilinçlidir: §9.1'in sızıntı kuralı ızgaranın _teslimini_ (GET) ve süzgeç listesini bağlar, kullanıcının pes ettikten sonra **açıkça istediği** bir eylemi değil. Şu an güvenli çünkü ızgarada skor/sıralama YOK (BR-13'ün aynı gerekçesi); §11'in skoru ızgaraya geldiğinde uç, sunucu tarafı "oyun bitti" durumunun arkasına alınmak ZORUNDA (§10.2).
 
 #### Seçici hedef hücreye kenetli (10 Ağustos 2026)
 
@@ -4001,6 +4045,16 @@ Depodan okunan veri **dış girdi** sayılır ve şekli denetlenmeden kullanılm
 #### Sızıntı kuralı
 
 Izgara yanıtı **cevapları taşımaz** — yalnızca kriterleri. Hücre başına kaç cevap olduğu da verilmez: sayı, tahmin alanını daraltan bir ipucudur ve oyunun bir parçası olarak sunulmadıkça sızıntıdır (§2.4).
+
+**Tek istisna kullanıcının açıkça istediği "Pes et"tir (BR-66).** `/api/grid/reveal` ve `/api/grid/custom-reveal` cevap döndürür; bu bir sızıntı değil, pes eden kullanıcıya **örnek cevap** sunmaktır. Kural ızgaranın _teslimini_ (GET `/api/grid`, `/api/grid/criteria`) bağlar — orada cevap da, cevap sayısı da çıkmaz. Reveal ucu bugün güvenli çünkü ızgarada skor/sıralama YOK; §11'in skoru geldiğinde uç, sunucu tarafı "oyun bitti" durumunun arkasına alınmalı (§10.2, BR-66).
+
+#### Pes et → Cevapları gör
+
+Kullanıcı bir hücreyi bilemeyip tıkanabiliyordu ve tek çıkışı hakları yanlış tahminlerle harcamaktı. **"Pes et"** boş kalan her hücreye bir örnek doğru cevap yazar ve oyunu bitirir (BR-66).
+
+Örnek cevap **doğrulanmaz** çünkü doğrulanacak bir şey yok: sunucu hücrenin iki ölçütünü de sağlayan gerçek bir oyuncu döndürür. Sıra `search` ile aynı — en çok maç yapan önce — ki gösterilen isim tanınır olsun; eşitlikte kimlik sıralar, yoksa aynı hücre iki çağrıda iki farklı örnek verirdi. Örnekler `used` (kullanıcının kendi yerleştirdikleri) ve o pasta seçilmişlerle **çakışmaz**: aynı futbolcu iki hücrede belirmez.
+
+Açığa çıkan hücre **"doğru" sayılmaz** ve bu bir dürüstlük kararıdır (§5.2): kullanıcı o cevabı bulmadı, gösterildi. Künye tabelasındaki "Doğru" sayacı yalnızca kullanıcının kendi bulduklarını sayar; Wordle tarzı paylaşımda açığa çıkan hücre yeşil değil **boş** (⬜) durur. Hücrenin durumu depoda ayrı bir tür taşır (`revealed`) — `correct`/`wrong`'dan ayrı, çünkü ne kullanıcının doğrusu ne de yanlış tahminidir.
 
 ### 9.2 İstatistik Eşleştirme
 
