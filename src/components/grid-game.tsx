@@ -31,6 +31,7 @@ import {
 } from "@/lib/grid-storage";
 import { formatTurkishIsoDate } from "@/lib/format-date";
 import { DataLabel } from "./data-label";
+import { CriterionIcon, MatrixIcon } from "./grid-icons";
 import { ModeHeader } from "./mode-header";
 import { PlayerPicker } from "./player-picker";
 import { Button } from "./ui/button";
@@ -775,27 +776,6 @@ function ShieldIcon({ filled }: { readonly filled: boolean }) {
   );
 }
 
-/** Izgara kimliği ikonu — 2×2 kare (matris). Süsleme (§7.12). */
-function MatrixIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      focusable="false"
-      className="h-4 w-4 text-muted"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinejoin="round"
-    >
-      <rect x="3" y="3" width="7" height="7" rx="1" />
-      <rect x="14" y="3" width="7" height="7" rx="1" />
-      <rect x="3" y="14" width="7" height="7" rx="1" />
-      <rect x="14" y="14" width="7" height="7" rx="1" />
-    </svg>
-  );
-}
-
 /**
  * Paylaş önizlemesi — hücre durumlarının renkli kare ızgarası.
  *
@@ -856,32 +836,6 @@ function CriterionLabel({
         {criterion.kind === "club" ? "kulüp" : "uyruk"}
       </DataLabel>
     </span>
-  );
-}
-
-/** Ölçüt türü rozeti — kulüp için kalkan, uyruk için flama. Süsleme (§7.12). */
-function CriterionIcon({ kind }: { readonly kind: GridCriterionDto["kind"] }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      focusable="false"
-      className="h-4 w-4 text-muted"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      {kind === "club" ? (
-        <path d="M12 3 5 6v5c0 4 3 6.9 7 8 4-1.1 7-4 7-8V6l-7-3Z" />
-      ) : (
-        <>
-          <path d="M6 21V4" />
-          <path d="M6 4h11l-2.4 3.4L17 11H6" />
-        </>
-      )}
-    </svg>
   );
 }
 

@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { GridCriterionRefDto } from "@/application/use-cases/custom-grid";
 import { DataLabel } from "./data-label";
+import { CriterionIcon } from "./grid-icons";
 
 /**
  * Ölçüt seçici — "Sen kur" ızgarasında bir eksene kulüp ya da ülke koymak için
@@ -207,8 +208,16 @@ export function CriterionPicker({
               setActiveIndex(index);
             }}
           >
-            <span className="font-display font-bold tracking-tight">
-              {option.label}
+            <span className="flex min-w-0 items-center gap-2">
+              {/* Ölçüt türü ikonu — günün ızgarasıyla aynı dil (kalkan/flama);
+                  tür zaten sağdaki DataLabel'da da yazılı, ikon `aria-hidden`. */}
+              <CriterionIcon
+                kind={option.kind}
+                className="h-4 w-4 shrink-0 text-muted"
+              />
+              <span className="font-display truncate font-bold tracking-tight">
+                {option.label}
+              </span>
             </span>
             <DataLabel className="shrink-0 text-muted">
               {option.kind === "club" ? "kulüp" : "uyruk"}

@@ -4038,6 +4038,25 @@ Köşe **başlık değildir** (`td`, `th` değil): satır ya da sütun tanımlam
 (`n×n ızgara`) yazılı. Bir test köşenin başlık sayılmadığını doğruluyor —
 `th`'ye dönerse ekran okuyucu ızgarada dört sütun başlığı sayardı.
 
+#### "Sen kur" kurucusu ızgarayı GÖSTERİR
+
+Kurucu eskiden iki düz yuva listesiydi (sütunlar, satırlar). Şimdi günün
+ızgarasıyla aynı **matris iskeleti**: üst satır sütun yuvaları, sol sütun satır
+yuvaları, köşe `n×n` kimliği; iç hücreler ise cevapların geleceği yeri gösteren
+soluk yer tutucular. Kullanıcı ne kurduğunu bir bakışta görüyor ve kurunca aynı
+düzene oynamaya geçiyor. Boyut, tema seçicisiyle aynı **segment denetimi**;
+seçili yuva günün ızgarasının başlık hücresiyle aynı dili konuşur (ölçüt ikonu +
+condensed ad + tür etiketi). Ölçüt tür ikonu — kulüp kalkanı, uyruk flaması —
+günün ızgarası, kurucu ve ölçüt seçicisi için **tek kaynaktan** gelir
+(`grid-icons`, §7.12).
+
+**GERÇEK `<table>` DEĞİL, CSS ızgara.** Günün ızgarası bir tablodur çünkü orada
+hücrenin anlamı satır × sütun kesişimidir (gerçek tablosal veri). Kurucuda ise
+tablosal veri yok, bir **form** var (ölçüt seçimi); tabloya çevirmek "düzen
+tablosu" olurdu. İç hücreler `aria-hidden` ve tıklanamaz: bu ekran ızgarayı
+**kurar**, oynatmaz. Yön bilgisi her yuvanın erişilebilir adında (`1. sütun için
+kulüp seçin`).
+
 #### BR-10 şu an yalnızca istemcide zorlanıyor
 
 Sunucu, bir ızgarada hangi oyuncuların kullanıldığını **bilmez**: oturum yok, sunucu tarafı oyun durumu yok. Kullanılmış oyuncular seçici listesinden gizlenir, ama bunu aşmak mümkündür.

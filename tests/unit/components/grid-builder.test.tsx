@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { UserEvent } from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -132,6 +138,18 @@ describe("GridBuilder — §9.1", () => {
     await user.click(screen.getAllByRole("button", { name: /Kaldır/u })[0]!);
 
     expect(screen.queryByText("Galatasaray")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Stitch dili: kurucu artık matris iskeleti gösteriyor; köşe ızgaranın
+   * BOYUTUNU (kimlik) taşıyor — günün ızgarasıyla aynı.
+   */
+  it("matris köşesi ızgaranın boyutunu gösterir", () => {
+    setup();
+
+    const matrix = screen.getByRole("group", { name: "Izgara ölçütleri" });
+    // "3×3" boyut segmentinde de var; matris içinde arayarak köşeyi hedefliyoruz.
+    expect(within(matrix).getByText("3×3")).toBeInTheDocument();
   });
 
   it("altı ölçüt seçilince ızgara kurulur", async () => {
