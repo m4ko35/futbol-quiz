@@ -774,6 +774,50 @@ describe("saklanmayan ızgara — §9.1", () => {
   }, 20_000);
 });
 
+describe("GridGame — durum bandı ve köşe kimliği (arayüz yenileme)", () => {
+  it("durum bandı Doğru ve Hak sayaçlarını taşır", () => {
+    setup();
+
+    const band = screen.getByRole("group", { name: "Izgara durumu" });
+    expect(within(band).getByText("Doğru")).toBeInTheDocument();
+    expect(within(band).getByText("Hak")).toBeInTheDocument();
+    // Ekran okuyucuya TEK özet: eski birleşik biçim korunur (aria-live).
+    expect(
+      within(band).getByText(/0\/9 doğru · 9 hak kaldı/u),
+    ).toBeInTheDocument();
+  });
+
+  it("sol üst köşe ızgaranın BOYUTUNU (kimlik) gösterir, ilerlemeyi değil", () => {
+    setup();
+
+    expect(screen.getByText("3×3")).toBeInTheDocument();
+    expect(screen.getByText("matris")).toBeInTheDocument();
+  });
+
+  it("künye sağ ucundaki hızlı eylemleri basar", () => {
+    render(
+      <GridGame
+        grid={GRID}
+        date={GRID.date}
+        header={{
+          title: "Günün Izgarası",
+          actions: <a href="#sen-kur">Sen kur</a>,
+        }}
+        checkAnswer={vi.fn().mockResolvedValue(true)}
+        searchPlayers={vi.fn().mockResolvedValue([PLAYER])}
+      />,
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Günün Izgarası" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Sen kur" })).toHaveAttribute(
+      "href",
+      "#sen-kur",
+    );
+  });
+});
+
 /** BR-27 — oyun bileşeni boyutu IZGARADAN okur, sabitten değil. */
 describe("boyut (BR-27)", () => {
   function bigGrid(size: number) {

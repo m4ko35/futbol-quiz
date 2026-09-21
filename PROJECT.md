@@ -3279,16 +3279,18 @@ Bu yüzden künye **sunucu sayfasında değil, mod bileşeninin içinde** duruyo
 
 #### Dört modun tabelası
 
-| Mod            | Boş durum                     | Canlı                          | Vurgu (`lit`)         |
-| -------------- | ----------------------------- | ------------------------------ | --------------------- |
-| Ortak Oyuncu   | tabela yok (ölçek şeritte)    | `Ortak oyuncu · Dönem`         | Sonuç boş değilse     |
-| Günün Izgarası | `Doğru 0/9 · Hak 9`           | aynı hücreler, sayılar akar    | Oyun bittiğinde       |
-| Günün Oyuncusu | `Cevaplanan 0/6 · Ortalama —` | `Cevaplanan n/6 · Ortalama %n` | Tur tamamlanınca      |
-| Hangisi Daha   | tabela yok (kurulum)          | `Seri n`                       | Seri sıfırdan büyükse |
+| Mod            | Boş durum                     | Canlı                                    | Vurgu (`lit`)         |
+| -------------- | ----------------------------- | ---------------------------------------- | --------------------- |
+| Ortak Oyuncu   | tabela yok (ölçek şeritte)    | `Ortak oyuncu · Dönem`                   | Sonuç boş değilse     |
+| Günün Izgarası | **durum bandı** (aşağıda)     | `Doğru n/9` + çubuk, `Hak n` + kalkanlar | Oyun bittiğinde       |
+| Günün Oyuncusu | `Cevaplanan 0/6 · Ortalama —` | `Cevaplanan n/6 · Ortalama %n`           | Tur tamamlanınca      |
+| Hangisi Daha   | tabela yok (kurulum)          | `Seri n`                                 | Seri sıfırdan büyükse |
 
 Renk **sonuç dilinden** geliyor (§7.12): ızgarada doğru hücre sayısı `correct`, kalan hak azaldıkça `warn` ve bittiğinde `wrong`; istatistikte ortalama BR-18'in puan bandına göre. Hepsinde renk yalnızca destekleyici — sayı zaten yazılı (WCAG 1.4.1).
 
 **Sayaçlar `aria-live` içinde kaldı.** Künyeye taşınmak, sayının değişmesini yalnızca görsel bir olaya çevirmemeli; her modda tabelayı saran bir `aria-live="polite"` var.
+
+**IZGARADA TABELA AYRI BİR DURUM BANDINA DÖNDÜ (§9.1).** Diğer üç mod sayaçları künyenin sağ ucunda taşır; ızgara ise künyenin ALTINDA, tablonun ÜSTÜNDE iki hücreli belirgin bir bant kullanır — `Doğru n/9` bir tamamlanma çubuğuyla, `Hak n` kalan hakları gösteren kalkanlarla. Neden ayrı: ızgarada durum iki BOYUTLU (hangi hücreler çözüldü + kaç hak kaldı) ve tek satırlık bir sayaç bunu taşıyamıyordu; bant hem daha okunur hem de sol üst köşeyi ilerleme işaretlerinden kurtarıp ızgaranın KİMLİĞİNE (n×n) bıraktı. Sayılar ekran okuyucuya bandın içindeki tek bir `aria-live` özetiyle bildirilir; görünen çubuk/kalkanlar `aria-hidden` (renk tek gösterge değil, sayı yazılı — WCAG 1.4.1).
 
 #### Künye oyun bileşeninin İÇİNDE, sayfada değil
 
@@ -4022,11 +4024,19 @@ Oyuncu seçici tablonun **tamamından sonra** basılıyordu. Sol üst hücreye t
 
 Konum bir testle tutuluyor — seçici, tıklanan hücrenin `td`'sinin içinde mi? Sınıf adına değil **yapıya** bakıyor; sayfa dibine geri taşıyan bir değişiklik kırmızıya döner.
 
-#### Sol üst köşe artık ölü alan değil
+#### Sol üst köşe: ilerleme işaretinden IZGARA KİMLİĞİNE
 
-Köşe hücresi boştu. Şimdi kalan hakkı **sayıyla değil işaretlerle** taşıyor: her hak bir kare, harcanan kareler dolu. Sayı zaten künye tabelasında yazılı (§7.15) ve ikinci kez basmak bilgi eklemezdi; işaret sırası ise sayının vermediğini veriyor — harcanan ve kalan hak, okumadan sayılabilecek bir biçimde.
+Köşe hücresi bir süre boştu, sonra kalan hakkı işaretlerle taşıdı. İlerleme
+artık künyenin altındaki **durum bandına** taşındığı için (§7.15) — orada hem
+tamamlanma çubuğu hem kalan-hak kalkanları var — köşedeki işaretler o bilgiyi
+İKİNCİ kez basıyordu. Köşe şimdi ızgaranın **kimliğini** taşıyor: `n×n` boyutu
+ve "matris" etiketi. Bir bilgi eklemiyor, ama ölü de değil — Stitch tasarımının
+köşedeki "3×3 matris" işaretinin karşılığı.
 
-Köşe **başlık değildir** (`td`, `th` değil): satır ya da sütun tanımlamıyor, `scope` almıyor. İşaretler `aria-hidden`, çünkü aynı bilgi tabelada ve alttaki metinde zaten var. Bir test köşenin başlık sayılmadığını doğruluyor — `th`'ye dönerse ekran okuyucu ızgarada dört sütun başlığı sayardı.
+Köşe **başlık değildir** (`td`, `th` değil): satır ya da sütun tanımlamıyor,
+`scope` almıyor. İçeriği `aria-hidden`, çünkü boyut zaten tablonun `caption`'ında
+(`n×n ızgara`) yazılı. Bir test köşenin başlık sayılmadığını doğruluyor —
+`th`'ye dönerse ekran okuyucu ızgarada dört sütun başlığı sayardı.
 
 #### BR-10 şu an yalnızca istemcide zorlanıyor
 

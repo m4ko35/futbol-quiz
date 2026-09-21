@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import type { PlayerDto } from "@/application/dto/player-dto";
 import type {
   GridCriterionDto,
@@ -25,7 +31,7 @@ import {
 } from "@/lib/grid-storage";
 import { formatTurkishIsoDate } from "@/lib/format-date";
 import { DataLabel } from "./data-label";
-import { ModeHeader, Scoreboard } from "./mode-header";
+import { ModeHeader } from "./mode-header";
 import { PlayerPicker } from "./player-picker";
 import { Button } from "./ui/button";
 
@@ -82,7 +88,12 @@ export interface GridGameProps {
    * bileşeni kullanıyor ve sayfada ikinci bir `h1` OLAMAZ; o tur kendi
    * satır içi sayacını korur.
    */
-  readonly header?: { readonly eyebrow?: string; readonly title: string };
+  readonly header?: {
+    readonly eyebrow?: string;
+    readonly title: string;
+    /** Künyenin sağ ucundaki hızlı eylemler — "Sen kur" / "Nasıl oynanır". */
+    readonly actions?: ReactNode;
+  };
   /** Oyun bitince yeni ızgara kurmak için — yalnızca "Sen kur" turunda. */
   onRestart?: () => void;
   /** Cevap doğrulama; testlerde sahte bir uygulama verilir. */
@@ -369,56 +380,34 @@ export function GridGame({
     </>
   );
 
-  /*
-    SAYAÇLAR EKRAN OKUYUCUYA DA BİLDİRİLİR. Sayıların değişmesi yalnızca görsel
-    bir olay olamaz; `aria-live` sarmalayıcı iki dalda da korunuyor.
-
-    "Doğru" hücre sayısı SONUÇ dilinde (`correct`), kalan hak ise azaldıkça
-    uyarıya dönüyor: son iki hakta `warn`, hak bittiğinde `wrong`. Renk tek
-    gösterge değil — sayı zaten yazılı (WCAG 1.4.1).
-  */
-  const scoreboard = (
-    <Scoreboard
-      label="Izgara durumu"
-      lit={finished}
-      cells={[
-        {
-          label: "Doğru",
-          value: `${String(solvedCells)}/${String(size * size)}`,
-          tone: solvedCells > 0 ? "correct" : undefined,
-        },
-        {
-          label: "Hak",
-          value: String(remaining),
-          tone: remaining === 0 ? "wrong" : remaining <= 2 ? "warn" : undefined,
-        },
-      ]}
-    />
-  );
-
   return (
     <div className="flex flex-col gap-6">
-      {header === undefined ? (
-        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-          <p className="max-w-prose text-sm text-muted">{task}</p>
-          <p
-            className="rounded-full border border-line bg-surface px-3 py-1.5 text-sm font-semibold tabular-nums shadow-card"
-            aria-live="polite"
-          >
-            {String(solvedCells)}/{String(guesses)} doğru · {String(remaining)}{" "}
-            hak kaldı
-          </p>
-        </div>
+      {header !== undefined ? (
+        <ModeHeader
+          eyebrow={header.eyebrow}
+          title={header.title}
+          task={task}
+          actions={header.actions}
+        />
       ) : (
-        <div aria-live="polite">
-          <ModeHeader
-            eyebrow={header.eyebrow}
-            title={header.title}
-            task={task}
-            scoreboard={scoreboard}
-          />
-        </div>
+        <p className="max-w-prose text-sm text-muted">{task}</p>
       )}
+
+      {/*
+        DURUM BANDI (§7.15) — künyenin ALTINDA, tablonun ÜSTÜNDE. Sayaçlar
+        eskiden künyenin sağ ucundaydı; ızgarada durum iki boyutlu (hangi
+        hücreler çözüldü + kaç hak kaldı) ve tek satırlık bir sayaç bunu
+        taşıyamıyordu. Ekran okuyucuya tek bir `aria-live` özetiyle bildirilir;
+        görünen çubuk/kalkanlar `aria-hidden` — renk tek gösterge değil, sayı
+        yazılı (WCAG 1.4.1).
+      */}
+      <GridStatusBand
+        size={size}
+        solvedCells={solvedCells}
+        guesses={guesses}
+        remaining={remaining}
+        finished={finished}
+      />
 
       {/*
         NEDEN GERÇEK BİR TABLO. Izgara semantik olarak bir tablodur: bir hücrenin
@@ -446,45 +435,27 @@ export function GridGame({
           <thead>
             <tr>
               {/*
-                SOL ÜST KÖŞE ARTIK ÖLÜ ALAN DEĞİL.
+                SOL ÜST KÖŞE: ILERLEME DEĞİL, IZGARA KİMLİĞİ (§9.1).
 
                 Bir başlık DEĞİL (`td`, `th` değil): satır ya da sütun
                 tanımlamıyor, o yüzden `scope` da almıyor.
 
-                Kalan hak burada SAYIYLA DEĞİL İŞARETLERLE duruyor. Sayı zaten
-                künye tabelasında yazılı; onu ikinci kez basmak bilgi eklemez.
-                İşaret sırası ise sayının vermediğini veriyor: harcanan ve
-                kalan hak, bakmadan sayılabilecek bir biçimde. Kendisi süsleme
-                olduğu için `aria-hidden` — bilgi tabeladaki sayıda ve
-                aşağıdaki metinde zaten var.
+                İlerleme (tamamlanma + kalan hak) artık künyenin altındaki
+                DURUM BANDINDA (§7.15). Köşe onu ikinci kez basmak yerine
+                ızgaranın boyutunu (`n×n`) taşıyor — Stitch'in köşedeki "3×3
+                matris" işaretinin karşılığı. `aria-hidden`: boyut zaten
+                tablonun `caption`'ında yazılı.
               */}
               <td className="p-0 align-bottom">
                 <div
                   aria-hidden="true"
-                  className="flex flex-col gap-1.5 px-2 pb-2"
+                  className="flex h-full flex-col items-center justify-center gap-1 rounded-xl bg-background px-2 py-3 text-center"
                 >
-                  {/* Tamamlanma çubuğu — çözülen/toplam. Görsel; sayı tabelada
-                      ve alttaki metinde zaten yazılı (§7.15). */}
-                  <span className="block h-1.5 w-full overflow-hidden rounded-full bg-line">
-                    <span
-                      className="block h-full rounded-full bg-correct transition-[width] duration-300"
-                      style={{
-                        width: `${String(Math.round((solvedCells / (size * size)) * 100))}%`,
-                      }}
-                    />
+                  <MatrixIcon />
+                  <span className="font-display leading-none font-bold tracking-tight tabular-nums">
+                    {size}×{size}
                   </span>
-                  {/* Deneme işaretleri — harcanan haklar dolu. */}
-                  <span className="flex flex-wrap gap-1">
-                    {Array.from({ length: guesses }, (_, index) => (
-                      <span
-                        key={index}
-                        className={
-                          "block h-2 w-2 rounded-[1px] border border-line-strong " +
-                          (index < state.guessesUsed ? "bg-line-strong" : "")
-                        }
-                      />
-                    ))}
-                  </span>
+                  <DataLabel className="text-muted">matris</DataLabel>
                 </div>
               </td>
               {grid.columns.map((column, index) => (
@@ -688,6 +659,140 @@ export function GridGame({
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Durum bandı — künyenin altında, tablonun üstünde (§7.15).
+ *
+ * İKİ HÜCRE: "Doğru n/N" bir tamamlanma çubuğuyla, "Hak n" kalan hakları
+ * gösteren kalkanlarla. Izgarada durum İKİ BOYUTLU (hangi hücreler çözüldü +
+ * kaç hak kaldı) ve tek satırlık bir sayaç bunu taşıyamıyordu.
+ *
+ * Ekran okuyucuya TEK bir `aria-live` özeti gider; görünen çubuk/kalkanlar
+ * `aria-hidden` — renk tek gösterge değil, sayı yazılı (WCAG 1.4.1).
+ */
+function GridStatusBand({
+  size,
+  solvedCells,
+  guesses,
+  remaining,
+  finished,
+}: {
+  readonly size: number;
+  readonly solvedCells: number;
+  readonly guesses: number;
+  readonly remaining: number;
+  readonly finished: boolean;
+}) {
+  const total = size * size;
+  const percent = Math.round((solvedCells / total) * 100);
+  const remainingTone =
+    remaining === 0
+      ? "text-wrong"
+      : remaining <= 2
+        ? "text-warn"
+        : "text-foreground";
+
+  return (
+    <div
+      role="group"
+      aria-label="Izgara durumu"
+      className={
+        "grid grid-cols-1 gap-2 rounded-2xl border p-2 shadow-card sm:grid-cols-2 sm:gap-3 sm:p-3 " +
+        (finished
+          ? "border-accent bg-accent-soft"
+          : "border-line-strong bg-surface")
+      }
+    >
+      {/* Ekran okuyucuya TEK, tutarlı bildirim; görünen kısım aria-hidden. */}
+      <p className="sr-only" aria-live="polite">
+        {String(solvedCells)}/{String(guesses)} doğru · {String(remaining)} hak
+        kaldı
+      </p>
+
+      {/* TAMAMLANMA — doğru sayısı + ilerleme çubuğu. */}
+      <div
+        aria-hidden="true"
+        className="flex items-center justify-between gap-3 rounded-xl bg-background px-3 py-2.5"
+      >
+        <div className="min-w-0">
+          <DataLabel className="text-muted">Doğru</DataLabel>
+          <p className="font-display text-2xl leading-none font-bold tracking-tight tabular-nums sm:text-3xl">
+            {solvedCells}
+            <span className="text-muted">/{total}</span>
+          </p>
+        </div>
+        <span className="block h-2 w-24 shrink-0 overflow-hidden rounded-full bg-line sm:w-28">
+          <span
+            className="block h-full rounded-full bg-correct transition-[width] duration-300"
+            style={{ width: `${String(percent)}%` }}
+          />
+        </span>
+      </div>
+
+      {/* KALAN HAK — sayı + kalkanlar (dolu = kalan, boş = harcanan). */}
+      <div
+        aria-hidden="true"
+        className="flex items-center justify-between gap-3 rounded-xl bg-background px-3 py-2.5"
+      >
+        <div className="min-w-0">
+          <DataLabel className="text-muted">Hak</DataLabel>
+          <p
+            className={
+              "font-display text-2xl leading-none font-bold tracking-tight tabular-nums sm:text-3xl " +
+              remainingTone
+            }
+          >
+            {remaining}
+          </p>
+        </div>
+        <span className="flex max-w-[9rem] flex-wrap justify-end gap-1">
+          {Array.from({ length: guesses }, (_, index) => (
+            <ShieldIcon key={index} filled={index < remaining} />
+          ))}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** Kalan-hak kalkanı — dolu (kalan) ya da boş (harcanan). Süsleme (§7.12). */
+function ShieldIcon({ filled }: { readonly filled: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+      className={"h-3.5 w-3.5 " + (filled ? "text-line-strong" : "text-line")}
+      fill={filled ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinejoin="round"
+    >
+      <path d="M12 3 5 6v5c0 4 3 6.9 7 8 4-1.1 7-4 7-8V6l-7-3Z" />
+    </svg>
+  );
+}
+
+/** Izgara kimliği ikonu — 2×2 kare (matris). Süsleme (§7.12). */
+function MatrixIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+      className="h-4 w-4 text-muted"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinejoin="round"
+    >
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+    </svg>
   );
 }
 

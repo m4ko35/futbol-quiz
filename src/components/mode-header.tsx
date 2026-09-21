@@ -41,6 +41,14 @@ export interface ModeHeaderProps {
   readonly task: ReactNode;
   /** Sağdaki tabela; yoksa künye tek başına durur. */
   readonly scoreboard?: ReactNode;
+  /**
+   * Sağdaki hızlı eylemler (ör. ızgarada "Sen kur" / "Nasıl oynanır" çapaları).
+   *
+   * TABELADAN AYRI bir slot: bir mod hem canlı sayaç hem eylem taşıyabilir ya
+   * da yalnızca birini. Izgara tabelayı ayrı bir banda taşıdı (§7.15), bu yüzden
+   * künyenin sağ ucu eylemlere kalıyor.
+   */
+  readonly actions?: ReactNode;
 }
 
 export function ModeHeader({
@@ -48,6 +56,7 @@ export function ModeHeader({
   title,
   task,
   scoreboard,
+  actions,
 }: ModeHeaderProps) {
   return (
     <header className="flex flex-wrap items-end gap-x-6 gap-y-4 border-b-2 border-foreground pb-4">
@@ -66,6 +75,7 @@ export function ModeHeader({
       </div>
 
       {scoreboard}
+      {actions}
     </header>
   );
 }
