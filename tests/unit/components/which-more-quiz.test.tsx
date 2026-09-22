@@ -484,6 +484,57 @@ describe("düello sahnesi", () => {
 });
 
 /**
+ * §9.3 — Stitch dili: fark şeridi, zengin verdict, paylaş.
+ *
+ * Denetlenen şey görünüm değil, taşınan BİLGİ: iki değerin farkı yazılı mı,
+ * verdict kazananı adıyla söylüyor mu, paylaşılacak bir seri varken düğme
+ * çıkıyor mu. Uydurma çerçeve (günün sıralaması vb.) hiç eklenmedi.
+ */
+describe("Stitch dili — fark, verdict, paylaş", () => {
+  it("cevap açılınca iki değerin farkını yazar", async () => {
+    // Varsayılan cevap: 164 vs 175 → fark 11.
+    const { user } = setup();
+    await start(user);
+
+    await user.click(screen.getByRole("button", { name: /Henry/u }));
+
+    expect(await screen.findByText("Aradaki fark")).toBeInTheDocument();
+    // Kart değerleri "164 maç"/"175 maç"; fark "11 maç" ayrı ve tekildir.
+    expect(screen.getByText("11 maç")).toBeInTheDocument();
+  });
+
+  it("doğru cevapta verdict kazananı adıyla ve değeriyle söyler", async () => {
+    const { user } = setup();
+    await start(user);
+
+    await user.click(screen.getByRole("button", { name: /Henry/u }));
+
+    // "Doğru!" korunur; verdict cümlesi kazananı da taşır. "önde —" tiresi
+    // verdict'e özgü (künye görev metni "önde olduğunu" der, tire yok).
+    expect(await screen.findByText("Doğru!")).toBeInTheDocument();
+    const line = screen.getByText(/önde —/u);
+    expect(line).toHaveTextContent("Henry");
+    expect(line).toHaveTextContent("175 maç");
+  });
+
+  it("paylaşılacak bir seri varken künyede Seriyi paylaş çıkar", async () => {
+    const { user } = setup();
+    await start(user);
+
+    // Seri sıfırken paylaşılacak bir şey yok.
+    expect(
+      screen.queryByRole("button", { name: /Seriyi paylaş/u }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Henry/u }));
+
+    expect(
+      await screen.findByRole("button", { name: /Seriyi paylaş/u }),
+    ).toBeInTheDocument();
+  });
+});
+
+/**
  * Karşılaştırma çubuğunun oranı.
  *
  * Çubuk `aria-hidden` olduğu için DOM'dan okunamaz; hesabın kendisi burada

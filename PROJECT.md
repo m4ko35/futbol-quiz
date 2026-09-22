@@ -4725,6 +4725,15 @@ Kullanıcı bir **seviye** (BR-41: "Kolay" / "Zor"), §9.2'nin altı istatistiğ
 
 §9.2 ile aynı sayıları kullanır ama **başka bir soru sorar**: orada "bu değere kim yakın" diye bir büyüklük tahmini istenir, burada iki isim arasında bir **sıralama** kararı. Bu yüzden §9.2'nin BR-18 puanlaması burada hiç kullanılmaz; doğru ya da yanlış vardır.
 
+#### Sunum: fark şeridi, zengin verdict, paylaş (Stitch dili)
+
+Bu mod Stitch'in görsel dilini aldı; **çerçevesini değil.** Stitch ekranı bir "günün yarışması" gibi kurmuştu: `GÜNÜN SIRALAMASI #42/14.820`, `SIRADAKİ GÜNLÜK EŞLEŞMELER (12/20)`, `GÜNÜN EN İYİSİ`, `DOĞRULUK ORANI %87.5`. **Hepsi modele aykırı (§5.2):** bu mod rastgele ve sonsuz (BR-32), koşu HATIRLANMIYOR, lider tablosuna girmiyor (o yalnız §11 istatistik modu) — günlük sabit bir set, sıralama ya da doğruluk geçmişi yok. Stitch'in kategorileri de uydurma (asist/kupa/UCL golü/piyasa değeri veri kümesinde yok). Alınan şey düzen ve tipografi oldu:
+
+- **Aradaki fark şeridi** — cevap açılınca iki değerin farkı iki kartın altında ortalı bir şeritte yazılır (`Aradaki fark: 11 maç`); Stitch'in VS rozetindeki "+142 FARK"ın karşılığı, ama **doğru birimle** (`gapUnit`: doğum yılında "yıl", değerin "doğumlu"su değil). `aria-hidden` değil, gerçek bilgi.
+- **Zengin verdict** — doğru cevapta artık yalnızca "Doğru!" değil, kazananı ve değerini de yazar (`Henry önde — 175 maç`). Kazanan kullanıcının seçtiği karttır; isim/değer `pair` + `answer`'dan çözülür. Seri bandı (BR-30) korunur.
+- **Seriyi paylaş** — koşu sürerken (seri > 0) künyenin `actions` yuvasında; paylaşılan metin `N doğru üst üste · metrik (seviye)` + seri kadar 🟩 (biten koşuda sonuna 🟥). Nadirlik/percentil YOK; ızgara/istatistikle aynı kural (§9.1/§9.2).
+- **Kısayol + 3 kartlı nasıl oynanır** — künyede "Nasıl oynanır" çapası; sayfadaki iki düz paragraf üç kartlı düzene döndü (Metriği İnceleyin / Serinizi Koruyun / Şeffaf Veri — hepsi GERÇEK kural: BR-28/BR-30 + §9.2 kapsam) + gerçek veri kümesi sayılı kapsam şeridi. Stitch'in kategori sekmeleri **oynatılmadı**: metrik değişince koşu sıfırlanır, mid-run sekme seri modeline aykırı.
+
 #### Ölçüm: havuz
 
 Havuz BR-15'in tanınırlık ölçütüyle kurulur (küratörlü kulüplerde 100+ maç, 2+ kulüp) ama §9.2'nin aksine **altı istatistiğin hepsi aranmaz** — yalnızca karşılaştırılan istatistik gerekir. Ölçüldü (2026-08-08, **6.464 tanınır oyuncu**). Aşağıdaki tablo BR-41'in **"Zor"** havuzudur; kolay havuzun aynı tablosu bu bölümün ilerisindedir:

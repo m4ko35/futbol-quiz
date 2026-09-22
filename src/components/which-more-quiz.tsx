@@ -340,6 +340,7 @@ export function WhichMoreQuiz({
    * kaldığı hiçbir yerde görünmüyordu.
    */
   const [keptId, setKeptId] = useState<string | null>(null);
+  const [shareStatus, setShareStatus] = useState<string | null>(null);
 
   const question = questionFor(statKey);
 
@@ -406,7 +407,43 @@ export function WhichMoreQuiz({
     setStreak(0);
     setSeen([]);
     setKeptId(null);
+    setShareStatus(null);
   }
+
+  /**
+   * SERİYİ PAYLAŞ (§9.3) — mevcut koşunun sonucu.
+   *
+   * NADİRLİK/SIRALAMA YOK: yalnızca seri sayısı + seçilen metrik/seviye. İşaret
+   * şeridi seri kadar 🟩, koşu bir yanlışla bittiyse sonuna 🟥. Emoji yalnızca
+   * PAYLAŞ METNİNDE (§7.12); ızgara/istatistikle aynı kural.
+   */
+  const share = useCallback(async (): Promise<void> => {
+    const q = questionFor(statKey);
+    const lvl = levelFor(level);
+    const endedWrong = phase.kind === "revealed" && !phase.answer.correct;
+    // Uzun serilerde satır taşmasın; işaret şeridi yalnızca bir özet.
+    const marks = "🟩".repeat(Math.min(streak, 30)) + (endedWrong ? "🟥" : "");
+    const head = "Futbol Challenge — Hangisi Daha";
+    const line = `${String(streak)} doğru üst üste · ${q.name} (${lvl.name})`;
+    const url = `${window.location.origin}/hangisi-daha`;
+    const text = [head, line, "", marks, "", url].join("\n");
+
+    if (typeof navigator.share === "function") {
+      try {
+        await navigator.share({ text });
+        setShareStatus("Paylaşıldı.");
+        return;
+      } catch {
+        // iptal / hata: panoya kopyalamaya düş.
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      setShareStatus("Skor panoya kopyalandı.");
+    } catch {
+      setShareStatus("Paylaşım bu tarayıcıda desteklenmiyor.");
+    }
+  }, [statKey, level, phase, streak]);
 
   /*
     KÜNYE HER İKİ EVREDE DE BASILIR (§7.15).
@@ -430,6 +467,15 @@ export function WhichMoreQuiz({
           </strong>
           .
         </>
+      }
+      // HIZLI KISAYOLLAR — "Nasıl oynanır" çapası her zaman; "Seriyi paylaş"
+      // yalnızca paylaşılacak bir seri varken (§9.3). Izgara/istatistikteki
+      // künye kısayollarının karşılığı.
+      actions={
+        <WhichMoreHeaderLinks
+          onShare={streak > 0 ? share : undefined}
+          shareStatus={shareStatus}
+        />
       }
       scoreboard={
         phase.kind === "setup" ? undefined : (
@@ -465,6 +511,12 @@ export function WhichMoreQuiz({
       </div>
     );
   }
+
+  // İki değerin farkı — cevap açılınca "Aradaki fark" şeridinde yazılır (§9.3).
+  const revealedGap =
+    phase.kind === "revealed"
+      ? Math.abs(phase.answer.left.value - phase.answer.right.value)
+      : null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -597,6 +649,23 @@ export function WhichMoreQuiz({
           </ul>
 
           {/*
+            ARADAKİ FARK (§9.3) — Stitch'in VS rozetindeki "+142 FARK"ın
+            karşılığı, iki kartın altında ortalı. Birim `gapUnit`'ten: doğum
+            yılında "yıl", değerin yanındaki "doğumlu" değil. Cevap açıldığında
+            (iki değer de görünürken) beliriyor.
+          */}
+          {revealedGap !== null && (
+            <div className="flex justify-center">
+              <span className="inline-flex items-center gap-2 rounded-full border border-line-strong bg-surface px-4 py-1.5">
+                <DataLabel className="text-muted">Aradaki fark</DataLabel>
+                <span className="font-display text-base font-bold tabular-nums">
+                  {String(revealedGap)} {question.gapUnit ?? question.unit}
+                </span>
+              </span>
+            </div>
+          )}
+
+          {/*
             SONUÇ CANLI BÖLGEDE. Doğru/yanlış yalnızca renkle anlatılsaydı
             ekran okuyucu kullanıcısı hiçbir şey duymazdı (§7.10).
           */}
@@ -605,6 +674,17 @@ export function WhichMoreQuiz({
               (phase.answer.correct ? (
                 <VerdictBar
                   streak={streak}
+                  winnerName={
+                    phase.answer.winnerId === phase.pair.left.id
+                      ? phase.pair.left.name
+                      : phase.pair.right.name
+                  }
+                  winnerValue={
+                    phase.answer.winnerId === phase.answer.left.id
+                      ? phase.answer.left.value
+                      : phase.answer.right.value
+                  }
+                  unit={question.unit}
                   onContinue={() => {
                     void loadRound(statKey, level, phase.answer.winnerId, seen);
                   }}
@@ -889,9 +969,16 @@ function streakBand(streak: number): string | null {
  */
 function VerdictBar({
   streak,
+  winnerName,
+  winnerValue,
+  unit,
   onContinue,
 }: {
   readonly streak: number;
+  /** Kazanan kart = kullanıcının doğru seçtiği oyuncu (BR-28). */
+  readonly winnerName: string;
+  readonly winnerValue: number;
+  readonly unit: string;
   onContinue(): void;
 }) {
   const band = streakBand(streak);
@@ -907,6 +994,19 @@ function VerdictBar({
 
       <div className="min-w-0 flex-1 basis-40">
         <p className="text-lg font-extrabold text-correct">Doğru!</p>
+        {/* KAZANANI ADIYLA SÖYLER (Stitch dili): "Doğru!" tek başına hangi
+            kartın önde olduğunu söylemiyordu — kart rozetleri söylüyor ama
+            verdict cümlesi de artık taşıyor. */}
+        <p className="text-sm text-muted">
+          <strong className="font-semibold text-foreground">
+            {winnerName}
+          </strong>{" "}
+          önde —{" "}
+          <span className="tabular-nums text-foreground">
+            {String(winnerValue)} {unit}
+          </span>
+          .
+        </p>
         {band !== null && <p className="text-sm text-muted">{band}</p>}
       </div>
 
@@ -1296,4 +1396,75 @@ function describe(error: unknown): string {
   return error instanceof Error
     ? error.message
     : "Beklenmeyen bir hata oluştu.";
+}
+
+/** Künye kısayol düğmesi — condensed pill (ızgara/istatistikteki idyom). */
+const HEADER_LINK_CLASS =
+  "font-display inline-flex items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 py-2 text-sm font-semibold tracking-wide text-muted uppercase transition-colors hover:border-line-strong hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+
+/**
+ * Künye kısayolları — "Nasıl oynanır" çapası ve "Seriyi paylaş" (§9.3).
+ *
+ * `onShare` verilmezse paylaş düğmesi çıkmaz (paylaşılacak bir seri yok). Çapa
+ * sayfanın altındaki bölüme iner; ikonlar satır içi SVG (§7.12: harici
+ * font/glif değil, CSP `font-src 'self'`).
+ */
+function WhichMoreHeaderLinks({
+  onShare,
+  shareStatus,
+}: {
+  readonly onShare?: () => void;
+  readonly shareStatus: string | null;
+}) {
+  return (
+    <nav
+      aria-label="Hangisi daha kısayolları"
+      className="flex flex-wrap items-center gap-2"
+    >
+      <a href="#nasil-oynanir" className={HEADER_LINK_CLASS}>
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          focusable="false"
+          className="h-4 w-4 text-accent"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <circle cx="12" cy="12" r="9" />
+          <path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.4c-.7.3-1 .8-1 1.5v.3" />
+          <path d="M12 17h.01" />
+        </svg>
+        <span>Nasıl oynanır?</span>
+      </a>
+
+      {onShare !== undefined && (
+        <button type="button" className={HEADER_LINK_CLASS} onClick={onShare}>
+          <svg
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            focusable="false"
+            className="h-4 w-4 text-accent"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7" />
+            <path d="M12 15V3M8 7l4-4 4 4" />
+          </svg>
+          <span>Seriyi paylaş</span>
+        </button>
+      )}
+
+      {shareStatus !== null && (
+        <span role="status" aria-live="polite" className="text-sm text-muted">
+          {shareStatus}
+        </span>
+      )}
+    </nav>
+  );
 }
