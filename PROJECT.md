@@ -3275,16 +3275,16 @@ Vurgu (`lit`) bir süsleme değil: bugünkü arayüzün en çok eleştirilen yan
 
 Bu yüzden künye **sunucu sayfasında değil, mod bileşeninin içinde** duruyor. Sunucuda render edilen sabit bir başlık canlı sayıyı taşıyamazdı; ikinci bir sayaç eklemek ise aynı sayıyı iki yerde göstermek olurdu.
 
-**Gösterecek gerçek sayısı olmayan mod tabela taşımaz.** Boş ya da uydurma bir sayaç, sayacın kendisini anlamsızlaştırır. Ortak oyuncu modunda tabela yalnızca sonuç gelince beliriyor. Düello modunda kurulum evresi kalktı (§9.3): sayfa doğrudan düelloya açıldığı için tabela HER ZAMAN var ve ilk düello boş durumdur (`Seri 0`), ızgaranın `0/9`'u gibi.
+**Gösterecek gerçek sayısı olmayan mod tabela taşımaz.** Boş ya da uydurma bir sayaç, sayacın kendisini anlamsızlaştırır. Ortak oyuncu modunda tabela yalnızca sonuç gelince beliriyor. Düello modunda ayrı bir kurulum ekranı var (§9.3): kurulumda tabela yoktur, "Başla" ile düelloya girildiğinde belirir ve ilk düello boş durumdur (`Seri 0`), ızgaranın `0/9`'u gibi.
 
 #### Dört modun tabelası
 
-| Mod            | Boş durum                     | Canlı                                                   | Vurgu (`lit`)         |
-| -------------- | ----------------------------- | ------------------------------------------------------- | --------------------- |
-| Ortak Oyuncu   | tabela yok (ölçek şeritte)    | `Ortak oyuncu · Dönem`                                  | Sonuç boş değilse     |
-| Günün Izgarası | **durum bandı** (aşağıda)     | `Doğru n/9` + çubuk, `Hak n` + kalkanlar                | Oyun bittiğinde       |
-| Günün Oyuncusu | **durum bandı** (aşağıda)     | `Cevaplanan n/6` + segment şeridi, `Ortalama %n` + band | Tur tamamlanınca      |
-| Hangisi Daha   | `Seri 0` (kurulum ekranı yok) | `Seri n`                                                | Seri sıfırdan büyükse |
+| Mod            | Boş durum                   | Canlı                                                   | Vurgu (`lit`)         |
+| -------------- | --------------------------- | ------------------------------------------------------- | --------------------- |
+| Ortak Oyuncu   | tabela yok (ölçek şeritte)  | `Ortak oyuncu · Dönem`                                  | Sonuç boş değilse     |
+| Günün Izgarası | **durum bandı** (aşağıda)   | `Doğru n/9` + çubuk, `Hak n` + kalkanlar                | Oyun bittiğinde       |
+| Günün Oyuncusu | **durum bandı** (aşağıda)   | `Cevaplanan n/6` + segment şeridi, `Ortalama %n` + band | Tur tamamlanınca      |
+| Hangisi Daha   | `Seri 0` (düelloya girince) | `Seri n`                                                | Seri sıfırdan büyükse |
 
 Renk **sonuç dilinden** geliyor (§7.12): ızgarada doğru hücre sayısı `correct`, kalan hak azaldıkça `warn` ve bittiğinde `wrong`; istatistikte ortalama BR-18'in puan bandına göre. Hepsinde renk yalnızca destekleyici — sayı zaten yazılı (WCAG 1.4.1).
 
@@ -4733,7 +4733,7 @@ Bu mod Stitch'in görsel dilini aldı; **çerçevesini değil.** Stitch ekranı 
 - **Zengin verdict** — doğru cevapta artık yalnızca "Doğru!" değil, kazananı ve değerini de yazar (`Henry önde — 175 maç`). Kazanan kullanıcının seçtiği karttır; isim/değer `pair` + `answer`'dan çözülür. Seri bandı (BR-30) korunur.
 - **Seriyi paylaş** — koşu sürerken (seri > 0) künyenin `actions` yuvasında; paylaşılan metin `N doğru üst üste · metrik (seviye)` + seri kadar 🟩 (biten koşuda sonuna 🟥). Nadirlik/percentil YOK; ızgara/istatistikle aynı kural (§9.1/§9.2).
 - **Kısayol + 3 kartlı nasıl oynanır** — künyede "Nasıl oynanır" çapası; sayfadaki iki düz paragraf üç kartlı düzene döndü (Metriği İnceleyin / Serinizi Koruyun / Şeffaf Veri — hepsi GERÇEK kural: BR-28/BR-30 + §9.2 kapsam) + gerçek veri kümesi sayılı kapsam şeridi.
-- **Kurulum ekranı kaldırıldı** (22 Eyl 2026, Seçenek 1) — Stitch'in "kurulum yok, direkt düello" hissi alındı ama Kolay/Zor ve yön KORUNARAK; metrik/havuz/yön satır içi segment kontrolleri, birine dokununca koşu sıfırlanır. Ayrıntı: aşağıdaki "Kurulum ekranı kaldırıldı" alt-bölümü.
+- **Kurulum ekranı (Stitch tasarımı, 22 Eyl 2026)** — ürün sahibi Stitch'e ayrı bir kurulum ekranı çizdirdi; iki ekranlı akış: (1) kurulum (metrik + Kolay/Zor + yön + soru önizlemesi + "Başla"), (2) düello. Ayrıntı: aşağıdaki "Kurulum ekranı: iki ekranlı akış" alt-bölümü.
 
 #### Ölçüm: havuz
 
@@ -4948,17 +4948,19 @@ Aşağıdakiler **yalnızca sunumdur**. BR-28…BR-32 değişmedi, sunucu sözle
 
 **Seri bandı ölçümden geliyor, uydurulmadı.** Yukarıdaki BR-30 tablosunda dengeli rakiple bilgisiz oynayan koşunun **p90'ı 3, p99'u 6**. Yani 4. doğru "on koşuda bir", 7. doğru "yüz koşuda bir" görülen bir yer. Şerit tam olarak bunu yazıyor. Eşikler bir tasarım hevesi değil, şartnamenin kendi ölçümü; ölçüm değişirse eşik de değişmeli.
 
-#### Kurulum ekranı kaldırıldı: Stitch gibi, doğrudan düello (22 Eylül 2026)
+#### Kurulum ekranı: iki ekranlı akış (Stitch tasarımı, 22 Eylül 2026)
 
-Önceki tasarım ayrı bir **kurulum ekranıydı**: üç adım (havuz / istatistik / yön) ve bir "Başla". Ürün sahibi bu ekranı beğenmedi ve Stitch'in yaklaşımını sordu. Stitch bu ekranı **hiç yapmamış** — kullanıcıyı doğrudan canlı bir düelloya düşürüyor ve metrik seçimini düellonun üstünde tek satırlık bir sekme şeridine indiriyor; ne seviye ne yön var, soru hep "daha çok". Bu sadelik gerçek ama Stitch onu **iki gerçek özelliği atarak** alıyor (Kolay/Zor — BR-41; ve yön), üstüne dört uydurma kategori ekliyor (asist/kupa/UCL/piyasa değeri — veri kümesinde yok).
+Bu ekranın tasarımı iki kez döndü. Önce ürün sahibi üç adımlı kurulum formunu (havuz/istatistik/yön + "Başla") beğenmedi ve Stitch'in "kurulum yok, direkt düello" yaklaşımı bir tur uygulandı (satır içi segment kontrolleri, mount'ta otomatik ilk tur). Sonra ürün sahibi Stitch'e **ayrı bir kurulum ekranı çizdirdi** ("Pitch & Press Editorial") ve onu uygulattı. Yürürlükteki tasarım budur: **iki ekranlı akış.**
 
-**Alınan karar (Seçenek 1): kurulum ekranını KALDIR, Kolay/Zor ve yönü KORU.** Sayfa artık varsayılanlarla (Kolay · Resmî maç · daha çok) doğrudan canlı düelloya açılıyor — ilk tur `useEffect` ile mount'ta, bir `ref` muhafızıyla **bir kez** yükleniyor (`fetchRound` varsayılanı her render'da yeni bir fonksiyon olduğu için muhafız olmadan sonsuz yeniden yükleme olurdu). Metrik/havuz/yön düellonun üstünde satır içi segment kontrolleridir; **birine dokununca koşu SIFIRLANIR ve taze bir tur yüklenir** — seri o ayara aittir (metrik değişince farklı havuz, yön değişince ters soru; ikisi de yeni koşu). Böylece Stitch'in "kurulum yok" hissi, gerçek özellikler korunarak alınıyor.
+**Ekran A — Kurulum.** Büyük başlık + üç seçim (Adım 01 istatistik metriği, Adım 02 havuz derinliği Kolay/Zor, Adım 03 karşılaştırma yönü) + bir "Soru önizlemesi" kartı (seçimlere göre canlı güncellenen soru cümlesi + parametre kapsamı) + büyük **"Başla"**. Altında "Kayıtsız · Sıralamasız · Anlık skor koşusu" notu — modun rastgele/sonsuz olduğunu (BR-32) ve lider tablosuna girmediğini (§11) tekrar söyler. Kurulum ekranında **tabela yok**: henüz koşu yok.
 
-**Kontroller bir form değil, sıkı bir denetim çubuğu.** Pill'ler göze sade (yalnızca ad), ölçüt erişilebilir adın PARÇASI (sr-only): metrik radyosu BR-29 bandını + kapsamı ("en az 35 maç fark, yalnızca 24 lig"), havuz radyosu ölçütünü ("Kolay — A millî takımda 20+ maç…"), yön radyosu tam cümleyi ("daha çok resmî maça çıktı") taşır. Görünen yön metni kısa ("daha çok"), erişilebilir ad tam cümle — WCAG 2.5.3, kısa biçim tam cümlenin içinde. Seçili pill **DOLU**, seçilmemiş çerçeveli: renk tek gösterge değil (WCAG 1.4.1).
+**Ekran B — Düello.** "Başla" ilk turu yükler ve düelloya geçer. Seçilen ayar künye üst-etiketinde ("Kolay · Resmî maç"), sağda tabela (`Seri n`) ve kısayollar: **Ayarları değiştir** (kuruluma döner, koşu sıfırlanır), Nasıl oynanır, Seriyi paylaş (seri > 0). Kartlar zenginleşti: metrik etiketi + açılan değer + karşılaştırma çubuğu + **kart başına fark** ("11 maç önde" / "11 maç geride", kazanan/kaybeden). Verdict artık **kaybedenin değerini de** yazıyor ("Henry önde — 175 maç · Zlatan 164 maç") ve "+1 seri puanı" rozeti taşıyor.
 
-**Eski öbek başlıklarının ("Kapsama bağlı") işini artık canlı sorunun altındaki kapsam notu üstleniyor.** Kurulum ekranı olmadığı için metrik seçimi ve soru aynı ekranda; kapsam notu (`scoped` alanından, BR-23) metrik değişince **seçim ANINDA** güncelleniyor — sinyal kaybolmadı, sorunun kendisine bağlandı. Tabela da artık "kurulum" boş durumu taşımıyor: ilk düellonun kendisi boş durum (`Seri 0`), ızgaranın `0/9`'u gibi (§7.15).
+**Stitch'in uydurmaları düşürüldü (§5.2).** Tasarımda vardı, veride yok: **"Doğruluk: %100"** (koşu kaydedilmez, doğruluk geçmişi yok), **"Tur 7"** (ikinci sayaç — bu modun tek gerçek boyutu seri), **"Canlı Karşılaşma"** ("canlı" overclaim; veri periyodik ETL anlık görüntüsü, §7.15), **"Kariyer dönemi: 1994–2014"** (ilk/son yıl bu DTO'da yok — küçük backend ister, ertelendi), **"doğrulanmış / Canlı Arşiv"** dili (nötrlendi), **"SEZON 2024/25 · KOD: HGD-TR"** (uydurma telemetri), Stitch'in kendi üst gezinmesi + avatarı (gerçek global başlık korunur). İkon fontu (Material Symbols) satır içi SVG'ye çevrildi (§7.12, CSP `font-src 'self'`).
 
-**Yapılmayanlar.** _Otomatik geçiş_ yok — süreli ilerleyen bir oyun WCAG 2.2.1'e takılır ve sonucu okumaya fırsat bırakmaz; kullanıcı "Devam" der. _Sayının sıfırdan sayılarak açılması_ yok: rakamlar düğmenin erişilebilir adının içinde ve saniyede altmış kez değişen bir ad, ekran okuyucuyu boğar; aynı dramayı çubuk, adı hiç kıpırdatmadan veriyor. _Ses_ yok.
+**Kontroller bir form, veri tablosu değil.** Metrik/havuz/yön birer radyo; görünen etiket kısa, ölçüt erişilebilir adın PARÇASI (sr-only): metrik radyosu BR-29 bandını + kapsamı ("en az 35 maç fark, yalnızca 24 lig"), havuz radyosu ölçütünü ("Kolay — A millî takımda 20+ maç…"), yön radyosu tam cümleyi ("daha çok resmî maça çıktı") taşır. Görünen yön metni kısa ("daha çok"), erişilebilir ad tam cümle — WCAG 2.5.3, kısa biçim tam cümlenin içinde. Seçili **DOLU**, seçilmemiş çerçeveli: renk tek gösterge değil (WCAG 1.4.1).
+
+**Yapılmayanlar.** _Otomatik geçiş_ yok — süreli ilerleyen bir oyun WCAG 2.2.1'e takılır ve sonucu okumaya fırsat bırakmaz; kullanıcı "Devam" der. _Sayının sıfırdan sayılarak açılması_ yok: rakamlar düğmenin erişilebilir adının içinde ve saniyede altmış kez değişen bir ad, ekran okuyucuyu boğar; aynı dramayı çubuk, adı hiç kıpırdatmadan veriyor. _Ses_ yok. Stitch'in "olası diğer maç durumları (önizleme)" panosu (yanlış + havuz tükendi birlikte) bir mockup'tı; gerçekte durumlar faz bazlı, tek seferde biri görünür.
 
 #### Kurallar
 

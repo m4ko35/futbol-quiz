@@ -52,12 +52,13 @@ function setup(options?: {
 }
 
 async function start(): Promise<void> {
-  // Kurulum ekranı yok (§9.3): ilk düello mount'ta yüklenir, başlamak için
-  // eşleşmenin gelmesini beklemek yeterli — "Başla" düğmesi kalktı.
+  // İki ekranlı akış (§9.3): kurulum ekranındaki "Başla" ilk turu yükler ve
+  // düelloya geçer; eşleşmenin gelmesini bekle.
+  await userEvent.click(screen.getByRole("button", { name: /Başla/u }));
   await screen.findByRole("button", { name: /Drogba/u });
 }
 
-describe("satır içi kontroller (§9.3)", () => {
+describe("kurulum ekranı (§9.3)", () => {
   it("altı istatistiği de sunar", () => {
     setup();
 
@@ -226,25 +227,20 @@ describe("BR-41 — seviye seçimi", () => {
 
   it("'Zor' seçilince gövdede 'hard' gider", async () => {
     const { user, fetchRound } = setup();
+
+    // Kurulumda 'Zor' seçilir, sonra 'Başla' — yüklenen turun gövdesi 'hard'.
+    await user.click(screen.getByRole("radio", { name: /^Zor/u }));
     await start();
 
-    // Metrik/havuz değişince koşu sıfırlanıp taze tur yüklenir; SON çağrı yeni
-    // ayarı taşır (ilk çağrı mount'taki varsayılan koşudur).
-    await user.click(screen.getByRole("radio", { name: /^Zor/u }));
-
-    await waitFor(() => {
-      const body = fetchRound.mock.calls.at(-1)?.[0] as { level?: string };
-      expect(body.level).toBe("hard");
-    });
+    const body = fetchRound.mock.calls.at(-1)?.[0] as { level?: string };
+    expect(body.level).toBe("hard");
   });
 
   it("seviye SONRAKİ turlara da taşınır", async () => {
     const { user, fetchRound } = setup();
-    await start();
 
     await user.click(screen.getByRole("radio", { name: /^Zor/u }));
-    // Havuz değişince taze tur yüklenir; onu bekle.
-    await screen.findByRole("button", { name: /Drogba/u });
+    await start();
 
     await user.click(screen.getByRole("button", { name: /Henry/u }));
     await user.click(await screen.findByRole("button", { name: "Devam" }));
@@ -396,8 +392,10 @@ describe("BR-28 — zincir", () => {
 
 describe("koşunun diğer sonları", () => {
   it("havuz tükenince hata değil, koşu sonu gösterilir", async () => {
-    // Mount'ta yüklenen ilk tur boş havuz döndürür (§9.3: kurulum ekranı yok).
-    setup({ round: { statKey: "appearances", pair: null } });
+    // "Başla" ile yüklenen ilk tur boş havuz döndürür (§9.3).
+    const { user } = setup({ round: { statKey: "appearances", pair: null } });
+
+    await user.click(screen.getByRole("button", { name: /Başla/u }));
 
     expect(await screen.findByText("Havuz tükendi")).toBeInTheDocument();
     expect(screen.getByText(/Skorun:/u)).toBeInTheDocument();
@@ -414,7 +412,9 @@ describe("koşunun diğer sonları", () => {
       />,
     );
 
-    // Mount'taki ilk yükleme reddedilir → hata canlı bölgede (§9.3).
+    // "Başla" ile yüklenen ilk tur reddedilir → hata canlı bölgede (§9.3).
+    await userEvent.click(screen.getByRole("button", { name: /Başla/u }));
+
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Sunucuya ulaşılamadı.",
     );
