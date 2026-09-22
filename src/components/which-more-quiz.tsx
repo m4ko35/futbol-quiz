@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import type {
   WhichMoreAnswerDto,
   WhichMorePairDto,
@@ -152,45 +158,15 @@ const QUESTIONS: readonly StatQuestion[] = [
 ];
 
 /**
- * İstatistikler İKİ ÖBEKTE sunuluyor ve ayrım uydurma değil: `scoped`.
- *
- * Öbeğin işi, sayının kullanıcının bildiği toplamdan FARKLI olabileceğini
- * seçim ANINDA söylemek. Bu bugüne dek yalnızca tur ekranında, seçim
- * yapıldıktan SONRA yazıyordu.
- *
- * ÖBEK BOYLARI 22 Ağustos 2026'da 3+3'ten 5+1'e döndü ve dengesizlik
- * doğrudur: maç ve gol kariyerin tamamına geçtikten sonra kapsama bağlı
- * kalan TEK istatistik kulüp sayısıdır (BR-23). Uyarıyı beş istatistiğin
- * üstünde bırakmak, artık doğru olmayan bir şeyi söylemek olurdu.
- *
- * Öbek üyeliği burada elle listelenmiyor; `scoped` alanından türetiliyor ki
- * yeni bir istatistik eklendiğinde iki yerde birden güncelleme gerekmesin.
- * Kapsamdan bağımsız öbek ÖNCE geliyor: beş kartlı öbek ızgarayı doldurur ve
- * tek kartlı uyarı öbeği sonda kendi başına durur.
- */
-const STAT_GROUPS: readonly {
-  readonly caption: string;
-  readonly detail: string;
-  readonly scoped: boolean;
-}[] = [
-  {
-    caption: "Kariyerin tamamı",
-    detail: "lig kapsamından bağımsız",
-    scoped: false,
-  },
-  {
-    caption: "Kapsama bağlı",
-    detail: "yalnızca kapsamdaki 24 lig",
-    scoped: true,
-  },
-];
-
-/**
  * Kapsamdan bağımsız sayıların NEYİ topladığını söyleyen not (BR-23).
  *
  * Kapsam uyarısının simetriği: "24 lig" uyarısı kalktığında yerine hiçbir şey
  * koymamak, kullanıcıyı 830 gollük bir sayıyla açıklamasız bırakırdı. Boy ve
  * doğum yılında not YOK — o sayılar zaten tek anlama geliyor.
+ *
+ * SEÇİM ANINDA GÖRÜNÜR: kurulum ekranı kalktığı için bu not artık canlı sorunun
+ * altında duruyor ve metrik değişince anında güncelleniyor — eski öbek
+ * başlıklarının ("Kapsama bağlı") işini üstlendi.
  */
 function scopeNoteFor(key: StatKey): ReactNode {
   if (key !== "appearances" && key !== "goals") return null;
@@ -199,17 +175,6 @@ function scopeNoteFor(key: StatKey): ReactNode {
     <p className="text-sm text-note">
       Kulüp kariyerinin tamamı (lig, kupa, Avrupa) ile A millî takım toplamı.
     </p>
-  );
-}
-
-/** Bir öbekten önce kaç kart çizildiği — animasyon sırası için (§7.12). */
-function groupOffset(groupIndex: number): number {
-  return STAT_GROUPS.slice(0, groupIndex).reduce(
-    (sum, group) =>
-      sum +
-      STAT_KEYS.filter((key) => questionFor(key).scoped === group.scoped)
-        .length,
-    0,
   );
 }
 
@@ -262,7 +227,8 @@ function questionFor(key: StatKey): StatQuestion {
 }
 
 type Phase =
-  | { readonly kind: "setup" }
+  // KURULUM EVRESİ YOK (§9.3): Stitch gibi, sayfa doğrudan canlı düelloya
+  // açılır. Metrik/havuz/yön satır içi kontrollerdir; ilk tur mount'ta yüklenir.
   | { readonly kind: "loading" }
   | { readonly kind: "asking"; readonly pair: WhichMorePairDto }
   | {
@@ -327,7 +293,7 @@ export function WhichMoreQuiz({
    */
   const [level, setLevel] = useState<Level>("easy");
   const [direction, setDirection] = useState<Direction>("more");
-  const [phase, setPhase] = useState<Phase>({ kind: "setup" });
+  const [phase, setPhase] = useState<Phase>({ kind: "loading" });
   const [streak, setStreak] = useState(0);
   /** BR-28 — aynı oyuncu ikinci kez sunulmaz. */
   const [seen, setSeen] = useState<readonly string[]>([]);
@@ -395,19 +361,54 @@ export function WhichMoreQuiz({
     }
   }
 
-  function start(): void {
-    setStreak(0);
-    setSeen([]);
-    setKeptId(null);
+  /**
+   * KOŞUYU SIFIRLAYIP YENİ AYARLARLA BAŞLAT (§9.3).
+   *
+   * Kurulum ekranı olmadığı için "başlamak" ile "ayar değiştirmek" aynı işlem:
+   * her ikisi de seriyi sıfırlar ve taze bir tur yükler. Metrik/havuz/yön
+   * değişince koşu SIFIRLANIR — seri o ayara aittir (Stitch dili, Seçenek 1).
+   */
+  const startWith = useCallback(
+    (key: StatKey, chosenLevel: Level): void => {
+      setStreak(0);
+      setSeen([]);
+      setKeptId(null);
+      setShareStatus(null);
+      void loadRound(key, chosenLevel, null, []);
+    },
+    [loadRound],
+  );
+
+  /**
+   * İLK TUR MOUNT'TA YÜKLENİR — kurulum ekranı yok. `ref` ile bir kez: `fetchRound`
+   * varsayılanı her render'da yeni bir fonksiyon olduğu için `loadRound` da
+   * değişir; muhafız olmadan efekt her render'da yeniden yüklenirdi.
+   */
+  const startedRef = useRef(false);
+  useEffect(() => {
+    if (startedRef.current) return;
+    startedRef.current = true;
     void loadRound(statKey, level, null, []);
+  }, [loadRound, statKey, level]);
+
+  function changeStat(key: StatKey): void {
+    setStatKey(key);
+    startWith(key, level);
+  }
+
+  function changeLevel(next: Level): void {
+    setLevel(next);
+    startWith(statKey, next);
+  }
+
+  function changeDirection(next: Direction): void {
+    setDirection(next);
+    // Havuz aynı ama soru terse döndü; seri o yönde kazanıldığı için sıfırlanır.
+    startWith(statKey, level);
   }
 
   function restart(): void {
-    setPhase({ kind: "setup" });
-    setStreak(0);
-    setSeen([]);
-    setKeptId(null);
-    setShareStatus(null);
+    startWith(statKey, level);
   }
 
   /**
@@ -446,14 +447,10 @@ export function WhichMoreQuiz({
   }, [statKey, level, phase, streak]);
 
   /*
-    KÜNYE HER İKİ EVREDE DE BASILIR (§7.15).
-
-    Bileşen kurulum evresinde erken dönüyor; künye tek bir dalda kalsaydı
-    kullanıcı istatistik seçerken sayfanın hangi mod olduğunu söyleyen bant
-    kaybolurdu. Seri sayacı buradan geliyor — sunucu sayfası onu bilemezdi.
-
-    Kurulumda tabela YOK: henüz sayılacak bir şey yok ve sıfır gösteren bir
-    sayaç, sayacın kendisini anlamsızlaştırır.
+    KÜNYE OYUN BİLEŞENİNİN İÇİNDE (§7.15). Seri sayacı istemci durumundan
+    geliyor — sunucu sayfası onu bilemezdi. Kurulum evresi olmadığı için tabela
+    HER ZAMAN basılıyor: ilk düellonun kendisi boş durum (Seri 0), tıpkı
+    ızgaranın 0/9'u gibi.
   */
   const modeHeader = (
     <ModeHeader
@@ -478,39 +475,20 @@ export function WhichMoreQuiz({
         />
       }
       scoreboard={
-        phase.kind === "setup" ? undefined : (
-          <Scoreboard
-            label="Koşu durumu"
-            lit={streak > 0}
-            cells={[
-              {
-                label: "Seri",
-                value: String(streak),
-                tone: streak > 0 ? "accent" : undefined,
-              },
-            ]}
-          />
-        )
+        <Scoreboard
+          label="Koşu durumu"
+          lit={streak > 0}
+          cells={[
+            {
+              label: "Seri",
+              value: String(streak),
+              tone: streak > 0 ? "accent" : undefined,
+            },
+          ]}
+        />
       }
     />
   );
-
-  if (phase.kind === "setup") {
-    return (
-      <div className="flex flex-col gap-6">
-        {modeHeader}
-        <StatPicker
-          statKey={statKey}
-          level={level}
-          direction={direction}
-          onStatKey={setStatKey}
-          onLevel={setLevel}
-          onDirection={setDirection}
-          onStart={start}
-        />
-      </div>
-    );
-  }
 
   // İki değerin farkı — cevap açılınca "Aradaki fark" şeridinde yazılır (§9.3).
   const revealedGap =
@@ -521,6 +499,22 @@ export function WhichMoreQuiz({
   return (
     <div className="flex flex-col gap-6">
       <div aria-live="polite">{modeHeader}</div>
+
+      {/*
+        SATIR İÇİ KONTROLLER (§9.3) — kurulum ekranının yerine. Metrik/havuz/yön
+        düellonun üstünde; birine dokununca koşu SIFIRLANIR ve taze bir tur
+        yüklenir. Stitch'in "kurulum yok, direkt oyun" hissi, ama Kolay/Zor ve
+        yön korunarak (Stitch bunları atmıştı — bizde gerçek özellik).
+      */}
+      <WhichMoreControls
+        statKey={statKey}
+        level={level}
+        direction={direction}
+        question={question}
+        onStat={changeStat}
+        onLevel={changeLevel}
+        onDirection={changeDirection}
+      />
 
       {/*
         SORU SAHNENİN BAŞLIĞIDIR. Önceki ölçüsü (`text-xl`) künyedeki mod
@@ -536,10 +530,10 @@ export function WhichMoreQuiz({
         </h2>
 
         {/*
-          HANGİ HAVUZDA OYNANDIĞI TUR EKRANINDA DA YAZAR. Seviye kurulumda
-          seçiliyor ve koşu boyunca değişmiyor; yazılmasaydı kullanıcı tanımadığı
-          bir isim gördüğünde bunun modun kusuru mu yoksa kendi seçimi mi
-          olduğunu bilemezdi.
+          HANGİ HAVUZDA OYNANDIĞI TUR EKRANINDA DA YAZAR. Seviye satır içi
+          kontrolden seçiliyor; yazılmasaydı kullanıcı tanımadığı bir isim
+          gördüğünde bunun modun kusuru mu yoksa kendi seçimi mi olduğunu
+          bilemezdi.
         */}
         <p className="text-sm text-note">{levelFor(level).note}</p>
 
@@ -1093,280 +1087,78 @@ function ErrorPanel({
   );
 }
 
-interface StatPickerProps {
+interface WhichMoreControlsProps {
   readonly statKey: StatKey;
   readonly level: Level;
   readonly direction: Direction;
-  onStatKey(key: StatKey): void;
+  readonly question: StatQuestion;
+  onStat(key: StatKey): void;
   onLevel(level: Level): void;
   onDirection(direction: Direction): void;
-  onStart(): void;
 }
 
-/** Kurulum ekranının parçaları sırayla beliriyor; adım başına gecikme. */
-const SETUP_STEP_MS = 70;
-
-/** Bölüm başlığı — kurulumun iki adımı numaralı, çünkü GERÇEKTEN sıralı. */
-function StepLegend({ step, children }: { step: number; children: string }) {
+/** Segment pill sınıfı — seçili DOLU, seçilmemiş çerçeveli (renk tek gösterge değil). */
+function controlPillClass(isCurrent: boolean): string {
   return (
-    <legend className="flex items-baseline gap-2 text-sm font-extrabold tracking-tight">
-      <span
-        aria-hidden="true"
-        className="flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-[0.65rem] font-black text-background"
-      >
-        {step}
-      </span>
-      {children}
-    </legend>
+    "cursor-pointer rounded-full border px-3 py-1.5 text-sm transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent " +
+    (isCurrent
+      ? "border-accent bg-accent font-semibold text-accent-fg shadow-card"
+      : "border-line-strong bg-surface font-medium text-muted hover:border-accent hover:text-foreground")
   );
 }
 
 /**
- * Kurulum ekranı — PROJECT.md §9.3.
+ * Satır içi kontroller — kurulum ekranının yerine (§9.3, Stitch dili).
  *
- * NEDEN ÖNİZLEME EN ÜSTTE. Kurulumun çıktısı bir CÜMLEDİR ve o cümle bugüne
- * dek hiçbir yerde bir bütün olarak görünmüyordu: kullanıcı bir kutudan
- * istatistiği, başka bir kutudan yönü seçiyor ve ne soracağını ancak oyun
- * başladıktan sonra okuyordu. Cümle artık ekranın en büyük yazısı ve her
- * seçimde yeniden basılıyor — React anahtarı değiştiği için açılış animasyonu
- * her seferinde yeniden koşuyor. Kurulum böylece bir form doldurmak değil,
- * bir soru KURMAK oluyor.
+ * Üç seçim (metrik / havuz / yön) düellonun üstünde tek bir sıkı kartta;
+ * "Başla" YOK — birine dokununca koşu sıfırlanıp taze tur yüklenir. Stitch'in
+ * "kurulum yok, direkt oyun" hissini verir ama Kolay/Zor ve yönü KORUR: Stitch
+ * bunları atmıştı, oysa bizde gerçek özellik (BR-41 + iki yön).
  *
- * NEDEN YÖN DÜĞMELERİ KISALDI. Cümlenin tamamı önizlemede duruyor; düğmede
- * ikinci kez basmak seçimi bir cümle yığınına çeviriyordu. Görünen metin
- * kısaldı, ERİŞİLEBİLİR AD tam cümle kaldı (§7.17'deki gezinme ile aynı
- * karar) — kısa biçim tam cümlenin içinde geçtiği için WCAG 2.5.3 sağlanıyor.
+ * ERİŞİLEBİLİRLİK: her seçenek bir radyo; görünen etiket kısa, BR-29 bandı /
+ * havuz ölçütü / yön cümlesi erişilebilir adın PARÇASI (sr-only). Pill göze
+ * sade kalırken ekran okuyucu kullanıcısı ölçütü tam duyuyor (WCAG 2.5.3);
+ * kapsam da seçim ANINDA canlı sorunun altındaki notta görünüyor.
  */
-function StatPicker({
+function WhichMoreControls({
   statKey,
   level,
   direction,
-  onStatKey,
+  question,
+  onStat,
   onLevel,
   onDirection,
-  onStart,
-}: StatPickerProps) {
-  const question = questionFor(statKey);
-
+}: WhichMoreControlsProps) {
   return (
-    <div className="flex flex-col gap-7">
-      {/*
-        SORULACAK SORU. Ekranın en büyük yazısı, çünkü kurulumun ürettiği tek
-        şey bu. `key` her seçimde değişiyor: React düğümü yeniden kuruyor ve
-        animasyon yeniden koşuyor.
-      */}
-      <div className="animate-duel-enter rounded-2xl border-2 border-line-strong bg-surface px-5 py-6 shadow-card sm:px-7">
-        <DataLabel as="p" className="text-muted">
-          Sorulacak soru
+    <div className="flex flex-col gap-4 rounded-2xl border border-line bg-surface p-4 shadow-card">
+      <fieldset className="flex flex-col gap-2">
+        <DataLabel as="legend" className="text-muted">
+          Metrik
         </DataLabel>
-        <p
-          key={`${statKey}-${direction}`}
-          className="animate-duel-swap mt-2 text-2xl leading-tight font-black tracking-tight text-balance sm:text-4xl"
-        >
-          Hangisi {direction === "more" ? question.more : question.less}?
-        </p>
-
-        {/*
-          ÖNİZLEME ARTIK ÜÇ SEÇİMİ DE TAŞIYOR. Seviye cümlenin İÇİNE girmiyor —
-          "Hangisi daha genç?" sorusu havuzdan bağımsız — ama cümlenin altına
-          yazılıyor, çünkü kurulumun çıktısı artık soru + havuzdur.
-        */}
-        <p key={level} className="animate-duel-swap mt-1.5 text-sm text-note">
-          {levelFor(level).note}
-        </p>
-      </div>
-
-      {/*
-        SEVİYE BİRİNCİ ADIM. İstatistikten önce geliyor çünkü daha geniş bir
-        karar: hangi sayının sorulacağını değil, KİMİN sorulacağını belirliyor.
-        Adım 1'den öteye hiç bakmayan kullanıcı da varsayılanla (kolay) doğru
-        yerde kalır.
-      */}
-      <fieldset
-        className="animate-duel-enter flex flex-col gap-2"
-        style={{ animationDelay: `${String(SETUP_STEP_MS)}ms` }}
-      >
-        <StepLegend step={1}>Kimler çıksın?</StepLegend>
-
-        <div className="grid gap-2 sm:grid-cols-2">
-          {LEVELS.map((option) => {
-            const one = levelFor(option);
-            const isCurrent = option === level;
-            return (
-              <label
-                key={option}
-                className={`flex cursor-pointer flex-col gap-1.5 rounded-2xl border-2 px-3.5 py-3 transition-[transform,box-shadow,background-color,border-color] duration-150 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent ${
-                  isCurrent
-                    ? "border-accent bg-accent-soft shadow-card"
-                    : "border-line-strong bg-surface hover:-translate-y-0.5 hover:border-accent hover:shadow-card"
-                }`}
-              >
-                {/* Seçili olan yalnızca renkle ayrılmıyor (WCAG 1.4.1). */}
-                <span
-                  aria-hidden="true"
-                  className={`h-1 rounded-full transition-[width,background-color] duration-200 ${
-                    isCurrent ? "w-full bg-accent" : "w-6 bg-line"
-                  }`}
-                />
-
-                <input
-                  type="radio"
-                  name="which-more-level"
-                  className="sr-only"
-                  value={option}
-                  checked={isCurrent}
-                  onChange={() => {
-                    onLevel(option);
-                  }}
-                />
-
-                <span
-                  className={
-                    "text-sm " +
-                    (isCurrent ? "font-bold text-accent" : "font-semibold")
-                  }
-                >
-                  {one.name}
-                </span>
-
-                {/*
-                  ÖLÇÜT ERİŞİLEBİLİR ADIN PARÇASI, gizli değil: "Kolay" tek
-                  başına neyin kolay olduğunu söylemiyor ve bu tam da modun
-                  cevapladığı soru.
-                */}
-                <span className="text-xs text-muted">{one.detail}</span>
-              </label>
-            );
-          })}
-        </div>
-      </fieldset>
-
-      <fieldset className="flex flex-col gap-4">
-        <StepLegend step={2}>Hangi istatistik?</StepLegend>
-
-        {STAT_GROUPS.map((group, groupIndex) => (
-          <fieldset key={group.caption} className="flex flex-col gap-2">
-            <legend className="flex flex-wrap items-baseline gap-x-2">
-              <span className="text-sm font-bold">{group.caption}</span>
-              <span className="text-xs text-note">{group.detail}</span>
-            </legend>
-
-            <div className="grid gap-2 sm:grid-cols-3">
-              {STAT_KEYS.filter(
-                (key) => questionFor(key).scoped === group.scoped,
-              ).map((key, index) => {
-                const one = questionFor(key);
-                const isCurrent = key === statKey;
-                return (
-                  /*
-                    SEÇİLİ OLAN YALNIZCA RENKLE AYRILMIYOR (WCAG 1.4.1): yazı
-                    kalınlığı değişiyor ve üstteki şerit boydan boya doluyor.
-                    Kenarlık iki durumda da `border-2`, yoksa seçim ızgarayı
-                    bir piksel oynatırdı.
-                  */
-                  <label
-                    key={key}
-                    className={`animate-duel-enter flex cursor-pointer flex-col gap-1.5 rounded-2xl border-2 px-3.5 py-3 transition-[transform,box-shadow,background-color,border-color] duration-150 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent ${
-                      isCurrent
-                        ? "border-accent bg-accent-soft shadow-card"
-                        : "border-line-strong bg-surface hover:-translate-y-0.5 hover:border-accent hover:shadow-card"
-                    }`}
-                    /*
-                      GECİKME ÖBEK BOYUNDAN OKUNUR, sabit 3'ten değil: öbekler
-                      artık eşit değil (5+1) ve sabit çarpan ikinci öbeği
-                      birincinin üstüne bindirirdi.
-                    */
-                    style={{
-                      animationDelay: `${String(
-                        (groupOffset(groupIndex) + index + 2) * SETUP_STEP_MS,
-                      )}ms`,
-                    }}
-                  >
-                    <span
-                      aria-hidden="true"
-                      className={`h-1 rounded-full transition-[width,background-color] duration-200 ${
-                        isCurrent ? "w-full bg-accent" : "w-6 bg-line"
-                      }`}
-                    />
-
-                    <input
-                      type="radio"
-                      name="which-more-stat"
-                      className="sr-only"
-                      value={key}
-                      checked={isCurrent}
-                      onChange={() => {
-                        onStatKey(key);
-                      }}
-                    />
-
-                    <span
-                      className={
-                        "text-sm " +
-                        (isCurrent ? "font-bold text-accent" : "font-semibold")
-                      }
-                    >
-                      {one.name}
-                    </span>
-
-                    {/*
-                      BR-29'un bandı seçim ANINDA okunuyor. Oyunun zorluğunu
-                      ayarlayan tek sayı budur ve bugüne dek arayüzün hiçbir
-                      yerinde görünmüyordu: kullanıcı "kulüp sayısı" ile "kulüp
-                      maçı"nın neden bambaşka zorlukta olduğunu bilemiyordu.
-                      Metin erişilebilir adın PARÇASI — gizlenseydi ekran
-                      okuyucu kullanıcısı bu farkı hiç öğrenemezdi.
-                    */}
-                    <span className="text-xs text-muted">
-                      en az {String(MIN_GAP[key])} {one.gapUnit ?? one.unit}{" "}
-                      fark
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-          </fieldset>
-        ))}
-      </fieldset>
-
-      <fieldset
-        className="animate-duel-enter flex flex-col gap-2"
-        style={{ animationDelay: `${String(8 * SETUP_STEP_MS)}ms` }}
-      >
-        <StepLegend step={3}>Hangi yön?</StepLegend>
-
         <div className="flex flex-wrap gap-2">
-          {(["more", "less"] as const).map((option) => {
-            const isCurrent = option === direction;
+          {STAT_KEYS.map((key) => {
+            const one = questionFor(key);
+            const isCurrent = key === statKey;
             return (
-              <label
-                key={option}
-                className={`flex-1 cursor-pointer rounded-full border-2 px-5 py-2.5 text-center text-base transition-[transform,box-shadow,background-color,border-color] duration-150 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent sm:flex-none ${
-                  isCurrent
-                    ? "border-accent bg-accent font-bold text-accent-fg shadow-card"
-                    : "border-line-strong bg-surface font-semibold hover:-translate-y-0.5 hover:border-accent hover:shadow-card"
-                }`}
-              >
+              <label key={key} className={controlPillClass(isCurrent)}>
                 <input
                   type="radio"
-                  name="which-more-direction"
+                  name="which-more-stat"
                   className="sr-only"
-                  value={option}
+                  value={key}
                   checked={isCurrent}
                   onChange={() => {
-                    onDirection(option);
+                    onStat(key);
                   }}
                 />
-
-                {/*
-                  GÖRÜNEN kısa, DUYULAN tam. Cümlenin tamamı önizlemede zaten
-                  yazılı; düğmede tekrarı seçimi okunmaz hâle getiriyordu.
-                */}
-                <span aria-hidden="true">
-                  {option === "more" ? question.moreShort : question.lessShort}
-                </span>
+                <span>{one.name}</span>
+                {/* BR-29 bandı + kapsam erişilebilir adın PARÇASI: pill göze sade
+                    kalır, ölçüt ekran okuyucuda tam duyulur (kapsam ayrıca canlı
+                    notta). */}
                 <span className="sr-only">
-                  {option === "more" ? question.more : question.less}
+                  {" — en az "}
+                  {String(MIN_GAP[key])} {one.gapUnit ?? one.unit} fark
+                  {one.scoped ? ", yalnızca 24 lig" : ""}
                 </span>
               </label>
             );
@@ -1374,19 +1166,71 @@ function StatPicker({
         </div>
       </fieldset>
 
-      {/*
-        Kurulum ekranının TEK eylemi bu; ölçüsü de onu söylüyor. Diğer
-        modlardaki "Devam" düğmesiyle aynı puntoda durması, koşuyu başlatan
-        kararı sıradan bir ilerleme adımı gibi gösteriyordu.
-      */}
-      <div
-        className="animate-duel-enter"
-        style={{ animationDelay: `${String(9 * SETUP_STEP_MS)}ms` }}
-      >
-        <Button size="hero" glow className="w-full sm:w-auto" onClick={onStart}>
-          Başla
-          <span aria-hidden="true">→</span>
-        </Button>
+      <div className="flex flex-wrap gap-x-8 gap-y-4">
+        <fieldset className="flex flex-col gap-2">
+          <DataLabel as="legend" className="text-muted">
+            Havuz
+          </DataLabel>
+          <div className="flex gap-2">
+            {LEVELS.map((option) => {
+              const one = levelFor(option);
+              const isCurrent = option === level;
+              return (
+                <label key={option} className={controlPillClass(isCurrent)}>
+                  <input
+                    type="radio"
+                    name="which-more-level"
+                    className="sr-only"
+                    value={option}
+                    checked={isCurrent}
+                    onChange={() => {
+                      onLevel(option);
+                    }}
+                  />
+                  <span>{one.name}</span>
+                  {/* Ölçüt erişilebilir adın parçası: "Kolay" tek başına neyin
+                      kolay olduğunu söylemez. */}
+                  <span className="sr-only"> — {one.detail}</span>
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
+
+        <fieldset className="flex flex-col gap-2">
+          <DataLabel as="legend" className="text-muted">
+            Yön
+          </DataLabel>
+          <div className="flex gap-2">
+            {(["more", "less"] as const).map((option) => {
+              const isCurrent = option === direction;
+              return (
+                <label key={option} className={controlPillClass(isCurrent)}>
+                  <input
+                    type="radio"
+                    name="which-more-direction"
+                    className="sr-only"
+                    value={option}
+                    checked={isCurrent}
+                    onChange={() => {
+                      onDirection(option);
+                    }}
+                  />
+                  {/* GÖRÜNEN kısa, DUYULAN tam (WCAG 2.5.3): kısa biçim tam
+                      cümlenin içinde geçer. */}
+                  <span aria-hidden="true">
+                    {option === "more"
+                      ? question.moreShort
+                      : question.lessShort}
+                  </span>
+                  <span className="sr-only">
+                    {option === "more" ? question.more : question.less}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
       </div>
     </div>
   );

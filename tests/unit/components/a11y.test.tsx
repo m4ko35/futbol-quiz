@@ -309,7 +309,7 @@ describe("erişilebilirlik — WCAG 2.1 AA (§7.10)", () => {
     await expectNoViolations(container);
   });
 
-  it("'hangisi daha' kurulum ekranında ihlal yok", async () => {
+  it("'hangisi daha' satır içi kontrollerde ihlal yok", async () => {
     const { container } = render(
       <WhichMoreQuiz
         fetchRound={() =>
@@ -351,7 +351,7 @@ describe("erişilebilirlik — WCAG 2.1 AA (§7.10)", () => {
       />,
     );
 
-    await userEvent.click(screen.getByRole("button", { name: "Başla" }));
+    // Kurulum ekranı yok (§9.3): ilk düello mount'ta yüklenir; gelmesini bekle.
     await userEvent.click(
       await screen.findByRole("button", { name: /Drogba/u }),
     );

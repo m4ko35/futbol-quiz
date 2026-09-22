@@ -3275,16 +3275,16 @@ Vurgu (`lit`) bir süsleme değil: bugünkü arayüzün en çok eleştirilen yan
 
 Bu yüzden künye **sunucu sayfasında değil, mod bileşeninin içinde** duruyor. Sunucuda render edilen sabit bir başlık canlı sayıyı taşıyamazdı; ikinci bir sayaç eklemek ise aynı sayıyı iki yerde göstermek olurdu.
 
-**Gösterecek gerçek sayısı olmayan mod tabela taşımaz.** Boş ya da uydurma bir sayaç, sayacın kendisini anlamsızlaştırır. Düello modunun kurulum evresinde tabela basılmıyor: henüz sayılacak bir şey yok.
+**Gösterecek gerçek sayısı olmayan mod tabela taşımaz.** Boş ya da uydurma bir sayaç, sayacın kendisini anlamsızlaştırır. Ortak oyuncu modunda tabela yalnızca sonuç gelince beliriyor. Düello modunda kurulum evresi kalktı (§9.3): sayfa doğrudan düelloya açıldığı için tabela HER ZAMAN var ve ilk düello boş durumdur (`Seri 0`), ızgaranın `0/9`'u gibi.
 
 #### Dört modun tabelası
 
-| Mod            | Boş durum                  | Canlı                                                   | Vurgu (`lit`)         |
-| -------------- | -------------------------- | ------------------------------------------------------- | --------------------- |
-| Ortak Oyuncu   | tabela yok (ölçek şeritte) | `Ortak oyuncu · Dönem`                                  | Sonuç boş değilse     |
-| Günün Izgarası | **durum bandı** (aşağıda)  | `Doğru n/9` + çubuk, `Hak n` + kalkanlar                | Oyun bittiğinde       |
-| Günün Oyuncusu | **durum bandı** (aşağıda)  | `Cevaplanan n/6` + segment şeridi, `Ortalama %n` + band | Tur tamamlanınca      |
-| Hangisi Daha   | tabela yok (kurulum)       | `Seri n`                                                | Seri sıfırdan büyükse |
+| Mod            | Boş durum                     | Canlı                                                   | Vurgu (`lit`)         |
+| -------------- | ----------------------------- | ------------------------------------------------------- | --------------------- |
+| Ortak Oyuncu   | tabela yok (ölçek şeritte)    | `Ortak oyuncu · Dönem`                                  | Sonuç boş değilse     |
+| Günün Izgarası | **durum bandı** (aşağıda)     | `Doğru n/9` + çubuk, `Hak n` + kalkanlar                | Oyun bittiğinde       |
+| Günün Oyuncusu | **durum bandı** (aşağıda)     | `Cevaplanan n/6` + segment şeridi, `Ortalama %n` + band | Tur tamamlanınca      |
+| Hangisi Daha   | `Seri 0` (kurulum ekranı yok) | `Seri n`                                                | Seri sıfırdan büyükse |
 
 Renk **sonuç dilinden** geliyor (§7.12): ızgarada doğru hücre sayısı `correct`, kalan hak azaldıkça `warn` ve bittiğinde `wrong`; istatistikte ortalama BR-18'in puan bandına göre. Hepsinde renk yalnızca destekleyici — sayı zaten yazılı (WCAG 1.4.1).
 
@@ -4732,7 +4732,8 @@ Bu mod Stitch'in görsel dilini aldı; **çerçevesini değil.** Stitch ekranı 
 - **Aradaki fark şeridi** — cevap açılınca iki değerin farkı iki kartın altında ortalı bir şeritte yazılır (`Aradaki fark: 11 maç`); Stitch'in VS rozetindeki "+142 FARK"ın karşılığı, ama **doğru birimle** (`gapUnit`: doğum yılında "yıl", değerin "doğumlu"su değil). `aria-hidden` değil, gerçek bilgi.
 - **Zengin verdict** — doğru cevapta artık yalnızca "Doğru!" değil, kazananı ve değerini de yazar (`Henry önde — 175 maç`). Kazanan kullanıcının seçtiği karttır; isim/değer `pair` + `answer`'dan çözülür. Seri bandı (BR-30) korunur.
 - **Seriyi paylaş** — koşu sürerken (seri > 0) künyenin `actions` yuvasında; paylaşılan metin `N doğru üst üste · metrik (seviye)` + seri kadar 🟩 (biten koşuda sonuna 🟥). Nadirlik/percentil YOK; ızgara/istatistikle aynı kural (§9.1/§9.2).
-- **Kısayol + 3 kartlı nasıl oynanır** — künyede "Nasıl oynanır" çapası; sayfadaki iki düz paragraf üç kartlı düzene döndü (Metriği İnceleyin / Serinizi Koruyun / Şeffaf Veri — hepsi GERÇEK kural: BR-28/BR-30 + §9.2 kapsam) + gerçek veri kümesi sayılı kapsam şeridi. Stitch'in kategori sekmeleri **oynatılmadı**: metrik değişince koşu sıfırlanır, mid-run sekme seri modeline aykırı.
+- **Kısayol + 3 kartlı nasıl oynanır** — künyede "Nasıl oynanır" çapası; sayfadaki iki düz paragraf üç kartlı düzene döndü (Metriği İnceleyin / Serinizi Koruyun / Şeffaf Veri — hepsi GERÇEK kural: BR-28/BR-30 + §9.2 kapsam) + gerçek veri kümesi sayılı kapsam şeridi.
+- **Kurulum ekranı kaldırıldı** (22 Eyl 2026, Seçenek 1) — Stitch'in "kurulum yok, direkt düello" hissi alındı ama Kolay/Zor ve yön KORUNARAK; metrik/havuz/yön satır içi segment kontrolleri, birine dokununca koşu sıfırlanır. Ayrıntı: aşağıdaki "Kurulum ekranı kaldırıldı" alt-bölümü.
 
 #### Ölçüm: havuz
 
@@ -4947,21 +4948,15 @@ Aşağıdakiler **yalnızca sunumdur**. BR-28…BR-32 değişmedi, sunucu sözle
 
 **Seri bandı ölçümden geliyor, uydurulmadı.** Yukarıdaki BR-30 tablosunda dengeli rakiple bilgisiz oynayan koşunun **p90'ı 3, p99'u 6**. Yani 4. doğru "on koşuda bir", 7. doğru "yüz koşuda bir" görülen bir yer. Şerit tam olarak bunu yazıyor. Eşikler bir tasarım hevesi değil, şartnamenin kendi ölçümü; ölçüm değişirse eşik de değişmeli.
 
-#### Kurulum ekranı: bir form değil, kurulan bir soru (10 Ağustos 2026)
+#### Kurulum ekranı kaldırıldı: Stitch gibi, doğrudan düello (22 Eylül 2026)
 
-Kurulum ekranı sekiz radyo düğmesi ve bir "Başla"dan ibaretti. Asıl kusuru sadeliği değil, **çıktısını göstermemesiydi**: kurulumun ürettiği şey bir cümledir ("Hangisi daha çok kulüp maçı yaptı?") ve o cümle hiçbir yerde bir bütün olarak görünmüyordu. Kullanıcı bir kutudan istatistiği, başka bir kutudan yönü seçiyor ve ne soracağını ancak oyun **başladıktan sonra** okuyordu.
+Önceki tasarım ayrı bir **kurulum ekranıydı**: üç adım (havuz / istatistik / yön) ve bir "Başla". Ürün sahibi bu ekranı beğenmedi ve Stitch'in yaklaşımını sordu. Stitch bu ekranı **hiç yapmamış** — kullanıcıyı doğrudan canlı bir düelloya düşürüyor ve metrik seçimini düellonun üstünde tek satırlık bir sekme şeridine indiriyor; ne seviye ne yön var, soru hep "daha çok". Bu sadelik gerçek ama Stitch onu **iki gerçek özelliği atarak** alıyor (Kolay/Zor — BR-41; ve yön), üstüne dört uydurma kategori ekliyor (asist/kupa/UCL/piyasa değeri — veri kümesinde yok).
 
-**Cümle artık ekranın en büyük yazısı** ve her seçimde yeniden basılıyor — React anahtarı değiştiği için açılış animasyonu her seferinde yeniden koşuyor. Kurulum böylece bir form doldurmak değil, bir soru **kurmak** oluyor: her tıklamanın karşılığı anında ve aynı yerde görünüyor.
+**Alınan karar (Seçenek 1): kurulum ekranını KALDIR, Kolay/Zor ve yönü KORU.** Sayfa artık varsayılanlarla (Kolay · Resmî maç · daha çok) doğrudan canlı düelloya açılıyor — ilk tur `useEffect` ile mount'ta, bir `ref` muhafızıyla **bir kez** yükleniyor (`fetchRound` varsayılanı her render'da yeni bir fonksiyon olduğu için muhafız olmadan sonsuz yeniden yükleme olurdu). Metrik/havuz/yön düellonun üstünde satır içi segment kontrolleridir; **birine dokununca koşu SIFIRLANIR ve taze bir tur yüklenir** — seri o ayara aittir (metrik değişince farklı havuz, yön değişince ters soru; ikisi de yeni koşu). Böylece Stitch'in "kurulum yok" hissi, gerçek özellikler korunarak alınıyor.
 
-**Yön düğmeleri kısaldı, adları kısalmadı.** Cümlenin tamamı önizlemede durduğu için düğmede ikinci kez basmak seçimi bir cümle yığınına çeviriyordu ("daha çok kulüp maçı yaptı" / "daha az kulüp maçı yaptı" yan yana). Görünen metin artık "daha çok" / "daha az"; **erişilebilir ad tam cümle kaldı** — §7.17'deki gezinme kararının aynısı ve WCAG 2.5.3 kısa biçim tam cümlenin içinde geçtiği için sağlanıyor. Bir test bunu tutuyor.
+**Kontroller bir form değil, sıkı bir denetim çubuğu.** Pill'ler göze sade (yalnızca ad), ölçüt erişilebilir adın PARÇASI (sr-only): metrik radyosu BR-29 bandını + kapsamı ("en az 35 maç fark, yalnızca 24 lig"), havuz radyosu ölçütünü ("Kolay — A millî takımda 20+ maç…"), yön radyosu tam cümleyi ("daha çok resmî maça çıktı") taşır. Görünen yön metni kısa ("daha çok"), erişilebilir ad tam cümle — WCAG 2.5.3, kısa biçim tam cümlenin içinde. Seçili pill **DOLU**, seçilmemiş çerçeveli: renk tek gösterge değil (WCAG 1.4.1).
 
-**İstatistikler iki öbeğe ayrıldı ve ayrım uydurma değil: `scoped`.** Kulüp maçı, gol ve kulüp sayısı §1.3'ün yirmi dört ligini sayar; millî maç, boy ve doğum yılı oyuncunun kendi kaydından gelir. Bu fark oyuna doğrudan etki ediyor ve bugüne dek yalnızca **tur** ekranında, seçim yapıldıktan **sonra** söyleniyordu. Öbek başlığına taşındığında kullanıcı onu seçerken okuyor. Öbek üyeliği elle listelenmiyor, `scoped` alanından türetiliyor — yeni bir istatistik iki yerde birden güncelleme gerektirmesin diye.
-
-**Her kart artık BR-29'un bandını taşıyor** ("en az 25 maç fark"). Bu, oyunun zorluğunu ayarlayan **tek** sayıdır ve arayüzün hiçbir yerinde görünmüyordu: kullanıcı "kulüp sayısı" ile "kulüp maçı"nın neden bambaşka zorlukta olduğunu bilemiyordu. Sayı `MIN_GAP`'ten okunuyor, arayüze kopyalanmadı; metin **erişilebilir adın parçası** — gizlenseydi ekran okuyucu kullanıcısı bu farkı hiç öğrenemezdi.
-
-**Seçili olan yalnızca renkle ayrılmıyor** (WCAG 1.4.1): yazı kalınlığı değişiyor ve kartın üstündeki şerit boydan boya doluyor. Kenarlık iki durumda da `border-2`, yoksa seçim ızgarayı bir piksel oynatırdı. Kartlar açılışta sırayla beliriyor (adım başına 70 ms) ve "Başla" büyütülüp dar ekranda tam genişliğe çıktı: kurulum ekranının tek eylemi o ve "Devam" ile aynı puntoda durması, koşuyu başlatan kararı sıradan bir ilerleme adımı gibi gösteriyordu.
-
-> **Erişilebilir adın boşluğu yerleşimden gelir.** Ad, kardeş düğümlerin metinleri birleştirilerek kurulur ve aradaki boşluğu tarayıcı **kutu türünden** türetir — blok kutular boşlukla ayrılır, satır içi olanlar ayrılmaz. jsdom'un yerleşim motoru olmadığı için testte ad "Kulüp maçıen az …" diye birleşiyor, tarayıcıda boşlukla. Bu bir işaretleme kusuru değil ortam kısıtıdır; test bu yüzden adın tamamını değil, bandın adın **içinde** geçtiğini arıyor. Metne elle boşluk eklemek çözüm değil — ad hesabı her metin parçasını zaten kırpıyor.
+**Eski öbek başlıklarının ("Kapsama bağlı") işini artık canlı sorunun altındaki kapsam notu üstleniyor.** Kurulum ekranı olmadığı için metrik seçimi ve soru aynı ekranda; kapsam notu (`scoped` alanından, BR-23) metrik değişince **seçim ANINDA** güncelleniyor — sinyal kaybolmadı, sorunun kendisine bağlandı. Tabela da artık "kurulum" boş durumu taşımıyor: ilk düellonun kendisi boş durum (`Seri 0`), ızgaranın `0/9`'u gibi (§7.15).
 
 **Yapılmayanlar.** _Otomatik geçiş_ yok — süreli ilerleyen bir oyun WCAG 2.2.1'e takılır ve sonucu okumaya fırsat bırakmaz; kullanıcı "Devam" der. _Sayının sıfırdan sayılarak açılması_ yok: rakamlar düğmenin erişilebilir adının içinde ve saniyede altmış kez değişen bir ad, ekran okuyucuyu boğar; aynı dramayı çubuk, adı hiç kıpırdatmadan veriyor. _Ses_ yok.
 
