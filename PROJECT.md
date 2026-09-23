@@ -6676,6 +6676,34 @@ artık uygulama mantığının değil **veritabanının** garantisi.
 
 ### 12.7 Arayüz
 
+##### SUNUM: EDİTORYAL BAŞLIK + 3 KARTLI NASIL OYNANIR (Stitch dili)
+
+Oda, Stitch'in görsel dilini aldı; **çerçevesini değil.** Stitch üç tasarım
+çizdi (oda, "canlı eşleşme radarı", koyu mobil) ve üçü de bambaşka bir ürün
+kuruyordu: gerçek-zamanlı **WebRTC 1v1 reaksiyon arenası**. Uydurmalar (§5.2
+
+- §12): odada oyun modu seçimi (Ortak Oyuncu/Hangisi Daha/Izgara — oysa oda
+  yalnızca İstatistik turudur), tur sayısı + soru başı süre + geri sayım (tek
+  tur, zamanlayıcı yok — WCAG 2.2.1), "ilk kim seçecek" reaksiyon oyunu +
+  hız bonusu, misafir/guest katılım (giriş şart, BR-54), "Aktif Düello Sunucusu
+  · Ping 18ms · Radar Aktif · canlı yayın" telemetrisi, "Toplam puan 3.200 PTS"
+  running skor + seri galibiyet, "Maç sonucu 6-4 · +120 Liderlik Puanı · Lider
+  tablosuna puanı işle" (sonuç saklanmaz, lider tablosuna GİRMEZ — §12.2),
+  doğruluk/hız/en-yüksek-seri metrikleri, rövanş, "WebRTC/WebSocket P2P tünel"
+  (altyapı yoklamadır, §12.1). Alınan şey düzen ve tipografi oldu — yalnızca
+  lobide (`/oda`):
+
+* **Editoryal başlık** — kicker ("İki kişilik karşılaşma odası") + başlık +
+  açıklama + "Nasıl oynanır?" çapası. Stitch'in "canlı 1v1 düello" reframe'i
+  düşürüldü.
+* **3 kartlı "Nasıl oynanır?"** — sayfanın altındaki madde listesi üç karta
+  döndü (Eş zamanlı, aynı futbolcu / Yüksek toplam kazanır / Kısa ömürlü,
+  saklanmaz — hepsi GERÇEK kural: §12.2 + BR-58/60). Stitch'in "hız çarpanı"
+  ve "P2P tünel" kartları düzeltildi.
+
+Oda kodu belirginliği (davet ekranında mono 4xl/5xl accent) ve lobinin ikili
+"Oda kur / Koda katıl" düzeni zaten yerindeydi; dokunulmadı.
+
 ##### DÖRT EKRAN, TEK ADRES
 
 `/oda/{kod}` adresi kullanıcının odayla ilişkisine göre dört ayrı şey
