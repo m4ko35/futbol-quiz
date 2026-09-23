@@ -31,11 +31,16 @@ export function BrandMark({ className }: BrandMarkProps) {
           <circle cx="12" cy="16" r="9" />
         </clipPath>
       </defs>
+      {/* İnce gövde: iki çember artık boş kontur değil, %12 saydam bir tonla
+          dolu (Stitch dili) — mercek biçimini zayıflatmadan işarete cam gibi
+          bir hacim veriyor. `currentColor` olduğu için tonu da yerin rengini
+          alır. */}
       <circle
         cx="12"
         cy="16"
         r="9"
-        fill="none"
+        fill="currentColor"
+        fillOpacity={0.12}
         stroke="currentColor"
         strokeWidth="2.5"
       />
@@ -43,7 +48,8 @@ export function BrandMark({ className }: BrandMarkProps) {
         cx="20"
         cy="16"
         r="9"
-        fill="none"
+        fill="currentColor"
+        fillOpacity={0.12}
         stroke="currentColor"
         strokeWidth="2.5"
       />

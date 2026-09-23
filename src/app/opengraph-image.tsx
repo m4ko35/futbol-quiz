@@ -29,14 +29,15 @@ export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
 /**
- * Marka işareti — `icon.svg` ile AYNI geometri (iki kesişen çember, dolu mercek
- * = `A ∩ B`). Yeşil `#16a34a` favicon'daki sabit marka rengidir.
+ * Marka işareti — `icon.svg` ile AYNI rozet (accent mavi yuvarlak kare + beyaz
+ * kesişim işareti, dolu mercek = `A ∩ B`). Renk markanın accent'i (`#1d34d1`);
+ * eski yeşil accent yeşilken kalmış bir izdi.
  *
  * VERİ-URI `<img>` olarak gömülüyor, satır içi `<svg>` olarak değil: Satori'nin
  * `clipPath` desteği eksiktir, resvg (veri-URI'yi rasterleştiren) ise tam
  * destekler — mercek ancak böyle sadık çizilir.
  */
-const MARK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="196" height="196"><defs><clipPath id="l"><circle cx="12" cy="16" r="9"/></clipPath></defs><circle cx="12" cy="16" r="9" fill="none" stroke="#16a34a" stroke-width="2.5"/><circle cx="20" cy="16" r="9" fill="none" stroke="#16a34a" stroke-width="2.5"/><circle cx="20" cy="16" r="9" fill="#16a34a" clip-path="url(#l)"/></svg>`;
+const MARK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="196" height="196"><defs><clipPath id="l"><circle cx="13" cy="16" r="7"/></clipPath></defs><rect width="32" height="32" rx="8" fill="#1d34d1"/><circle cx="13" cy="16" r="7" fill="none" stroke="#ffffff" stroke-width="2.2"/><circle cx="19" cy="16" r="7" fill="none" stroke="#ffffff" stroke-width="2.2"/><circle cx="19" cy="16" r="7" fill="#ffffff" clip-path="url(#l)"/></svg>`;
 
 const MARK_DATA_URI = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(MARK_SVG)}`;
 
@@ -50,8 +51,8 @@ export default function OpenGraphImage(): ImageResponse {
         flexDirection: "column",
         justifyContent: "space-between",
         padding: "88px",
-        // Sitenin koyu teması: işaretin yeşili bu zeminde en çok okunur ve
-        // akışta göze çarpar.
+        // Sitenin koyu teması: accent rozet bu koyu zeminde bir uygulama ikonu
+        // gibi durur ve akışta göze çarpar.
         background: "linear-gradient(135deg, #0b1220 0%, #070c14 100%)",
         color: "#e9eff7",
       }}

@@ -73,8 +73,11 @@ export function SiteHeader({ showLeaderboard }: SiteHeaderProps) {
           className="order-1 flex items-center gap-2 rounded-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
         >
           <BrandMark className="h-7 w-7 shrink-0 text-accent" />
+          {/* İki tonlu kelime markası (Stitch dili): "Futbol" ön planda,
+              "Challenge" accent. Marka kimliğinin iki-renk ritmi; tek satır
+              kalıyor (başlık düzeni sıkı). */}
           <span className="font-display text-xl font-bold tracking-tight uppercase">
-            Futbol Challenge
+            Futbol <span className="text-accent">Challenge</span>
           </span>
         </Link>
 
