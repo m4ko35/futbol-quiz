@@ -5907,6 +5907,36 @@ oynadı mı". Oynamamak bir ölçüm eksikliği değil, bir olgudur.
 > görünürdü. Görünen ad da son turdan alınır: kullanıcı adını değiştirirse
 > tablo eskisini göstermemeli.
 
+#### Sunum: editoryal başlık, "senin sıralaman" bandı, paylaş (Stitch dili)
+
+Lider tablosu Stitch'in görsel dilini aldı; **çerçevesini değil.** Stitch üç
+tasarım çizdi (açık masaüstü, koyu mobil, sıralama-yükselişi animasyonlu) ve
+üçü de aynı uydurma modeli kuruyordu: mod bazlı alt-sekmeler (Ortak Oyuncu /
+Izgara / Hangisi Daha ayrı sıralama), oyuncu başına zengin sütunlar (favori
+kulüp arması, nadirlik %, seri, doğruluk %, "form son 5"), altın/gümüş/bronz
+podyum kartları, avatar/monogram, onay rozetleri, sayfalama (1/148, 1.776
+oyuncu), "sadece doğrulanmışlar" filtresi, sıra trend okları, geri sayım,
+"CANLI SIRALAMA · SEZON 2026 Güz Etabı · Ödüllü Tur", misafir sıralaması ve
+"%40 nadirlik · %30 seri · %30 doğruluk" puanlama formülü. **Hepsi modele
+aykırı (§5.2 + §11.5):** lider tablosu YALNIZCA günlük İstatistik modunundur,
+puan gün başına 0–600 tam sayıdır (mod başına skor/nadirlik/doğruluk saklanmaz),
+sıra geçmişi/sezon/ödül/doğrulama yoktur, DTO dört alan taşır (rank, ad, puan,
+gün). Alınan şey düzen ve tipografi oldu:
+
+- **Editoryal başlık** — kicker ("Günlük istatistik sıralaması") + başlık +
+  açıklama + "Nasıl puan hesaplanır?" çapası. Stitch'in "canlı/sezon/doğrula"
+  süsleri düşürüldü.
+- **"Senin sıralaman" bandı** — giriş yapmış ve dereceye girmiş kullanıcının
+  sırası tablonun üstünde vurgulu bir bantta (`#sıra` + ad + puan + gün);
+  `me`/`isMe` zaten hesaplanıyordu, yalnızca öne çıkarıldı. Dereceye girmemiş
+  kullanıcıya "henüz listede değilsin, tamamla" çağrısı; girişsiz ziyaretçiye
+  giriş çağrısı — üç durum tek yerde (kendi-durum bölgesi), tablonun üstünde.
+- **Sıralamanı paylaş** — bandın içinde; paylaşılan metin `{dönem}: #{sıra} ·
+{puan} puan` + link. Nadirlik/percentil YOK; öbür modlarla aynı kural.
+- **3 kartlı "Nasıl puan hesaplanır?"** — sayfanın altındaki tek paragraf, üç
+  kartlı düzene döndü (Tamamla listeye gir / Toplam puan yükseltir / Şeffaf ve
+  anonim — hepsi GERÇEK: BR-45 + §11.5 toplam kuralı + §11.6 gizlilik).
+
 ### 11.6 Gizlilik ve KVKK etkisi
 
 > **YAPILDI (16 Ağustos 2026).** Metin, hesap özelliği yazıldıktan SONRA

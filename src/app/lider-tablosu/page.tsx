@@ -5,6 +5,8 @@ import {
   getLeaderboard,
   type LeaderboardRowDto,
 } from "@/application/use-cases/leaderboard";
+import { DataLabel } from "@/components/data-label";
+import { LeaderboardShareButton } from "@/components/leaderboard-share";
 import { PageShell } from "@/components/page-shell";
 import { ReportNameDialog } from "@/components/report-name-dialog";
 import { SiteFooter } from "@/components/site-footer";
@@ -52,6 +54,32 @@ const PERIODS: readonly {
     key: "allTime",
     label: "Tüm zamanlar",
     empty: "Henüz tamamlanmış tur yok.",
+  },
+];
+
+/**
+ * "Nasıl puan hesaplanır" kartları — hepsi GERÇEK kural (BR-45 + §11.5 + §11.6).
+ *
+ * Stitch sayfanın altındaki tek paragrafı üç kart çiziyordu ama içeriği
+ * ("%40 nadirlik · %30 seri · %30 doğruluk" formülü) uydurmaydı (§5.2). Gerçek
+ * kurallar kondu: tamamla-gir, toplam, gizlilik. İçerik statik — modül
+ * düzeyinde bir sabit (ızgara/istatistik/hangisi-daha'daki desen).
+ */
+const HOW_TO_RULES: readonly {
+  readonly title: string;
+  readonly body: string;
+}[] = [
+  {
+    title: "Tamamla, Listeye Gir",
+    body: "Günün istatistik bulmacasının altı sorusunu da tamamlayan herkes listede. Yarım bırakılan tur girmez. Bir günün en yüksek puanı 600 (altı istatistik × 100).",
+  },
+  {
+    title: "Toplam Puan Yükseltir",
+    body: "Haftalık ve tüm zamanlar sıralaması toplam puandır; oynanmayan gün sıfır sayılır, düzenli oynamak yükseltir. Eşit puanlar aynı sırayı paylaşır.",
+  },
+  {
+    title: "Şeffaf ve Anonim",
+    body: "Gerçek ad zorunlu değil; istediğin takma adı seçersin. Google girişinde e-posta gizli kalır, üçüncü tarafla paylaşılmaz. Tablo herkese açıktır.",
   },
 ];
 
@@ -142,10 +170,18 @@ export default async function LeaderboardPage({ searchParams }: PageProps) {
   ]);
 
   const active = PERIODS.find((p) => p.key === period) ?? PERIODS[0];
+  const activeLabel = active?.label ?? PERIODS[0]?.label ?? "Bugün";
+
+  // Kullanıcının KENDİ satırı — görünür satırlar arasında ya da `me` alanında
+  // (ilk 50'de değilse). "Senin sıralaman" bandı bunu öne çıkarır (§11.5).
+  const ownRow = board.rows.find((row) => row.isMe) ?? board.me;
 
   return (
     <PageShell>
       <header className="flex flex-col gap-3">
+        <DataLabel as="p" className="text-accent">
+          Günlük istatistik sıralaması
+        </DataLabel>
         <h1 className="text-4xl font-bold tracking-tight text-balance sm:text-5xl">
           Lider Tablosu
         </h1>
@@ -153,6 +189,29 @@ export default async function LeaderboardPage({ searchParams }: PageProps) {
           Günlük istatistik bulmacasını <strong>tamamlayan</strong> herkes
           listede. Bir günün en yüksek puanı {MAX_ROUND_POINTS}.
         </p>
+        {/* "Nasıl puan hesaplanır?" çapası — Stitch'in başlık düğmesinin
+            karşılığı; sayfanın altındaki gerçek-kural kartlarına iner. */}
+        <a
+          href="#nasil-puanlama"
+          className="font-display inline-flex w-fit items-center gap-1.5 text-sm font-semibold tracking-wide text-accent uppercase underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            focusable="false"
+            className="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="12" cy="12" r="9" />
+            <path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.4c-.7.3-1 .8-1 1.5v.3" />
+            <path d="M12 17h.01" />
+          </svg>
+          <span>Nasıl puan hesaplanır?</span>
+        </a>
       </header>
 
       <nav aria-label="Dönem" className="flex flex-wrap gap-2">
@@ -175,6 +234,81 @@ export default async function LeaderboardPage({ searchParams }: PageProps) {
           );
         })}
       </nav>
+
+      {/*
+        KENDİ-DURUM BÖLGESİ (§11.5, Stitch dili) — tablonun üstünde, üç durum
+        tek yerde: dereceye girmişe vurgulu sıra bandı + paylaş; girmiş ama
+        listede olmayana "tamamla" çağrısı; girişsize giriş çağrısı.
+      */}
+      {ownRow !== null && (
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4 rounded-xl border-2 border-accent bg-accent-soft px-4 py-4 shadow-card sm:px-6">
+          <div className="flex items-center gap-4">
+            <div className="flex flex-col">
+              <DataLabel className="text-accent">Senin sıralaman</DataLabel>
+              <span className="font-display text-3xl leading-none font-bold tabular-nums sm:text-4xl">
+                #{ownRow.rank}
+              </span>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="font-semibold">{ownRow.displayName}</span>
+              <span className="text-sm text-muted">
+                <strong className="font-display tabular-nums text-foreground">
+                  {ownRow.points}
+                </strong>{" "}
+                puan · {ownRow.days} gün · {activeLabel}
+              </span>
+            </div>
+          </div>
+
+          <LeaderboardShareButton
+            rank={ownRow.rank}
+            points={ownRow.points}
+            periodLabel={activeLabel}
+            period={period}
+          />
+        </div>
+      )}
+
+      {/* Giriş yapmış ama bu dönemde dereceye girmemiş: tablo bir duvar değil,
+          bir davet olmalı. */}
+      {user !== null && ownRow === null && board.rows.length > 0 && (
+        <p className="rounded-xl border border-line bg-surface-2/40 px-4 py-3 text-sm text-muted">
+          Bu {activeLabel.toLocaleLowerCase("tr-TR")} döneminde henüz listede
+          değilsin. Günün{" "}
+          <Link
+            href="/istatistik"
+            className="font-semibold text-accent underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            istatistik bulmacasını
+          </Link>{" "}
+          tamamla, ismin buraya gelsin.
+        </p>
+      )}
+
+      {/*
+        AYNI DAVET GİRİŞSİZE (§11.11). Tabloyu açan ama girişi olmayan biri
+        listeye nasıl gireceğini soruyor; cevabı sayfanın kendisinde yoksa
+        aramak zorunda kalır. Kendi-durum bölgesinde, tablonun üstünde.
+      */}
+      {user === null && (
+        <p className="rounded-xl border border-line bg-surface-2/40 px-4 py-3 text-sm text-muted">
+          Listeye girmek için{" "}
+          <Link
+            href="/giris"
+            className="font-semibold text-accent underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            giriş yap
+          </Link>{" "}
+          ve günün{" "}
+          <Link
+            href="/istatistik"
+            className="font-semibold text-accent underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            istatistik bulmacasını
+          </Link>{" "}
+          tamamla.
+        </p>
+      )}
 
       {board.rows.length === 0 ? (
         <p className="rounded-xl border border-line bg-surface p-6 text-center text-muted shadow-card">
@@ -235,35 +369,41 @@ export default async function LeaderboardPage({ searchParams }: PageProps) {
       )}
 
       {/*
-        AYNI DAVET BURADA DA (§11.11). Tabloyu açan ama girişi olmayan biri
-        listeye nasıl gireceğini soruyor; cevabı sayfanın kendisinde yoksa
-        aramak zorunda kalır.
+        "Nasıl puan hesaplanır?" — §11.5. Stitch'in üç kartlı düzeni, ama
+        GERÇEK kurallarla (BR-45 + toplam kuralı + gizlilik); Stitch'in
+        "%40 nadirlik · %30 seri · %30 doğruluk" formülü uydurmaydı (§5.2).
+        Numara rozeti süsleme (aria-hidden): kurallar sıralı adımlar değil,
+        üç eş kural — `ul`, `ol` değil.
       */}
-      {user === null && (
-        <p className="rounded-xl border border-line bg-surface-2/40 px-4 py-3 text-sm text-muted">
-          Listeye girmek için{" "}
-          <Link
-            href="/giris"
-            className="font-semibold text-accent underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          >
-            giriş yap
-          </Link>{" "}
-          ve günün{" "}
-          <Link
-            href="/istatistik"
-            className="font-semibold text-accent underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          >
-            istatistik bulmacasını
-          </Link>{" "}
-          tamamla.
-        </p>
-      )}
+      <section
+        id="nasil-puanlama"
+        className="flex scroll-mt-24 flex-col gap-5 border-t border-line pt-8"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+          <h2 className="text-lg font-semibold">Nasıl puan hesaplanır?</h2>
+          <DataLabel className="text-muted">Sıralama kuralları</DataLabel>
+        </div>
 
-      <p className="max-w-prose text-sm text-muted">
-        Yarım bırakılan turlar listeye girmez. Oynanmayan gün sıfır sayılır —
-        haftalık ve tüm zamanlar sıralaması <strong>toplam</strong> puandır,
-        yani düzenli oynamak yükseltir. Eşit puanlar aynı sırayı paylaşır.
-      </p>
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {HOW_TO_RULES.map((rule, index) => (
+            <li
+              key={rule.title}
+              className="flex flex-col gap-2 rounded-xl border border-line bg-surface p-4"
+            >
+              <span
+                aria-hidden="true"
+                className="font-display flex h-7 w-7 items-center justify-center rounded-full bg-accent-soft text-sm font-bold tabular-nums text-accent"
+              >
+                {index + 1}
+              </span>
+              <h3 className="font-display text-base font-bold tracking-tight">
+                {rule.title}
+              </h3>
+              <p className="text-sm text-muted">{rule.body}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       <SiteFooter dataGeneratedAt={dataGeneratedAt} />
     </PageShell>
