@@ -23,6 +23,9 @@ const UNIQUE_VIOLATION = "P2002";
 const HOST_SEAT = 0;
 const GUEST_SEAT = 1;
 
+/** §12.8 — bu depo yalnızca bu moddaki odaları okur/döner (BR-67). */
+const STAT_MODE = "istatistik";
+
 function isUniqueViolation(error: unknown): boolean {
   return (
     error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -66,7 +69,12 @@ interface RoomRow {
   readonly id: string;
   readonly code: string;
   readonly hostId: string;
-  readonly targetPlayerId: string;
+  /**
+   * §12.8 — sütun artık boş bırakılabilir (Hangisi Daha odasının hedefi yok).
+   * Ama BU depo yalnızca İstatistik odalarını okur (aşağıdaki `mode` süzgeci),
+   * yani buraya gelen satırda hedef her zaman dolu; `null` bir tutarsızlıktır.
+   */
+  readonly targetPlayerId: string | null;
   readonly startedAt: Date | null;
   readonly createdAt: Date;
   readonly players: readonly {
@@ -90,6 +98,12 @@ function toStoredRoom(row: RoomRow): StoredRoom {
       displayName: player.user.displayName,
       round: toRoundState(player.answers),
     }));
+
+  // İstatistik odasında hedef HER ZAMAN dolu (mode süzgeci garanti eder); `null`
+  // bir veri tutarsızlığıdır ve sessizce boş bir hedefe düşmektense patlar.
+  if (row.targetPlayerId === null) {
+    throw new Error("İstatistik odasının hedefi yok (§12.8 tutarsızlık).");
+  }
 
   return {
     id: row.id,
@@ -127,8 +141,12 @@ export class PrismaRoomsRepository implements RoomsRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
   async findByCode(code: string): Promise<StoredRoom | null> {
-    const row = await this.prisma.room.findUnique({
-      where: { code },
+    // MODE SÜZGECİ (§12.8): bu depo yalnızca İstatistik odalarını okur. Hangisi
+    // Daha odaları ayrı depodan (`PrismaWhichMoreRoomsRepository`) okunur; kod
+    // uzayı ortak olduğu için süzgeç olmadan bu depo bir Hangisi Daha odasını
+    // hedefsiz okuyup patlardı. `findFirst` çünkü artık iki koşul var.
+    const row = await this.prisma.room.findFirst({
+      where: { code, mode: STAT_MODE },
       select: ROOM_SELECT,
     });
 
@@ -136,8 +154,8 @@ export class PrismaRoomsRepository implements RoomsRepository {
   }
 
   private async findById(id: string): Promise<StoredRoom | null> {
-    const row = await this.prisma.room.findUnique({
-      where: { id },
+    const row = await this.prisma.room.findFirst({
+      where: { id, mode: STAT_MODE },
       select: ROOM_SELECT,
     });
 

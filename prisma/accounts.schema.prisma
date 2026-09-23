@@ -235,11 +235,29 @@ model Room {
   hostId String
   host   User   @relation(fields: [hostId], references: [id], onDelete: Cascade)
 
+  /// Oda hangi oyunu oynatıyor — PROJECT.md §12.8, BR-67.
+  ///
+  /// `istatistik` | `hangisi-daha`. VARSAYILAN `istatistik` ve bu bir kolaylık
+  /// değil geriye dönük GARANTİ: bu sütun eklenmeden önce kurulmuş her oda
+  /// İstatistik odasıdır ve göç onlara doğru değeri kendiliğinden yazar.
+  mode String @default("istatistik")
+
+  /// Moda özgü yapılandırma (JSON) — BR-67. İstatistik odasında `null`.
+  ///
+  /// Hangisi Daha odasında `{ submode, statKey, level, direction, seed, n? }`
+  /// taşır. Sınırda **Zod** ile ayrıştırılır (§2.3); ayrıştırılmamış JSON iç
+  /// katmanlara geçmez. Ayrı sütunlar yerine JSON çünkü alanlar moda göre
+  /// değişir ve İstatistik tarafına hiç sızmamalı.
+  config String?
+
   /// BR-56 — hedefi SUNUCU seçti; istemci hedef gönderemez.
   ///
   /// YABANCI ANAHTAR YOK ve olamaz: oyuncu tablosu BAŞKA bir veritabanında
   /// (pakete gömülü SQLite). `RoundAnswer.playerId` ile aynı gerekçe.
-  targetPlayerId String
+  ///
+  /// ARTIK BOŞ BIRAKILABİLİR (§12.8, BR-67): yalnızca İstatistik odasında dolu.
+  /// Hangisi Daha odasının hedefi yok, RAYI var (tohumdan üretilir, BR-68).
+  targetPlayerId String?
 
   /// BR-57 — ikinci oyuncunun katıldığı an.
   ///
@@ -293,7 +311,12 @@ model RoomPlayer {
 
   createdAt DateTime @default(now())
 
+  /// İstatistik odasının cevapları. Hangisi Daha odasında BOŞ kalır — o modun
+  /// cevapları `whichMoreAnswers`'ta durur (iki oyun tek tabloya sığmaz).
   answers RoomAnswer[]
+
+  /// Hangisi Daha odasının düello cevapları — §12.8, BR-68/BR-70.
+  whichMoreAnswers RoomWhichMoreAnswer[]
 
   /// BR-54 — bir kullanıcı bir odada TEK koltuk tutar.
   @@unique([roomId, userId])
@@ -333,4 +356,44 @@ model RoomAnswer {
   /// BR-17'nin oda karşılığı — bir oyuncu bir turda tek istatistikte kullanılır.
   @@unique([roomPlayerId, playerId])
   @@map("room_answers")
+}
+
+/// Hangisi Daha odasındaki tek bir düello cevabı — PROJECT.md §12.8, BR-68/BR-70.
+///
+/// `RoomAnswer`'DAN AYRI ve bu bilinçli: İstatistik cevabı bir istatistiğe
+/// verilir (statKey + değer + puan), Hangisi Daha cevabı bir DÜELLOYA verilir
+/// (tur indeksi + seçilen kart + doğru mu). İki şekli tek tabloya sığdırmak,
+/// her satırın yarısı boş sütunlarla dolar ve "hangi mod" sorusu satır satır
+/// sorulurdu. Ayrı tablo, iki oyunun cevaplarını temiz tutuyor.
+///
+/// SERİ / DOĞRU SAYISI / BİTMİŞLİK SAKLANMAZ, TÜRETİLİR (§12.3). Ayrı bir
+/// `streak`/`status` sütunu yok: hepsi bu satırlardan hesaplanır
+/// (`domain/services/which-more-room.ts`).
+model RoomWhichMoreAnswer {
+  id String @id
+
+  roomPlayerId String
+  player       RoomPlayer @relation(fields: [roomPlayerId], references: [id], onDelete: Cascade)
+
+  /// Rayın kaçıncı düellosu — 0'dan başlar (BR-68).
+  roundIndex Int
+
+  /// Oyuncunun SEÇTİĞİ kartın futbol veritabanındaki kimliği; yabancı anahtar
+  /// yok (`RoomAnswer.playerId` ile aynı gerekçe — oyuncu başka veritabanında).
+  chosenId String
+
+  /// Doğruluğu SUNUCU hesaplar (rayı yeniden oynatarak); istemci göndermez
+  /// (BR-68/BR-32). Değer hiçbir zaman dışarı çıkmaz, karar hep sunucuda.
+  correct Boolean
+
+  createdAt DateTime @default(now())
+
+  /// BR-58 hattı — bir düelloya TEK cevap.
+  ///
+  /// KISIT UYGULAMA MANTIĞININ TEKRARI DEĞİL, GARANTİSİDİR: karar önce okuyup
+  /// sonra yazar; eşzamanlı iki istek aynı turu iki kez yazabilir. O yarışı
+  /// yalnızca veritabanı durdurur. (İstatistik'te bunun karşılığı
+  /// `@@unique([roomPlayerId, statKey])`.)
+  @@unique([roomPlayerId, roundIndex])
+  @@map("room_which_more_answers")
 }

@@ -1,9 +1,12 @@
+import { z } from "zod";
 import {
   RoundUnavailableError,
   ValidationError,
 } from "@/domain/errors/domain-error";
-import type { StatKey } from "@/domain/services/stat-match";
+import { isStatKey, type StatKey } from "@/domain/services/stat-match";
 import {
+  isDirection,
+  isLevel,
   winningSide,
   type Direction,
   type Level,
@@ -11,6 +14,7 @@ import {
 import {
   correctCount,
   isEliminated,
+  isFixedN,
   isWhichMoreMember,
   judgeWhichMoreJoin,
   suddenDeathStreak,
@@ -47,6 +51,34 @@ import {
   type WhichMorePairDto,
   type WhichMorePlayerDto,
 } from "./which-more";
+
+/**
+ * Odanın saklanan yapılandırmasının Zod şeması — BR-67, §2.3.
+ *
+ * SINIRDA DOĞRULAMA. `config` veritabanında JSON metni olarak durur; iç
+ * katmanlara geçmeden önce burada ayrıştırılıp doğrulanır. Ayrık birlik
+ * `submode`'a göre: `sabit-n` `n` ister, `ani-olum` istemez — geçersiz bir
+ * birleşim (Ani ölümde `n`, ya da tanınmayan istatistik/seviye/yön) iç
+ * katmana HİÇ ulaşamaz. `refine` tip koruyucularıyla çıktı doğrudan domain
+ * tiplerine (StatKey/Level/Direction/FixedN) daralır.
+ */
+export const whichMoreRoomConfigSchema = z.discriminatedUnion("submode", [
+  z.object({
+    submode: z.literal("ani-olum"),
+    statKey: z.string().refine(isStatKey),
+    level: z.string().refine(isLevel),
+    direction: z.string().refine(isDirection),
+    seed: z.number().int(),
+  }),
+  z.object({
+    submode: z.literal("sabit-n"),
+    statKey: z.string().refine(isStatKey),
+    level: z.string().refine(isLevel),
+    direction: z.string().refine(isDirection),
+    seed: z.number().int(),
+    n: z.number().refine(isFixedN),
+  }),
+]);
 
 /**
  * Hangisi Daha odasının ORTAK RAYI — PROJECT.md §12.8, BR-68.
