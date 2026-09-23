@@ -3,6 +3,7 @@ import type { Direction, Level } from "./which-more";
 import {
   ROOM_JOIN_WINDOW_MS,
   ROOM_PLAY_WINDOW_MS,
+  type RoomJoinVerdict,
   type RoomStatus,
 } from "./room";
 
@@ -329,4 +330,37 @@ export function whichMoreRoomOutcome(
 /** İki oyuncu da katıldı mı — ray ancak o zaman iki tarafa açılır (BR-57 hattı). */
 export function isWhichMoreRoomFull(room: WhichMoreRoomState): boolean {
   return room.players.length === MAX_ROOM_PLAYERS;
+}
+
+export function isWhichMoreMember(
+  room: WhichMoreRoomState,
+  userId: string,
+): boolean {
+  return room.players.some((player) => player.userId === userId);
+}
+
+/**
+ * BR-54 — katılma kararı (İstatistik `judgeJoin`'in karşılığı).
+ *
+ * SIRA AYNI: önce üyelik, sonra kapılık, sonra doluluk — dolu bir odanın kendi
+ * üyesi sayfayı yenilediğinde "oda dolu" hatası almasın diye. Tek fark durumun
+ * `whichMoreRoomStatus`'ten okunması; kararın kendisi birebir aynı, o yüzden
+ * `RoomJoinVerdict` sözlüğü ödünç alınıyor (kopyalanmıyor).
+ */
+export function judgeWhichMoreJoin(
+  room: WhichMoreRoomState,
+  userId: string,
+  now: Date,
+): RoomJoinVerdict {
+  if (isWhichMoreMember(room, userId)) return { kind: "zaten-uye" };
+
+  const status = whichMoreRoomStatus(room, now);
+  if (status !== "bekliyor") return { kind: "ret", reason: "oda-kapali" };
+
+  // `bekliyor` zaten tek oyuncu demek; bu satır bir güvenlik ağıdır.
+  if (room.players.length >= MAX_ROOM_PLAYERS) {
+    return { kind: "ret", reason: "oda-dolu" };
+  }
+
+  return { kind: "katil" };
 }
