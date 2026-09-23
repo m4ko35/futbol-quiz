@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { Fragment, useCallback, useState } from "react";
 import type { GridCriterionRefDto } from "@/application/use-cases/custom-grid";
 import { GRID_SIZE, GRID_SIZES, type GridSize } from "@/domain/services/grid";
 import { CriterionPicker } from "./criterion-picker";
+import { DataLabel } from "./data-label";
+import { CriterionIcon, MatrixIcon } from "./grid-icons";
 import { Button } from "./ui/button";
 
 /**
@@ -24,6 +26,13 @@ import { Button } from "./ui/button";
  * SÜTUN DEĞİŞİRSE SATIRLAR SİLİNİR. Satırların geçerliliği sütunlara BAĞLI:
  * bir sütun değiştiğinde eski satırlar oynanamaz hâle gelebilir. Sessizce
  * bırakmak, seçicinin gösterdiğinden başka bir ızgara kurmak olurdu.
+ *
+ * GÖRÜNÜM: KURUCU KURDUĞU IZGARAYI GÖSTERİR (§9.1). Eskiden iki düz yuva
+ * listesiydi; şimdi günün ızgarasıyla aynı MATRİS iskeleti — üst satır sütun
+ * yuvaları, sol sütun satır yuvaları, iç hücreler ise cevapların geleceği yeri
+ * gösteren soluk yer tutucular. Kullanıcı ne kurduğunu bir bakışta görüyor ve
+ * kurunca aynı düzene oynamaya geçiyor. İç hücreler `aria-hidden` ve tıklanamaz:
+ * bu ekran ızgarayı KURAR, oynatmaz.
  */
 
 export interface BuiltGrid {
@@ -61,6 +70,7 @@ export function GridBuilder({
   const [open, setOpen] = useState<Slot | null>(null);
 
   const columnsReady = columns.length === size;
+  const rowsReady = rows.length === size;
 
   const searchForRow = useCallback(
     (term: string, signal: AbortSignal) => searchRows(term, columns, signal),
@@ -84,80 +94,152 @@ export function GridBuilder({
     setOpen(null);
   }
 
+  function clearColumn(index: number): void {
+    setColumns(columns.filter((_, i) => i !== index));
+    setRows([]);
+  }
+
+  function clearRow(index: number): void {
+    setRows(rows.filter((_, i) => i !== index));
+  }
+
   const chosenKeys = new Set(
     [...columns, ...rows].map((one) => `${one.kind}:${one.id}`),
   );
 
+  // DİNAMİK YÖNERGE: hangi eksen sırada. Ekran okuyucuya da bildirilir; adım
+  // ilerledikçe metin değişmesi yalnızca görsel bir olay olmamalı.
+  const hint = !columnsReady
+    ? `${String(size - columns.length)} sütun (kulüp) seçin — üstteki yuvalar.`
+    : !rowsReady
+      ? `${String(size - rows.length)} satır (kulüp veya ülke) seçin — soldaki yuvalar.`
+      : "Izgaranız hazır — aşağıdan kurun.";
+
   return (
     <div className="flex flex-col gap-4">
       {/*
-        BOYUT DEĞİŞİNCE SEÇİMLER SIFIRLANIR. Küçülen bir ızgarada fazla
-        ölçütler sessizce düşerdi; büyüyen ızgarada ise satırların geçerliliği
-        yeni sütunlara bağlı olurdu. İkisi de "seçicinin gösterdiğinden başka
-        bir ızgara" demek.
+        BOYUT — segment denetimi (§7.12), tema seçicisiyle aynı idyom. Boyut
+        değişince SEÇİMLER SIFIRLANIR: küçülen ızgarada fazla ölçütler sessizce
+        düşerdi, büyüyende satırların geçerliliği yeni sütunlara bağlı olurdu.
       */}
       <fieldset className="flex flex-wrap items-center gap-2">
         <legend className="sr-only">Izgara boyutu</legend>
-        <span className="text-sm font-semibold">Boyut:</span>
-        {GRID_SIZES.map((option) => (
-          <label
-            key={option}
-            className={`cursor-pointer rounded-lg border px-3 py-3 text-sm font-medium transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent ${
-              option === size
-                ? "border-accent bg-accent-soft"
-                : "border-line-strong bg-background hover:border-accent"
-            }`}
-          >
-            <input
-              type="radio"
-              name="grid-size"
-              className="sr-only"
-              value={option}
-              checked={option === size}
-              onChange={() => {
-                setSize(option);
-                setColumns([]);
-                setRows([]);
-                setOpen(null);
-              }}
-            />
-            {option}×{option}
-          </label>
-        ))}
+        <DataLabel className="text-muted">Boyut</DataLabel>
+        <span className="flex items-center gap-0.5 rounded-lg border border-line bg-background p-0.5">
+          {GRID_SIZES.map((option) => (
+            <label
+              key={option}
+              className={`font-display cursor-pointer rounded-md px-3 py-2 text-sm font-semibold tabular-nums transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent ${
+                option === size
+                  ? "bg-accent text-accent-fg shadow-card"
+                  : "text-muted hover:bg-surface hover:text-foreground"
+              }`}
+            >
+              <input
+                type="radio"
+                name="grid-size"
+                className="sr-only"
+                value={option}
+                checked={option === size}
+                onChange={() => {
+                  setSize(option);
+                  setColumns([]);
+                  setRows([]);
+                  setOpen(null);
+                }}
+              />
+              {option}×{option}
+            </label>
+          ))}
+        </span>
       </fieldset>
 
-      <Axis
-        title="Sütunlar (kulüp)"
-        hint={`${String(size)} kulüp seçin. Sütunlar birbiriyle kesişmediği için burada sınır yok.`}
-        chosen={columns}
-        size={size}
-        axis="column"
-        disabled={false}
-        open={open}
-        onOpen={setOpen}
-        onClear={(index) => {
-          setColumns(columns.filter((_, i) => i !== index));
-          setRows([]);
-        }}
-      />
+      {/* MATRİS İSKELETİ — kurulan ızgarayı gösterir (§9.1). */}
+      <div className="rounded-2xl border border-line bg-surface p-3 shadow-card sm:p-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
+          <p className="text-sm text-muted" aria-live="polite">
+            {hint}
+          </p>
+          <div
+            aria-hidden="true"
+            className="flex items-center gap-3 text-xs text-muted"
+          >
+            <span className="inline-flex items-center gap-1.5">
+              <CriterionIcon kind="club" className="h-3.5 w-3.5" />
+              sütun · kulüp
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <CriterionIcon kind="nationality" className="h-3.5 w-3.5" />
+              satır · kulüp/ülke
+            </span>
+          </div>
+        </div>
 
-      <Axis
-        title="Satırlar (kulüp veya ülke)"
-        hint={
-          columnsReady
-            ? "Yalnızca seçtiğiniz sütunların hepsiyle oynanabilir ölçütler listelenir."
-            : `Önce ${String(size)} sütun seçin.`
-        }
-        chosen={rows}
-        size={size}
-        axis="row"
-        disabled={!columnsReady}
-        open={open}
-        onOpen={setOpen}
-        onClear={(index) => {
-          setRows(rows.filter((_, i) => i !== index));
-        }}
-      />
+        {/*
+          CSS ızgara — GERÇEK bir `<table>` DEĞİL: burada tablosal veri yok,
+          bir FORM var (ölçüt seçimi). Tabloya çevirmek "düzen tablosu" olurdu
+          ve erişilebilirlik denetimini boşuna zorlardı. Yuvalar düğme, iç
+          hücreler `aria-hidden` yer tutucu; yön bilgisi her yuvanın adında.
+        */}
+        <div
+          role="group"
+          aria-label="Izgara ölçütleri"
+          className="grid gap-1.5"
+          style={{
+            gridTemplateColumns: `repeat(${String(size + 1)}, minmax(0, 1fr))`,
+          }}
+        >
+          {/* Köşe — ızgara kimliği (günün ızgarasıyla aynı). */}
+          <div
+            aria-hidden="true"
+            className="flex min-h-[4.5rem] flex-col items-center justify-center gap-1 rounded-xl bg-background px-1 py-2 text-center"
+          >
+            <MatrixIcon className="h-4 w-4 text-muted" />
+            <span className="font-display text-sm leading-none font-bold tracking-tight tabular-nums">
+              {size}×{size}
+            </span>
+          </div>
+
+          {/* Sütun başlık yuvaları (üst satır). */}
+          {Array.from({ length: size }, (_, index) => (
+            <BuilderSlot
+              key={`col-${String(index)}`}
+              axis="column"
+              index={index}
+              value={columns[index]}
+              isOpen={open?.axis === "column" && open.index === index}
+              disabled={index > columns.length}
+              onOpen={setOpen}
+              onClear={clearColumn}
+            />
+          ))}
+
+          {/* Satırlar: sol yuva + iç yer tutucular. */}
+          {Array.from({ length: size }, (_, rowIndex) => (
+            <Fragment key={`row-${String(rowIndex)}`}>
+              <BuilderSlot
+                axis="row"
+                index={rowIndex}
+                value={rows[rowIndex]}
+                isOpen={open?.axis === "row" && open.index === rowIndex}
+                disabled={!columnsReady || rowIndex > rows.length}
+                onOpen={setOpen}
+                onClear={clearRow}
+              />
+              {Array.from({ length: size }, (_, colIndex) => (
+                <div
+                  key={`cell-${String(rowIndex)}-${String(colIndex)}`}
+                  aria-hidden="true"
+                  className="flex min-h-[4.5rem] items-center justify-center rounded-lg border border-dashed border-line bg-background/50"
+                >
+                  {/* Cevabın geleceği yer — soluk nokta (glif değil, öğe). */}
+                  <span className="h-1.5 w-1.5 rounded-full bg-line-strong opacity-40" />
+                </div>
+              ))}
+            </Fragment>
+          ))}
+        </div>
+      </div>
 
       {open !== null && (
         <CriterionPicker
@@ -202,14 +284,14 @@ export function GridBuilder({
       <div className="flex flex-wrap items-center gap-3">
         <Button
           size="md"
-          disabled={!columnsReady || rows.length !== size}
+          disabled={!columnsReady || !rowsReady}
           onClick={() => {
             onBuilt({ rows, columns });
           }}
         >
           Izgarayı kur
         </Button>
-        {columnsReady && rows.length !== size && (
+        {columnsReady && !rowsReady && (
           <p className="text-sm text-muted">
             {String(size - rows.length)} satır daha seçin.
           </p>
@@ -219,87 +301,93 @@ export function GridBuilder({
   );
 }
 
-interface AxisProps {
-  readonly title: string;
-  readonly hint: string;
-  readonly chosen: readonly GridCriterionRefDto[];
-  readonly size: number;
+interface BuilderSlotProps {
   readonly axis: "column" | "row";
+  readonly index: number;
+  readonly value: GridCriterionRefDto | undefined;
+  readonly isOpen: boolean;
   readonly disabled: boolean;
-  readonly open: Slot | null;
   onOpen(slot: Slot): void;
   onClear(index: number): void;
 }
 
 /**
- * Bir eksenin üç yuvası.
+ * Matristeki bir başlık yuvası.
  *
- * DOLU YUVA BİR DÜĞME DEĞİL, bir metin + "kaldır" düğmesidir: dolu yuvaya
- * tıklamak "değiştir" mi "kaldır" mı belirsizdi ve belirsiz bir düğme,
- * yanlışlıkla silinen bir seçim demek.
+ * DOLU YUVA BİR DÜĞME DEĞİL, bir etiket + küçük "kaldır" düğmesidir: dolu
+ * yuvaya tıklamak "değiştir" mi "kaldır" mı belirsizdi ve belirsiz bir düğme,
+ * yanlışlıkla silinen bir seçim demek. Dolu yuva günün ızgarasının başlık
+ * hücresiyle aynı dili konuşur (ikon + condensed ad + tür etiketi).
  */
-function Axis({
-  title,
-  hint,
-  chosen,
-  size,
+function BuilderSlot({
   axis,
+  index,
+  value,
+  isOpen,
   disabled,
-  open,
   onOpen,
   onClear,
-}: AxisProps) {
-  const slots = Array.from({ length: size }, (_, index) => index);
+}: BuilderSlotProps) {
+  const axisWord = axis === "column" ? "sütun" : "satır";
+
+  if (value === undefined) {
+    return (
+      <button
+        type="button"
+        disabled={disabled}
+        aria-expanded={isOpen}
+        className="group flex min-h-[4.5rem] flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-line-strong bg-background px-1 py-2 text-center transition-colors hover:border-accent hover:bg-accent-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-line-strong disabled:hover:bg-background"
+        onClick={() => {
+          onOpen({ axis, index });
+        }}
+      >
+        {/* Yön + sıra ekran okuyucuya; görünen metin kısa kalsın. */}
+        <span className="sr-only">
+          {index + 1}. {axisWord}:{" "}
+        </span>
+        <span
+          aria-hidden="true"
+          className="text-xl leading-none font-light text-muted transition-colors group-hover:text-accent"
+        >
+          +
+        </span>
+        <span className="font-display text-[0.7rem] leading-tight font-semibold tracking-wide text-muted uppercase transition-colors group-hover:text-accent">
+          {axis === "column" ? "Kulüp seç" : "Ölçüt seç"}
+        </span>
+      </button>
+    );
+  }
 
   return (
-    <section className="flex flex-col gap-2">
-      <div>
-        <h4 className="text-sm font-semibold">{title}</h4>
-        <p className="text-sm text-muted">{hint}</p>
-      </div>
-      <ul className="grid gap-2 sm:grid-cols-3">
-        {slots.map((index) => {
-          const value = chosen[index];
-          const isOpen = open?.axis === axis && open.index === index;
-
-          return (
-            <li key={index}>
-              {value === undefined ? (
-                <button
-                  type="button"
-                  disabled={disabled || index > chosen.length}
-                  aria-expanded={isOpen}
-                  className="w-full rounded-xl border-2 border-dashed border-line-strong bg-background px-3 py-3 text-sm transition-colors hover:border-accent hover:bg-accent-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-line-strong disabled:hover:bg-background"
-                  onClick={() => {
-                    onOpen({ axis, index });
-                  }}
-                >
-                  {axis === "column" ? "Kulüp seç" : "Ölçüt seç"}
-                </button>
-              ) : (
-                <div className="flex items-center justify-between gap-2 rounded-xl border border-line bg-background px-3 py-2 text-sm">
-                  <span className="flex flex-col">
-                    <span className="font-medium">{value.label}</span>
-                    <span className="text-[0.7rem] font-medium tracking-wide text-muted uppercase">
-                      {value.kind === "club" ? "kulüp" : "uyruk"}
-                    </span>
-                  </span>
-                  <button
-                    type="button"
-                    className="shrink-0 rounded-md px-2 py-3 text-sm font-medium text-muted underline underline-offset-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                    onClick={() => {
-                      onClear(index);
-                    }}
-                  >
-                    Kaldır
-                    <span className="sr-only"> — {value.label}</span>
-                  </button>
-                </div>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-    </section>
+    <div className="relative flex min-h-[4.5rem] flex-col items-center justify-center gap-0.5 rounded-xl bg-background px-1 py-2 text-center">
+      <CriterionIcon kind={value.kind} className="h-3.5 w-3.5 text-muted" />
+      <span className="font-display text-sm leading-tight font-bold tracking-tight text-balance">
+        {value.label}
+      </span>
+      <DataLabel className="text-muted">
+        {value.kind === "club" ? "kulüp" : "uyruk"}
+      </DataLabel>
+      <button
+        type="button"
+        aria-label={`Kaldır — ${value.label}`}
+        className="absolute top-1 right-1 rounded p-1 text-muted transition-colors hover:text-wrong focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
+        onClick={() => {
+          onClear(index);
+        }}
+      >
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          focusable="false"
+          className="h-3.5 w-3.5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        >
+          <path d="M6 6l12 12M18 6 6 18" />
+        </svg>
+      </button>
+    </div>
   );
 }

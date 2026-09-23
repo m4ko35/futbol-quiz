@@ -31,7 +31,9 @@ import {
   writeStatMatch,
   type StatMatchState,
 } from "@/lib/stat-match-storage";
-import { ModeHeader, Scoreboard } from "./mode-header";
+import { formatTurkishIsoDate } from "@/lib/format-date";
+import { DataLabel } from "./data-label";
+import { ModeHeader } from "./mode-header";
 import { PlayerPicker } from "./player-picker";
 import { Button, buttonClasses } from "./ui/button";
 
@@ -83,7 +85,12 @@ export interface StatMatchGameProps {
    * Verilirse sayfanın mod künyesi buradan basılır ve sayaçlar tabelaya
    * taşınır (§7.15). "Sen seç" turu vermez: ikinci bir `h1` olamaz.
    */
-  readonly header?: { readonly eyebrow?: string; readonly title: string };
+  readonly header?: {
+    readonly eyebrow?: string;
+    readonly title: string;
+    /** Künyenin sağ ucundaki hızlı kısayollar — "Sen seç" / "Nasıl oynanır". */
+    readonly actions?: ReactNode;
+  };
   /** Tur bitince yeni hedef seçmek için — yalnızca "Sen seç" turunda. */
   onRestart?: () => void;
   /**
@@ -165,6 +172,35 @@ function scoreTone(score: number): string {
   return "bg-wrong-soft text-wrong";
 }
 
+/**
+ * Puan bandının SÖZCÜĞÜ — §9.2'deki puanlama eğrisinden (scoreTone ile aynı
+ * eşikler). Renk tek gösterge olmasın diye satırda ve bantta metinle de yazılı
+ * (WCAG 1.4.1).
+ */
+function bandWord(score: number): string {
+  if (score >= 80) return "isabetli";
+  if (score >= 50) return "yakın";
+  return "uzak";
+}
+
+/** Tahminin hedeften işaretli farkı — "+39", "-273", "±0". Yön bilgi taşır. */
+function signedDiff(value: number, target: number): string {
+  const diff = value - target;
+  const sign = diff > 0 ? "+" : diff < 0 ? "-" : "±";
+  return `${sign}${String(Math.abs(diff))}`;
+}
+
+/**
+ * Segment/kare rengi — cevaplanmamış nötr (`bg-line`), cevaplı puan bandıyla.
+ * Durum bandının şeridi ve paylaş önizlemesi ortak kullanır.
+ */
+function segmentTone(answer: StatMatchState["answers"][StatKey]): string {
+  if (answer === undefined) return "bg-line";
+  if (answer.score >= 80) return "bg-correct";
+  if (answer.score >= 50) return "bg-warn";
+  return "bg-wrong";
+}
+
 export function StatMatchGame({
   header,
   round,
@@ -214,6 +250,7 @@ export function StatMatchGame({
   const [openStat, setOpenStat] = useState<StatKey | null>(null);
   const [isChecking, setIsChecking] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
+  const [shareStatus, setShareStatus] = useState<string | null>(null);
 
   const answers = Object.entries(state.answers) as [
     StatKey,
@@ -227,6 +264,13 @@ export function StatMatchGame({
     round.player.id,
     ...answers.map(([, answer]) => answer.playerId),
   ]);
+
+  /**
+   * İstatistikler SABİT SIRADA (STAT_KEYS): durum bandının segment şeridi ve
+   * paylaşım şeridi bu sırayı izler. `Object.entries` ekleme sırası olurdu —
+   * kullanıcı hangi istatistiği önce cevapladıysa şerit ona göre kayardı.
+   */
+  const ordered = STAT_KEYS.map((key) => state.answers[key]);
 
   const submit = useCallback(
     async (statKey: StatKey, player: PlayerDto): Promise<void> => {
@@ -282,6 +326,47 @@ export function StatMatchGame({
     [submitAnswer, date, usesServer],
   );
 
+  /**
+   * Paylaşılacak metin — Wordle tarzı emoji şeridi + ortalama + bağlantı.
+   *
+   * NADİRLİK/PERCENTİL YOK: yalnızca kullanıcının kendi puan bandları. Emoji
+   * yalnızca PAYLAŞ METNİNDE; arayüzdeki önizleme renk tokenlı karelerle çizilir
+   * (§7.12) — ızgaradaki paylaşımla aynı kural.
+   */
+  const buildShareText = useCallback((): string => {
+    const line = STAT_KEYS.map((key) => {
+      const answer = state.answers[key];
+      if (answer === undefined) return "⬜";
+      return answer.score >= 80 ? "🟩" : answer.score >= 50 ? "🟨" : "🟥";
+    }).join("");
+    const head =
+      date === undefined
+        ? "Futbol Challenge — İstatistik"
+        : `Futbol Challenge — İstatistik · ${formatTurkishIsoDate(date)}`;
+    const url = `${window.location.origin}/istatistik`;
+    return [head, `Ortalama %${String(total)}`, "", line, "", url].join("\n");
+  }, [state, date, total]);
+
+  const share = useCallback(async (): Promise<void> => {
+    const text = buildShareText();
+    // Mobil paylaşım varsa dene; iptal ederse ya da yoksa panoya kopyala.
+    if (typeof navigator.share === "function") {
+      try {
+        await navigator.share({ text });
+        setShareStatus("Paylaşıldı.");
+        return;
+      } catch {
+        // iptal / hata: panoya kopyalamaya düş.
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      setShareStatus("Skor panoya kopyalandı.");
+    } catch {
+      setShareStatus("Paylaşım bu tarayıcıda desteklenmiyor.");
+    }
+  }, [buildShareText]);
+
   const openStatDto =
     openStat === null
       ? undefined
@@ -299,61 +384,45 @@ export function StatMatchGame({
     [openStat, searchPlayers],
   );
 
+  const task = (
+    <>
+      Altı istatistiğin her biri için, değeri günün oyuncusuna{" "}
+      <strong className="font-semibold text-foreground">en yakın</strong> olan{" "}
+      <strong className="font-semibold text-foreground">başka</strong> bir
+      futbolcu bul.
+    </>
+  );
+
   return (
     <div className="flex flex-col gap-6">
       {/*
-        KÜNYE VE TABELA (§7.15). Sayaçlar bu bileşenin durumundan geliyor;
+        KÜNYE VE DURUM BANDI (§7.15). Sayaçlar bu bileşenin durumundan geliyor;
         künyeyi sunucu sayfasında bırakmak aynı sayının iki yerde yaşaması
         demekti. "Sen seç" turu `header` ALMAZ — sayfada ikinci bir `h1`
         olamaz — ve kendi satır içi sayacını korur.
 
-        Ortalama yüzde BR-18'in puan bandına göre renkleniyor: 80 ve üstü
-        `correct`, 50–79 `warn`, altı renksiz. Renk tek gösterge değil, sayı
-        zaten yazılı (WCAG 1.4.1).
+        SAYAÇLAR TABELADAN DURUM BANDINA TAŞINDI (ızgarayla aynı, §9.1/§7.15):
+        künyenin sağ ucundaki iki hücreli tabela yerine künyenin ALTINDA iki
+        hücreli belirgin bir bant. Künyenin sağ ucu artık hızlı kısayollara
+        (`actions`) kalıyor. Bandın kendi `aria-live` özeti var; künyeyi ayrıca
+        sarmaya gerek yok.
       */}
       {header !== undefined && (
-        <div aria-live="polite">
-          <ModeHeader
-            eyebrow={header.eyebrow}
-            title={header.title}
-            task={
-              <>
-                Altı istatistiğin her biri için, değeri günün oyuncusuna{" "}
-                <strong className="font-semibold text-foreground">
-                  en yakın
-                </strong>{" "}
-                olan{" "}
-                <strong className="font-semibold text-foreground">başka</strong>{" "}
-                bir futbolcu bul.
-              </>
-            }
-            scoreboard={
-              <Scoreboard
-                label="Tur durumu"
-                lit={finished}
-                cells={[
-                  {
-                    label: "Cevaplanan",
-                    value: `${String(answers.length)}/${String(STAT_KEYS.length)}`,
-                    tone: answers.length > 0 ? "accent" : undefined,
-                  },
-                  {
-                    label: "Ortalama",
-                    value: answers.length === 0 ? "—" : `%${String(total)}`,
-                    tone:
-                      answers.length === 0
-                        ? undefined
-                        : total >= 80
-                          ? "correct"
-                          : total >= 50
-                            ? "warn"
-                            : undefined,
-                  },
-                ]}
-              />
-            }
-          />
-        </div>
+        <ModeHeader
+          eyebrow={header.eyebrow}
+          title={header.title}
+          task={task}
+          actions={header.actions}
+        />
+      )}
+
+      {header !== undefined && (
+        <StatStatusBand
+          answered={answers.length}
+          average={total}
+          answers={ordered}
+          finished={finished}
+        />
       )}
 
       <section className="flex items-start gap-4 rounded-2xl border border-line bg-surface p-5 shadow-card">
@@ -513,6 +582,34 @@ export function StatMatchGame({
       )}
 
       {/*
+        SKORU PAYLAŞ (§9.2) — tur bitince. Önizleme renk tokenlı kareler
+        (arayüzde emoji yok, §7.12); paylaşılan METİN emoji şeridini taşır.
+        Izgaradaki paylaşımla aynı davranış (§9.1).
+      */}
+      {finished && (
+        <div className="flex flex-wrap items-center gap-3">
+          <StatSharePreview answers={ordered} />
+          <Button
+            size="md"
+            onClick={() => {
+              void share();
+            }}
+          >
+            Skoru paylaş
+          </Button>
+          {shareStatus !== null && (
+            <span
+              role="status"
+              aria-live="polite"
+              className="text-sm text-muted"
+            >
+              {shareStatus}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/*
         KAPSAM BİLDİRİMİ (§1.3, §9.2, BR-23). 22 Ağustos 2026'da DARALDI ve
         daralması iyi haber: maç ve gol artık kariyerin tamamını sayıyor, geriye
         yalnızca kulüp sayısı kaldı. Söylenmezse kullanıcı bildiği gerçek
@@ -525,6 +622,134 @@ export function StatMatchGame({
         takımın toplamıdır.
       </p>
     </div>
+  );
+}
+
+/**
+ * Durum bandı — künyenin altında (§7.15), ızgaranınkiyle aynı dil.
+ *
+ * İKİ HÜCRE: "Cevaplanan n/6" bir segment şeridiyle (her segment o istatistiğin
+ * PUAN BANDIYLA renkli — hem ilerleme hem kalite bir bakışta) ve "Ortalama %n"
+ * bir band etiketiyle. Stitch'in dört hücreli bandındaki `toplam puan /400` ve
+ * `son 30 günün en iyi %12'sinde` UYDURMAYDI (§5.2: puan geçmişi/percentil
+ * tutmuyoruz; puan cevap başına 0–100, tur puanı bunların ortalaması). "Kalan"
+ * ise "cevaplanan"ın tümleyeni (6 − n), ayrı bir bilgi taşımaz — bu iki hücre
+ * gerçek olan her şeyi taşıyor.
+ *
+ * Ekran okuyucuya TEK bir `aria-live` özeti gider; görünen şerit/etiket
+ * `aria-hidden` — renk tek gösterge değil, sayı yazılı (WCAG 1.4.1).
+ */
+function StatStatusBand({
+  answered,
+  average,
+  answers,
+  finished,
+}: {
+  readonly answered: number;
+  readonly average: number;
+  readonly answers: readonly StatMatchState["answers"][StatKey][];
+  readonly finished: boolean;
+}) {
+  const averageTone =
+    answered === 0
+      ? ""
+      : average >= 80
+        ? "text-correct"
+        : average >= 50
+          ? "text-warn"
+          : "text-foreground";
+
+  return (
+    <div
+      role="group"
+      aria-label="Tur durumu"
+      className={
+        "grid grid-cols-1 gap-2 rounded-2xl border p-2 shadow-card sm:grid-cols-2 sm:gap-3 sm:p-3 " +
+        (finished
+          ? "border-accent bg-accent-soft"
+          : "border-line-strong bg-surface")
+      }
+    >
+      {/* Ekran okuyucuya TEK, tutarlı bildirim; görünen kısım aria-hidden. */}
+      <p className="sr-only" aria-live="polite">
+        {String(answered)}/{String(STAT_KEYS.length)} cevaplandı
+        {answered > 0 ? ` · ortalama %${String(average)}` : ""}
+      </p>
+
+      {/* CEVAPLANAN — sayı + segment şeridi (her segment puan bandıyla renkli). */}
+      <div
+        aria-hidden="true"
+        className="flex items-center justify-between gap-3 rounded-xl bg-background px-3 py-2.5"
+      >
+        <div className="min-w-0">
+          <DataLabel className="text-muted">Cevaplanan</DataLabel>
+          <p className="font-display text-2xl leading-none font-bold tracking-tight tabular-nums sm:text-3xl">
+            {answered}
+            <span className="text-muted">/{STAT_KEYS.length}</span>
+          </p>
+        </div>
+        <span className="flex max-w-[9rem] flex-wrap justify-end gap-1">
+          {answers.map((answer, index) => (
+            <span
+              key={index}
+              className={"h-2 w-4 rounded-full " + segmentTone(answer)}
+            />
+          ))}
+        </span>
+      </div>
+
+      {/* ORTALAMA — yüzde + band etiketi (sözcük + renk; renk tek gösterge değil). */}
+      <div
+        aria-hidden="true"
+        className="flex items-center justify-between gap-3 rounded-xl bg-background px-3 py-2.5"
+      >
+        <div className="min-w-0">
+          <DataLabel className="text-muted">Ortalama</DataLabel>
+          <p
+            className={
+              "font-display text-2xl leading-none font-bold tracking-tight tabular-nums sm:text-3xl " +
+              averageTone
+            }
+          >
+            {answered === 0 ? "—" : `%${String(average)}`}
+          </p>
+        </div>
+        {answered > 0 && (
+          <span
+            className={
+              "rounded-full px-2.5 py-1 text-xs font-semibold " +
+              scoreTone(average)
+            }
+          >
+            {bandWord(average)}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Paylaş önizlemesi — istatistiklerin puan bandına göre renkli kareleri.
+ *
+ * Arayüzde EMOJİ YOK (§7.12): önizleme renk tokenlarıyla çizilir; emoji yalnızca
+ * kopyalanan paylaşım METNİNDE. `aria-hidden`: skor zaten yanındaki metinde ve
+ * bantta yazılı.
+ */
+function StatSharePreview({
+  answers,
+}: {
+  readonly answers: readonly StatMatchState["answers"][StatKey][];
+}) {
+  return (
+    <span aria-hidden="true" className="inline-flex gap-0.5">
+      {answers.map((answer, index) => (
+        <span
+          key={index}
+          className={"h-3 w-3 rounded-[2px] " + segmentTone(answer)}
+        />
+      ))}
+    </span>
   );
 }
 
@@ -670,7 +895,7 @@ function StatRow({ stat, answer, disabled, isOpen, onOpen }: StatRowProps) {
   return (
     <li className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-surface px-4 py-3.5 shadow-card">
       <span className="flex flex-col">
-        <span className="text-xs font-semibold tracking-wide text-muted uppercase">
+        <DataLabel className="text-muted">
           {stat.label}
           {stat.scoped && (
             <>
@@ -678,10 +903,11 @@ function StatRow({ stat, answer, disabled, isOpen, onOpen }: StatRowProps) {
               <span className="sr-only"> (yalnızca yirmi dört lig)</span>
             </>
           )}
-        </span>
+        </DataLabel>
         {/* Hedef sayı ekranın SORUSUDUR; etiketiyle aynı ağırlıkta durduğunda
-            hangi değeri yakalamaya çalıştığınız bir bakışta okunmuyordu. */}
-        <span className="text-3xl font-bold text-accent tabular-nums">
+            hangi değeri yakalamaya çalıştığınız bir bakışta okunmuyordu.
+            Condensed editorial yüz (§7.12): tabelayla aynı tabular-nums ritmi. */}
+        <span className="font-display text-3xl font-bold text-accent tabular-nums">
           {String(stat.value)}
         </span>
       </span>
@@ -698,7 +924,16 @@ function StatRow({ stat, answer, disabled, isOpen, onOpen }: StatRowProps) {
         </Button>
       ) : (
         <span className="flex flex-col items-end gap-1 text-sm">
-          <span className="font-semibold">{answer.playerName}</span>
+          <span className="font-display font-bold tracking-tight">
+            {answer.playerName}
+          </span>
+          {/* FARK + BAND (Stitch dili, gerçek sayı): tahminin hedeften ne kadar
+              ve hangi YÖNDE uzak olduğu + niteliksel band sözcüğü. NumberLine
+              bunu KONUM olarak gösteriyor; burada aynı bilgi SAYIYLA yazılı. */}
+          <span className="text-xs text-muted tabular-nums">
+            {bandWord(answer.score)} · hedeften{" "}
+            {signedDiff(answer.value, stat.value)}
+          </span>
           {/* Puan bandı RENKLE de gösterilir ama renk tek gösterge değildir
               (WCAG 1.4.1): yüzde zaten rozetin metninde yazılı. */}
           <span
@@ -710,7 +945,8 @@ function StatRow({ stat, answer, disabled, isOpen, onOpen }: StatRowProps) {
           </span>
           <span className="sr-only">
             {stat.label}: {answer.playerName}, değeri {String(answer.value)},
-            puan yüzde {String(answer.score)}
+            hedeften {signedDiff(answer.value, stat.value)} fark, puan yüzde{" "}
+            {String(answer.score)}
           </span>
         </span>
       )}

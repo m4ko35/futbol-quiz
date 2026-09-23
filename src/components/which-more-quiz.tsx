@@ -7,6 +7,7 @@ import type {
   WhichMorePlayerDto,
   WhichMoreRoundDto,
 } from "@/application/use-cases/which-more";
+import { DataLabel } from "./data-label";
 import { ModeHeader, Scoreboard } from "./mode-header";
 import { Button } from "./ui/button";
 import { STAT_KEYS, type StatKey } from "@/domain/services/stat-match";
@@ -19,6 +20,11 @@ import {
 
 /**
  * "Hangisi daha" oyunu — PROJECT.md §9.3.
+ *
+ * İKİ EKRANLI AKIŞ (Stitch tasarımı). Ekran A KURULUM: metrik/havuz/yön seçilir,
+ * "Başla" ilk turu yükler. Ekran B DÜELLO: soru, iki kart, sonuç. "Ayarları
+ * değiştir" kuruluma döner ve koşuyu sıfırlar. Ayrıntı §9.3'ün "Kurulum ekranı:
+ * iki ekranlı akış" alt-bölümünde.
  *
  * KOŞU DURUMU BURADA. Sunucu her turu tek tek kurar ve her cevabı tek tek
  * doğrular ama koşuyu hatırlamaz (§9.3); seri sayacı, görülen oyuncular ve
@@ -39,6 +45,8 @@ interface StatQuestion {
   readonly key: StatKey;
   /** Seçim ekranındaki ad. */
   readonly name: string;
+  /** Kurulum kartındaki tek satırlık açıklama. */
+  readonly hint: string;
   /** "Hangisi …?" cümlesini tamamlar. */
   readonly more: string;
   readonly less: string;
@@ -54,7 +62,7 @@ interface StatQuestion {
   /** Değerin yanına yazılan birim. */
   readonly unit: string;
   /**
-   * BANT metnindeki birim ("en az 5 … fark"), farklıysa.
+   * BANT/FARK metnindeki birim ("en az 5 … fark"), farklıysa.
    *
    * Beş istatistikte `unit` ile aynı ve verilmez. Doğum yılında AYRIŞIYOR:
    * değerin yanında "1985 doğumlu" doğru okunur ama "en az 5 doğumlu fark"
@@ -81,6 +89,7 @@ const QUESTIONS: readonly StatQuestion[] = [
   {
     key: "appearances",
     name: "Resmî maç",
+    hint: "Kulüp kariyerinin tamamı ile A millî takım toplamı.",
     more: "daha çok resmî maça çıktı",
     less: "daha az resmî maça çıktı",
     moreShort: "daha çok",
@@ -91,6 +100,7 @@ const QUESTIONS: readonly StatQuestion[] = [
   {
     key: "goals",
     name: "Resmî gol",
+    hint: "Kulüp kariyerinin tamamı ile A millî takım toplamı.",
     more: "daha çok resmî gol attı",
     less: "daha az resmî gol attı",
     moreShort: "daha çok",
@@ -101,6 +111,7 @@ const QUESTIONS: readonly StatQuestion[] = [
   {
     key: "clubs",
     name: "Oynadığı kulüp",
+    hint: "Bu sayı yalnızca kapsamdaki 24 ligi sayar.",
     more: "daha çok kulüpte oynadı",
     less: "daha az kulüpte oynadı",
     moreShort: "daha çok",
@@ -111,6 +122,7 @@ const QUESTIONS: readonly StatQuestion[] = [
   {
     key: "nationalCaps",
     name: "A millî maç",
+    hint: "A millî takım maç sayısı.",
     more: "daha çok A millî maça çıktı",
     less: "daha az A millî maça çıktı",
     moreShort: "daha çok",
@@ -121,6 +133,7 @@ const QUESTIONS: readonly StatQuestion[] = [
   {
     key: "heightCm",
     name: "Boy",
+    hint: "cm cinsinden resmî boy.",
     more: "daha uzun",
     less: "daha kısa",
     moreShort: "daha uzun",
@@ -140,6 +153,7 @@ const QUESTIONS: readonly StatQuestion[] = [
   {
     key: "birthYear",
     name: "Doğum yılı",
+    hint: "Doğum yılına göre karşılaştırma.",
     more: "daha genç",
     less: "daha yaşlı",
     moreShort: "daha genç",
@@ -151,45 +165,14 @@ const QUESTIONS: readonly StatQuestion[] = [
 ];
 
 /**
- * İstatistikler İKİ ÖBEKTE sunuluyor ve ayrım uydurma değil: `scoped`.
- *
- * Öbeğin işi, sayının kullanıcının bildiği toplamdan FARKLI olabileceğini
- * seçim ANINDA söylemek. Bu bugüne dek yalnızca tur ekranında, seçim
- * yapıldıktan SONRA yazıyordu.
- *
- * ÖBEK BOYLARI 22 Ağustos 2026'da 3+3'ten 5+1'e döndü ve dengesizlik
- * doğrudur: maç ve gol kariyerin tamamına geçtikten sonra kapsama bağlı
- * kalan TEK istatistik kulüp sayısıdır (BR-23). Uyarıyı beş istatistiğin
- * üstünde bırakmak, artık doğru olmayan bir şeyi söylemek olurdu.
- *
- * Öbek üyeliği burada elle listelenmiyor; `scoped` alanından türetiliyor ki
- * yeni bir istatistik eklendiğinde iki yerde birden güncelleme gerekmesin.
- * Kapsamdan bağımsız öbek ÖNCE geliyor: beş kartlı öbek ızgarayı doldurur ve
- * tek kartlı uyarı öbeği sonda kendi başına durur.
- */
-const STAT_GROUPS: readonly {
-  readonly caption: string;
-  readonly detail: string;
-  readonly scoped: boolean;
-}[] = [
-  {
-    caption: "Kariyerin tamamı",
-    detail: "lig kapsamından bağımsız",
-    scoped: false,
-  },
-  {
-    caption: "Kapsama bağlı",
-    detail: "yalnızca kapsamdaki 24 lig",
-    scoped: true,
-  },
-];
-
-/**
  * Kapsamdan bağımsız sayıların NEYİ topladığını söyleyen not (BR-23).
  *
  * Kapsam uyarısının simetriği: "24 lig" uyarısı kalktığında yerine hiçbir şey
  * koymamak, kullanıcıyı 830 gollük bir sayıyla açıklamasız bırakırdı. Boy ve
  * doğum yılında not YOK — o sayılar zaten tek anlama geliyor.
+ *
+ * DÜELLO EKRANINDA, sorunun altında: seviye notuyla birlikte hangi havuzda ve
+ * hangi kapsamda oynandığını söyler.
  */
 function scopeNoteFor(key: StatKey): ReactNode {
   if (key !== "appearances" && key !== "goals") return null;
@@ -198,17 +181,6 @@ function scopeNoteFor(key: StatKey): ReactNode {
     <p className="text-sm text-note">
       Kulüp kariyerinin tamamı (lig, kupa, Avrupa) ile A millî takım toplamı.
     </p>
-  );
-}
-
-/** Bir öbekten önce kaç kart çizildiği — animasyon sırası için (§7.12). */
-function groupOffset(groupIndex: number): number {
-  return STAT_GROUPS.slice(0, groupIndex).reduce(
-    (sum, group) =>
-      sum +
-      STAT_KEYS.filter((key) => questionFor(key).scoped === group.scoped)
-        .length,
-    0,
   );
 }
 
@@ -261,6 +233,8 @@ function questionFor(key: StatKey): StatQuestion {
 }
 
 type Phase =
+  // KURULUM (§9.3): başlangıç evresi. "Başla" ile ilk tur yüklenir; "Ayarları
+  // değiştir" buraya geri döner ve koşuyu sıfırlar.
   | { readonly kind: "setup" }
   | { readonly kind: "loading" }
   | { readonly kind: "asking"; readonly pair: WhichMorePairDto }
@@ -339,6 +313,7 @@ export function WhichMoreQuiz({
    * kaldığı hiçbir yerde görünmüyordu.
    */
   const [keptId, setKeptId] = useState<string | null>(null);
+  const [shareStatus, setShareStatus] = useState<string | null>(null);
 
   const question = questionFor(statKey);
 
@@ -393,32 +368,96 @@ export function WhichMoreQuiz({
     }
   }
 
-  function start(): void {
+  /**
+   * KOŞUYU SIFIRLAYIP İLK TURU YÜKLE — "Başla" ve "Yeniden başla" (§9.3).
+   *
+   * Kurulum ekranından düelloya geçişin tek yolu budur: seriyi ve görülenleri
+   * sıfırlar, güncel metrik/havuz ile taze bir tur ister.
+   */
+  const start = useCallback((): void => {
     setStreak(0);
     setSeen([]);
     setKeptId(null);
+    setShareStatus(null);
     void loadRound(statKey, level, null, []);
+  }, [loadRound, statKey, level]);
+
+  /**
+   * KURULUMA DÖN — "Ayarları değiştir" (§9.3).
+   *
+   * Ayrı bir kurulum ekranı olduğu için ayarlar orada değişir; düelloda değil.
+   * Koşu da sıfırlanır (seri o ayara aittir), böylece kuruluma dönen kullanıcı
+   * yarım bir seriyle karışmış bir tabelayla karşılaşmaz.
+   */
+  function openSetup(): void {
+    setStreak(0);
+    setSeen([]);
+    setKeptId(null);
+    setShareStatus(null);
+    setPhase({ kind: "setup" });
   }
 
-  function restart(): void {
-    setPhase({ kind: "setup" });
-    setStreak(0);
-    setSeen([]);
-    setKeptId(null);
+  /**
+   * SERİYİ PAYLAŞ (§9.3) — mevcut koşunun sonucu.
+   *
+   * NADİRLİK/SIRALAMA YOK: yalnızca seri sayısı + seçilen metrik/seviye. İşaret
+   * şeridi seri kadar 🟩, koşu bir yanlışla bittiyse sonuna 🟥. Emoji yalnızca
+   * PAYLAŞ METNİNDE (§7.12); ızgara/istatistikle aynı kural.
+   */
+  const share = useCallback(async (): Promise<void> => {
+    const q = questionFor(statKey);
+    const lvl = levelFor(level);
+    const endedWrong = phase.kind === "revealed" && !phase.answer.correct;
+    // Uzun serilerde satır taşmasın; işaret şeridi yalnızca bir özet.
+    const marks = "🟩".repeat(Math.min(streak, 30)) + (endedWrong ? "🟥" : "");
+    const head = "Futbol Challenge — Hangisi Daha";
+    const line = `${String(streak)} doğru üst üste · ${q.name} (${lvl.name})`;
+    const url = `${window.location.origin}/hangisi-daha`;
+    const text = [head, line, "", marks, "", url].join("\n");
+
+    if (typeof navigator.share === "function") {
+      try {
+        await navigator.share({ text });
+        setShareStatus("Paylaşıldı.");
+        return;
+      } catch {
+        // iptal / hata: panoya kopyalamaya düş.
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      setShareStatus("Skor panoya kopyalandı.");
+    } catch {
+      setShareStatus("Paylaşım bu tarayıcıda desteklenmiyor.");
+    }
+  }, [statKey, level, phase, streak]);
+
+  // EKRAN A — KURULUM. Ayrı bir ekran (§9.3): tabela yok, henüz koşu yok.
+  if (phase.kind === "setup") {
+    return (
+      <WhichMoreSetup
+        statKey={statKey}
+        level={level}
+        direction={direction}
+        question={question}
+        onStat={setStatKey}
+        onLevel={setLevel}
+        onDirection={setDirection}
+        onStart={start}
+      />
+    );
   }
 
   /*
-    KÜNYE HER İKİ EVREDE DE BASILIR (§7.15).
-
-    Bileşen kurulum evresinde erken dönüyor; künye tek bir dalda kalsaydı
-    kullanıcı istatistik seçerken sayfanın hangi mod olduğunu söyleyen bant
-    kaybolurdu. Seri sayacı buradan geliyor — sunucu sayfası onu bilemezdi.
-
-    Kurulumda tabela YOK: henüz sayılacak bir şey yok ve sıfır gösteren bir
-    sayaç, sayacın kendisini anlamsızlaştırır.
+    EKRAN B — DÜELLO. Künye OYUN BİLEŞENİNİN İÇİNDE (§7.15): seri sayacı istemci
+    durumundan geliyor, sunucu sayfası onu bilemezdi. Tabela düelloya girildiği
+    an basılıyor ve ilk düello boş durumdur (Seri 0), ızgaranın 0/9'u gibi.
+    Üst-etiket seçilen ayarı taşır ("Kolay · Resmî maç") — künyeyi ekleyen tek
+    gerçek bilgi (§7.15 eyebrow kuralı).
   */
   const modeHeader = (
     <ModeHeader
+      eyebrow={`${levelFor(level).name} · ${question.name}`}
       title="Hangisi Daha"
       task={
         <>
@@ -430,40 +469,38 @@ export function WhichMoreQuiz({
           .
         </>
       }
+      // HIZLI KISAYOLLAR — "Ayarları değiştir" (kuruluma dön) ve "Nasıl oynanır"
+      // her zaman; "Seriyi paylaş" yalnızca paylaşılacak bir seri varken (§9.3).
+      actions={
+        <WhichMoreHeaderLinks
+          onOpenSetup={openSetup}
+          onShare={streak > 0 ? share : undefined}
+          shareStatus={shareStatus}
+        />
+      }
       scoreboard={
-        phase.kind === "setup" ? undefined : (
-          <Scoreboard
-            label="Koşu durumu"
-            lit={streak > 0}
-            cells={[
-              {
-                label: "Seri",
-                value: String(streak),
-                tone: streak > 0 ? "accent" : undefined,
-              },
-            ]}
-          />
-        )
+        <Scoreboard
+          label="Koşu durumu"
+          lit={streak > 0}
+          cells={[
+            {
+              label: "Seri",
+              value: String(streak),
+              tone: streak > 0 ? "accent" : undefined,
+            },
+          ]}
+        />
       }
     />
   );
 
-  if (phase.kind === "setup") {
-    return (
-      <div className="flex flex-col gap-6">
-        {modeHeader}
-        <StatPicker
-          statKey={statKey}
-          level={level}
-          direction={direction}
-          onStatKey={setStatKey}
-          onLevel={setLevel}
-          onDirection={setDirection}
-          onStart={start}
-        />
-      </div>
-    );
-  }
+  // İki değerin farkı — cevap açılınca "Aradaki fark" şeridinde ve kart başına
+  // "önde/geride" olarak yazılır (§9.3).
+  const revealedGap =
+    phase.kind === "revealed"
+      ? Math.abs(phase.answer.left.value - phase.answer.right.value)
+      : null;
+  const gapUnit = question.gapUnit ?? question.unit;
 
   return (
     <div className="flex flex-col gap-6">
@@ -483,10 +520,9 @@ export function WhichMoreQuiz({
         </h2>
 
         {/*
-          HANGİ HAVUZDA OYNANDIĞI TUR EKRANINDA DA YAZAR. Seviye kurulumda
-          seçiliyor ve koşu boyunca değişmiyor; yazılmasaydı kullanıcı tanımadığı
-          bir isim gördüğünde bunun modun kusuru mu yoksa kendi seçimi mi
-          olduğunu bilemezdi.
+          HANGİ HAVUZDA OYNANDIĞI TUR EKRANINDA DA YAZAR. Seviye kurulumdan
+          seçiliyor; yazılmasaydı kullanıcı tanımadığı bir isim gördüğünde
+          bunun modun kusuru mu yoksa kendi seçimi mi olduğunu bilemezdi.
         */}
         <p className="text-sm text-note">{levelFor(level).note}</p>
 
@@ -506,7 +542,7 @@ export function WhichMoreQuiz({
       )}
 
       {phase.kind === "error" && (
-        <ErrorPanel message={phase.message} onRestart={restart} />
+        <ErrorPanel message={phase.message} onRestart={start} />
       )}
 
       {phase.kind === "exhausted" && (
@@ -515,7 +551,7 @@ export function WhichMoreQuiz({
           detail="Bu istatistikte sunulabilecek yeni bir eşleşme kalmadı."
           streak={streak}
           tone="note"
-          onRestart={restart}
+          onRestart={start}
         />
       )}
 
@@ -554,6 +590,7 @@ export function WhichMoreQuiz({
 
                   <PlayerCard
                     player={player}
+                    metricName={question.name}
                     unit={question.unit}
                     value={revealed}
                     share={
@@ -565,6 +602,18 @@ export function WhichMoreQuiz({
                       phase.kind === "revealed"
                         ? outcomeFor(phase.answer, player.id)
                         : "none"
+                    }
+                    // KART BAŞINA FARK (§9.3) — Stitch'in "+11 maç fazlası /
+                    // 11 maç geride"si, ama yönden bağımsız: kazanan "önde",
+                    // kaybeden "geride". Kazanan = cevabın winnerId'si.
+                    lead={
+                      phase.kind === "revealed" && revealedGap !== null
+                        ? {
+                            gap: revealedGap,
+                            unit: gapUnit,
+                            ahead: phase.answer.winnerId === player.id,
+                          }
+                        : null
                     }
                     chosen={
                       phase.kind === "revealed" && phase.chosenId === player.id
@@ -596,6 +645,37 @@ export function WhichMoreQuiz({
           </ul>
 
           {/*
+            ARADAKİ FARK (§9.3) — Stitch'in VS rozetindeki "+142 FARK"ın
+            karşılığı, iki kartın altında ortalı bir şerit. Birim `gapUnit`'ten:
+            doğum yılında "yıl", değerin yanındaki "doğumlu" değil. Cevap
+            açıldığında (iki değer de görünürken) beliriyor.
+          */}
+          {revealedGap !== null && (
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg border border-line bg-surface-2 px-4 py-2.5">
+              <span className="inline-flex items-center gap-2">
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  focusable="false"
+                  className="h-4 w-4 text-accent"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M7 8h13M7 8l3-3M7 8l3 3" />
+                  <path d="M17 16H4m13 0l-3-3m3 3l-3 3" />
+                </svg>
+                <DataLabel className="text-muted">Aradaki fark</DataLabel>
+              </span>
+              <span className="font-display text-base font-bold tabular-nums">
+                {String(revealedGap)} {gapUnit}
+              </span>
+            </div>
+          )}
+
+          {/*
             SONUÇ CANLI BÖLGEDE. Doğru/yanlış yalnızca renkle anlatılsaydı
             ekran okuyucu kullanıcısı hiçbir şey duymazdı (§7.10).
           */}
@@ -604,6 +684,27 @@ export function WhichMoreQuiz({
               (phase.answer.correct ? (
                 <VerdictBar
                   streak={streak}
+                  winnerName={
+                    phase.answer.winnerId === phase.pair.left.id
+                      ? phase.pair.left.name
+                      : phase.pair.right.name
+                  }
+                  winnerValue={
+                    phase.answer.winnerId === phase.answer.left.id
+                      ? phase.answer.left.value
+                      : phase.answer.right.value
+                  }
+                  loserName={
+                    phase.answer.winnerId === phase.pair.left.id
+                      ? phase.pair.right.name
+                      : phase.pair.left.name
+                  }
+                  loserValue={
+                    phase.answer.winnerId === phase.answer.left.id
+                      ? phase.answer.right.value
+                      : phase.answer.left.value
+                  }
+                  unit={question.unit}
                   onContinue={() => {
                     void loadRound(statKey, level, phase.answer.winnerId, seen);
                   }}
@@ -614,7 +715,7 @@ export function WhichMoreQuiz({
                   detail="Koşu burada bitti."
                   streak={streak}
                   tone="wrong"
-                  onRestart={restart}
+                  onRestart={start}
                 />
               ))}
           </div>
@@ -635,6 +736,13 @@ type Outcome = "none" | "correct" | "wrong";
 
 /** Kartın zincirdeki yeri (BR-28); yalnızca soru sorulurken anlamlı. */
 type ChainRole = "kept" | "new" | null;
+
+/** Kartın cevaptaki farkı — kazanan "önde", kaybeden "geride" (§9.3). */
+interface Lead {
+  readonly gap: number;
+  readonly unit: string;
+  readonly ahead: boolean;
+}
 
 /** Kazanan kartın kaç ms sonra açılacağı — yenilen kart 0'da açılır. */
 const REVEAL_STAGGER_MS = 160;
@@ -696,12 +804,16 @@ function VersusChip() {
 
 interface PlayerCardProps {
   readonly player: WhichMorePlayerDto;
+  /** Değer plakasının üstündeki metrik etiketi (ör. "Resmî maç"). */
+  readonly metricName: string;
   readonly unit: string;
   /** `null` = değer henüz açılmadı (BR-32). */
   readonly value: number | null;
   /** Karşılaştırma çubuğunun oranı (0–1); değer kapalıyken kullanılmaz. */
   readonly share: number;
   readonly outcome: Outcome;
+  /** Kart başına fark — kazanan "önde", kaybeden "geride"; kapalıyken `null`. */
+  readonly lead: Lead | null;
   /** Kullanıcı bu paneli mi tıkladı? Yalnızca değerler açıldıktan sonra. */
   readonly chosen: boolean;
   /**
@@ -721,10 +833,12 @@ interface PlayerCardProps {
 
 function PlayerCard({
   player,
+  metricName,
   unit,
   value,
   share,
   outcome,
+  lead,
   chosen,
   fate,
   chain,
@@ -750,7 +864,9 @@ function PlayerCard({
       }`}
     >
       <span className="flex w-full items-start justify-between gap-2">
-        <span className="text-lg leading-tight font-bold">{player.name}</span>
+        <span className="font-display text-lg leading-tight font-bold tracking-tight">
+          {player.name}
+        </span>
 
         {chain !== null && (
           <span
@@ -772,55 +888,80 @@ function PlayerCard({
         DEĞER PLAKASININ YÜKSEKLİĞİ SABİT. Kapalı ve açık hâl aynı yeri
         kaplıyor; kart açılırken büyüseydi, sayfa cevabın tam okunacağı anda
         kayardı. Sabit yükseklik açılışı bir YENİDEN YERLEŞİM değil, bir
-        ÇEVİRME hâline getiriyor.
+        ÇEVİRME hâline getiriyor. Metrik etiketi (ör. "Resmî maç") plakanın
+        üstünde: hangi sayının okunduğunu söyler ("doğrulanmış" demez — biz
+        doğrulamıyoruz, bir anlık görüntü topluyoruz, §5.2).
       */}
-      <span className="flex h-16 w-full flex-col justify-center">
-        {value === null ? (
-          /*
-            Tire "burada bir şey yok" der; kapalı plaka "burada kapalı bir şey
-            var" der (BR-32). Ekran okuyucuya giden ad değişmedi.
-          */
-          <span
-            aria-label="değer gizli"
-            className="flex h-full w-full items-center justify-center rounded-lg border-2 border-dashed border-line-strong bg-surface-2 text-3xl font-black text-muted"
-          >
-            ?
-          </span>
-        ) : (
-          <span
-            className="animate-duel-reveal flex flex-col gap-2"
-            style={{ animationDelay: `${String(revealDelayMs)}ms` }}
-          >
-            <span className="text-4xl leading-none font-black tabular-nums">
-              {String(value)}{" "}
-              <span className="text-sm font-bold tracking-wide text-muted uppercase">
-                {unit}
+      <span className="flex w-full flex-col gap-1.5">
+        <DataLabel className="text-muted">{metricName}</DataLabel>
+        <span className="flex h-16 w-full flex-col justify-center">
+          {value === null ? (
+            /*
+              Tire "burada bir şey yok" der; kapalı plaka "burada kapalı bir şey
+              var" der (BR-32). Ekran okuyucuya giden ad değişmedi.
+            */
+            <span
+              aria-label="değer gizli"
+              className="flex h-full w-full items-center justify-center rounded-lg border-2 border-dashed border-line-strong bg-surface-2 text-3xl font-black text-muted"
+            >
+              ?
+            </span>
+          ) : (
+            <span
+              className="animate-duel-reveal flex flex-col gap-2"
+              style={{ animationDelay: `${String(revealDelayMs)}ms` }}
+            >
+              {/* Açılan değer düellonun doruğu; condensed editorial yüz (§7.12),
+                  tabelayla + öbür modlarla aynı tabular-nums ritmi. Ağırlık 700
+                  (yüklü); 900 sentetik olurdu. Birim iç içe span'de font-display'i
+                  miras alır. */}
+              <span className="font-display text-4xl leading-none font-bold tabular-nums">
+                {String(value)}{" "}
+                <span className="text-sm font-bold tracking-wide text-muted uppercase">
+                  {unit}
+                </span>
+              </span>
+
+              {/*
+                KARŞILAŞTIRMA ÇUBUĞU. Açılan sayının cevaplamadığı soruyu
+                cevaplıyor: "yakın mıydı?". `aria-hidden`, çünkü sayı hemen
+                üstünde yazılı — çubuk onun ikinci kez söylenmesi.
+              */}
+              <span
+                aria-hidden="true"
+                className="block h-1.5 w-full overflow-hidden rounded-full bg-surface-2"
+              >
+                <span
+                  className={
+                    "animate-duel-bar block h-full origin-left rounded-full " +
+                    BAR_CLASS[outcome]
+                  }
+                  style={{
+                    transform: `scaleX(${String(share)})`,
+                    animationDelay: `${String(revealDelayMs + 80)}ms`,
+                  }}
+                />
               </span>
             </span>
-
-            {/*
-              KARŞILAŞTIRMA ÇUBUĞU. Açılan sayının cevaplamadığı soruyu
-              cevaplıyor: "yakın mıydı?". `aria-hidden`, çünkü sayı hemen
-              üstünde yazılı — çubuk onun ikinci kez söylenmesi.
-            */}
-            <span
-              aria-hidden="true"
-              className="block h-1.5 w-full overflow-hidden rounded-full bg-surface-2"
-            >
-              <span
-                className={
-                  "animate-duel-bar block h-full origin-left rounded-full " +
-                  BAR_CLASS[outcome]
-                }
-                style={{
-                  transform: `scaleX(${String(share)})`,
-                  animationDelay: `${String(revealDelayMs + 80)}ms`,
-                }}
-              />
-            </span>
-          </span>
-        )}
+          )}
+        </span>
       </span>
+
+      {/*
+        KART BAŞINA FARK. Açılan iki sayının karşılaştırmasını sözle söyler:
+        kazanan "N önde", kaybeden "N geride". `aria-hidden` DEĞİL — "aradaki
+        fark" şeridi tek bir sayı verir, bu her kartın kendi yönünü söyler.
+      */}
+      {lead !== null && (
+        <span
+          className={
+            "text-xs font-bold tabular-nums " +
+            (lead.ahead ? "text-accent" : "text-muted")
+          }
+        >
+          {String(lead.gap)} {lead.unit} {lead.ahead ? "önde" : "geride"}
+        </span>
+      )}
 
       {/*
         SEÇİM VE AKIBET AÇIKÇA YAZILI.
@@ -882,9 +1023,21 @@ function streakBand(streak: number): string | null {
  */
 function VerdictBar({
   streak,
+  winnerName,
+  winnerValue,
+  loserName,
+  loserValue,
+  unit,
   onContinue,
 }: {
   readonly streak: number;
+  /** Kazanan kart = kullanıcının doğru seçtiği oyuncu (BR-28). */
+  readonly winnerName: string;
+  readonly winnerValue: number;
+  /** Kaybeden kart — Stitch dili: "(Zlatan: 164 maç)". */
+  readonly loserName: string;
+  readonly loserValue: number;
+  readonly unit: string;
   onContinue(): void;
 }) {
   const band = streakBand(streak);
@@ -899,7 +1052,29 @@ function VerdictBar({
       </span>
 
       <div className="min-w-0 flex-1 basis-40">
-        <p className="text-lg font-extrabold text-correct">Doğru!</p>
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="text-lg font-extrabold text-correct">Doğru!</span>
+          {/* +1 seri puanı — Stitch dili; seri gerçekten +1 arttı (BR-28). */}
+          <span className="rounded-full bg-correct px-2 py-0.5 text-[0.65rem] font-extrabold tracking-wide text-background uppercase">
+            +1 seri puanı
+          </span>
+        </p>
+        {/* KAZANANI ADIYLA + DEĞERİYLE, kaybedeni de değeriyle söyler (Stitch
+            dili): "Doğru!" tek başına hangi kartın önde olduğunu söylemiyordu. */}
+        <p className="mt-0.5 text-sm text-muted">
+          <strong className="font-semibold text-foreground">
+            {winnerName}
+          </strong>{" "}
+          önde —{" "}
+          <span className="tabular-nums text-foreground">
+            {String(winnerValue)} {unit}
+          </span>{" "}
+          · {loserName}{" "}
+          <span className="tabular-nums">
+            {String(loserValue)} {unit}
+          </span>
+          .
+        </p>
         {band !== null && <p className="text-sm text-muted">{band}</p>}
       </div>
 
@@ -986,202 +1161,81 @@ function ErrorPanel({
   );
 }
 
-interface StatPickerProps {
+interface WhichMoreSetupProps {
   readonly statKey: StatKey;
   readonly level: Level;
   readonly direction: Direction;
-  onStatKey(key: StatKey): void;
+  readonly question: StatQuestion;
+  onStat(key: StatKey): void;
   onLevel(level: Level): void;
   onDirection(direction: Direction): void;
   onStart(): void;
 }
 
-/** Kurulum ekranının parçaları sırayla beliriyor; adım başına gecikme. */
-const SETUP_STEP_MS = 70;
-
-/** Bölüm başlığı — kurulumun iki adımı numaralı, çünkü GERÇEKTEN sıralı. */
-function StepLegend({ step, children }: { step: number; children: string }) {
+/** Kurulum kartı sınıfı — seçili DOLU, seçilmemiş çerçeveli (renk tek gösterge değil). */
+function setupCardClass(isCurrent: boolean): string {
   return (
-    <legend className="flex items-baseline gap-2 text-sm font-extrabold tracking-tight">
-      <span
-        aria-hidden="true"
-        className="flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-[0.65rem] font-black text-background"
-      >
-        {step}
-      </span>
-      {children}
-    </legend>
+    "cursor-pointer rounded-lg border-2 p-4 text-left transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent " +
+    (isCurrent
+      ? "border-accent bg-accent-soft shadow-card"
+      : "border-line bg-surface hover:border-line-strong")
   );
 }
 
 /**
- * Kurulum ekranı — PROJECT.md §9.3.
+ * EKRAN A — KURULUM (§9.3, Stitch tasarımı).
  *
- * NEDEN ÖNİZLEME EN ÜSTTE. Kurulumun çıktısı bir CÜMLEDİR ve o cümle bugüne
- * dek hiçbir yerde bir bütün olarak görünmüyordu: kullanıcı bir kutudan
- * istatistiği, başka bir kutudan yönü seçiyor ve ne soracağını ancak oyun
- * başladıktan sonra okuyordu. Cümle artık ekranın en büyük yazısı ve her
- * seçimde yeniden basılıyor — React anahtarı değiştiği için açılış animasyonu
- * her seferinde yeniden koşuyor. Kurulum böylece bir form doldurmak değil,
- * bir soru KURMAK oluyor.
+ * Üç adım (metrik / havuz / yön) + bir soru önizlemesi + "Başla". Tabela YOK:
+ * henüz koşu yok. "Başla" ilk turu yükler ve düelloya geçer.
  *
- * NEDEN YÖN DÜĞMELERİ KISALDI. Cümlenin tamamı önizlemede duruyor; düğmede
- * ikinci kez basmak seçimi bir cümle yığınına çeviriyordu. Görünen metin
- * kısaldı, ERİŞİLEBİLİR AD tam cümle kaldı (§7.17'deki gezinme ile aynı
- * karar) — kısa biçim tam cümlenin içinde geçtiği için WCAG 2.5.3 sağlanıyor.
+ * ERİŞİLEBİLİRLİK: her seçenek bir radyo; görünen etiket kısa, ölçüt (BR-29
+ * bandı / havuz ölçütü / yön cümlesi) erişilebilir adın PARÇASI (sr-only).
+ * Seçili DOLU, seçilmemiş çerçeveli (WCAG 1.4.1); görünen yön metni tam
+ * cümlenin İÇİNDE (WCAG 2.5.3).
  */
-function StatPicker({
+function WhichMoreSetup({
   statKey,
   level,
   direction,
-  onStatKey,
+  question,
+  onStat,
   onLevel,
   onDirection,
   onStart,
-}: StatPickerProps) {
-  const question = questionFor(statKey);
-
+}: WhichMoreSetupProps) {
   return (
-    <div className="flex flex-col gap-7">
-      {/*
-        SORULACAK SORU. Ekranın en büyük yazısı, çünkü kurulumun ürettiği tek
-        şey bu. `key` her seçimde değişiyor: React düğümü yeniden kuruyor ve
-        animasyon yeniden koşuyor.
-      */}
-      <div className="animate-duel-enter rounded-2xl border-2 border-line-strong bg-surface px-5 py-6 shadow-card sm:px-7">
-        <p className="text-[0.65rem] font-extrabold tracking-[0.13em] text-muted uppercase">
-          Sorulacak soru
-        </p>
-        <p
-          key={`${statKey}-${direction}`}
-          className="animate-duel-swap mt-2 text-2xl leading-tight font-black tracking-tight text-balance sm:text-4xl"
-        >
-          Hangisi {direction === "more" ? question.more : question.less}?
-        </p>
-
-        {/*
-          ÖNİZLEME ARTIK ÜÇ SEÇİMİ DE TAŞIYOR. Seviye cümlenin İÇİNE girmiyor —
-          "Hangisi daha genç?" sorusu havuzdan bağımsız — ama cümlenin altına
-          yazılıyor, çünkü kurulumun çıktısı artık soru + havuzdur.
-        */}
-        <p key={level} className="animate-duel-swap mt-1.5 text-sm text-note">
-          {levelFor(level).note}
+    <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-2">
+        <DataLabel className="text-accent">Meydan okuma modu</DataLabel>
+        <h1 className="font-display text-4xl font-bold tracking-tight text-balance uppercase sm:text-5xl">
+          Hangisi Daha
+        </h1>
+        <p className="max-w-prose text-muted">
+          Bir istatistik seç, iki futbolcudan hangisinin önde olduğunu bul.
+          Doğru bildiğin sürece seçtiğin oyuncu kalır;{" "}
+          <strong className="font-semibold text-foreground">
+            bir yanlış koşuyu bitirir
+          </strong>
+          .
         </p>
       </div>
 
-      {/*
-        SEVİYE BİRİNCİ ADIM. İstatistikten önce geliyor çünkü daha geniş bir
-        karar: hangi sayının sorulacağını değil, KİMİN sorulacağını belirliyor.
-        Adım 1'den öteye hiç bakmayan kullanıcı da varsayılanla (kolay) doğru
-        yerde kalır.
-      */}
-      <fieldset
-        className="animate-duel-enter flex flex-col gap-2"
-        style={{ animationDelay: `${String(SETUP_STEP_MS)}ms` }}
-      >
-        <StepLegend step={1}>Kimler çıksın?</StepLegend>
-
-        <div className="grid gap-2 sm:grid-cols-2">
-          {LEVELS.map((option) => {
-            const one = levelFor(option);
-            const isCurrent = option === level;
-            return (
-              <label
-                key={option}
-                className={`flex cursor-pointer flex-col gap-1.5 rounded-2xl border-2 px-3.5 py-3 transition-[transform,box-shadow,background-color,border-color] duration-150 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent ${
-                  isCurrent
-                    ? "border-accent bg-accent-soft shadow-card"
-                    : "border-line-strong bg-surface hover:-translate-y-0.5 hover:border-accent hover:shadow-card"
-                }`}
-              >
-                {/* Seçili olan yalnızca renkle ayrılmıyor (WCAG 1.4.1). */}
-                <span
-                  aria-hidden="true"
-                  className={`h-1 rounded-full transition-[width,background-color] duration-200 ${
-                    isCurrent ? "w-full bg-accent" : "w-6 bg-line"
-                  }`}
-                />
-
-                <input
-                  type="radio"
-                  name="which-more-level"
-                  className="sr-only"
-                  value={option}
-                  checked={isCurrent}
-                  onChange={() => {
-                    onLevel(option);
-                  }}
-                />
-
-                <span
-                  className={
-                    "text-sm " +
-                    (isCurrent ? "font-bold text-accent" : "font-semibold")
-                  }
-                >
-                  {one.name}
-                </span>
-
-                {/*
-                  ÖLÇÜT ERİŞİLEBİLİR ADIN PARÇASI, gizli değil: "Kolay" tek
-                  başına neyin kolay olduğunu söylemiyor ve bu tam da modun
-                  cevapladığı soru.
-                */}
-                <span className="text-xs text-muted">{one.detail}</span>
-              </label>
-            );
-          })}
-        </div>
-      </fieldset>
-
-      <fieldset className="flex flex-col gap-4">
-        <StepLegend step={2}>Hangi istatistik?</StepLegend>
-
-        {STAT_GROUPS.map((group, groupIndex) => (
-          <fieldset key={group.caption} className="flex flex-col gap-2">
-            <legend className="flex flex-wrap items-baseline gap-x-2">
-              <span className="text-sm font-bold">{group.caption}</span>
-              <span className="text-xs text-note">{group.detail}</span>
-            </legend>
-
-            <div className="grid gap-2 sm:grid-cols-3">
-              {STAT_KEYS.filter(
-                (key) => questionFor(key).scoped === group.scoped,
-              ).map((key, index) => {
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="flex flex-col gap-6 lg:col-span-2">
+          {/* ADIM 01 — METRİK */}
+          <fieldset className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+              <DataLabel as="legend" className="text-muted">
+                Adım 01 · İstatistik metriği
+              </DataLabel>
+              <span className="text-xs text-muted">1 seçim gerekli</span>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {STAT_KEYS.map((key) => {
                 const one = questionFor(key);
                 const isCurrent = key === statKey;
                 return (
-                  /*
-                    SEÇİLİ OLAN YALNIZCA RENKLE AYRILMIYOR (WCAG 1.4.1): yazı
-                    kalınlığı değişiyor ve üstteki şerit boydan boya doluyor.
-                    Kenarlık iki durumda da `border-2`, yoksa seçim ızgarayı
-                    bir piksel oynatırdı.
-                  */
-                  <label
-                    key={key}
-                    className={`animate-duel-enter flex cursor-pointer flex-col gap-1.5 rounded-2xl border-2 px-3.5 py-3 transition-[transform,box-shadow,background-color,border-color] duration-150 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent ${
-                      isCurrent
-                        ? "border-accent bg-accent-soft shadow-card"
-                        : "border-line-strong bg-surface hover:-translate-y-0.5 hover:border-accent hover:shadow-card"
-                    }`}
-                    /*
-                      GECİKME ÖBEK BOYUNDAN OKUNUR, sabit 3'ten değil: öbekler
-                      artık eşit değil (5+1) ve sabit çarpan ikinci öbeği
-                      birincinin üstüne bindirirdi.
-                    */
-                    style={{
-                      animationDelay: `${String(
-                        (groupOffset(groupIndex) + index + 2) * SETUP_STEP_MS,
-                      )}ms`,
-                    }}
-                  >
-                    <span
-                      aria-hidden="true"
-                      className={`h-1 rounded-full transition-[width,background-color] duration-200 ${
-                        isCurrent ? "w-full bg-accent" : "w-6 bg-line"
-                      }`}
-                    />
-
+                  <label key={key} className={setupCardClass(isCurrent)}>
                     <input
                       type="radio"
                       name="which-more-stat"
@@ -1189,99 +1243,202 @@ function StatPicker({
                       value={key}
                       checked={isCurrent}
                       onChange={() => {
-                        onStatKey(key);
+                        onStat(key);
                       }}
                     />
-
-                    <span
-                      className={
-                        "text-sm " +
-                        (isCurrent ? "font-bold text-accent" : "font-semibold")
-                      }
-                    >
-                      {one.name}
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="font-display text-base font-bold tracking-wide uppercase">
+                        {one.name}
+                      </span>
+                      {isCurrent && <CheckIcon />}
                     </span>
-
-                    {/*
-                      BR-29'un bandı seçim ANINDA okunuyor. Oyunun zorluğunu
-                      ayarlayan tek sayı budur ve bugüne dek arayüzün hiçbir
-                      yerinde görünmüyordu: kullanıcı "kulüp sayısı" ile "kulüp
-                      maçı"nın neden bambaşka zorlukta olduğunu bilemiyordu.
-                      Metin erişilebilir adın PARÇASI — gizlenseydi ekran
-                      okuyucu kullanıcısı bu farkı hiç öğrenemezdi.
-                    */}
-                    <span className="text-xs text-muted">
-                      en az {String(MIN_GAP[key])} {one.gapUnit ?? one.unit}{" "}
-                      fark
+                    <span className="mt-1.5 block text-sm text-muted">
+                      {one.hint}
+                    </span>
+                    {/* BR-29 bandı erişilebilir adın PARÇASI: kart göze sade
+                        kalır, ölçüt ekran okuyucuda tam duyulur. */}
+                    <span className="sr-only">
+                      {" — en az "}
+                      {String(MIN_GAP[key])} {one.gapUnit ?? one.unit} fark
+                      {one.scoped ? ", yalnızca 24 lig" : ""}
                     </span>
                   </label>
                 );
               })}
             </div>
           </fieldset>
-        ))}
-      </fieldset>
 
-      <fieldset
-        className="animate-duel-enter flex flex-col gap-2"
-        style={{ animationDelay: `${String(8 * SETUP_STEP_MS)}ms` }}
-      >
-        <StepLegend step={3}>Hangi yön?</StepLegend>
+          {/* ADIM 02 — HAVUZ */}
+          <fieldset className="flex flex-col gap-3">
+            <DataLabel as="legend" className="text-muted">
+              Adım 02 · Oyuncu havuzu derinliği
+            </DataLabel>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {LEVELS.map((option) => {
+                const one = levelFor(option);
+                const isCurrent = option === level;
+                return (
+                  <label key={option} className={setupCardClass(isCurrent)}>
+                    <input
+                      type="radio"
+                      name="which-more-level"
+                      className="sr-only"
+                      value={option}
+                      checked={isCurrent}
+                      onChange={() => {
+                        onLevel(option);
+                      }}
+                    />
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="font-display text-base font-bold tracking-wide uppercase">
+                        {one.name}
+                      </span>
+                      {isCurrent && <CheckIcon />}
+                    </span>
+                    {/* Ölçüt erişilebilir adın parçası: "Kolay" tek başına
+                        neyin kolay olduğunu söylemez. */}
+                    <span className="mt-1.5 block text-sm text-muted">
+                      {one.detail}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
 
-        <div className="flex flex-wrap gap-2">
-          {(["more", "less"] as const).map((option) => {
-            const isCurrent = option === direction;
-            return (
-              <label
-                key={option}
-                className={`flex-1 cursor-pointer rounded-full border-2 px-5 py-2.5 text-center text-base transition-[transform,box-shadow,background-color,border-color] duration-150 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent sm:flex-none ${
-                  isCurrent
-                    ? "border-accent bg-accent font-bold text-accent-fg shadow-card"
-                    : "border-line-strong bg-surface font-semibold hover:-translate-y-0.5 hover:border-accent hover:shadow-card"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="which-more-direction"
-                  className="sr-only"
-                  value={option}
-                  checked={isCurrent}
-                  onChange={() => {
-                    onDirection(option);
-                  }}
-                />
-
-                {/*
-                  GÖRÜNEN kısa, DUYULAN tam. Cümlenin tamamı önizlemede zaten
-                  yazılı; düğmede tekrarı seçimi okunmaz hâle getiriyordu.
-                */}
-                <span aria-hidden="true">
-                  {option === "more" ? question.moreShort : question.lessShort}
-                </span>
-                <span className="sr-only">
-                  {option === "more" ? question.more : question.less}
-                </span>
-              </label>
-            );
-          })}
+          {/* ADIM 03 — YÖN */}
+          <fieldset className="flex flex-col gap-3">
+            <DataLabel as="legend" className="text-muted">
+              Adım 03 · Karşılaştırma yönü
+            </DataLabel>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {(["more", "less"] as const).map((option) => {
+                const isCurrent = option === direction;
+                return (
+                  <label
+                    key={option}
+                    className={
+                      "flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 px-4 py-3 font-display text-base font-bold tracking-wide uppercase transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent " +
+                      (isCurrent
+                        ? "border-accent bg-accent text-accent-fg shadow-card"
+                        : "border-line bg-surface text-muted hover:border-line-strong hover:text-foreground")
+                    }
+                  >
+                    <input
+                      type="radio"
+                      name="which-more-direction"
+                      className="sr-only"
+                      value={option}
+                      checked={isCurrent}
+                      onChange={() => {
+                        onDirection(option);
+                      }}
+                    />
+                    {/* GÖRÜNEN kısa (ok + kısa biçim tek aria-hidden sarmada),
+                        DUYULAN tam (WCAG 2.5.3). */}
+                    <span
+                      aria-hidden="true"
+                      className="inline-flex items-center gap-1.5"
+                    >
+                      <DirectionArrow more={option === "more"} />
+                      {option === "more"
+                        ? question.moreShort
+                        : question.lessShort}
+                    </span>
+                    <span className="sr-only">
+                      {option === "more" ? question.more : question.less}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
         </div>
-      </fieldset>
 
-      {/*
-        Kurulum ekranının TEK eylemi bu; ölçüsü de onu söylüyor. Diğer
-        modlardaki "Devam" düğmesiyle aynı puntoda durması, koşuyu başlatan
-        kararı sıradan bir ilerleme adımı gibi gösteriyordu.
-      */}
-      <div
-        className="animate-duel-enter"
-        style={{ animationDelay: `${String(9 * SETUP_STEP_MS)}ms` }}
-      >
-        <Button size="hero" glow className="w-full sm:w-auto" onClick={onStart}>
-          Başla
-          <span aria-hidden="true">→</span>
-        </Button>
+        {/* SORU ÖNİZLEMESİ + BAŞLA (masaüstünde sağ sütun, sabit) */}
+        <aside className="flex flex-col gap-4 lg:sticky lg:top-24 lg:self-start">
+          <div className="flex flex-col gap-4 rounded-xl border border-line bg-surface p-5 shadow-card">
+            <div className="flex items-center justify-between gap-2">
+              <DataLabel className="text-accent">Soru önizlemesi</DataLabel>
+              <DataLabel className="text-muted">Editoryal format</DataLabel>
+            </div>
+
+            {/* SEÇİMLERİN ÇIKTISI BİR CÜMLEDİR ve burada bir bütün olarak
+                görünür — düello başlamadan ne sorulacağı okunur. */}
+            <p className="font-display text-2xl font-bold tracking-tight text-balance uppercase">
+              Hangisi {direction === "more" ? question.more : question.less}?
+            </p>
+
+            <div className="rounded-lg border border-line bg-surface-2 p-3">
+              <DataLabel className="mb-1 text-muted">
+                Parametre kapsamı
+              </DataLabel>
+              <p className="text-sm text-muted">
+                {levelFor(level).note} · {question.hint}
+              </p>
+            </div>
+
+            <p className="flex items-start gap-2 text-sm text-note">
+              <CheckIcon />
+              Değerler gizlidir; karar verilene kadar açığa çıkmaz.
+            </p>
+          </div>
+
+          <Button size="lg" onClick={onStart}>
+            Başla
+          </Button>
+
+          {/* Modun rastgele/sonsuz olduğunu (BR-32) ve lider tablosuna
+              girmediğini (§11) tekrar söyler — §5.2 dürüstlük metni sınıfı. */}
+          <p className="text-center text-xs font-semibold tracking-wide text-muted uppercase">
+            Kayıtsız · Sıralamasız · Anlık skor koşusu
+          </p>
+        </aside>
       </div>
     </div>
+  );
+}
+
+/** Seçili kartın onay işareti — satır içi SVG (§7.12: ikon fontu değil). */
+function CheckIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+      className="h-5 w-5 shrink-0 text-accent"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="m8.5 12 2.5 2.5 4.5-5" />
+    </svg>
+  );
+}
+
+/** Yön oku — "daha çok" yukarı, "daha az" aşağı; satır içi SVG, aria-hidden. */
+function DirectionArrow({ more }: { readonly more: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+      className="h-4 w-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {more ? (
+        <path d="M12 19V5M5 12l7-7 7 7" />
+      ) : (
+        <path d="M12 5v14M5 12l7 7 7-7" />
+      )}
+    </svg>
   );
 }
 
@@ -1289,4 +1446,96 @@ function describe(error: unknown): string {
   return error instanceof Error
     ? error.message
     : "Beklenmeyen bir hata oluştu.";
+}
+
+/** Künye kısayol düğmesi — condensed pill (ızgara/istatistikteki idyom). */
+const HEADER_LINK_CLASS =
+  "font-display inline-flex items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 py-2 text-sm font-semibold tracking-wide text-muted uppercase transition-colors hover:border-line-strong hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+
+/**
+ * Künye kısayolları — "Ayarları değiştir" (kuruluma dön), "Nasıl oynanır"
+ * çapası ve "Seriyi paylaş" (§9.3).
+ *
+ * `onShare` verilmezse paylaş düğmesi çıkmaz (paylaşılacak bir seri yok). Çapa
+ * sayfanın altındaki bölüme iner; ikonlar satır içi SVG (§7.12: harici
+ * font/glif değil, CSP `font-src 'self'`).
+ */
+function WhichMoreHeaderLinks({
+  onOpenSetup,
+  onShare,
+  shareStatus,
+}: {
+  readonly onOpenSetup: () => void;
+  readonly onShare?: () => void;
+  readonly shareStatus: string | null;
+}) {
+  return (
+    <nav
+      aria-label="Hangisi daha kısayolları"
+      className="flex flex-wrap items-center gap-2"
+    >
+      <button type="button" className={HEADER_LINK_CLASS} onClick={onOpenSetup}>
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          focusable="false"
+          className="h-4 w-4 text-accent"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M4 6h10M4 12h7M4 18h13" />
+          <path d="M16 4v4M20 14v4M13 16v4" />
+        </svg>
+        <span>Ayarları değiştir</span>
+      </button>
+
+      <a href="#nasil-oynanir" className={HEADER_LINK_CLASS}>
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          focusable="false"
+          className="h-4 w-4 text-accent"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <circle cx="12" cy="12" r="9" />
+          <path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.4c-.7.3-1 .8-1 1.5v.3" />
+          <path d="M12 17h.01" />
+        </svg>
+        <span>Nasıl oynanır?</span>
+      </a>
+
+      {onShare !== undefined && (
+        <button type="button" className={HEADER_LINK_CLASS} onClick={onShare}>
+          <svg
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            focusable="false"
+            className="h-4 w-4 text-accent"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7" />
+            <path d="M12 15V3M8 7l4-4 4 4" />
+          </svg>
+          <span>Seriyi paylaş</span>
+        </button>
+      )}
+
+      {shareStatus !== null && (
+        <span role="status" aria-live="polite" className="text-sm text-muted">
+          {shareStatus}
+        </span>
+      )}
+    </nav>
+  );
 }

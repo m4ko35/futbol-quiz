@@ -149,3 +149,73 @@ export async function checkAnswer(
 export function gridDate(now: Date): string {
   return isoDate(now);
 }
+
+/**
+ * Açığa çıkan bir hücrenin örnek cevabı — "Pes et → Cevapları gör" (BR-66).
+ *
+ * `index` KOORDİNAT DEĞİL, istekteki hücrenin SIRASIDIR: istemci gönderdiği
+ * hücre dizisini biliyor ve `index`'i kendi hücresine geri eşler. Günlük ve
+ * "Sen kur" turu aynı şekli paylaşır.
+ */
+export interface RevealedCellDto {
+  readonly index: number;
+  readonly playerId: string;
+  readonly playerName: string;
+}
+
+export interface RevealDailyInput {
+  readonly now: Date;
+  /** Açığa çıkarılacak hücreler; sıra yanıttaki `index`'i belirler. */
+  readonly cells: readonly CellRef[];
+  /** Kullanıcının kendi yerleştirdiği oyuncular — örneklerden dışlanır (BR-10). */
+  readonly used: readonly string[];
+}
+
+/**
+ * BR-66 — günün ızgarasında pes eden kullanıcıya örnek cevaplar.
+ *
+ * Izgara BURADA DA yeniden üretilir, istemciden gelen koordinat kendi
+ * ızgaramıza bakılarak ölçüte çevrilir (BR-11/BR-12 ile aynı güvensizlik).
+ * Örnekler SIRAYLA seçilir ve her seçilen bir sonrakinin dışlama kümesine
+ * eklenir: aynı futbolcu iki hücrede belirmez (BR-10 hissi). Sıra zorunlu —
+ * dışlama kümesi büyüyerek ilerliyor.
+ */
+export async function revealDailyGrid(
+  input: RevealDailyInput,
+  deps: GridDeps,
+): Promise<RevealedCellDto[]> {
+  const grid = await gridFor(dailySeed(input.now), deps);
+
+  const chosen = new Set<string>(input.used);
+  const revealed: RevealedCellDto[] = [];
+
+  for (const [index, cell] of input.cells.entries()) {
+    // Aralık dışı hücre bir SUNUCU hatası değil, geçersiz bir GİRDİDİR.
+    if (!isCellRefInRange(cell)) {
+      throw new ValidationError("Geçersiz hücre.");
+    }
+
+    const row = grid.rows[cell.row];
+    const column = grid.columns[cell.column];
+    if (row === undefined || column === undefined) {
+      throw new GridUnavailableError();
+    }
+
+    const example = await deps.players.findExampleMatching(
+      [row, column],
+      chosen,
+    );
+    // Örneği bulunamayan hücre (tüm cevapları `used`'da) SESSİZCE ATLANIR:
+    // uydurulacak bir cevap yok (§2.7), o hücre boş kalır.
+    if (example === undefined) continue;
+
+    chosen.add(String(example.id));
+    revealed.push({
+      index,
+      playerId: String(example.id),
+      playerName: example.name,
+    });
+  }
+
+  return revealed;
+}

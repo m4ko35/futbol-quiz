@@ -6,6 +6,7 @@ import type { LeagueSummary } from "@/application/ports/club-repository";
 import { countryName } from "@/lib/country-name";
 import { ClubMark } from "./club-mark";
 import { CountryFlag } from "./country-flag";
+import { DataLabel } from "./data-label";
 
 /**
  * Kulüp seçici — WAI-ARIA "combobox with listbox popup" deseni.
@@ -303,7 +304,7 @@ export function ClubPicker({
     <div className="flex flex-col gap-2">
       <label
         htmlFor={inputId}
-        className="text-xs font-semibold tracking-wide text-muted uppercase"
+        className="font-display text-xs font-semibold tracking-wide text-muted uppercase"
       >
         {label}
       </label>
@@ -551,12 +552,18 @@ export function ClubPicker({
                       ) : (
                         <span className="flex items-center gap-2">
                           <ClubMark club={row.club} />
-                          <span className="font-medium">
+                          <span className="min-w-0 truncate font-medium">
                             {row.club.shortName}
                           </span>
+                          {/*
+                            HAM ISO KODU DEĞİL çevrilmiş ad (§7.12). Lig satırı
+                            zaten `countryName` kullanıyordu; kulüp satırı ham
+                            `country` basıp "TR", "ES", "GB" gösteriyordu — aynı
+                            kusurun ikinci nüshası. Aynı depo 170 kodu çevirir.
+                          */}
                           {row.club.country !== null && (
-                            <span className="text-muted">
-                              {row.club.country}
+                            <span className="ml-auto shrink-0 text-muted">
+                              {countryName(row.club.country)}
                             </span>
                           )}
                         </span>
@@ -598,20 +605,44 @@ export function ClubPicker({
         <div className="flex items-center justify-between gap-3 rounded-lg border border-accent bg-accent-soft px-3 py-2.5">
           <span className="flex min-w-0 items-center gap-2.5">
             <ClubMark club={selected} size={28} />
-            <span className="truncate font-semibold">{selected.shortName}</span>
+            <span className="flex min-w-0 flex-col">
+              <span className="truncate font-display text-base leading-tight font-bold tracking-tight">
+                {selected.shortName}
+              </span>
+              {/* ÜLKE ALT SATIRI (§7.12): ham ISO kodu DEĞİL, çevrilmiş ad.
+                  Lig adı veride YOK; bu yüzden Stitch'teki "Süper Lig · Türkiye"
+                  satırı yalnızca ülkeye iner — uydurma bir lig adı yazılmaz. */}
+              {selected.country !== null && (
+                <span className="truncate text-xs text-muted">
+                  {countryName(selected.country)}
+                </span>
+              )}
+            </span>
           </span>
-          <button
-            type="button"
-            className="shrink-0 rounded-md px-2 py-3 text-sm font-medium text-accent underline underline-offset-2 hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-            onClick={() => {
-              onSelect(null);
-              // Seçim kaldırıldığında odak arama kutusuna dönmeli; aksi hâlde
-              // klavye kullanıcısı sayfanın başına savrulur.
-              requestAnimationFrame(() => inputRef.current?.focus());
-            }}
-          >
-            Değiştir
-          </button>
+          <span className="flex shrink-0 items-center gap-2">
+            {/* "● SEÇİLDİ" — kaydın tamamlandığını bir bakışta söyler (editorial
+                data-label). Nokta yalnızca vurgudur (aria-hidden); bilgi
+                "Seçildi" sözcüğünde, renkte ya da noktada değil (WCAG 1.4.1). */}
+            <span className="flex items-center gap-1.5 max-[380px]:hidden">
+              <span
+                aria-hidden="true"
+                className="h-1.5 w-1.5 rounded-full bg-accent"
+              />
+              <DataLabel className="text-accent">Seçildi</DataLabel>
+            </span>
+            <button
+              type="button"
+              className="rounded-md px-2 py-3 text-sm font-medium text-accent underline underline-offset-2 hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              onClick={() => {
+                onSelect(null);
+                // Seçim kaldırıldığında odak arama kutusuna dönmeli; aksi hâlde
+                // klavye kullanıcısı sayfanın başına savrulur.
+                requestAnimationFrame(() => inputRef.current?.focus());
+              }}
+            >
+              Değiştir
+            </button>
+          </span>
         </div>
       )}
 

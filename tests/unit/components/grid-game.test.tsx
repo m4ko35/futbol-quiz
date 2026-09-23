@@ -463,6 +463,208 @@ describe("GridGame — oyun sonu", () => {
   });
 });
 
+describe("GridGame — Temizle ve paylaş (arayüz yenileme)", () => {
+  /** Bitmiş bir oyun durumu: 4 doğru + 5 yanlış = 4/9. */
+  function finishedState() {
+    window.localStorage.setItem(
+      "futbol-quiz:grid",
+      JSON.stringify({
+        date: GRID.date,
+        guessesUsed: MAX_GUESSES,
+        cells: Object.fromEntries(
+          Array.from({ length: MAX_GUESSES }, (_, i) => [
+            `${String(Math.floor(i / 3))}:${String(i % 3)}`,
+            {
+              status: i < 4 ? "correct" : "wrong",
+              playerId: `p${String(i)}`,
+              playerName: `Oyuncu ${String(i)}`,
+            },
+          ]),
+        ),
+      }),
+    );
+    resetSavedGameCache();
+  }
+
+  it("ilerleme yokken Temizle GÖSTERİLMEZ", () => {
+    setup();
+
+    expect(
+      screen.queryByRole("button", { name: "Temizle" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("Temizle ızgarayı sıfırlar (onaylanınca)", async () => {
+    const { user } = setup();
+
+    await answerCell(user, /Barcelona ve Arsenal/u);
+    await waitFor(() => {
+      expect(screen.getByText(/1\/9 doğru/u)).toBeInTheDocument();
+    });
+
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    await user.click(screen.getByRole("button", { name: "Temizle" }));
+    confirmSpy.mockRestore();
+
+    await waitFor(() => {
+      expect(screen.getByText(/0\/9 doğru · 9 hak kaldı/u)).toBeInTheDocument();
+    });
+  });
+
+  it("onay reddedilirse Temizle ilerlemeyi KORUR", async () => {
+    const { user } = setup();
+
+    await answerCell(user, /Barcelona ve Arsenal/u);
+    await waitFor(() => {
+      expect(screen.getByText(/1\/9 doğru/u)).toBeInTheDocument();
+    });
+
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    await user.click(screen.getByRole("button", { name: "Temizle" }));
+    confirmSpy.mockRestore();
+
+    expect(screen.getByText(/1\/9 doğru/u)).toBeInTheDocument();
+  });
+
+  it("oyun bitince skoru panoya kopyalar (nadirlik yok)", async () => {
+    finishedState();
+
+    // jsdom'da navigator.share yok; paylaş panoya düşer. userEvent.setup()
+    // kendi clipboard stub'ını kurar, yazılanı readText ile geri okuyoruz.
+    const { user } = setup();
+    await user.click(screen.getByRole("button", { name: "Skoru paylaş" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/panoya kopyalandı/iu)).toBeInTheDocument();
+    });
+
+    const text = await navigator.clipboard.readText();
+    expect(text).toContain("Futbol Challenge");
+    expect(text).toContain("4/9 doğru");
+    // Wordle tarzı emoji ızgara; nadirlik/yüzde YOK.
+    expect(text).toMatch(/🟩/u);
+    expect(text).not.toMatch(/%|[Nn]adirlik/u);
+  });
+});
+
+describe("GridGame — Pes et → Cevapları gör (BR-66)", () => {
+  /** İstenen her hücreye sahte bir örnek cevap döndürür; `index` sıraya eşlenir. */
+  function fakeReveal() {
+    return vi.fn((cells: { row: number; column: number }[], _used: string[]) =>
+      Promise.resolve(
+        cells.map((_cell, index) => ({
+          index,
+          playerId: `r${String(index)}`,
+          playerName: `Örnek ${String(index)}`,
+        })),
+      ),
+    );
+  }
+
+  it("reveal verilmezse Pes et GÖSTERİLMEZ", () => {
+    setup();
+
+    expect(
+      screen.queryByRole("button", { name: "Pes et" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("boş hücreleri örnek cevapla doldurur ve oyunu bitirir", async () => {
+    const reveal = fakeReveal();
+    const { user } = setup({ reveal });
+
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    await user.click(screen.getByRole("button", { name: "Pes et" }));
+    confirmSpy.mockRestore();
+
+    await waitFor(() => {
+      expect(screen.getByRole("status")).toHaveTextContent(/Oyun bitti/u);
+    });
+
+    // Dokuz boş hücrenin hepsine örnek yazıldı; hiçbiri "doğru" değil.
+    expect(screen.getAllByText(/cevap gösterildi/u)).toHaveLength(9);
+    expect(screen.getByRole("status")).toHaveTextContent(/0\/9/u);
+
+    // Boş ızgarada `used` boştur, dokuz hücrenin tamamı istenir.
+    expect(reveal).toHaveBeenCalledTimes(1);
+    const [cells, used] = reveal.mock.calls[0]!;
+    expect(cells).toHaveLength(9);
+    expect(used).toEqual([]);
+  });
+
+  it("onay reddedilirse hiçbir şey yapmaz", async () => {
+    const reveal = fakeReveal();
+    const { user } = setup({ reveal });
+
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    await user.click(screen.getByRole("button", { name: "Pes et" }));
+    confirmSpy.mockRestore();
+
+    expect(reveal).not.toHaveBeenCalled();
+    expect(screen.getByText(/0\/9 doğru · 9 hak kaldı/u)).toBeInTheDocument();
+  });
+
+  it("yalnızca boş hücrelere yazar; kendi cevabını `used`'a geçer ve doğru sayısını değiştirmez", async () => {
+    // Bir hücre zaten doğru (px) — pes edince o korunmalı, skoru artırmamalı.
+    window.localStorage.setItem(
+      "futbol-quiz:grid",
+      JSON.stringify({
+        date: GRID.date,
+        guessesUsed: 1,
+        cells: {
+          "0:0": { status: "correct", playerId: "px", playerName: "Kendi" },
+        },
+      }),
+    );
+    resetSavedGameCache();
+
+    const reveal = fakeReveal();
+    const { user } = setup({ reveal });
+
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    await user.click(screen.getByRole("button", { name: "Pes et" }));
+    confirmSpy.mockRestore();
+
+    await waitFor(() => {
+      expect(screen.getByRole("status")).toHaveTextContent(/Oyun bitti/u);
+    });
+
+    // Kendi doğrusu korundu, açığa çıkanlar doğru SAYILMAZ: skor 1/9 kalır.
+    expect(screen.getByRole("status")).toHaveTextContent(/1\/9/u);
+    expect(screen.getByText(/— doğru/u)).toBeInTheDocument();
+    // Sekiz boş hücreye örnek yazıldı (dokuzuncusu zaten doluydu).
+    expect(screen.getAllByText(/cevap gösterildi/u)).toHaveLength(8);
+
+    const [cells, used] = reveal.mock.calls[0]!;
+    expect(cells).toHaveLength(8);
+    expect(used).toEqual(["px"]);
+  });
+
+  it("açığa çıkan hücreler paylaşımda boş (⬜) durur, yeşil değil", async () => {
+    const reveal = fakeReveal();
+    const { user } = setup({ reveal });
+
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    await user.click(screen.getByRole("button", { name: "Pes et" }));
+    await waitFor(() => {
+      expect(screen.getByRole("status")).toHaveTextContent(/Oyun bitti/u);
+    });
+
+    await user.click(screen.getByRole("button", { name: "Skoru paylaş" }));
+    confirmSpy.mockRestore();
+
+    await waitFor(() => {
+      expect(screen.getByText(/panoya kopyalandı/iu)).toBeInTheDocument();
+    });
+
+    const text = await navigator.clipboard.readText();
+    expect(text).toContain("0/9 doğru");
+    // Kullanıcı hiçbir hücreyi kendi bulmadı: yeşil yok, hepsi boş kare.
+    expect(text).not.toMatch(/🟩/u);
+    expect(text).toMatch(/⬜/u);
+  });
+});
+
 /**
  * §9.1 — "Sen kur" ızgarası (BR-25): tarih YOK, dolayısıyla ilerleme de
  * saklanmaz.
@@ -570,6 +772,50 @@ describe("saklanmayan ızgara — §9.1", () => {
     await user.click(restart);
     expect(onRestart).toHaveBeenCalledTimes(1);
   }, 20_000);
+});
+
+describe("GridGame — durum bandı ve köşe kimliği (arayüz yenileme)", () => {
+  it("durum bandı Doğru ve Hak sayaçlarını taşır", () => {
+    setup();
+
+    const band = screen.getByRole("group", { name: "Izgara durumu" });
+    expect(within(band).getByText("Doğru")).toBeInTheDocument();
+    expect(within(band).getByText("Hak")).toBeInTheDocument();
+    // Ekran okuyucuya TEK özet: eski birleşik biçim korunur (aria-live).
+    expect(
+      within(band).getByText(/0\/9 doğru · 9 hak kaldı/u),
+    ).toBeInTheDocument();
+  });
+
+  it("sol üst köşe ızgaranın BOYUTUNU (kimlik) gösterir, ilerlemeyi değil", () => {
+    setup();
+
+    expect(screen.getByText("3×3")).toBeInTheDocument();
+    expect(screen.getByText("matris")).toBeInTheDocument();
+  });
+
+  it("künye sağ ucundaki hızlı eylemleri basar", () => {
+    render(
+      <GridGame
+        grid={GRID}
+        date={GRID.date}
+        header={{
+          title: "Günün Izgarası",
+          actions: <a href="#sen-kur">Sen kur</a>,
+        }}
+        checkAnswer={vi.fn().mockResolvedValue(true)}
+        searchPlayers={vi.fn().mockResolvedValue([PLAYER])}
+      />,
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Günün Izgarası" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Sen kur" })).toHaveAttribute(
+      "href",
+      "#sen-kur",
+    );
+  });
 });
 
 /** BR-27 — oyun bileşeni boyutu IZGARADAN okur, sabitten değil. */

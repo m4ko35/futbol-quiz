@@ -269,6 +269,34 @@ describe("ClubPicker — arama ve durumlar", () => {
     expect(onSelect).toHaveBeenCalledWith(null);
   });
 
+  /**
+   * §7.12 — SEÇİLİ KARTTA ÜLKE ADI, HAM KOD DEĞİL. Stitch tasarımı burada
+   * "Süper Lig · Türkiye" gösteriyor; lig adı veride olmadığı için satır
+   * yalnızca ülkeye iner ama o da çevrilmiş ad olmalı ("TR" değil "Türkiye").
+   */
+  it("seçili kulübün altında ülke ADI görünür (ham ISO kodu değil)", () => {
+    setup({ selected: CLUBS[1] ?? null }); // Beşiktaş, country: "TR"
+
+    expect(screen.getByText("Türkiye")).toBeInTheDocument();
+    expect(screen.queryByText("TR")).not.toBeInTheDocument();
+  });
+
+  /**
+   * §7.12 — AÇILIR LİSTEDEKİ KULÜP SATIRINDA DA çevrilmiş ad. Lig satırı
+   * zaten `countryName` kullanıyordu; kulüp satırı ham `country` basıyordu.
+   */
+  it("kulüp satırında ülke ADI görünür (ham ISO kodu değil)", async () => {
+    const { user } = setup();
+
+    await user.click(screen.getByRole("combobox"));
+    const list = screen.getByRole("listbox");
+
+    // İki TR kulübü (Beşiktaş, Galatasaray) var; en az biri "Türkiye" yazmalı.
+    expect(within(list).getAllByText("Türkiye").length).toBeGreaterThan(0);
+    expect(within(list).queryByText("TR")).not.toBeInTheDocument();
+    expect(within(list).queryByText("GB")).not.toBeInTheDocument();
+  });
+
   it("fare ile seçim yapılabilir", async () => {
     const { user, onSelect } = setup();
 

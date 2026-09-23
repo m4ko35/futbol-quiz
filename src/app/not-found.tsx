@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DataLabel } from "@/components/data-label";
 import { buttonClasses } from "@/components/ui/button";
 
 /**
@@ -15,7 +16,14 @@ import { buttonClasses } from "@/components/ui/button";
 export default function NotFound() {
   return (
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center gap-5 px-6 py-16">
-      <h1 className="text-3xl font-bold tracking-tight">Sayfa bulunamadı</h1>
+      {/* Editorial çapa: hata kodu kicker'da (§7.12). Adres YAZILMAZ (§6.3);
+          "404" bir kullanıcı girdisi değil, sabit durum kodu. */}
+      <div className="flex flex-col gap-1">
+        <DataLabel as="p" className="text-accent">
+          404 · Sayfa yok
+        </DataLabel>
+        <h1 className="text-3xl font-bold tracking-tight">Sayfa bulunamadı</h1>
+      </div>
 
       <p className="text-muted">
         Aradığınız sayfa taşınmış veya hiç var olmamış olabilir.

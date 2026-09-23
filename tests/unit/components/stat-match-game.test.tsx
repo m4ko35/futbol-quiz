@@ -338,6 +338,81 @@ describe("StatMatchGame — tur sonu", () => {
     expect(screen.getByRole("status")).toHaveTextContent(/Tur bitti/u);
     expect(screen.getByRole("status")).toHaveTextContent(/%50/u);
   });
+
+  /**
+   * SKORU PAYLAŞ (§9.2) — tur bitince görünür, header'dan bağımsız. Panonun
+   * kendisi sınanmıyor (jsdom'da yok); düğmenin VARLIĞI, "biten turun bir
+   * paylaşımı olmalı" kuralını tutuyor.
+   */
+  it("tur bitince Skoru paylaş düğmesi çıkar", () => {
+    finishRoundInStorage();
+    setup();
+
+    expect(
+      screen.getByRole("button", { name: /Skoru paylaş/u }),
+    ).toBeInTheDocument();
+  });
+
+  it("tur sürerken Skoru paylaş çıkmaz", () => {
+    setup();
+
+    expect(
+      screen.queryByRole("button", { name: /Skoru paylaş/u }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * §7.15/§9.2 — durum bandı ve zengin satır (Stitch dili).
+ *
+ * Bant yalnızca `header` verilince (günlük tur) basılır; "Sen seç" turu ikinci
+ * bir `h1` taşıyamaz, kendi satır içi sayacını korur. Zengin satır ise her
+ * turda: cevaptan sonra hedeften işaretli fark + band sözcüğü yazılır.
+ */
+describe("StatMatchGame — durum bandı ve zengin satır", () => {
+  function setupWithHeader() {
+    const submitAnswer = vi.fn().mockResolvedValue({ value: 180, score: 93 });
+    const searchPlayers = vi.fn().mockResolvedValue([PLAYER]);
+
+    render(
+      <StatMatchGame
+        round={DAILY}
+        date={DAILY.date}
+        header={{ eyebrow: "31 Temmuz 2026", title: "Günün Oyuncusu" }}
+        submitAnswer={submitAnswer}
+        searchPlayers={searchPlayers}
+      />,
+    );
+
+    return { user: userEvent.setup() };
+  }
+
+  it("künye verilince durum bandını (Cevaplanan + Ortalama) basar", () => {
+    setupWithHeader();
+
+    expect(screen.getByText("Cevaplanan")).toBeInTheDocument();
+    expect(screen.getByText("Ortalama")).toBeInTheDocument();
+    // Bandın kendi aria-live özeti — künye verilince satır içi pill basılmaz.
+    expect(screen.getByText(/0\/6 cevaplandı/u)).toBeInTheDocument();
+  });
+
+  /**
+   * Cevaplanan satır artık hedeften işaretli farkı ve band sözcüğünü taşır —
+   * hem görünür satırda hem ekran okuyucu metninde. Hedef 194, değer 180 →
+   * fark -14; puan 93 → "isabetli".
+   */
+  it("cevaplanınca hedeften farkı yazar", async () => {
+    const { user } = setupWithHeader();
+
+    await answerStat(user, /Resmî maç/u);
+
+    await waitFor(() => {
+      expect(screen.getByText("Dennis Bergkamp")).toBeInTheDocument();
+    });
+    // Görünür fark satırı + sr-only metin: ikisi de farkı taşır.
+    expect(screen.getAllByText(/hedeften -14/u).length).toBeGreaterThan(0);
+    expect(screen.getByText(/isabetli · hedeften -14/u)).toBeInTheDocument();
+  });
 });
 
 /**

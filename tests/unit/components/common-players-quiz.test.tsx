@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ClubDto } from "@/application/dto/club-dto";
@@ -120,6 +126,7 @@ function renderQuiz(
       leagues={[]}
       clubCount={906}
       playerCount={132263}
+      popularPairs={[]}
       {...overrides}
     />,
   );
@@ -131,6 +138,30 @@ describe("CommonPlayersQuiz", () => {
 
     expect(screen.getByText(/iki kulüp seçin/iu)).toBeInTheDocument();
     expect(screen.getAllByRole("combobox")).toHaveLength(2);
+  });
+
+  it("veri kümesi şeridi lig/kulüp/futbolcu sayılarını gösterir", () => {
+    renderQuiz({
+      leagues: [
+        { wikidataId: "Q1", name: "Süper Lig", country: "TR", clubCount: 3 },
+      ],
+      clubCount: 906,
+      playerCount: 132263,
+    });
+
+    // Sayılar VERİDEN gelir; boş durumda tabela değil bu şerit taşır (§7.15).
+    const strip = screen.getByRole("region", { name: "Veri kümesi" });
+    expect(within(strip).getByText("1")).toBeInTheDocument(); // 1 lig
+    expect(within(strip).getByText("906")).toBeInTheDocument();
+    expect(within(strip).getByText("132.263")).toBeInTheDocument();
+  });
+
+  it("boş durumda 'Sonuç' tabelası basılmaz (sayı iki yerde yaşamaz)", () => {
+    renderQuiz();
+
+    expect(
+      screen.queryByRole("group", { name: "Sonuç" }),
+    ).not.toBeInTheDocument();
   });
 
   it("tek kulüp seçiliyken istek ATMAZ", async () => {
@@ -274,5 +305,51 @@ describe("CommonPlayersQuiz", () => {
 
     const options = screen.getAllByRole("option").map((o) => o.textContent);
     expect(options.some((text) => text?.includes("Galatasaray"))).toBe(false);
+  });
+});
+
+describe("CommonPlayersQuiz — popüler karşılaştırma çipleri", () => {
+  const PAIRS = [{ a: CLUBS[0] as ClubDto, b: CLUBS[1] as ClubDto }];
+
+  it("çip yokken bölüm hiç basılmaz", () => {
+    renderQuiz({ popularPairs: [] });
+
+    expect(
+      screen.queryByRole("region", { name: "Popüler karşılaştırmalar" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("çip tıklanınca iki kulübü de doldurur ve sonucu getirir", async () => {
+    const user = userEvent.setup();
+    renderQuiz({ popularPairs: PAIRS });
+
+    // İki combobox açıkken (hiç seçim yok) çip tıklanır.
+    await user.click(
+      screen.getByRole("button", { name: /Galatasaray.*Arsenal/u }),
+    );
+
+    // İki kulüp de seçildiği için sonuç isteği tetiklenir ve gösterilir.
+    expect(await screen.findByText("Emmanuel Eboué")).toBeInTheDocument();
+    // Her iki seçici de "seçili" hâline geçtiği için arama kutusu kalmaz.
+    expect(screen.queryAllByRole("combobox")).toHaveLength(0);
+  });
+
+  it("seçili çifte karşılık gelen çip aria-pressed taşır", async () => {
+    const user = userEvent.setup();
+    renderQuiz({ popularPairs: PAIRS });
+
+    expect(
+      screen.getByRole("button", { name: /Galatasaray.*Arsenal/u }),
+    ).toHaveAttribute("aria-pressed", "false");
+
+    await user.click(
+      screen.getByRole("button", { name: /Galatasaray.*Arsenal/u }),
+    );
+    await screen.findByText("Emmanuel Eboué");
+
+    // Çip yeniden çizilir; taze olarak sorgulanır.
+    expect(
+      screen.getByRole("button", { name: /Galatasaray.*Arsenal/u }),
+    ).toHaveAttribute("aria-pressed", "true");
   });
 });

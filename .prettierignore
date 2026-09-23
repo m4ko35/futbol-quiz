@@ -20,3 +20,8 @@ ARAYUZ-TASARIM.html
 # TestSprite (uçtan uca test aracı) çıktısı — bizim kaynağımız değil, araç
 # üretti: raporlar, test planları ve üretilen betikler. Biçimlendirmek anlamsız.
 testsprite_tests
+
+# Stitch tasarım teslimatları + arayüz yenileme brief/plan — referans, kaynak
+# değil. Dışarıdan gelen HTML/MD; biçimlendirmek anlamsız.
+tasarim
+stitch-arayuz-brifi.md

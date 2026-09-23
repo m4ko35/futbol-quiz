@@ -209,6 +209,18 @@
   }
 }
 
+/* Ortak oyuncu sonuç kartlarının KADEMELİ açılışı (§9). Tek yönlü, tek
+   seferlik; her kart kendi `animation-delay`'iyle sırayla belirir. Gecikme
+   satır içi `style` ile veriliyor ve bu CSP-güvenli: `style-src-attr
+   'unsafe-inline'` yalnızca öznitelikleri kapsar, kod çalıştırmaz (proxy.ts).
+   `prefers-reduced-motion` bunu global kuralla tümüyle kapatır. */
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+}
+
 /* `inline`, belirteçleri `var()` olarak bırakır. Yukarıdaki medya sorgusu bu
    sayede tek başına yeterli: Tailwind sınıfı değişkeni çalışma zamanında
    çözer, ayrı bir karanlık mod varyantı üretmeye gerek kalmaz. */
@@ -240,6 +252,7 @@
   --animate-duel-bar: duel-bar 0.6s cubic-bezier(0.16, 0.9, 0.3, 1) both;
   --animate-duel-verdict: duel-verdict 0.3s cubic-bezier(0.2, 0.9, 0.3, 1) both;
   --animate-duel-swap: duel-swap 0.28s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+  --animate-card-in: card-in 0.34s cubic-bezier(0.2, 0.9, 0.3, 1) both;
 
   --font-sans: var(--font-body);
   --font-display: var(--font-condensed);

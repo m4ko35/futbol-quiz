@@ -319,6 +319,7 @@ describe("erişilebilirlik — WCAG 2.1 AA (§7.10)", () => {
       />,
     );
 
+    // Başlangıç evresi kurulum ekranıdır (§9.3): metrik/havuz/yön radyoları.
     await expectNoViolations(container);
   });
 
@@ -351,7 +352,8 @@ describe("erişilebilirlik — WCAG 2.1 AA (§7.10)", () => {
       />,
     );
 
-    await userEvent.click(screen.getByRole("button", { name: "Başla" }));
+    // İki ekranlı akış (§9.3): "Başla" ile düelloya gir, sonra bir kart seç.
+    await userEvent.click(screen.getByRole("button", { name: /Başla/u }));
     await userEvent.click(
       await screen.findByRole("button", { name: /Drogba/u }),
     );

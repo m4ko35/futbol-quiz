@@ -76,6 +76,24 @@ export interface PlayerRepository {
   ): Promise<boolean>;
 
   /**
+   * Bir hücrenin ÖRNEK cevabı — "Pes et → Cevapları gör" (BR-66).
+   *
+   * Verilen kriterlerin HEPSİNİ sağlayan, `exclude` içinde OLMAYAN bir oyuncu;
+   * yoksa `undefined`. Kullanıcı havlu attığında boş kalan her hücreye bir
+   * örnek doğru cevap gösterilir — doğrulanacak bir şey yok, gerçek bir oyuncu
+   * DÖNDÜRÜLÜR.
+   *
+   * SÖZLEŞME: en çok maç yapan önce (`search` ile aynı sıra) ki örnek TANINIR
+   * bir isim olsun; eşitlikte sıra SABİT (kimlik), yoksa aynı hücre iki çağrıda
+   * iki farklı örnek verirdi. `exclude`, aynı futbolcunun iki hücrede
+   * belirmemesi için (BR-10 hissi) çağıranın topladığı kimliklerdir.
+   */
+  findExampleMatching(
+    criteria: readonly GridCriterion[],
+    exclude: ReadonlySet<string>,
+  ): Promise<Player | undefined>;
+
+  /**
    * Oyuncu adı araması — ızgarada cevap seçmek için (BR-12).
    *
    * Kullanıcı ad YAZMAZ, listeden SEÇER; doğrulama kimlik üzerinden yapılır.

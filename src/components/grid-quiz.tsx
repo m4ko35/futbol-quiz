@@ -4,7 +4,10 @@ import { useCallback, useState } from "react";
 import type { ClubDto } from "@/application/dto/club-dto";
 import type { PlayerDto } from "@/application/dto/player-dto";
 import type { GridCriterionRefDto } from "@/application/use-cases/custom-grid";
-import type { DailyGridDto } from "@/application/use-cases/daily-grid";
+import type {
+  DailyGridDto,
+  RevealedCellDto,
+} from "@/application/use-cases/daily-grid";
 import type { CellRef } from "@/domain/services/grid";
 import { formatTurkishIsoDate } from "@/lib/format-date";
 import { readErrorMessage } from "@/lib/http/error-message";
@@ -80,6 +83,64 @@ export function GridQuiz({ grid, curatedClubs }: GridQuizProps) {
       return body.data.correct;
     },
     [],
+  );
+
+  /**
+   * PES ET → CEVAPLARI GÖR — günün ızgarası (BR-66).
+   *
+   * Yalnızca boş hücrelerin KOORDİNATLARI gider; sunucu ızgarayı yeniden üretip
+   * her koordinatı kendi ölçütüne çevirir (BR-11/BR-12, cevap ucuyla aynı). Yanıt
+   * `index`'i istekteki hücre sırasına eşler.
+   */
+  const reveal = useCallback(
+    async (cells: CellRef[], used: string[]): Promise<RevealedCellDto[]> => {
+      const response = await fetch("/api/grid/reveal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cells, used }),
+      });
+      if (!response.ok) throw new Error(await readErrorMessage(response));
+
+      const body = (await response.json()) as { data: RevealedCellDto[] };
+      return body.data;
+    },
+    [],
+  );
+
+  /**
+   * PES ET → CEVAPLARI GÖR — kullanıcı ızgarası (BR-66, BR-26).
+   *
+   * Koordinat GÖNDERİLMEZ (custom-answer ile aynı); her hücrenin iki ölçütü
+   * gövdede taşınır. Sıra korunur, yani yanıttaki `index` yine istemcinin
+   * gönderdiği hücre sırasıdır.
+   */
+  const revealCustom = useCallback(
+    async (cells: CellRef[], used: string[]): Promise<RevealedCellDto[]> => {
+      if (custom === null) throw new Error("Izgara kurulmadı.");
+
+      const pairs = cells.map((cell) => {
+        const row = custom.rows[cell.row];
+        const column = custom.columns[cell.column];
+        if (row === undefined || column === undefined) {
+          throw new Error("Geçersiz hücre.");
+        }
+        return {
+          row: { kind: row.kind, id: row.id },
+          column: { kind: column.kind, id: column.id },
+        };
+      });
+
+      const response = await fetch("/api/grid/custom-reveal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cells: pairs, used }),
+      });
+      if (!response.ok) throw new Error(await readErrorMessage(response));
+
+      const body = (await response.json()) as { data: RevealedCellDto[] };
+      return body.data;
+    },
+    [custom],
   );
 
   /** Sütun adayları: kulüp araması, süzgeçsiz (§9.1). */
@@ -173,12 +234,20 @@ export function GridQuiz({ grid, curatedClubs }: GridQuizProps) {
           // oyun başka güne aitse atılıyor (BR-11).
           eyebrow: formatTurkishIsoDate(grid.date),
           title: "Günün Izgarası",
+          // HIZLI ÇAPALAR — "Sen kur" ve "Nasıl oynanır" bölümlerine iner
+          // (Stitch künyesindeki iki kısayolun karşılığı). Bölümler sayfada
+          // zaten var; bu yalnızca uzun sayfada onlara atlama kolaylığı.
+          actions: <GridHeaderLinks />,
         }}
         checkAnswer={checkAnswer}
         searchPlayers={searchPlayers}
+        reveal={reveal}
       />
 
-      <section className="flex flex-col gap-4 border-t border-line pt-8">
+      <section
+        id="sen-kur"
+        className="flex scroll-mt-24 flex-col gap-4 border-t border-line pt-8"
+      >
         <div>
           <h2 className="text-xl font-bold tracking-tight">Sen kur</h2>
           <p className="mt-1.5 text-sm text-muted">
@@ -203,6 +272,7 @@ export function GridQuiz({ grid, curatedClubs }: GridQuizProps) {
             grid={custom}
             checkAnswer={checkCustomAnswer}
             searchPlayers={searchPlayers}
+            reveal={revealCustom}
             onRestart={() => {
               setCustom(null);
             }}
@@ -210,5 +280,59 @@ export function GridQuiz({ grid, curatedClubs }: GridQuizProps) {
         )}
       </section>
     </div>
+  );
+}
+
+/** Künye kısayol linki — condensed pill (Lider Tablosu linkiyle aynı idyom). */
+const HEADER_LINK_CLASS =
+  "font-display inline-flex items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 py-2 text-sm font-semibold tracking-wide text-muted uppercase transition-colors hover:border-line-strong hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+
+/**
+ * Künye kısayolları — "Sen kur" ve "Nasıl oynanır" bölümlerine iner.
+ *
+ * Bölümler uzun sayfada zaten var; bu çapa linkleri Stitch künyesindeki iki
+ * kısayolun karşılığı, yeni bir yüzey/kural değil — yalnızca gezinme kolaylığı.
+ * İkonlar satır içi SVG (§7.12: harici font/glif değil; CSP `font-src 'self'`).
+ */
+function GridHeaderLinks() {
+  return (
+    <nav
+      aria-label="Izgara kısayolları"
+      className="flex flex-wrap items-center gap-2"
+    >
+      <a href="#sen-kur" className={HEADER_LINK_CLASS}>
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          focusable="false"
+          className="h-4 w-4 text-accent"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        >
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+        <span>Sen kur</span>
+      </a>
+      <a href="#nasil-oynanir" className={HEADER_LINK_CLASS}>
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          focusable="false"
+          className="h-4 w-4 text-accent"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <circle cx="12" cy="12" r="9" />
+          <path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.4c-.7.3-1 .8-1 1.5v.3" />
+          <path d="M12 17h.01" />
+        </svg>
+        <span>Nasıl oynanır?</span>
+      </a>
+    </nav>
   );
 }

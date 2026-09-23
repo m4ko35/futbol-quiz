@@ -1,14 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { ClubDto } from "@/application/dto/club-dto";
 import type { CommonPlayersResultDto } from "@/application/dto/common-players-dto";
 import type { LeagueSummary } from "@/application/ports/club-repository";
+import type { PopularPair } from "@/application/use-cases/popular-pairs";
 import { MAX_CLUB_RESULTS } from "@/application/use-cases/search-clubs";
-import { countryName } from "@/lib/country-name";
 import { readErrorMessage } from "@/lib/http/error-message";
+import { ClubMark } from "./club-mark";
 import { ClubPicker } from "./club-picker";
 import { CommonPlayersResult } from "./common-players-result";
+import { DataLabel } from "./data-label";
 import { ModeHeader, Scoreboard } from "./mode-header";
 
 /**
@@ -54,6 +56,8 @@ export interface CommonPlayersQuizProps {
   readonly clubCount: number;
   /** Veri kümesindeki oyuncu sayısı — künye tabelası. */
   readonly playerCount: number;
+  /** Hazır seçim çipleri — sunucuda QID'den çözülmüş küratörlü çiftler. */
+  readonly popularPairs: readonly PopularPair[];
 }
 
 /**
@@ -75,6 +79,7 @@ export function CommonPlayersQuiz({
   leagues,
   clubCount,
   playerCount,
+  popularPairs,
 }: CommonPlayersQuizProps) {
   const [clubA, setClubA] = useState<ClubDto | null>(null);
   const [clubB, setClubB] = useState<ClubDto | null>(null);
@@ -180,48 +185,17 @@ export function CommonPlayersQuiz({
   }, [clubA, clubB, pairKey]);
 
   /*
-    TABELA SONUCA GÖRE DEĞİŞİR — §7.15.
+    TABELA YALNIZCA SONUÇTA — §7.15.
 
-    Boş durumda veri kümesinin büyüklüğünü, sonuç geldiğinde sonucun kendisini
-    taşır. Aynı yerde, aynı bileşende: kullanıcı sayının nereye yazılacağını
-    bir kez öğreniyor. Sonuç geldiğinde tabela ayrıca VURGULANIYOR (`lit`);
-    bugünkü arayüzün en çok eleştirilen yanı sonucun sessizce belirmesiydi.
+    Veri kümesinin büyüklüğü artık üstteki "Veri kümesi" şeridinde (aşağıda);
+    aynı üç sayıyı boş durumda tabelada da göstermek, aynı sayıyı iki yerde
+    yaşatmak olurdu (§7.15 bunu açıkça reddediyor). Bu yüzden boş durumda tabela
+    BASILMAZ; yalnızca sonuç geldiğinde belirir ve VURGULANIR (`lit`) — bugünkü
+    arayüzün en çok eleştirilen yanı sonucun sessizce belirmesiydi.
   */
-  /**
-   * Kapsam şeridindeki ülkeler — koddan ada, tekrarsız, Türkçe sırayla.
-   *
-   * `useMemo`: liste sunucudan gelen sabit bir dizi ama `countryName` her
-   * çağrıda `Intl.DisplayNames`e gidiyor ve bileşen her tuş vuruşunda yeniden
-   * çiziliyor.
-   */
-  const countries = useMemo(
-    () =>
-      [...new Set(leagues.map((league) => countryName(league.country)))].sort(
-        (a, b) => a.localeCompare(b, "tr"),
-      ),
-    [leagues],
-  );
-
   const found = state.status === "success" ? state.result : undefined;
   const scoreboard =
-    found === undefined ? (
-      <Scoreboard
-        label="Veri kümesi"
-        cells={[
-          {
-            label: "Kulüp",
-            value: clubCount.toLocaleString("tr-TR"),
-            tone: "accent",
-          },
-          { label: "Lig", value: leagues.length.toLocaleString("tr-TR") },
-          {
-            label: "Oyuncu",
-            value: playerCount.toLocaleString("tr-TR"),
-            small: true,
-          },
-        ]}
-      />
-    ) : (
+    found === undefined ? undefined : (
       <Scoreboard
         label="Sonuç"
         lit={found.count > 0}
@@ -254,55 +228,58 @@ export function CommonPlayersQuiz({
       />
 
       {/*
-        KAPSAM BAŞTA SÖYLENİR (§1.3, §5.2). Ajax veya Porto arayan kullanıcı
-        hiçbir şey bulamayacak; bunu keşfetmek için başarısız aramalar yapmak
-        zorunda kalırsa siteyi bozuk sanar.
+        VERİ KÜMESİ ŞERİDİ — §7.15 "Kapsam bandı → veri kümesi şeridi".
 
-        LİG LİSTESİ ARTIK VERİDEN GELİYOR. Önceki metin yirmi dört ligin adını
-        düzyazı içinde ELLE sayıyordu — kapsam genişlediği gün sessizce
-        yalan söyleyecek bir liste. Aynı sınıftaki kusur ("345 kulüp") §5.2'de
-        zaten bir kez ölçülmüştü; ikinci kez oluşmasın diye tek kaynak veri.
+        Kapsamın büyüklüğünü üç sayıda söyler; sayılar VERİDEN geliyor (elle
+        yazılan bir kapsam sayısı §5.2'de bir kez sessizce yalan söylemişti:
+        "345 kulüp"). Bu şerit ortak oyuncu modunda dataset ölçeğinin TEK yeri
+        (tabela sonuca ayrıldı — aynı sayı iki yerde yaşamıyor).
+
+        "CANLI" DEĞİL "VERİ KÜMESİ": veri periyodik bir ETL anlık görüntüsü
+        (altbilgideki "son güncelleme"); "canlı" demek gerçek zamanlılık iddia
+        eder ve o tarihle çelişirdi (§5.2). Nokta da nabız atmaz.
+
+        Eski ülke çip bulutu KALDIRILDI: "hangi ülkeler" bilgisi seçicinin lig
+        gözatında (BR-37) ve boş sonuç metninde zaten duruyor; her zaman görünen
+        bir bulut aynı şeyi ikinci kez, daha ağır taşıyordu.
       */}
-      <section aria-label="Veri kapsamı" className="flex flex-col gap-2.5">
-        <p className="text-sm text-note">
-          <span className="mr-2 text-[0.65rem] font-extrabold tracking-[0.13em] uppercase">
-            Kapsam
+      <section
+        aria-label="Veri kümesi"
+        className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-line bg-surface px-4 py-3"
+      >
+        <span className="inline-flex items-center gap-2">
+          <span
+            aria-hidden="true"
+            className="h-2 w-2 shrink-0 rounded-full bg-accent"
+          />
+          <DataLabel className="text-muted">Veri kümesi</DataLabel>
+        </span>
+        <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
+          <span>
+            <strong className="font-semibold tabular-nums text-foreground">
+              {leagues.length.toLocaleString("tr-TR")}
+            </strong>{" "}
+            lig
           </span>
-          Yirmi dört üst ligin{" "}
-          <strong className="font-semibold text-foreground">tarihsel</strong>{" "}
-          kadroları —{" "}
-          <strong className="font-semibold tabular-nums text-foreground">
-            {clubCount.toLocaleString("tr-TR")}
-          </strong>{" "}
-          kulüp. Bu liglerin dışındaki kariyerler yer almaz.
-        </p>
-        {/*
-          KUSUR: BURADA HAM ISO KODU YAZIYORDU. Şerit `league.country`
-          basıyordu, yani kullanıcı `GB`, `SA`, `CZ`, `PT` görüyordu. Aynı
-          kusur kulüp seçicisinde bir kez bulunup düzeltilmişti (§7.14);
-          ikinci nüshası burada kalmış. `countryName` (§7.12) aynı depoda
-          duruyor ve 170 kodun tamamını Türkçeye çeviriyor.
-
-          LİG DEĞİL ÜLKE LİSTELENİYOR. Şerit ligler üzerinden dönüyordu ve
-          İngiltere ile İskoçya veride aynı `GB` kodunu taşıdığı için aynı
-          rozet İKİ KEZ çıkıyordu — bir listede iki özdeş öğe bilgi taşımaz.
-          Lig SAYISI zaten üstteki cümlede yazılı; şeridin söyleyebileceği
-          yeni şey hangi ülkeler olduğu.
-
-          `title` KALDIRILDI. Ad yalnızca ipucu balonunda duruyordu: klavyeyle
-          erişilemez, dokunmatikte hiç açılmaz. Bilgi artık görünen metnin
-          kendisi.
-        */}
-        <ul aria-label="Kapsanan ülkeler" className="flex flex-wrap gap-1.5">
-          {countries.map((name) => (
-            <li
-              key={name}
-              className="rounded-md border border-line bg-surface px-2 py-1 text-xs font-semibold text-muted"
-            >
-              {name}
-            </li>
-          ))}
-        </ul>
+          <span aria-hidden="true" className="text-line-strong">
+            •
+          </span>
+          <span>
+            <strong className="font-semibold tabular-nums text-foreground">
+              {clubCount.toLocaleString("tr-TR")}
+            </strong>{" "}
+            kulüp
+          </span>
+          <span aria-hidden="true" className="text-line-strong">
+            •
+          </span>
+          <span>
+            <strong className="font-semibold tabular-nums text-foreground">
+              {playerCount.toLocaleString("tr-TR")}
+            </strong>{" "}
+            futbolcu
+          </span>
+        </span>
       </section>
 
       {/* İki seçici arasındaki "∩", sorunun ne olduğunu bir bakışta söyler:
@@ -318,12 +295,20 @@ export function CommonPlayersQuiz({
           leagues={leagues}
           search={searchClubs}
         />
-        <span
+        {/* KESİŞİM DÜĞÜMÜ — sorunun ne olduğunu bir bakışta söyler: birleşim
+            değil KESİŞİM. Etiket seçicilerin etiketiyle, kutu da girdileriyle
+            hizalanır (ikisi de label + öğe yığını). Yalnızca geniş ekranda;
+            dar ekranda seçiciler alt alta gelince aradaki işaret anlamını
+            yitirirdi. */}
+        <div
           aria-hidden="true"
-          className="hidden pb-2.5 text-xl font-semibold text-muted sm:block"
+          className="hidden flex-col items-center gap-2 sm:flex"
         >
-          ∩
-        </span>
+          <DataLabel className="text-muted">Kesişim</DataLabel>
+          <span className="flex h-11 w-11 items-center justify-center rounded-xl border-2 border-accent bg-accent-soft text-2xl font-bold text-accent">
+            ∩
+          </span>
+        </div>
         <ClubPicker
           label="İkinci kulüp"
           selected={clubB}
@@ -334,6 +319,62 @@ export function CommonPlayersQuiz({
           search={searchClubs}
         />
       </div>
+
+      {/*
+        POPÜLER KARŞILAŞTIRMALAR — hazır seçim çipleri (§9.2 ile aynı ruh:
+        tanınırlık bir ürün kararı). Tek tıkla iki kulübü birden doldurur;
+        boş ekranda "ne yazsam" tereddüdünü kaldırır. Çiftler sunucuda QID'den
+        çözülür (getPopularPairs); etiket kulübün GERÇEK kısa adıdır.
+
+        Etkin çip iki yönlü eşleşir: kullanıcı kulüpleri elle ters sırada da
+        seçebilir, kesişim simetriktir. Boş liste (bir kulüp çözülemezse)
+        bölümü hiç basmaz.
+      */}
+      {popularPairs.length > 0 && (
+        <section
+          aria-label="Popüler karşılaştırmalar"
+          className="-mt-3 flex flex-col items-center gap-2.5"
+        >
+          <DataLabel className="text-muted">Popüler karşılaştırmalar</DataLabel>
+          <div className="flex flex-wrap justify-center gap-2">
+            {popularPairs.map((pair) => {
+              const active =
+                (clubA?.id === pair.a.id && clubB?.id === pair.b.id) ||
+                (clubA?.id === pair.b.id && clubB?.id === pair.a.id);
+              return (
+                <button
+                  key={`${pair.a.id}|${pair.b.id}`}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => {
+                    setClubA(pair.a);
+                    setClubB(pair.b);
+                  }}
+                  className={
+                    "inline-flex max-w-full items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent " +
+                    (active
+                      ? "border-accent bg-accent text-accent-fg"
+                      : "border-line bg-surface text-muted hover:border-line-strong hover:text-foreground")
+                  }
+                >
+                  {/* Armalar iki uçta çerçeveler (aria-hidden — ad zaten metinde).
+                      "×" görsel ayraç. Adlar min-w-0 + truncate: masaüstünde tam
+                      okunur, yalnızca çip ekrana sığmayacak kadar darsa (dar
+                      telefonda "Internazionale Milano") son çare olarak kırpılır
+                      — sayfa yatay kaymaz. */}
+                  <ClubMark club={pair.a} size={18} />
+                  <span className="min-w-0 truncate">{pair.a.shortName}</span>
+                  <span aria-hidden="true" className="shrink-0 opacity-60">
+                    ×
+                  </span>
+                  <span className="min-w-0 truncate">{pair.b.shortName}</span>
+                  <ClubMark club={pair.b} size={18} />
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Durum bölgesi. `aria-live` ile ekran okuyucu, sonuç geldiğinde
           kullanıcıyı bilgilendirir — görsel değişimi göremeyen kullanıcı

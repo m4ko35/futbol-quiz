@@ -51,12 +51,14 @@ function setup(options?: {
   return { fetchRound, fetchAnswer, user: userEvent.setup() };
 }
 
-async function start(user: UserEvent): Promise<void> {
-  await user.click(screen.getByRole("button", { name: "Başla" }));
+async function start(): Promise<void> {
+  // İki ekranlı akış (§9.3): kurulum ekranındaki "Başla" ilk turu yükler ve
+  // düelloya geçer; eşleşmenin gelmesini bekle.
+  await userEvent.click(screen.getByRole("button", { name: /Başla/u }));
   await screen.findByRole("button", { name: /Drogba/u });
 }
 
-describe("kurulum ekranı", () => {
+describe("kurulum ekranı (§9.3)", () => {
   it("altı istatistiği de sunar", () => {
     setup();
 
@@ -159,8 +161,8 @@ describe("kurulum ekranı", () => {
 
 describe("BR-32 — değerler cevaptan önce görünmez", () => {
   it("soru sorulurken hiçbir sayı yok", async () => {
-    const { user } = setup();
-    await start(user);
+    setup();
+    await start();
 
     expect(
       screen.getByRole("button", { name: /Drogba/u }),
@@ -173,7 +175,7 @@ describe("BR-32 — değerler cevaptan önce görünmez", () => {
 
   it("cevaptan SONRA iki değer de açılır", async () => {
     const { user } = setup();
-    await start(user);
+    await start();
 
     await user.click(screen.getByRole("button", { name: /Drogba/u }));
 
@@ -216,8 +218,8 @@ describe("BR-41 — seviye seçimi", () => {
   });
 
   it("varsayılan gövdede 'easy' gider", async () => {
-    const { user, fetchRound } = setup();
-    await start(user);
+    const { fetchRound } = setup();
+    await start();
 
     const body = fetchRound.mock.calls[0]?.[0] as { level?: string };
     expect(body.level).toBe("easy");
@@ -226,10 +228,11 @@ describe("BR-41 — seviye seçimi", () => {
   it("'Zor' seçilince gövdede 'hard' gider", async () => {
     const { user, fetchRound } = setup();
 
+    // Kurulumda 'Zor' seçilir, sonra 'Başla' — yüklenen turun gövdesi 'hard'.
     await user.click(screen.getByRole("radio", { name: /^Zor/u }));
-    await start(user);
+    await start();
 
-    const body = fetchRound.mock.calls[0]?.[0] as { level?: string };
+    const body = fetchRound.mock.calls.at(-1)?.[0] as { level?: string };
     expect(body.level).toBe("hard");
   });
 
@@ -237,24 +240,28 @@ describe("BR-41 — seviye seçimi", () => {
     const { user, fetchRound } = setup();
 
     await user.click(screen.getByRole("radio", { name: /^Zor/u }));
-    await start(user);
+    await start();
 
     await user.click(screen.getByRole("button", { name: /Henry/u }));
     await user.click(await screen.findByRole("button", { name: "Devam" }));
 
+    // Devam sonrası yüklenen tur da "hard" taşımalı — sunucu koşuyu
+    // hatırlamadığı için seviye HER turda gönderilir (§9.3).
     await waitFor(() => {
-      expect(fetchRound).toHaveBeenCalledTimes(2);
+      const body = fetchRound.mock.calls.at(-1)?.[0] as {
+        level?: string;
+        stayingId?: string;
+      };
+      expect(body.level).toBe("hard");
+      expect(body.stayingId).toBe("sag");
     });
-
-    const body = fetchRound.mock.calls[1]?.[0] as { level?: string };
-    expect(body.level).toBe("hard");
   });
 
   it("hangi havuzda oynandığı TUR ekranında da yazar", async () => {
     const { user } = setup();
 
     await user.click(screen.getByRole("radio", { name: /^Zor/u }));
-    await start(user);
+    await start();
 
     // Kullanıcı tanımadığı bir isim gördüğünde bunun kendi seçimi olduğunu
     // görebilmeli; yoksa modun kusuru sanır.
@@ -265,7 +272,7 @@ describe("BR-41 — seviye seçimi", () => {
 describe("BR-28 — zincir", () => {
   it("doğru cevapta seri artar ve KAZANAN bir sonraki tura geçer", async () => {
     const { user, fetchRound } = setup();
-    await start(user);
+    await start();
 
     await user.click(screen.getByRole("button", { name: /Henry/u }));
     await user.click(await screen.findByRole("button", { name: "Devam" }));
@@ -301,7 +308,7 @@ describe("BR-28 — zincir", () => {
         scoped: true,
       },
     });
-    await start(user);
+    await start();
 
     await user.click(screen.getByRole("button", { name: /Drogba/u }));
 
@@ -316,7 +323,7 @@ describe("BR-28 — zincir", () => {
     // Zincirin kuralı bugün yalnızca yardım metnindeydi; olduğu anda
     // gösterilmiyordu.
     const { user } = setup();
-    await start(user);
+    await start();
 
     await user.click(screen.getByRole("button", { name: /Henry/u }));
 
@@ -337,7 +344,7 @@ describe("BR-28 — zincir", () => {
         scoped: true,
       },
     });
-    await start(user);
+    await start();
 
     await user.click(screen.getByRole("button", { name: /Drogba/u }));
 
@@ -348,7 +355,7 @@ describe("BR-28 — zincir", () => {
 
   it("görülen oyuncular dışlama listesine yazılır", async () => {
     const { user, fetchRound } = setup();
-    await start(user);
+    await start();
 
     await user.click(screen.getByRole("button", { name: /Henry/u }));
     await user.click(await screen.findByRole("button", { name: "Devam" }));
@@ -371,7 +378,7 @@ describe("BR-28 — zincir", () => {
         scoped: true,
       },
     });
-    await start(user);
+    await start();
 
     await user.click(screen.getByRole("button", { name: /Drogba/u }));
 
@@ -385,9 +392,10 @@ describe("BR-28 — zincir", () => {
 
 describe("koşunun diğer sonları", () => {
   it("havuz tükenince hata değil, koşu sonu gösterilir", async () => {
+    // "Başla" ile yüklenen ilk tur boş havuz döndürür (§9.3).
     const { user } = setup({ round: { statKey: "appearances", pair: null } });
 
-    await user.click(screen.getByRole("button", { name: "Başla" }));
+    await user.click(screen.getByRole("button", { name: /Başla/u }));
 
     expect(await screen.findByText("Havuz tükendi")).toBeInTheDocument();
     expect(screen.getByText(/Skorun:/u)).toBeInTheDocument();
@@ -404,9 +412,8 @@ describe("koşunun diğer sonları", () => {
       />,
     );
 
-    await userEvent
-      .setup()
-      .click(screen.getByRole("button", { name: "Başla" }));
+    // "Başla" ile yüklenen ilk tur reddedilir → hata canlı bölgede (§9.3).
+    await userEvent.click(screen.getByRole("button", { name: /Başla/u }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Sunucuya ulaşılamadı.",
@@ -435,7 +442,7 @@ describe("düello sahnesi", () => {
     // İşaret (✓) renge EK bir göstergedir, yerine geçen değil (WCAG 1.4.1);
     // sözcüğün kendisi her koşulda ekranda olmalı.
     const { user } = setup();
-    await start(user);
+    await start();
 
     await user.click(screen.getByRole("button", { name: /Henry/u }));
 
@@ -444,7 +451,7 @@ describe("düello sahnesi", () => {
 
   it("zincirde KALAN kart işaretlenir, rakibi 'yeni' olur", async () => {
     const { user } = setup();
-    await start(user);
+    await start();
 
     // İlk turda zincir yok: iki oyuncu da havuzdan yeni geldi.
     expect(screen.queryByText("kalan")).not.toBeInTheDocument();
@@ -469,7 +476,7 @@ describe("düello sahnesi", () => {
    */
   it("seri bandı ancak DÖRDÜNCÜ doğruda çıkar", async () => {
     const { user } = setup();
-    await start(user);
+    await start();
 
     for (let round = 0; round < 3; round += 1) {
       await user.click(screen.getByRole("button", { name: /Henry/u }));
@@ -480,6 +487,57 @@ describe("düello sahnesi", () => {
     await user.click(screen.getByRole("button", { name: /Henry/u }));
 
     expect(await screen.findByText(/on koşuda bir/u)).toBeInTheDocument();
+  });
+});
+
+/**
+ * §9.3 — Stitch dili: fark şeridi, zengin verdict, paylaş.
+ *
+ * Denetlenen şey görünüm değil, taşınan BİLGİ: iki değerin farkı yazılı mı,
+ * verdict kazananı adıyla söylüyor mu, paylaşılacak bir seri varken düğme
+ * çıkıyor mu. Uydurma çerçeve (günün sıralaması vb.) hiç eklenmedi.
+ */
+describe("Stitch dili — fark, verdict, paylaş", () => {
+  it("cevap açılınca iki değerin farkını yazar", async () => {
+    // Varsayılan cevap: 164 vs 175 → fark 11.
+    const { user } = setup();
+    await start();
+
+    await user.click(screen.getByRole("button", { name: /Henry/u }));
+
+    expect(await screen.findByText("Aradaki fark")).toBeInTheDocument();
+    // Kart değerleri "164 maç"/"175 maç"; fark "11 maç" ayrı ve tekildir.
+    expect(screen.getByText("11 maç")).toBeInTheDocument();
+  });
+
+  it("doğru cevapta verdict kazananı adıyla ve değeriyle söyler", async () => {
+    const { user } = setup();
+    await start();
+
+    await user.click(screen.getByRole("button", { name: /Henry/u }));
+
+    // "Doğru!" korunur; verdict cümlesi kazananı da taşır. "önde —" tiresi
+    // verdict'e özgü (künye görev metni "önde olduğunu" der, tire yok).
+    expect(await screen.findByText("Doğru!")).toBeInTheDocument();
+    const line = screen.getByText(/önde —/u);
+    expect(line).toHaveTextContent("Henry");
+    expect(line).toHaveTextContent("175 maç");
+  });
+
+  it("paylaşılacak bir seri varken künyede Seriyi paylaş çıkar", async () => {
+    const { user } = setup();
+    await start();
+
+    // Seri sıfırken paylaşılacak bir şey yok.
+    expect(
+      screen.queryByRole("button", { name: /Seriyi paylaş/u }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Henry/u }));
+
+    expect(
+      await screen.findByRole("button", { name: /Seriyi paylaş/u }),
+    ).toBeInTheDocument();
   });
 });
 
@@ -537,7 +595,7 @@ describe("kapsam bildirimi", () => {
     });
 
     await user.click(screen.getByRole("radio", { name: /Oynadığı kulüp/u }));
-    await start(user);
+    await start();
 
     expect(
       screen.getByText(/yalnızca kapsamdaki 24 ligi/u),
@@ -549,8 +607,8 @@ describe("kapsam bildirimi", () => {
    * açıklamasız bırakmak, yanlış bir uyarı kadar kötü olurdu.
    */
   it("resmî maç sorusunda kapsam yerine kariyer notu görünür", async () => {
-    const { user } = setup();
-    await start(user);
+    setup();
+    await start();
 
     expect(
       screen.queryByText(/yalnızca kapsamdaki 24 ligi/u),
@@ -566,7 +624,7 @@ describe("kapsam bildirimi", () => {
     });
 
     await user.click(screen.getByRole("radio", { name: /Boy/u }));
-    await start(user);
+    await start();
 
     // Boy oyuncunun kendi kaydından gelir; açıklanacak bir kapsamı yok.
     expect(

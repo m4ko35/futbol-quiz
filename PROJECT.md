@@ -2031,6 +2031,49 @@ Beşi de 3×3 ızgara modunundur (§9.1). Üçü okuma, ikisi cevap doğrulama �
 
 **Geçersiz ölçüt `400` döner** ve sebebi gövdededir: bulunamayan/seçilemez kulüp, biçimsiz ülke kodu, ya da satır ile sütunun aynı ölçüt olması. Sessizce `correct:false` dönmek, kullanıcının kendi kurduğu ızgarada neden hep yanıldığını anlamamasına yol açardı.
 
+#### `POST /api/grid/reveal`
+
+"Pes et → Cevapları gör" — günün ızgarasında boş hücrelerin örnek cevapları (BR-66).
+
+| Alan             | Tip      | Zorunlu | Kural                                         |
+| ---------------- | -------- | ------- | --------------------------------------------- |
+| `cells`          | dizi     | evet    | 1–9 hücre; her biri `{row, column}` (0–2)     |
+| `cells[].row`    | int      | evet    | 0–2                                           |
+| `cells[].column` | int      | evet    | 0–2                                           |
+| `used`           | string[] | hayır   | En çok 9 geçerli kimlik; örneklerden dışlanır |
+
+```jsonc
+// 200 OK — ÖNBELLEKLENMEZ
+{
+  "data": [
+    { "index": 0, "playerId": "cms…", "playerName": "Rüştü Reçber" },
+    { "index": 2, "playerId": "cmt…", "playerName": "Alessandro Del Piero" },
+    // Örneği bulunamayan hücre (tüm cevapları `used`'da) LİSTEDE YOKTUR.
+  ],
+}
+```
+
+**`index` = istekteki hücrenin sırasıdır**, koordinatı değil: istemci gönderdiği `cells` dizisini biliyor, `index`'i kendi hücresine geri eşler. Sunucu koordinatı **kendi yeniden ürettiği** ızgaraya bakarak ölçüte çevirir (BR-11/BR-12 ile aynı: istemcinin ölçütüne güvenilmez).
+
+**NEDEN POST, `/api/grid/answer` ile aynı gerekçe.** Uç cevap döndürür; GET olsaydı cevaplar tarayıcı geçmişine, erişim loglarına ve paylaşılan önbelleğe URL olarak yazılırdı. `no-store`.
+
+**Cevap döndürmek sızıntı DEĞİL, tasarımdır (BR-66).** Sızıntı kuralı ızgaranın teslimini bağlar; bu uç kullanıcının pes ettikten sonra açıkça istediği eylemdir. Skor/sıralama olmadığı için bugün güvenli (§10.2).
+
+#### `POST /api/grid/custom-reveal`
+
+Kullanıcının kurduğu ızgarada boş hücrelerin örnek cevapları (BR-66, BR-26).
+
+| Alan                  | Tip      | Zorunlu | Kural                                          |
+| --------------------- | -------- | ------- | ---------------------------------------------- |
+| `cells`               | dizi     | evet    | 1–25 hücre; her biri `{row, column}` ref       |
+| `cells[].row.kind`    | string   | evet    | `club` ya da `nationality`                     |
+| `cells[].row.id`      | string   | evet    | Kulüp kimliği ya da alpha-2 ülke kodu          |
+| `cells[].column.kind` | string   | evet    | `club` ya da `nationality`                     |
+| `cells[].column.id`   | string   | evet    | Kulüp kimliği ya da alpha-2 ülke kodu          |
+| `used`                | string[] | hayır   | En çok 25 geçerli kimlik; örneklerden dışlanır |
+
+**NEDEN AYRI BİR UÇ**, `custom-answer` ile aynı gerekçe: burada ölçütler gövdeden gelir (BR-26), günlük ızgarada tohumdan üretilir. Koordinat GÖNDERİLMEZ; her hücre iki ölçütüyle taşınır. Yanıt `reveal` ile aynı şekildedir (`index` sıraya göre).
+
 #### `GET /api/players`
 
 | Parametre | Tip    | Zorunlu  | Kural                                  |
@@ -2725,7 +2768,7 @@ Kusur ölçüm dışıydı: kontrast kapısı her çifti eşiğe karşı denetli
 
 **Ayrım rol sınırından geçiyor.** `correct`, `wrong` ve `warn` yeşil–kırmızı–amber üçlüsünü zaten sahipleniyor; bunlar **sonucun** dili. `accent` ise **kaydın** dili: seçiciler, gezinme, birincil eylem, odak konturu. Sonuç dilinden çıkmak zorundaydı. Mürekkep mavisi seçildi (`#2b41c4` / `#7b93ff`): üründeki arşiv fikrine bağlanıyor, futbol yeşiliyle çarpışmıyor ve iki temada da eşikleri geniş payla taşıyor.
 
-**Marka tonu ayrı bir dosyadır.** Favicon `#16a34a` yeşilini koruyor; tarayıcı sekmesi sayfanın temasını devralmaz ve simge dosyası kontrast kapısına girmez. Arayüzün vurgu rengi ile sekme simgesinin aynı ton olması bir zorunluluk değildi.
+**Marka işareti üç yüzeyde de accent'tir (Stitch logomark pass'i, 23 Eylül 2026).** Başlık işareti zaten `currentColor` ile accent'i alıyordu; favicon (`icon.svg`) ve paylaşım (OG) görseli ise accent yeşilken kalmış `#16a34a` yeşilini taşıyordu — arayüz maviye geçince sekme simgesi markanın geri kalanıyla çelişti. İkisi de accent (`#1d34d1`) **rozete** çevrildi: dolu yuvarlak kare zemin + beyaz kesişim işareti (`A ∩ B`). Favicon tarayıcı arayüzünde çizilir ve sayfanın temasını devralmaz; **zeminin kendisi kontrastı taşıdığı için** işaret hem açık hem koyu sekme çubuğunda okunur — yani eski yeşilin çözdüğü okunurluk, marka tutarlılığından ödün vermeden korunuyor. Başlıkta ayrıca kelime markası iki tonlu ("Futbol" ön plan / "Challenge" accent) ve işaretin iki çemberi %12 saydam accent tonuyla dolduruldu (Stitch dili); Venn geometrisi (iki kesişen çember) değişmedi — Stitch aynı fikri doğruladı.
 
 **İki yeni rol eklendi.** `surface-2` kart içindeki ikinci katı taşıyor (`surface` üzerinde `line` ile ayrılan hücreler, saydamlık kullanmadan). `note`, §5.2'nin gerektirdiği dürüstlük metinlerini — kesme uyarısı, "kaynakta ayrıntı yok", kapsam cümlesi — `warn`'dan ayırıyor: bunlar bir uyarı değil, kaynağın sustuğu yere düşülmüş bir kenar notudur ve amber alarm tonuyla söylenmesi olduğundan acil gösteriyordu.
 
@@ -2829,11 +2872,23 @@ Palet göz kararıyla seçilip kapıya çarptırılmadı: kapının matematiği 
 paletlere uygulanarak **tasarımın içine alındı**. Kapı ilk denemede geçti
 (88 ölçüm).
 
-##### Tipografi: Barlow Condensed / Barlow
+##### Tipografi: Barlow Condensed (başlık/veri) / Manrope (gövde)
 
 Geist bırakıldı. **Sıkıştırılmış bir başlık yüzü + geniş bir gövde yüzü** spor
 basınının kendi dilidir: aynı genişlikte daha çok harf, daha güçlü bir dikey
 ritim.
+
+> **GÖVDE YÜZÜ MANROPE'A GEÇTİ — 16 Eylül 2026 (arayüz yenileme, Faz 0).** Aşağıdaki
+> "sıkıştırılmış başlık + geniş gövde" gerekçesi AYNEN geçerli; değişen yalnızca
+> geniş gövde yüzünün kimliği: **Barlow → Manrope**. Manrope değişken (variable) bir
+> geometrik grotesk, küçük punto ve uzun metinde okunurluğu yüksek — editorial
+> yönün gövde/mikro-metin yüzü. **Barlow Condensed başlıklarda ve veri/etiketlerde
+> KALIR** (`h1,h2,h3` kuralı ve `--font-condensed` değişmez), Geist Mono da kalır.
+> Değişen tek yer `--font-body`'nin kaynağı (`layout.tsx`); `globals.css`'teki
+> `var(--font-body)` bildirimi ve `latin-ext` kuralı aynı — Manrope da `latin-ext`
+> taşır (Türkçe `ı/İ/ğ/ş` korunur, derlemeden doğrulandı). Aşağıdaki "gövde fontu
+> hiç uygulanmıyordu" dersi bu yüzden hâlâ geçerli: değişken adı korunarak sessiz
+> düşme tuzağı tekrarlanmadı.
 
 **Russo One önerildi ve elendi.** Güzel olmadığı için değil: bir _başlık_ yüzü
 ve tek ağırlığı var (400). Lider tablosu gibi veri yoğun bir ekranda okumayı
@@ -3212,26 +3267,32 @@ Alan silinmedi, **isteğe bağlı** oldu ve yalnızca gerçek bilgi taşıdığ�
 
 #### Tabela CANLI, statik bir künye değil
 
-Ortak oyuncu modunda tabela boş durumda veri kümesinin büyüklüğünü taşıyor (`Kulüp 906 · Lig 24 · Oyuncu 132.263`), sonuç geldiğinde sonucun kendisine geçiyor (`Ortak oyuncu 55 · Dönem 147`) ve **vurgulanıyor**. Aynı yer, aynı bileşen: kullanıcı sayının nereye yazılacağını bir kez öğreniyor.
+Izgara ve istatistik modlarında tabela boş durumda ilerlemeyi taşıyor (`0/9`, `0/6`), oynadıkça akıyor ve tamamlanınca **vurgulanıyor**.
+
+Ortak oyuncu modunda boş durumda gösterilecek bir "ilerleme" yok. Veri kümesinin büyüklüğü (`24 lig · 907 kulüp · 132.263 futbolcu`) artık sayfanın en üstündeki **veri kümesi şeridinde** (aşağıda, "Kapsam bandı → veri kümesi şeridi"); tabela bu modda yalnızca **sonuç** geldiğinde beliriyor (`Ortak oyuncu 55 · Dönem 147`) ve **vurgulanıyor**. Böylece aynı üç sayı iki yerde yaşamıyor — şerit ölçeği, tabela sonucu taşır.
 
 Vurgu (`lit`) bir süsleme değil: bugünkü arayüzün en çok eleştirilen yanı, sonucun sessizce belirmesiydi. Boş tabela ile dolu tabela aynı görünemez.
 
 Bu yüzden künye **sunucu sayfasında değil, mod bileşeninin içinde** duruyor. Sunucuda render edilen sabit bir başlık canlı sayıyı taşıyamazdı; ikinci bir sayaç eklemek ise aynı sayıyı iki yerde göstermek olurdu.
 
-**Gösterecek gerçek sayısı olmayan mod tabela taşımaz.** Boş ya da uydurma bir sayaç, sayacın kendisini anlamsızlaştırır. Düello modunun kurulum evresinde tabela basılmıyor: henüz sayılacak bir şey yok.
+**Gösterecek gerçek sayısı olmayan mod tabela taşımaz.** Boş ya da uydurma bir sayaç, sayacın kendisini anlamsızlaştırır. Ortak oyuncu modunda tabela yalnızca sonuç gelince beliriyor. Düello modunda ayrı bir kurulum ekranı var (§9.3): kurulumda tabela yoktur, "Başla" ile düelloya girildiğinde belirir ve ilk düello boş durumdur (`Seri 0`), ızgaranın `0/9`'u gibi.
 
 #### Dört modun tabelası
 
-| Mod            | Boş durum                     | Canlı                          | Vurgu (`lit`)         |
-| -------------- | ----------------------------- | ------------------------------ | --------------------- |
-| Ortak Oyuncu   | `Kulüp · Lig · Oyuncu`        | `Ortak oyuncu · Dönem`         | Sonuç boş değilse     |
-| Günün Izgarası | `Doğru 0/9 · Hak 9`           | aynı hücreler, sayılar akar    | Oyun bittiğinde       |
-| Günün Oyuncusu | `Cevaplanan 0/6 · Ortalama —` | `Cevaplanan n/6 · Ortalama %n` | Tur tamamlanınca      |
-| Hangisi Daha   | tabela yok (kurulum)          | `Seri n`                       | Seri sıfırdan büyükse |
+| Mod            | Boş durum                   | Canlı                                                   | Vurgu (`lit`)         |
+| -------------- | --------------------------- | ------------------------------------------------------- | --------------------- |
+| Ortak Oyuncu   | tabela yok (ölçek şeritte)  | `Ortak oyuncu · Dönem`                                  | Sonuç boş değilse     |
+| Günün Izgarası | **durum bandı** (aşağıda)   | `Doğru n/9` + çubuk, `Hak n` + kalkanlar                | Oyun bittiğinde       |
+| Günün Oyuncusu | **durum bandı** (aşağıda)   | `Cevaplanan n/6` + segment şeridi, `Ortalama %n` + band | Tur tamamlanınca      |
+| Hangisi Daha   | `Seri 0` (düelloya girince) | `Seri n`                                                | Seri sıfırdan büyükse |
 
 Renk **sonuç dilinden** geliyor (§7.12): ızgarada doğru hücre sayısı `correct`, kalan hak azaldıkça `warn` ve bittiğinde `wrong`; istatistikte ortalama BR-18'in puan bandına göre. Hepsinde renk yalnızca destekleyici — sayı zaten yazılı (WCAG 1.4.1).
 
 **Sayaçlar `aria-live` içinde kaldı.** Künyeye taşınmak, sayının değişmesini yalnızca görsel bir olaya çevirmemeli; her modda tabelayı saran bir `aria-live="polite"` var.
+
+**IZGARA VE İSTATİSTİK TABELAYI AYRI BİR DURUM BANDINA TAŞIDI (§9.1/§9.2).** Ortak oyuncu ve hangisi-daha sayaçları künyenin sağ ucunda taşır; ızgara ve istatistik ise künyenin ALTINDA, oyunun ÜSTÜNDE iki hücreli belirgin bir bant kullanır. Izgarada `Doğru n/9` bir tamamlanma çubuğuyla, `Hak n` kalan hakları gösteren kalkanlarla; istatistikte `Cevaplanan n/6` her segmenti o istatistiğin PUAN BANDIYLA renklenen bir segment şeridiyle (hem ilerleme hem kalite bir bakışta), `Ortalama %n` bir band etiketiyle (`isabetli`/`yakın`/`uzak`). Neden ayrı: bu iki modda durum tek satırlık bir sayaca sığmıyordu; bant hem daha okunur hem de künyenin sağ ucunu **hızlı kısayollara** (`actions`: "Sen kur"/"Sen seç" ve "Nasıl oynanır" çapaları) bıraktı, ızgarada ayrıca sol üst köşeyi ilerleme işaretlerinden kurtarıp ızgaranın KİMLİĞİNE (n×n) bıraktı. Sayılar ekran okuyucuya bandın içindeki tek bir `aria-live` özetiyle bildirilir; görünen şerit/çubuk/kalkan/etiket `aria-hidden` (renk tek gösterge değil, sayı yazılı — WCAG 1.4.1).
+
+**İSTATİSTİK BANDI STITCH'İN DÖRT HÜCRESİNE İNMEDİ, İKİDE KALDI — bilinçli.** Stitch'in bandı dört hücreliydi: `toplam puan /400`, `ilerleme`, `ortalama isabet · son 30 günün en iyi %12'sinde`, `kalan kategori`. İkisi UYDURMA (§5.2): bir kullanıcının puan geçmişini ya da percentilini tutmuyoruz, `/400` gibi kümülatif bir tavan da yok (puan cevap başına 0–100, tur puanı bunların ORTALAMASI). "Kalan" ise "cevaplanan"la birebir tümleyendir (6 − n), ızgaradaki "hak"tan farklı olarak ayrı bir bilgi taşımaz. Geriye gerçek olan iki eksen kalıyor — ne kadarı cevaplandı ve ne kadar isabetli — ve bant tam onları taşıyor.
 
 #### Künye oyun bileşeninin İÇİNDE, sayfada değil
 
@@ -3251,9 +3312,15 @@ Tabeladaki oyuncu sayısı `DatasetRepository.countPlayers()`'tan geliyor; `coun
 
 **Süzgeç yok, bilinçli.** Kulüplerde `isSelectable` var çünkü kullanıcı onları bir listeden **seçiyor**; oyuncuda böyle bir kavram yok — her oyuncu bir sonuçta görünebilir. Buraya bir süzgeç eklemek, tabeladaki sayı ile sonuçlarda karşılaşılabilecek oyuncu kümesini ayırırdı.
 
-#### Kapsam bandı artık VERİDEN geliyor
+#### Kapsam bandı → veri kümesi şeridi
 
-Kapsam bildirimi (§1.3) yirmi dört ligin adını **düzyazı içinde elle sayıyordu** — kapsam genişlediği gün sessizce eskiyecek bir liste, yani `345 kulüp` ile aynı sınıftan bir kusur. Metin kısaltıldı ve lig listesi, seçicinin zaten kullandığı `listLeagues()` çıktısından üretilen ülke kodu etiketlerine dönüştü. Tek kaynak veri.
+Kapsam bildirimi (§1.3) önce yirmi dört ligin adını **düzyazı içinde elle sayıyordu** — kapsam genişlediği gün sessizce eskiyecek bir liste, yani `345 kulüp` ile aynı sınıftan bir kusur. Sonra bu, seçicinin `listLeagues()` çıktısından üretilen bir **ülke kodu etiketleri bulutuna** dönüştü: tek kaynak veriydi ama görsel olarak ağırdı — yirmi dört çip, seçicilerin önünde bir etiket bulutu.
+
+Şimdi kapsam, sayfanın en üstünde ince tek satırlık bir **veri kümesi şeridine** indi: bir işaret noktası + `VERİ KÜMESİ` etiketi, ardından üç sayı (`24 lig · 907 kulüp · 132.263 futbolcu`). Sayılar hâlâ VERİDEN geliyor (`listLeagues().length`, `countSelectableClubs`, `countPlayers`), elle yazılmıyor; §7.15'in "künye canlı" kuralıyla aynı — bu şerit artık ortak oyuncu modunda dataset ölçeğinin TEK yeri (tabela sonuca ayrıldı, sayı iki yerde yaşamıyor).
+
+**Şeritte "CANLI" yazmıyor, bilinçli.** Stitch tasarımı bu şeridi "canlı veri tabanı" diye etiketliyordu; oysa veri periyodik bir ETL anlık görüntüsü (altbilgideki "son güncelleme" tarihi bunu söyler). "Canlı" demek gerçek zamanlı bir tazelik iddia eder ve o tarihle çelişirdi (§5.2). Etiket bu yüzden "Veri kümesi", nokta da nabız atmıyor.
+
+**"Hangi ülkeler" bilgisi neden artık şeritte değil.** Ülke bulutunun tek işi, kapsanmayan bir kulübü arayan kullanıcının siteyi bozuk sanmasını önlemekti (§1.3/§5.2). O sinyal kaybolmadı, yer değiştirdi: kullanıcı bir seçiciyi açtığında lig/ülke listesini (BR-37 gözat) görüyor ve boş sonuç durumu kapsamı açıkça söylüyor ("veri kümesi yirmi dört ligi kapsar…"). Her zaman görünen bir çip bulutu aynı bilgiyi ikinci kez, daha ağır biçimde taşıyordu.
 
 ### 7.16 Sonuç Defteri
 
@@ -3577,6 +3644,8 @@ Bu, ETL'i durduran bir kapı olduğu için tavan gerçekçi bir tamponla konur �
 ### 8.3 CI Ardışık Düzeni
 
 **Kod (her push).** `npm run verify` → `typecheck` → `lint` → `format:check` → `test` → `build`, ardından `npm run audit:ci`. Herhangi biri başarısızsa birleştirme (merge) engellenir.
+
+> **`no-img-element` metadata görsel rotalarında ORTAMLAR ARASI TUTARSIZDI — 16 Eylül 2026.** `lint` adımı ilk PR'da düştü: `app/opengraph-image.tsx`'teki `<img>` (Satori/`ImageResponse`; next/image orada çalışmaz — §7.11) için konan inline `eslint-disable`, CI'da (Linux) **"kullanılmıyor" uyarısı** veriyordu. Sebep: `eslint-config-next` bu metadata rotasını `@next/next/no-img-element`'ten Linux'ta muaf tutuyor, ama Windows yerelde kural yine tetikleniyor (glob/yol farkı, ölçüldü). Aynı disable bir ortamda **gerekli**, diğerinde **fazla**; `--max-warnings 0` ikisinde de düşürür. Çözüm ortam sezgisine bırakmak yerine kuralı bu dosya için `eslint.config.mjs`'de **açıkça kapatmak** (deterministik). `components/`'teki `<img>` disable'ları (`club-mark`, `country-flag`) iki ortamda da tetiklendiği için dokunulmadı. Ders §8.3'ün kendi dersiyle aynı: yerel `verify` yeşilse bile temiz bir ortam düşebilir.
 
 **Veri (zamanlanmış).** Yılda iki kez — transfer dönemleri kapandıktan **birkaç hafta sonra** — ve elle tetiklenebilir. Sıra: `etl` → `db:verify` → yayımla → dağıt. `db:verify` kapıdır: geçmezse dağıtım oluşmaz ve site bir önceki veriyle çalışmaya devam eder (§3.1).
 
@@ -3947,6 +4016,7 @@ için yapıldı.
 - **BR-25 — Kullanıcı ızgarası KILAVUZLU kurulur.** "Sen kur" turunda satır adayları, seçilmiş üç sütunun **hepsiyle** BR-9 bandında kesişen ölçütlerle sınırlıdır; seçici yalnızca bunları gösterir. Serbest seçim ölçülerek elendi: rastgele altı kulübün %0,1'i geçerli ızgara veriyor (yukarıda).
 - **BR-26 — Kullanıcı ızgarasında ölçütler istemciden gelir.** Sunucu ölçütleri yeniden ÜRETMEZ, yalnızca **var olduklarını** doğrular (kulüp seçilebilir mi, ülke kodu tanınıyor mu) ve cevabı kimlikle denetler (BR-12). Bu kabul günlük ızgara için GEÇERSİZDİR: orada ızgara herkes için aynıdır ve tohumdan yeniden üretilir (BR-11).
 - **BR-27 — Kullanıcı ızgarasının boyutu seçilebilir.** "Sen kur" turunda boyut **2×2, 3×3, 4×4, 5×5** arasından seçilir; günlük ızgara **3×3 kalır** (BR-11 gereği herkes aynı ızgarayı görmeli). Diğer bütün kurallar boyuttan bağımsızdır: BR-9 bandı aynen uygulanır, BR-13'ün hak sayısı hücre sayısından türer, BR-25'in süzgeci seçilen **her** sütuna karşı çalışır.
+- **BR-66 — Pes eden kullanıcıya ÖRNEK cevaplar gösterilir.** _(§9.1 — UYGULANDI.)_ Kullanıcı "Pes et" derse boş kalan her hücreye, o hücrenin **iki ölçütünü birden** sağlayan bir örnek oyuncu yazılır ve oyun biter. Örnek **doğrulanmaz** — sunucu her hücre için en çok maç yapan uygun oyuncuyu döndürür (`search` ile aynı sıra, tanınır bir isim çıksın diye); eşitlikte sıra sabit (kimlik) ki iki çağrı aynı örneği versin. Örnekler **birbirinden ve kullanıcının kendi cevaplarından ayrıdır** (`used` dışlaması): aynı isim iki hücrede görünmez, BR-10'un hissi korunur. Açığa çıkan hücre **doğru sayılmaz**: skor yalnızca kullanıcının kendi bulduğu doğruları (`correct`) toplar, paylaşımda açığa çıkan hücre boş (⬜) durur. Uç (`/api/grid/reveal`, `/api/grid/custom-reveal`) cevap **döndürür** ve bu bilinçlidir: §9.1'in sızıntı kuralı ızgaranın _teslimini_ (GET) ve süzgeç listesini bağlar, kullanıcının pes ettikten sonra **açıkça istediği** bir eylemi değil. Şu an güvenli çünkü ızgarada skor/sıralama YOK (BR-13'ün aynı gerekçesi); §11'in skoru ızgaraya geldiğinde uç, sunucu tarafı "oyun bitti" durumunun arkasına alınmak ZORUNDA (§10.2).
 
 #### Seçici hedef hücreye kenetli (10 Ağustos 2026)
 
@@ -3956,11 +4026,38 @@ Oyuncu seçici tablonun **tamamından sonra** basılıyordu. Sol üst hücreye t
 
 Konum bir testle tutuluyor — seçici, tıklanan hücrenin `td`'sinin içinde mi? Sınıf adına değil **yapıya** bakıyor; sayfa dibine geri taşıyan bir değişiklik kırmızıya döner.
 
-#### Sol üst köşe artık ölü alan değil
+#### Sol üst köşe: ilerleme işaretinden IZGARA KİMLİĞİNE
 
-Köşe hücresi boştu. Şimdi kalan hakkı **sayıyla değil işaretlerle** taşıyor: her hak bir kare, harcanan kareler dolu. Sayı zaten künye tabelasında yazılı (§7.15) ve ikinci kez basmak bilgi eklemezdi; işaret sırası ise sayının vermediğini veriyor — harcanan ve kalan hak, okumadan sayılabilecek bir biçimde.
+Köşe hücresi bir süre boştu, sonra kalan hakkı işaretlerle taşıdı. İlerleme
+artık künyenin altındaki **durum bandına** taşındığı için (§7.15) — orada hem
+tamamlanma çubuğu hem kalan-hak kalkanları var — köşedeki işaretler o bilgiyi
+İKİNCİ kez basıyordu. Köşe şimdi ızgaranın **kimliğini** taşıyor: `n×n` boyutu
+ve "matris" etiketi. Bir bilgi eklemiyor, ama ölü de değil — Stitch tasarımının
+köşedeki "3×3 matris" işaretinin karşılığı.
 
-Köşe **başlık değildir** (`td`, `th` değil): satır ya da sütun tanımlamıyor, `scope` almıyor. İşaretler `aria-hidden`, çünkü aynı bilgi tabelada ve alttaki metinde zaten var. Bir test köşenin başlık sayılmadığını doğruluyor — `th`'ye dönerse ekran okuyucu ızgarada dört sütun başlığı sayardı.
+Köşe **başlık değildir** (`td`, `th` değil): satır ya da sütun tanımlamıyor,
+`scope` almıyor. İçeriği `aria-hidden`, çünkü boyut zaten tablonun `caption`'ında
+(`n×n ızgara`) yazılı. Bir test köşenin başlık sayılmadığını doğruluyor —
+`th`'ye dönerse ekran okuyucu ızgarada dört sütun başlığı sayardı.
+
+#### "Sen kur" kurucusu ızgarayı GÖSTERİR
+
+Kurucu eskiden iki düz yuva listesiydi (sütunlar, satırlar). Şimdi günün
+ızgarasıyla aynı **matris iskeleti**: üst satır sütun yuvaları, sol sütun satır
+yuvaları, köşe `n×n` kimliği; iç hücreler ise cevapların geleceği yeri gösteren
+soluk yer tutucular. Kullanıcı ne kurduğunu bir bakışta görüyor ve kurunca aynı
+düzene oynamaya geçiyor. Boyut, tema seçicisiyle aynı **segment denetimi**;
+seçili yuva günün ızgarasının başlık hücresiyle aynı dili konuşur (ölçüt ikonu +
+condensed ad + tür etiketi). Ölçüt tür ikonu — kulüp kalkanı, uyruk flaması —
+günün ızgarası, kurucu ve ölçüt seçicisi için **tek kaynaktan** gelir
+(`grid-icons`, §7.12).
+
+**GERÇEK `<table>` DEĞİL, CSS ızgara.** Günün ızgarası bir tablodur çünkü orada
+hücrenin anlamı satır × sütun kesişimidir (gerçek tablosal veri). Kurucuda ise
+tablosal veri yok, bir **form** var (ölçüt seçimi); tabloya çevirmek "düzen
+tablosu" olurdu. İç hücreler `aria-hidden` ve tıklanamaz: bu ekran ızgarayı
+**kurar**, oynatmaz. Yön bilgisi her yuvanın erişilebilir adında (`1. sütun için
+kulüp seçin`).
 
 #### BR-10 şu an yalnızca istemcide zorlanıyor
 
@@ -3979,6 +4076,16 @@ Depodan okunan veri **dış girdi** sayılır ve şekli denetlenmeden kullanılm
 #### Sızıntı kuralı
 
 Izgara yanıtı **cevapları taşımaz** — yalnızca kriterleri. Hücre başına kaç cevap olduğu da verilmez: sayı, tahmin alanını daraltan bir ipucudur ve oyunun bir parçası olarak sunulmadıkça sızıntıdır (§2.4).
+
+**Tek istisna kullanıcının açıkça istediği "Pes et"tir (BR-66).** `/api/grid/reveal` ve `/api/grid/custom-reveal` cevap döndürür; bu bir sızıntı değil, pes eden kullanıcıya **örnek cevap** sunmaktır. Kural ızgaranın _teslimini_ (GET `/api/grid`, `/api/grid/criteria`) bağlar — orada cevap da, cevap sayısı da çıkmaz. Reveal ucu bugün güvenli çünkü ızgarada skor/sıralama YOK; §11'in skoru geldiğinde uç, sunucu tarafı "oyun bitti" durumunun arkasına alınmalı (§10.2, BR-66).
+
+#### Pes et → Cevapları gör
+
+Kullanıcı bir hücreyi bilemeyip tıkanabiliyordu ve tek çıkışı hakları yanlış tahminlerle harcamaktı. **"Pes et"** boş kalan her hücreye bir örnek doğru cevap yazar ve oyunu bitirir (BR-66).
+
+Örnek cevap **doğrulanmaz** çünkü doğrulanacak bir şey yok: sunucu hücrenin iki ölçütünü de sağlayan gerçek bir oyuncu döndürür. Sıra `search` ile aynı — en çok maç yapan önce — ki gösterilen isim tanınır olsun; eşitlikte kimlik sıralar, yoksa aynı hücre iki çağrıda iki farklı örnek verirdi. Örnekler `used` (kullanıcının kendi yerleştirdikleri) ve o pasta seçilmişlerle **çakışmaz**: aynı futbolcu iki hücrede belirmez.
+
+Açığa çıkan hücre **"doğru" sayılmaz** ve bu bir dürüstlük kararıdır (§5.2): kullanıcı o cevabı bulmadı, gösterildi. Künye tabelasındaki "Doğru" sayacı yalnızca kullanıcının kendi bulduklarını sayar; Wordle tarzı paylaşımda açığa çıkan hücre yeşil değil **boş** (⬜) durur. Hücrenin durumu depoda ayrı bir tür taşır (`revealed`) — `correct`/`wrong`'dan ayrı, çünkü ne kullanıcının doğrusu ne de yanlış tahminidir.
 
 ### 9.2 İstatistik Eşleştirme
 
@@ -4601,6 +4708,15 @@ kullanıcının kendisine ait.
 
 Maç, gol ve kulüp sayısı **yalnızca §1.3 kapsamındaki yirmi dört ligi** sayar. Boca Juniors veya Flamengo'da geçen yıllar bu sayılara **girmez**. (Ajax bir zamanlar bu cümlenin örneğiydi; 12 lig turundan beri kapsamda — kapsam büyüdükçe örnek de tazelenmek zorunda.) Arayüz bunu istatistiğin yanında söyler; söylemezse kullanıcı bildiği gerçek toplamla karşılaştırıp siteyi yanlış sanır — §1.3'ün kapsam bildirimi kuralının aynısı.
 
+#### Sunum: durum bandı, zengin satır, paylaş (Stitch dili)
+
+İstatistik modu Stitch'in görsel dilini aldı; **içeriğini değil.** Stitch dört "kategori" çiziyordu (`Kariyer Golü` · `Kariyer Asisti` · `Kulüp & Millî Maç` · `Kazanılan Kupa`), topluluk konsensüsü tablosu, radar grafiği ve percentil rozetleri. Bunların çoğu UYDURMAYDI (§5.2): **asist** ve **kupa** veri kümesinde yok, o gün herkesin tahminini toplayıp sunmuyoruz, kullanıcı puan geçmişi tutmuyoruz. Alınan şey düzen ve tipografi oldu, gerçek altı istatistik ve gerçek puanlama korundu:
+
+- **Durum bandı** (§7.15) — künyenin sağ ucundaki iki hücreli tabela künyenin altına, iki hücreli belirgin bir banda taşındı: `Cevaplanan n/6` her segmenti puan bandıyla renkli bir segment şeridiyle, `Ortalama %n` bir band etiketiyle. Neden iki hücre (Stitch'in dördü değil): yukarıdaki §7.15 kutusuna bakınız.
+- **Zengin satır** — cevaplanan istatistik satırı artık isim ve `değer · %puan` rozetinin yanında **işaretli farkı** (`hedeften +39` / `-273`) ve **band sözcüğünü** (`isabetli`/`yakın`/`uzak`) yazıyor. Sayı doğrusu (`NumberLine`) bunu zaten KONUM olarak gösteriyordu; buradaki katkı aynı bilgiyi SAYIYLA vermek. Puan formülü değişmedi (BR-18); band sözcüğü yalnızca renge ek bir metin göstergesi (WCAG 1.4.1).
+- **Skoru paylaş** — tur bitince Wordle tarzı bir emoji şeridi (`🟩` ≥%80, `🟨` ≥%50, `🟥` altı) + ortalama + bağlantı; arayüzdeki önizleme emoji DEĞİL, renk tokenlı kareler (§7.12). Nadirlik/percentil YOK, yalnızca kullanıcının kendi bandları. Izgaradaki paylaşımla aynı kural (§9.1).
+- **Kısayollar ve "Nasıl oynanır"** — künyenin `actions` yuvasında "Sen seç" ve "Nasıl oynanır" çapaları; sayfanın altındaki iki düz tanıtım paragrafı, ızgaradakiyle aynı **üç kartlı** düzene döndü (Hedef Metriğe Yaklaşın / Fark ve Puan / Tek Kullanım — hepsi GERÇEK kural: BR-16/BR-18/BR-17) + gerçek veri kümesi sayılarını taşıyan bir kapsam şeridi. Stitch'in "logaritmik fark skalası" etiketi kullanılmadı: puan logaritmik değil, farkı istatistiğin yayılımına bölen bir penceredir (BR-18).
+
 ---
 
 ### 9.3 Hangisi Daha
@@ -4608,6 +4724,16 @@ Maç, gol ve kulüp sayısı **yalnızca §1.3 kapsamındaki yirmi dört ligi** 
 Kullanıcı bir **seviye** (BR-41: "Kolay" / "Zor"), §9.2'nin altı istatistiğinden **birini** ve bir **yön** seçer ("daha çok" / "daha az"). Karşısına iki oyuncu gelir, değerleri gizlidir; hangisinin daha fazla (ya da daha az) olduğunu seçer. **Doğruysa seçtiği oyuncu kalır**, karşısına yeni bir rakip gelir — her turda bir oyuncu değişir. Yanlışta koşu biter ve skor, verilen doğru cevap sayısıdır.
 
 §9.2 ile aynı sayıları kullanır ama **başka bir soru sorar**: orada "bu değere kim yakın" diye bir büyüklük tahmini istenir, burada iki isim arasında bir **sıralama** kararı. Bu yüzden §9.2'nin BR-18 puanlaması burada hiç kullanılmaz; doğru ya da yanlış vardır.
+
+#### Sunum: fark şeridi, zengin verdict, paylaş (Stitch dili)
+
+Bu mod Stitch'in görsel dilini aldı; **çerçevesini değil.** Stitch ekranı bir "günün yarışması" gibi kurmuştu: `GÜNÜN SIRALAMASI #42/14.820`, `SIRADAKİ GÜNLÜK EŞLEŞMELER (12/20)`, `GÜNÜN EN İYİSİ`, `DOĞRULUK ORANI %87.5`. **Hepsi modele aykırı (§5.2):** bu mod rastgele ve sonsuz (BR-32), koşu HATIRLANMIYOR, lider tablosuna girmiyor (o yalnız §11 istatistik modu) — günlük sabit bir set, sıralama ya da doğruluk geçmişi yok. Stitch'in kategorileri de uydurma (asist/kupa/UCL golü/piyasa değeri veri kümesinde yok). Alınan şey düzen ve tipografi oldu:
+
+- **Aradaki fark şeridi** — cevap açılınca iki değerin farkı iki kartın altında ortalı bir şeritte yazılır (`Aradaki fark: 11 maç`); Stitch'in VS rozetindeki "+142 FARK"ın karşılığı, ama **doğru birimle** (`gapUnit`: doğum yılında "yıl", değerin "doğumlu"su değil). `aria-hidden` değil, gerçek bilgi.
+- **Zengin verdict** — doğru cevapta artık yalnızca "Doğru!" değil, kazananı ve değerini de yazar (`Henry önde — 175 maç`). Kazanan kullanıcının seçtiği karttır; isim/değer `pair` + `answer`'dan çözülür. Seri bandı (BR-30) korunur.
+- **Seriyi paylaş** — koşu sürerken (seri > 0) künyenin `actions` yuvasında; paylaşılan metin `N doğru üst üste · metrik (seviye)` + seri kadar 🟩 (biten koşuda sonuna 🟥). Nadirlik/percentil YOK; ızgara/istatistikle aynı kural (§9.1/§9.2).
+- **Kısayol + 3 kartlı nasıl oynanır** — künyede "Nasıl oynanır" çapası; sayfadaki iki düz paragraf üç kartlı düzene döndü (Metriği İnceleyin / Serinizi Koruyun / Şeffaf Veri — hepsi GERÇEK kural: BR-28/BR-30 + §9.2 kapsam) + gerçek veri kümesi sayılı kapsam şeridi.
+- **Kurulum ekranı (Stitch tasarımı, 22 Eyl 2026)** — ürün sahibi Stitch'e ayrı bir kurulum ekranı çizdirdi; iki ekranlı akış: (1) kurulum (metrik + Kolay/Zor + yön + soru önizlemesi + "Başla"), (2) düello. Ayrıntı: aşağıdaki "Kurulum ekranı: iki ekranlı akış" alt-bölümü.
 
 #### Ölçüm: havuz
 
@@ -4822,23 +4948,19 @@ Aşağıdakiler **yalnızca sunumdur**. BR-28…BR-32 değişmedi, sunucu sözle
 
 **Seri bandı ölçümden geliyor, uydurulmadı.** Yukarıdaki BR-30 tablosunda dengeli rakiple bilgisiz oynayan koşunun **p90'ı 3, p99'u 6**. Yani 4. doğru "on koşuda bir", 7. doğru "yüz koşuda bir" görülen bir yer. Şerit tam olarak bunu yazıyor. Eşikler bir tasarım hevesi değil, şartnamenin kendi ölçümü; ölçüm değişirse eşik de değişmeli.
 
-#### Kurulum ekranı: bir form değil, kurulan bir soru (10 Ağustos 2026)
+#### Kurulum ekranı: iki ekranlı akış (Stitch tasarımı, 22 Eylül 2026)
 
-Kurulum ekranı sekiz radyo düğmesi ve bir "Başla"dan ibaretti. Asıl kusuru sadeliği değil, **çıktısını göstermemesiydi**: kurulumun ürettiği şey bir cümledir ("Hangisi daha çok kulüp maçı yaptı?") ve o cümle hiçbir yerde bir bütün olarak görünmüyordu. Kullanıcı bir kutudan istatistiği, başka bir kutudan yönü seçiyor ve ne soracağını ancak oyun **başladıktan sonra** okuyordu.
+Bu ekranın tasarımı iki kez döndü. Önce ürün sahibi üç adımlı kurulum formunu (havuz/istatistik/yön + "Başla") beğenmedi ve Stitch'in "kurulum yok, direkt düello" yaklaşımı bir tur uygulandı (satır içi segment kontrolleri, mount'ta otomatik ilk tur). Sonra ürün sahibi Stitch'e **ayrı bir kurulum ekranı çizdirdi** ("Pitch & Press Editorial") ve onu uygulattı. Yürürlükteki tasarım budur: **iki ekranlı akış.**
 
-**Cümle artık ekranın en büyük yazısı** ve her seçimde yeniden basılıyor — React anahtarı değiştiği için açılış animasyonu her seferinde yeniden koşuyor. Kurulum böylece bir form doldurmak değil, bir soru **kurmak** oluyor: her tıklamanın karşılığı anında ve aynı yerde görünüyor.
+**Ekran A — Kurulum.** Büyük başlık + üç seçim (Adım 01 istatistik metriği, Adım 02 havuz derinliği Kolay/Zor, Adım 03 karşılaştırma yönü) + bir "Soru önizlemesi" kartı (seçimlere göre canlı güncellenen soru cümlesi + parametre kapsamı) + büyük **"Başla"**. Altında "Kayıtsız · Sıralamasız · Anlık skor koşusu" notu — modun rastgele/sonsuz olduğunu (BR-32) ve lider tablosuna girmediğini (§11) tekrar söyler. Kurulum ekranında **tabela yok**: henüz koşu yok.
 
-**Yön düğmeleri kısaldı, adları kısalmadı.** Cümlenin tamamı önizlemede durduğu için düğmede ikinci kez basmak seçimi bir cümle yığınına çeviriyordu ("daha çok kulüp maçı yaptı" / "daha az kulüp maçı yaptı" yan yana). Görünen metin artık "daha çok" / "daha az"; **erişilebilir ad tam cümle kaldı** — §7.17'deki gezinme kararının aynısı ve WCAG 2.5.3 kısa biçim tam cümlenin içinde geçtiği için sağlanıyor. Bir test bunu tutuyor.
+**Ekran B — Düello.** "Başla" ilk turu yükler ve düelloya geçer. Seçilen ayar künye üst-etiketinde ("Kolay · Resmî maç"), sağda tabela (`Seri n`) ve kısayollar: **Ayarları değiştir** (kuruluma döner, koşu sıfırlanır), Nasıl oynanır, Seriyi paylaş (seri > 0). Kartlar zenginleşti: metrik etiketi + açılan değer + karşılaştırma çubuğu + **kart başına fark** ("11 maç önde" / "11 maç geride", kazanan/kaybeden). Verdict artık **kaybedenin değerini de** yazıyor ("Henry önde — 175 maç · Zlatan 164 maç") ve "+1 seri puanı" rozeti taşıyor.
 
-**İstatistikler iki öbeğe ayrıldı ve ayrım uydurma değil: `scoped`.** Kulüp maçı, gol ve kulüp sayısı §1.3'ün yirmi dört ligini sayar; millî maç, boy ve doğum yılı oyuncunun kendi kaydından gelir. Bu fark oyuna doğrudan etki ediyor ve bugüne dek yalnızca **tur** ekranında, seçim yapıldıktan **sonra** söyleniyordu. Öbek başlığına taşındığında kullanıcı onu seçerken okuyor. Öbek üyeliği elle listelenmiyor, `scoped` alanından türetiliyor — yeni bir istatistik iki yerde birden güncelleme gerektirmesin diye.
+**Stitch'in uydurmaları düşürüldü (§5.2).** Tasarımda vardı, veride yok: **"Doğruluk: %100"** (koşu kaydedilmez, doğruluk geçmişi yok), **"Tur 7"** (ikinci sayaç — bu modun tek gerçek boyutu seri), **"Canlı Karşılaşma"** ("canlı" overclaim; veri periyodik ETL anlık görüntüsü, §7.15), **"Kariyer dönemi: 1994–2014"** (ilk/son yıl bu DTO'da yok — küçük backend ister, ertelendi), **"doğrulanmış / Canlı Arşiv"** dili (nötrlendi), **"SEZON 2024/25 · KOD: HGD-TR"** (uydurma telemetri), Stitch'in kendi üst gezinmesi + avatarı (gerçek global başlık korunur). İkon fontu (Material Symbols) satır içi SVG'ye çevrildi (§7.12, CSP `font-src 'self'`).
 
-**Her kart artık BR-29'un bandını taşıyor** ("en az 25 maç fark"). Bu, oyunun zorluğunu ayarlayan **tek** sayıdır ve arayüzün hiçbir yerinde görünmüyordu: kullanıcı "kulüp sayısı" ile "kulüp maçı"nın neden bambaşka zorlukta olduğunu bilemiyordu. Sayı `MIN_GAP`'ten okunuyor, arayüze kopyalanmadı; metin **erişilebilir adın parçası** — gizlenseydi ekran okuyucu kullanıcısı bu farkı hiç öğrenemezdi.
+**Kontroller bir form, veri tablosu değil.** Metrik/havuz/yön birer radyo; görünen etiket kısa, ölçüt erişilebilir adın PARÇASI (sr-only): metrik radyosu BR-29 bandını + kapsamı ("en az 35 maç fark, yalnızca 24 lig"), havuz radyosu ölçütünü ("Kolay — A millî takımda 20+ maç…"), yön radyosu tam cümleyi ("daha çok resmî maça çıktı") taşır. Görünen yön metni kısa ("daha çok"), erişilebilir ad tam cümle — WCAG 2.5.3, kısa biçim tam cümlenin içinde. Seçili **DOLU**, seçilmemiş çerçeveli: renk tek gösterge değil (WCAG 1.4.1).
 
-**Seçili olan yalnızca renkle ayrılmıyor** (WCAG 1.4.1): yazı kalınlığı değişiyor ve kartın üstündeki şerit boydan boya doluyor. Kenarlık iki durumda da `border-2`, yoksa seçim ızgarayı bir piksel oynatırdı. Kartlar açılışta sırayla beliriyor (adım başına 70 ms) ve "Başla" büyütülüp dar ekranda tam genişliğe çıktı: kurulum ekranının tek eylemi o ve "Devam" ile aynı puntoda durması, koşuyu başlatan kararı sıradan bir ilerleme adımı gibi gösteriyordu.
-
-> **Erişilebilir adın boşluğu yerleşimden gelir.** Ad, kardeş düğümlerin metinleri birleştirilerek kurulur ve aradaki boşluğu tarayıcı **kutu türünden** türetir — blok kutular boşlukla ayrılır, satır içi olanlar ayrılmaz. jsdom'un yerleşim motoru olmadığı için testte ad "Kulüp maçıen az …" diye birleşiyor, tarayıcıda boşlukla. Bu bir işaretleme kusuru değil ortam kısıtıdır; test bu yüzden adın tamamını değil, bandın adın **içinde** geçtiğini arıyor. Metne elle boşluk eklemek çözüm değil — ad hesabı her metin parçasını zaten kırpıyor.
-
-**Yapılmayanlar.** _Otomatik geçiş_ yok — süreli ilerleyen bir oyun WCAG 2.2.1'e takılır ve sonucu okumaya fırsat bırakmaz; kullanıcı "Devam" der. _Sayının sıfırdan sayılarak açılması_ yok: rakamlar düğmenin erişilebilir adının içinde ve saniyede altmış kez değişen bir ad, ekran okuyucuyu boğar; aynı dramayı çubuk, adı hiç kıpırdatmadan veriyor. _Ses_ yok.
+**Yapılmayanlar.** _Otomatik geçiş_ yok — süreli ilerleyen bir oyun WCAG 2.2.1'e takılır ve sonucu okumaya fırsat bırakmaz; kullanıcı "Devam" der. _Sayının sıfırdan sayılarak açılması_ yok: rakamlar düğmenin erişilebilir adının içinde ve saniyede altmış kez değişen bir ad, ekran okuyucuyu boğar; aynı dramayı çubuk, adı hiç kıpırdatmadan veriyor. _Ses_ yok. Stitch'in "olası diğer maç durumları (önizleme)" panosu (yanlış + havuz tükendi birlikte) bir mockup'tı; gerçekte durumlar faz bazlı, tek seferde biri görünür.
 
 #### Kurallar
 
@@ -5785,6 +5907,36 @@ oynadı mı". Oynamamak bir ölçüm eksikliği değil, bir olgudur.
 > görünürdü. Görünen ad da son turdan alınır: kullanıcı adını değiştirirse
 > tablo eskisini göstermemeli.
 
+#### Sunum: editoryal başlık, "senin sıralaman" bandı, paylaş (Stitch dili)
+
+Lider tablosu Stitch'in görsel dilini aldı; **çerçevesini değil.** Stitch üç
+tasarım çizdi (açık masaüstü, koyu mobil, sıralama-yükselişi animasyonlu) ve
+üçü de aynı uydurma modeli kuruyordu: mod bazlı alt-sekmeler (Ortak Oyuncu /
+Izgara / Hangisi Daha ayrı sıralama), oyuncu başına zengin sütunlar (favori
+kulüp arması, nadirlik %, seri, doğruluk %, "form son 5"), altın/gümüş/bronz
+podyum kartları, avatar/monogram, onay rozetleri, sayfalama (1/148, 1.776
+oyuncu), "sadece doğrulanmışlar" filtresi, sıra trend okları, geri sayım,
+"CANLI SIRALAMA · SEZON 2026 Güz Etabı · Ödüllü Tur", misafir sıralaması ve
+"%40 nadirlik · %30 seri · %30 doğruluk" puanlama formülü. **Hepsi modele
+aykırı (§5.2 + §11.5):** lider tablosu YALNIZCA günlük İstatistik modunundur,
+puan gün başına 0–600 tam sayıdır (mod başına skor/nadirlik/doğruluk saklanmaz),
+sıra geçmişi/sezon/ödül/doğrulama yoktur, DTO dört alan taşır (rank, ad, puan,
+gün). Alınan şey düzen ve tipografi oldu:
+
+- **Editoryal başlık** — kicker ("Günlük istatistik sıralaması") + başlık +
+  açıklama + "Nasıl puan hesaplanır?" çapası. Stitch'in "canlı/sezon/doğrula"
+  süsleri düşürüldü.
+- **"Senin sıralaman" bandı** — giriş yapmış ve dereceye girmiş kullanıcının
+  sırası tablonun üstünde vurgulu bir bantta (`#sıra` + ad + puan + gün);
+  `me`/`isMe` zaten hesaplanıyordu, yalnızca öne çıkarıldı. Dereceye girmemiş
+  kullanıcıya "henüz listede değilsin, tamamla" çağrısı; girişsiz ziyaretçiye
+  giriş çağrısı — üç durum tek yerde (kendi-durum bölgesi), tablonun üstünde.
+- **Sıralamanı paylaş** — bandın içinde; paylaşılan metin `{dönem}: #{sıra} ·
+{puan} puan` + link. Nadirlik/percentil YOK; öbür modlarla aynı kural.
+- **3 kartlı "Nasıl puan hesaplanır?"** — sayfanın altındaki tek paragraf, üç
+  kartlı düzene döndü (Tamamla listeye gir / Toplam puan yükseltir / Şeffaf ve
+  anonim — hepsi GERÇEK: BR-45 + §11.5 toplam kuralı + §11.6 gizlilik).
+
 ### 11.6 Gizlilik ve KVKK etkisi
 
 > **YAPILDI (16 Ağustos 2026).** Metin, hesap özelliği yazıldıktan SONRA
@@ -6523,6 +6675,34 @@ saydı — `room_players_roomId_seat_key` dâhil, yani BR-54'ün iki koltuk sın
 artık uygulama mantığının değil **veritabanının** garantisi.
 
 ### 12.7 Arayüz
+
+##### SUNUM: EDİTORYAL BAŞLIK + 3 KARTLI NASIL OYNANIR (Stitch dili)
+
+Oda, Stitch'in görsel dilini aldı; **çerçevesini değil.** Stitch üç tasarım
+çizdi (oda, "canlı eşleşme radarı", koyu mobil) ve üçü de bambaşka bir ürün
+kuruyordu: gerçek-zamanlı **WebRTC 1v1 reaksiyon arenası**. Uydurmalar (§5.2
+
+- §12): odada oyun modu seçimi (Ortak Oyuncu/Hangisi Daha/Izgara — oysa oda
+  yalnızca İstatistik turudur), tur sayısı + soru başı süre + geri sayım (tek
+  tur, zamanlayıcı yok — WCAG 2.2.1), "ilk kim seçecek" reaksiyon oyunu +
+  hız bonusu, misafir/guest katılım (giriş şart, BR-54), "Aktif Düello Sunucusu
+  · Ping 18ms · Radar Aktif · canlı yayın" telemetrisi, "Toplam puan 3.200 PTS"
+  running skor + seri galibiyet, "Maç sonucu 6-4 · +120 Liderlik Puanı · Lider
+  tablosuna puanı işle" (sonuç saklanmaz, lider tablosuna GİRMEZ — §12.2),
+  doğruluk/hız/en-yüksek-seri metrikleri, rövanş, "WebRTC/WebSocket P2P tünel"
+  (altyapı yoklamadır, §12.1). Alınan şey düzen ve tipografi oldu — yalnızca
+  lobide (`/oda`):
+
+* **Editoryal başlık** — kicker ("İki kişilik karşılaşma odası") + başlık +
+  açıklama + "Nasıl oynanır?" çapası. Stitch'in "canlı 1v1 düello" reframe'i
+  düşürüldü.
+* **3 kartlı "Nasıl oynanır?"** — sayfanın altındaki madde listesi üç karta
+  döndü (Eş zamanlı, aynı futbolcu / Yüksek toplam kazanır / Kısa ömürlü,
+  saklanmaz — hepsi GERÇEK kural: §12.2 + BR-58/60). Stitch'in "hız çarpanı"
+  ve "P2P tünel" kartları düzeltildi.
+
+Oda kodu belirginliği (davet ekranında mono 4xl/5xl accent) ve lobinin ikili
+"Oda kur / Koda katıl" düzeni zaten yerindeydi; dokunulmadı.
 
 ##### DÖRT EKRAN, TEK ADRES
 
