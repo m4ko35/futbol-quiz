@@ -80,9 +80,16 @@ export interface WhichMoreRepository {
    *
    * Ölçülen boş dönme sıklığı %0,00'dır (§9.3); yine de çağıran taraf `null`
    * ihtimalini ele almak zorundadır çünkü `exclude` uzadıkça havuz daralır.
+   *
+   * RASTGELELİK VARSAYILAN OLARAK DEPONUN KENDİ KAYNAĞIDIR (crypto/`Math.random`).
+   * Tohumlu ray (§12.8, BR-68) için çağıran DETERMİNİSTİK bir `random` geçer:
+   * aynı memoize havuz paylaşılır, yalnızca SEÇİM tohumdan gelir — böylece
+   * sunucu bir odanın düello dizisini birebir tekrar oynatabilir. Havuz bir
+   * derleme çıktısı olduğu için (§3.1) aynı tohum her zaman aynı diziyi verir.
    */
   findCandidate(
     query: WhichMoreCandidateQuery,
+    random?: () => number,
   ): Promise<WhichMoreCandidate | null>;
 
   /**

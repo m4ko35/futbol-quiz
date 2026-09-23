@@ -435,9 +435,17 @@ export class FakeWhichMoreRepository implements WhichMoreRepository {
     this.#players = players;
   }
 
+  /**
+   * `random` KABUL EDİLİR AMA YOK SAYILIR — seçim sıradaki ilk uygun adaydır.
+   * Port'a tohumlu ray için (§12.8, BR-68) eklendi; fake zaten deterministik
+   * olduğu için ray testleri PRNG'den bağımsız, yalnızca ray MANTIĞINI (galip
+   * takibi, dışlama büyümesi) ölçer.
+   */
   findCandidate(
     query: WhichMoreCandidateQuery,
+    _random?: () => number,
   ): Promise<WhichMoreCandidate | null> {
+    void _random;
     const excluded = new Set<string>(query.exclude);
     const gap = MIN_GAP[query.statKey];
 

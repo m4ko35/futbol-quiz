@@ -67,20 +67,36 @@ export interface RoundInput {
 type RoundDeps = Pick<GameModeDeps, "whichMore">;
 
 /**
- * Yeni bir tur kurar.
+ * Bir turun İKİ ADAYI — DEĞERLERİYLE birlikte.
  *
- * `random` DIŞARIDAN gelir: BR-30'un yazı turası test edilebilir olmalı.
- * Varsayılanı `Math.random` — çağıranların çoğu bunu düşünmek zorunda kalmasın.
+ * `getRound` bunu değersiz DTO'ya indirger (BR-32); ama oda rayı (§12.8, BR-68)
+ * değerlere İHTİYAÇ DUYAR: kalan oyuncu veriyle belirlenir, yani bir sonraki
+ * düelloyu kurmak için galibin değerini bilmek şart. Bu yüzden seçim mantığı
+ * değer koruyan bu ara katmanda; iki çağıran (solo DTO ve ray) TEK kaynaktan
+ * beslenir (§9.1'in "süzgeç ile doğrulayıcı aynı olmalı" kuralı).
  */
-export async function getRound(
+export interface RoundPair {
+  readonly left: WhichMoreCandidate;
+  readonly right: WhichMoreCandidate;
+}
+
+/**
+ * Bir turun adaylarını kurar — değerleriyle.
+ *
+ * `random` DIŞARIDAN gelir: BR-30'un yazı turası test edilebilir olmalı ve oda
+ * rayı için TOHUMLU bir üreteç geçilir (§12.8, BR-68). Rastgelelik hem yazı
+ * turasına HEM de deponun seçimine (`findCandidate`'in ikinci argümanı) aynı
+ * akıştan verilir; ikisi ayrı kaynaklardan beslenseydi ray tekrarlanamazdı.
+ */
+export async function buildRoundPair(
   input: RoundInput,
   deps: RoundDeps,
   random: () => number = Math.random,
-): Promise<WhichMoreRoundDto> {
+): Promise<RoundPair | null> {
   const { statKey, level } = input;
 
   if (input.stayingId === null) {
-    return getFirstRound(statKey, level, input.exclude, deps);
+    return buildFirstPair(statKey, level, input.exclude, deps, random);
   }
 
   const staying = await deps.whichMore.findPlayer(input.stayingId, statKey);
@@ -92,7 +108,15 @@ export async function getRound(
   // BR-30 — yazı tura; seçilen taraf boşsa öteki denenir.
   const first = opponentSide(random());
   const opponent =
-    (await findOn(first, staying.value, statKey, level, input.exclude, deps)) ??
+    (await findOn(
+      first,
+      staying.value,
+      statKey,
+      level,
+      input.exclude,
+      deps,
+      random,
+    )) ??
     (await findOn(
       otherSide(first),
       staying.value,
@@ -100,47 +124,73 @@ export async function getRound(
       level,
       input.exclude,
       deps,
+      random,
     ));
 
-  if (opponent === null) return { statKey, pair: null };
+  if (opponent === null) return null;
 
   // Kalan oyuncu SOLDA durur. Yer değiştirseydi kullanıcı her turda iki ismi
   // yeniden okumak zorunda kalırdı; oysa değişen tek şey sağdaki.
-  return { statKey, pair: { left: toDto(staying), right: toDto(opponent) } };
+  return { left: staying, right: opponent };
 }
 
-async function getFirstRound(
+/**
+ * Yeni bir tur kurar (solo). Değersiz DTO döner — BR-32.
+ *
+ * `random` DIŞARIDAN gelir: BR-30'un yazı turası test edilebilir olmalı.
+ * Varsayılanı `Math.random` — çağıranların çoğu bunu düşünmek zorunda kalmasın.
+ */
+export async function getRound(
+  input: RoundInput,
+  deps: RoundDeps,
+  random: () => number = Math.random,
+): Promise<WhichMoreRoundDto> {
+  const pair = await buildRoundPair(input, deps, random);
+  return {
+    statKey: input.statKey,
+    pair:
+      pair === null
+        ? null
+        : {
+            left: whichMorePlayerDto(pair.left),
+            right: whichMorePlayerDto(pair.right),
+          },
+  };
+}
+
+async function buildFirstPair(
   statKey: StatKey,
   level: Level,
   exclude: readonly PlayerId[],
   deps: RoundDeps,
-): Promise<WhichMoreRoundDto> {
-  const left = await deps.whichMore.findCandidate({
-    statKey,
-    level,
-    threshold: null,
-    side: "any",
-    exclude,
-  });
+  random: () => number,
+): Promise<RoundPair | null> {
+  const left = await deps.whichMore.findCandidate(
+    { statKey, level, threshold: null, side: "any", exclude },
+    random,
+  );
 
   if (left === null) {
     // Dışlama listesi boşken hiç aday yoksa havuz tükenmemiştir, YOKTUR:
     // o istatistik veri kümesinde hiç çekilmemiş demektir (§6.6).
     if (exclude.length === 0) throw new RoundUnavailableError();
-    return { statKey, pair: null };
+    return null;
   }
 
-  const right = await deps.whichMore.findCandidate({
-    statKey,
-    level,
-    threshold: left.value,
-    side: "any",
-    exclude: [...exclude, left.id],
-  });
+  const right = await deps.whichMore.findCandidate(
+    {
+      statKey,
+      level,
+      threshold: left.value,
+      side: "any",
+      exclude: [...exclude, left.id],
+    },
+    random,
+  );
 
-  if (right === null) return { statKey, pair: null };
+  if (right === null) return null;
 
-  return { statKey, pair: { left: toDto(left), right: toDto(right) } };
+  return { left, right };
 }
 
 function findOn(
@@ -150,14 +200,12 @@ function findOn(
   level: Level,
   exclude: readonly PlayerId[],
   deps: RoundDeps,
+  random: () => number,
 ): Promise<WhichMoreCandidate | null> {
-  return deps.whichMore.findCandidate({
-    statKey,
-    level,
-    threshold,
-    side,
-    exclude,
-  });
+  return deps.whichMore.findCandidate(
+    { statKey, level, threshold, side, exclude },
+    random,
+  );
 }
 
 /**
@@ -228,7 +276,15 @@ export async function checkAnswer(
   };
 }
 
-function toDto(candidate: WhichMoreCandidate): WhichMorePlayerDto {
+/**
+ * Adayı değersiz sunum DTO'suna indirger — BR-32 TEK YERDE.
+ *
+ * Oda rayı da (§12.8) bunu kullanır: değerin dışarı sızmaması iki modda da
+ * aynı fonksiyondan geçtiği için garanti.
+ */
+export function whichMorePlayerDto(
+  candidate: WhichMoreCandidate,
+): WhichMorePlayerDto {
   return {
     id: candidate.id,
     name: candidate.name,
