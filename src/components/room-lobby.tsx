@@ -16,6 +16,7 @@ import {
 import { useCreateRoom } from "./use-create-room";
 import { useJoinRoom } from "./use-join-room";
 import { Button } from "./ui/button";
+import { WhichMoreRoomSetup } from "./which-more-room-setup";
 
 /**
  * Oda lobisi — PROJECT.md §12.
@@ -25,9 +26,24 @@ import { Button } from "./ui/button";
  * bir eylem DEĞİL — ikisi de aynı kartta, aynı ölçüde duruyor.
  */
 
-export function RoomLobby() {
+export interface RoomLobbyProps {
+  /**
+   * Açılışta seçili oda modu — §12.8. Solo sayfadaki odaya çağrı şeridi
+   * (`RoomEntryBar`) lobiye modu önseçili getirir (`/oda?mod=hangisi-daha`),
+   * böylece Hangisi Daha kurmaya gelen kullanıcı İstatistik'e ayarlı bir
+   * formla karşılaşmaz. Sorgu parametresi sunucuda (`/oda`) Zod'la doğrulanıp
+   * buraya PROP olarak geliyor; bileşen `useSearchParams`'a bağlı değil (Suspense
+   * sınırı gerekmez) ve varsayılan geriye dönük İstatistik.
+   */
+  readonly initialMode?: "istatistik" | "hangisi-daha";
+}
+
+export function RoomLobby({ initialMode = "istatistik" }: RoomLobbyProps) {
   const router = useRouter();
   const create = useCreateRoom();
+
+  /** Kurulacak oda modu — §12.8, BR-67. Varsayılan İstatistik (geriye dönük). */
+  const [mode, setMode] = useState<"istatistik" | "hangisi-daha">(initialMode);
 
   const goToRoom = useCallback(
     (code: string) => {
@@ -83,22 +99,82 @@ export function RoomLobby() {
       {/* Oda kur */}
       <section className="flex flex-1 flex-col gap-3 rounded-2xl border border-line bg-surface p-5 shadow-card">
         <h2 className="text-xl font-bold tracking-tight">Oda kur</h2>
-        <p className="flex-1 text-sm text-muted">
-          Sana bir kod verilir. Kodu arkadaşına söylersin, o katılınca{" "}
-          <strong className="font-semibold text-foreground">
-            ikinize aynı futbolcu
-          </strong>{" "}
-          açılır.
-        </p>
 
-        <Button
-          size="md"
-          loading={create.isCreating}
-          className="w-fit"
-          onClick={create.create}
+        {/*
+          MOD SEÇİMİ — §12.8, BR-67. Artık gerçekten iki oda oyunu var
+          (İstatistik ve Hangisi Daha), yani Stitch'in bir zamanlar reddedilen
+          mod seçimi (§12.7) dürüst hâle geldi. Varsayılan İstatistik: hem eski
+          davranış, hem tek tıkla kurulan basit yol.
+        */}
+        <div
+          className="flex flex-wrap gap-2"
+          role="group"
+          aria-label="Oyun modu"
         >
-          {create.isCreating ? "Oda kuruluyor…" : "Oda kur"}
-        </Button>
+          {(
+            [
+              ["istatistik", "İstatistik"],
+              ["hangisi-daha", "Hangisi Daha"],
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              aria-pressed={mode === key}
+              onClick={() => {
+                setMode(key);
+              }}
+              className={
+                "rounded-full border px-3 py-1.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent " +
+                (mode === key
+                  ? "border-accent bg-accent text-accent-fg"
+                  : "border-line-strong bg-surface text-foreground hover:bg-accent-soft")
+              }
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {mode === "istatistik" ? (
+          <>
+            <p className="flex-1 text-sm text-muted">
+              Sana bir kod verilir. Kodu arkadaşına söylersin, o katılınca{" "}
+              <strong className="font-semibold text-foreground">
+                ikinize aynı futbolcu
+              </strong>{" "}
+              açılır.
+            </p>
+
+            <Button
+              size="md"
+              loading={create.isCreating}
+              className="w-fit"
+              onClick={() => {
+                create.create();
+              }}
+            >
+              {create.isCreating ? "Oda kuruluyor…" : "Oda kur"}
+            </Button>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-muted">
+              Kodu arkadaşına söylersin, o katılınca{" "}
+              <strong className="font-semibold text-foreground">
+                ikinize aynı düellolar
+              </strong>{" "}
+              açılır.
+            </p>
+
+            <WhichMoreRoomSetup
+              onCreate={(body) => {
+                create.create(body);
+              }}
+              isCreating={create.isCreating}
+            />
+          </>
+        )}
 
         {create.failure !== null && (
           <p

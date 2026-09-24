@@ -1,10 +1,12 @@
 import type { NextRequest } from "next/server";
 import type { RoomDeps } from "@/application/use-cases/rooms";
+import type { WhichMoreRoomDeps } from "@/application/use-cases/which-more-rooms";
 import { ValidationError } from "@/domain/errors/domain-error";
 import { roomCode } from "@/domain/value-objects/room-code";
 import {
   repositories,
   roomsRepository,
+  whichMoreRoomsRepository,
 } from "@/infrastructure/db/repositories";
 import { WebCryptoRandomSource } from "@/infrastructure/random/web-crypto-random";
 import { currentUser, currentUserFromRequest } from "@/lib/auth/current-user";
@@ -26,6 +28,8 @@ const LOGIN_REQUIRED = "Oda için giriş yapmalısın.";
 export interface RoomRequestContext {
   readonly userId: string;
   readonly deps: RoomDeps;
+  /** §12.8 — Hangisi Daha odası bağımlılıkları; uç, moda göre birini kullanır. */
+  readonly whichMoreDeps: WhichMoreRoomDeps;
 }
 
 /**
@@ -49,6 +53,10 @@ export async function roomRequestContext(
    */
   if (rooms === null) throw new ValidationError(LOGIN_REQUIRED);
 
+  // Aynı kapıdan geçer (aynı Turso istemcisi); `rooms` doluysa bu da dolu.
+  const whichMoreRooms = whichMoreRoomsRepository();
+  if (whichMoreRooms === null) throw new ValidationError(LOGIN_REQUIRED);
+
   const user = await currentUserFromRequest(request);
   if (user === null) throw new ValidationError(LOGIN_REQUIRED);
 
@@ -58,6 +66,11 @@ export async function roomRequestContext(
       rooms,
       statMatch: repositories.statMatch,
       players: repositories.players,
+      random,
+    },
+    whichMoreDeps: {
+      rooms: whichMoreRooms,
+      whichMore: repositories.whichMore,
       random,
     },
   };
@@ -83,11 +96,16 @@ export async function roomRequestContext(
 export interface RoomPageContext {
   readonly userId: string;
   readonly deps: RoomDeps;
+  /** §12.8 — Hangisi Daha odası bağımlılıkları. */
+  readonly whichMoreDeps: WhichMoreRoomDeps;
 }
 
 export async function roomPageContext(): Promise<RoomPageContext | null> {
   const rooms = roomsRepository();
   if (rooms === null) return null;
+
+  const whichMoreRooms = whichMoreRoomsRepository();
+  if (whichMoreRooms === null) return null;
 
   const user = await currentUser();
   if (user === null) return null;
@@ -98,6 +116,11 @@ export async function roomPageContext(): Promise<RoomPageContext | null> {
       rooms,
       statMatch: repositories.statMatch,
       players: repositories.players,
+      random,
+    },
+    whichMoreDeps: {
+      rooms: whichMoreRooms,
+      whichMore: repositories.whichMore,
       random,
     },
   };

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { ReactNode } from "react";
+import { z } from "zod";
 import { DataLabel } from "@/components/data-label";
 import { PageShell } from "@/components/page-shell";
 import { RoomLobby } from "@/components/room-lobby";
@@ -9,6 +10,18 @@ import { SiteFooter } from "@/components/site-footer";
 import { accountsEnabled } from "@/infrastructure/config/env";
 import { datasets } from "@/infrastructure/db/repositories";
 import { currentUser } from "@/lib/auth/current-user";
+
+/**
+ * `?mod=` — solo sayfadaki odaya çağrı şeridinden (§12.8) gelen önseçim.
+ *
+ * SINIRDA DOĞRULAMA (§2.3): sorgu parametresi kullanıcı girdisidir. `.catch`
+ * tanınmayan/eksik değeri sessizce varsayılan İstatistik'e düşürür — geçersiz
+ * bir mod yüzünden 404/500 vermek, önseçim bir kolaylık olduğu için orantısız
+ * olurdu.
+ */
+const modeParamSchema = z
+  .enum(["istatistik", "hangisi-daha"])
+  .catch("istatistik");
 
 /**
  * Oda lobisi — PROJECT.md §12.
@@ -62,13 +75,25 @@ const HOW_TO_RULES: readonly {
   },
 ];
 
-export default async function RoomLobbyPage() {
+export default async function RoomLobbyPage({
+  searchParams,
+}: {
+  // Next 16: `searchParams` bir Promise; okumak için beklenir.
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   if (!accountsEnabled()) notFound();
 
   const user = await currentUser();
   if (user === null) redirect("/giris");
 
-  const dataGeneratedAt = await datasets.getGeneratedAt();
+  const [dataGeneratedAt, params] = await Promise.all([
+    datasets.getGeneratedAt(),
+    searchParams,
+  ]);
+
+  // Dizi gelirse (ör. `?mod=a&mod=b`) ilkini al; şema geçersizi zaten düşürür.
+  const rawMode = Array.isArray(params.mod) ? params.mod[0] : params.mod;
+  const initialMode = modeParamSchema.parse(rawMode);
 
   return (
     <PageShell>
@@ -109,7 +134,7 @@ export default async function RoomLobbyPage() {
         </a>
       </header>
 
-      <RoomLobby />
+      <RoomLobby initialMode={initialMode} />
 
       {/*
         KURALLAR ÖNCEDEN YAZILI. Süre sınırı ve sonucun saklanmaması, oyun

@@ -128,13 +128,14 @@ export class PrismaWhichMoreRepository implements WhichMoreRepository {
 
   async findCandidate(
     query: WhichMoreCandidateQuery,
+    random: () => number = this.#random,
   ): Promise<WhichMoreCandidate | null> {
     const pool = await this.#load();
     const list = pool[query.level][query.statKey];
     const excluded = new Set<string>(query.exclude);
 
     const ranges = this.#ranges(list, query);
-    const entry = this.#pick(list, ranges, excluded);
+    const entry = this.#pick(list, ranges, excluded, random);
     if (entry === null) return null;
 
     return {
@@ -195,13 +196,14 @@ export class PrismaWhichMoreRepository implements WhichMoreRepository {
     list: readonly PoolEntry[],
     ranges: readonly (readonly [number, number])[],
     excluded: ReadonlySet<string>,
+    random: () => number,
   ): PoolEntry | null {
     const sizes = ranges.map(([lo, hi]) => Math.max(0, hi - lo));
     const total = sizes.reduce((sum, size) => sum + size, 0);
     if (total === 0) return null;
 
     for (let attempt = 0; attempt < MAX_RANDOM_TRIES; attempt++) {
-      let offset = Math.floor(this.#random() * total);
+      let offset = Math.floor(random() * total);
       for (const [index, size] of sizes.entries()) {
         if (offset < size) {
           const range = ranges[index];
@@ -225,7 +227,7 @@ export class PrismaWhichMoreRepository implements WhichMoreRepository {
       }
     }
     if (usable.length === 0) return null;
-    return usable[Math.floor(this.#random() * usable.length)] ?? null;
+    return usable[Math.floor(random() * usable.length)] ?? null;
   }
 
   /**

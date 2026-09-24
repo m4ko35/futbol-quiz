@@ -458,7 +458,13 @@ function Rematch() {
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <Button size="md" loading={isCreating} onClick={create}>
+      <Button
+        size="md"
+        loading={isCreating}
+        onClick={() => {
+          create();
+        }}
+      >
         {isCreating ? "Oda kuruluyor…" : "Yeni oda kur"}
       </Button>
 
@@ -481,7 +487,7 @@ function Rematch() {
   );
 }
 
-function ConnectionNote({ offline }: { readonly offline: boolean }) {
+export function ConnectionNote({ offline }: { readonly offline: boolean }) {
   if (!offline) return null;
 
   return (
@@ -503,7 +509,7 @@ function ConnectionNote({ offline }: { readonly offline: boolean }) {
  * `RN`/`M` gibi ikililer karışıyor. Alfabede zaten karışan işaretler yok
  * (`0/O`, `1/I/L` elendi, BR-55) ama tipografi de yardım etmeli.
  */
-function RoomCodeCard({ code }: { readonly code: string }) {
+export function RoomCodeCard({ code }: { readonly code: string }) {
   const [copied, setCopied] = useState<"kod" | "bag" | null>(null);
   const [copyFailed, setCopyFailed] = useState(false);
 
@@ -585,7 +591,7 @@ function RoomCodeCard({ code }: { readonly code: string }) {
  * sunucunun saatiyle kullanıcının saati aynı değil ve ilk çizimde hesaplanan
  * değer hidrasyonda uyuşmazlık üretirdi. Ekranda önce bir tire duruyor.
  */
-function useRemainingMinutes(expiresAt: string): number | null {
+export function useRemainingMinutes(expiresAt: string): number | null {
   const now = useSyncExternalStore(
     subscribeToClock,
     readClock,

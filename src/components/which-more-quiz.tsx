@@ -79,7 +79,7 @@ interface StatQuestion {
  * cümleler değil. Yön başına ayrı cümle var çünkü Türkçede "daha az uzun"
  * diye bir şey yok — karşıtı "daha kısa".
  */
-const QUESTIONS: readonly StatQuestion[] = [
+export const QUESTIONS: readonly StatQuestion[] = [
   /**
    * ADLAR SAYININ KAPSAMINI ANLATIR (BR-23). "Kulüp maçı"ydı; 22 Ağustos
    * 2026'da sayı kulüp kariyerinin tamamına + A millî takıma geçince ad da
@@ -203,7 +203,7 @@ interface LevelOption {
   readonly note: string;
 }
 
-const LEVEL_OPTIONS: readonly LevelOption[] = [
+export const LEVEL_OPTIONS: readonly LevelOption[] = [
   {
     key: "easy",
     name: "Kolay",
@@ -218,13 +218,13 @@ const LEVEL_OPTIONS: readonly LevelOption[] = [
   },
 ];
 
-function levelFor(key: Level): LevelOption {
+export function levelFor(key: Level): LevelOption {
   const found = LEVEL_OPTIONS.find((one) => one.key === key);
   if (found === undefined) throw new Error(`Etiketsiz seviye: ${key}`);
   return found;
 }
 
-function questionFor(key: StatKey): StatQuestion {
+export function questionFor(key: StatKey): StatQuestion {
   // STAT_KEYS ile QUESTIONS aynı altı anahtarı taşır; bulunamama hâli tip
   // düzeyinde imkânsız ama `noUncheckedIndexedAccess` altında kanıtlanmalı.
   const found = QUESTIONS.find((one) => one.key === key);
@@ -260,6 +260,15 @@ export interface WhichMoreQuizProps {
   /** Testler gerçek ağa çıkmasın diye enjekte edilebilir. */
   fetchRound?(body: unknown): Promise<WhichMoreRoundDto>;
   fetchAnswer?(body: unknown): Promise<WhichMoreAnswerDto>;
+  /**
+   * KURULUM EKRANINA KONUMSAL YUVA — §12.8 (İstatistik'teki `beforeStats`
+   * deseni, §12.7). Odaya çağrı şeridi (`RoomEntryBar`) buraya geliyor: sunucu
+   * sayfası girişi ve hesap özelliğinin açık olup olmadığını bildiği için şerit
+   * ORADA kuruluyor, oyun bileşeni odayı tanımak zorunda kalmıyor. Yalnızca
+   * kurulum ekranında (Ekran A) gösterilir — düello sürerken bir "arkadaşına
+   * karşı oyna" çağrısı koşunun önüne geçerdi.
+   */
+  roomEntry?: ReactNode;
 }
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
@@ -290,6 +299,7 @@ function messageOf(payload: unknown): string | null {
 export function WhichMoreQuiz({
   fetchRound = (body) => postJson("/api/hangisi-daha/round", body),
   fetchAnswer = (body) => postJson("/api/hangisi-daha/answer", body),
+  roomEntry,
 }: WhichMoreQuizProps) {
   const [statKey, setStatKey] = useState<StatKey>("appearances");
   /**
@@ -444,6 +454,7 @@ export function WhichMoreQuiz({
         onLevel={setLevel}
         onDirection={setDirection}
         onStart={start}
+        roomEntry={roomEntry}
       />
     );
   }
@@ -1170,6 +1181,8 @@ interface WhichMoreSetupProps {
   onLevel(level: Level): void;
   onDirection(direction: Direction): void;
   onStart(): void;
+  /** Odaya çağrı şeridi — giriş bloğundan sonra, adımlardan önce (§12.8). */
+  readonly roomEntry?: ReactNode;
 }
 
 /** Kurulum kartı sınıfı — seçili DOLU, seçilmemiş çerçeveli (renk tek gösterge değil). */
@@ -1202,6 +1215,7 @@ function WhichMoreSetup({
   onLevel,
   onDirection,
   onStart,
+  roomEntry,
 }: WhichMoreSetupProps) {
   return (
     <div className="flex flex-col gap-8">
@@ -1219,6 +1233,13 @@ function WhichMoreSetup({
           .
         </p>
       </div>
+
+      {/*
+        ODAYA ÇAĞRI — §12.8. `h1`'in ALTINDA (kullanıcı oyunu anlamış), ama
+        adımların üstünde (henüz kurmaya başlamamış); §12.7'deki sıra kararının
+        Hangisi Daha karşılığı. Hesap kapalıyken sayfa bu yuvayı hiç doldurmaz.
+      */}
+      {roomEntry}
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="flex flex-col gap-6 lg:col-span-2">

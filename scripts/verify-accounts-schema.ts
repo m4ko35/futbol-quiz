@@ -50,6 +50,8 @@ const TABLES = [
   "rooms",
   "room_players",
   "room_answers",
+  // §12.8 — Hangisi Daha odasının düello cevapları (BR-68/BR-70).
+  "room_which_more_answers",
 ] as const;
 
 /**
@@ -82,6 +84,10 @@ const CONSTRAINTS: readonly (readonly [string, string])[] = [
     "BR-58 — istatistik başına tek deneme",
   ],
   ["room_answers_roomPlayerId_playerId_key", "BR-17'nin oda karşılığı"],
+  [
+    "room_which_more_answers_roomPlayerId_roundIndex_key",
+    "BR-58 hattı (§12.8) — bir düelloya tek cevap",
+  ],
 ];
 
 interface SchemaRow {

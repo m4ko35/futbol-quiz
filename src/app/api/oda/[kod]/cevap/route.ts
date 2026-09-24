@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { submitRoomAnswer } from "@/application/use-cases/rooms";
+import { submitWhichMoreAnswer } from "@/application/use-cases/which-more-rooms";
 import { ValidationError } from "@/domain/errors/domain-error";
 import { isStatKey } from "@/domain/services/stat-match";
 import {
@@ -32,9 +33,16 @@ import { parseRoomCode, roomRequestContext } from "@/lib/http/room-request";
  * kendi hesabımız değil SAKLANAN cevap dönüyor.
  */
 
-const bodySchema = z.object({
+/** İstatistik cevabı — hangi istatistik, hangi oyuncu (BR-58). */
+const statBodySchema = z.object({
   statKey: z.string().refine(isStatKey, { message: "Bilinmeyen istatistik." }),
   playerId: z.string().refine(isValidIdentifier).transform(playerId),
+});
+
+/** Hangisi Daha cevabı — hangi düello (roundIndex), hangi kart (§12.8, BR-68). */
+const whichMoreBodySchema = z.object({
+  roundIndex: z.number().int().min(0),
+  chosenId: z.string().refine(isValidIdentifier).transform(playerId),
 });
 
 export async function POST(
@@ -51,13 +59,37 @@ export async function POST(
     cacheable: false,
     run: async () => {
       const { kod } = await context.params;
-      const { userId, deps } = await roomRequestContext(request);
+      const { userId, deps, whichMoreDeps } = await roomRequestContext(request);
+      const now = new Date();
+      const code = parseRoomCode(kod);
 
       const body: unknown = await request.json().catch(() => {
         throw new ValidationError("Gövde geçerli JSON olmalıdır.");
       });
 
-      const parsed = bodySchema.safeParse(body);
+      // MODA GÖRE DAĞITIM (§12.8): gövde şekli moda göre değişir; sunucu odanın
+      // modunu okuyup DOĞRU şemayla ayrıştırır. Kod yoksa İstatistik yolu "böyle
+      // bir oda yok" der (tutarlı).
+      const mode = await deps.rooms.findRoomMode(code);
+
+      if (mode === "hangisi-daha") {
+        const parsed = whichMoreBodySchema.safeParse(body);
+        if (!parsed.success) {
+          throw new ValidationError("Gönderilen cevap geçersiz.");
+        }
+        return submitWhichMoreAnswer(
+          {
+            now,
+            userId,
+            code,
+            roundIndex: parsed.data.roundIndex,
+            chosenId: parsed.data.chosenId,
+          },
+          whichMoreDeps,
+        );
+      }
+
+      const parsed = statBodySchema.safeParse(body);
       // Zod'un ayrıntılı hatası yanıta girmez (§6.3).
       if (!parsed.success) {
         throw new ValidationError("Gönderilen cevap geçersiz.");
@@ -65,9 +97,9 @@ export async function POST(
 
       return submitRoomAnswer(
         {
-          now: new Date(),
+          now,
           userId,
-          code: parseRoomCode(kod),
+          code,
           statKey: parsed.data.statKey,
           playerId: parsed.data.playerId,
         },

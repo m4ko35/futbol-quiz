@@ -15,6 +15,12 @@ import type { RoomState } from "@/domain/services/room";
  * durum saklanmıyor, `roomStatus` ile türetiliyor (§12.3).
  */
 
+/**
+ * Odanın oyun modu — §12.8, BR-67. Kod uzayı iki mod arasında ortaktır; bir
+ * uç, gövdeyi hangi kurala göre ayrıştıracağını bilmek için önce modu okur.
+ */
+export type RoomMode = "istatistik" | "hangisi-daha";
+
 /** Bir odanın kaydı: saf alan durumu artı depolamanın eklediği kimlikler. */
 export interface StoredRoom {
   readonly id: string;
@@ -69,6 +75,16 @@ export interface RoomsRepository {
    * kişiyi kodun doğru olduğuna inandırırdı. Sönmüşlük kararı `roomStatus`'ün.
    */
   findByCode(code: string): Promise<StoredRoom | null>;
+
+  /**
+   * Bir kodun MODUNU okur — §12.8, BR-67. Yoksa `null`.
+   *
+   * NEDEN AYRI VE UCUZ. Uçlar (GET/katıl/cevap) odanın kendisini okumadan önce
+   * hangi use-case'e gideceğini bilmeli; tam odayı iki kez okumak (bir kez mod
+   * için, bir kez use-case'te) yoklama yolunda israf olurdu. Bu yalnızca tek
+   * sütun seçer. MOD SÜZGECİ YOK: her iki modu da görür (dağıtımın amacı bu).
+   */
+  findRoomMode(code: string): Promise<RoomMode | null>;
 
   /**
    * Odayı kurar ve kurucuyu 0'ıncı koltuğa oturtur — TEK İŞLEMDE.

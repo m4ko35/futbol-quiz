@@ -1,6 +1,7 @@
 import type { AccountsRepository } from "@/application/ports/accounts-repository";
 import type { DatasetRepository } from "@/application/ports/dataset-repository";
 import type { RoomsRepository } from "@/application/ports/rooms-repository";
+import type { WhichMoreRoomsRepository } from "@/application/ports/which-more-rooms-repository";
 import type { GameModeDeps } from "@/application/game-modes";
 import { accountsPrisma } from "../accounts-client";
 import { prisma } from "../client";
@@ -9,6 +10,7 @@ import { PrismaClubRepository } from "./prisma-club-repository";
 import { PrismaDatasetRepository } from "./prisma-dataset-repository";
 import { PrismaPlayerRepository } from "./prisma-player-repository";
 import { PrismaRoomsRepository } from "./prisma-rooms-repository";
+import { PrismaWhichMoreRoomsRepository } from "./prisma-which-more-rooms-repository";
 import { PrismaStatMatchRepository } from "./prisma-stat-match-repository";
 import { PrismaWhichMoreRepository } from "./prisma-which-more-repository";
 
@@ -16,6 +18,7 @@ export { PrismaClubRepository } from "./prisma-club-repository";
 export { PrismaDatasetRepository } from "./prisma-dataset-repository";
 export { PrismaPlayerRepository } from "./prisma-player-repository";
 export { PrismaRoomsRepository } from "./prisma-rooms-repository";
+export { PrismaWhichMoreRoomsRepository } from "./prisma-which-more-rooms-repository";
 export { PrismaStatMatchRepository } from "./prisma-stat-match-repository";
 export { PrismaWhichMoreRepository } from "./prisma-which-more-repository";
 
@@ -78,4 +81,16 @@ export function roomsRepository(): RoomsRepository | null {
   if (client === null) return null;
 
   return new PrismaRoomsRepository(client);
+}
+
+/**
+ * Hangisi Daha oda deposu — §12.8. `roomsRepository` ile AYNI kapıdan geçer
+ * (aynı Turso istemcisi, aynı giriş şartı); ayrı işlev çünkü ikinci oda modu
+ * ayrı bir port. Hesaplar kapalıysa `null`.
+ */
+export function whichMoreRoomsRepository(): WhichMoreRoomsRepository | null {
+  const client = accountsPrisma();
+  if (client === null) return null;
+
+  return new PrismaWhichMoreRoomsRepository(client);
 }

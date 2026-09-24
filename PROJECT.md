@@ -5684,10 +5684,22 @@ yeniden ölçülmelidir.
 > koşucumuzu yazmak ve bakımını üstlenmek. Kararsız da olsa Prisma'nın kendi
 > yolu seçildi.
 >
-> **İLK GÖÇ `migrate dev` İLE ATILAMIYOR:** boş bir uzak veritabanında
-> `_prisma_migrations` tablosunu okumaya çalışıp düşüyor. İlk göç bu yüzden
-> `migrate diff` ile üretilip `migrate deploy` ile uygulandı. Sonrakiler
-> `db:migrate:accounts` ile normal akışına döner.
+> **`migrate dev` BU VERİTABANINDA HİÇ ÇALIŞMIYOR — ölçüldü.** Önce yalnızca
+> ilk göçte düştüğü biliniyordu: boş bir uzak veritabanında
+> `_prisma_migrations` tablosunu okumaya çalışıp hata veriyordu. 23 Eylül 2026
+> göçünde (§12.8) kusurun ilk göçe özgü OLMADIĞI görüldü. `migrate dev` bir
+> **gölge veritabanı** ister ve onu bağdaştırıcının `connectToShadowDb()`
+> işlevinden alır; `/web` girişinde o işlev adresi `:memory:` yapıp HTTP
+> istemcisini çağırıyor (`@prisma/adapter-libsql/dist/index-web.mjs`), o
+> istemci ise yerel dosya ya da bellek adresi açamaz. Komut
+> `Failed to connect to the shadow database` ile duruyor. Düğüm girişine
+> geçmek gölgeyi çözerdi ama 7 MB'lık yerel ikiliyi geri getirir (§11.8) —
+> bedeli, yalnızca göç anında işe yarayan bir kolaylık için fazla.
+>
+> **AKIŞ BU YÜZDEN İKİ ADIMLIDIR:** göç SQL'i `migrate diff` ile üretilir,
+> `npm run db:deploy:accounts` ile uygulanır, sonra `npm run db:generate:accounts`
+> ve `npm run db:verify:accounts` koşar. `db:migrate:accounts` betiği duruyor
+> ama bu veritabanında çalışmaz; onu çağırmak zaman kaybıdır.
 >
 > **Şemadaki `url` bir YER TUTUCU ve silinemiyor:** göç komutu "bu değerler
 > kullanılmayacak, kaldırmanızı öneririz" diye uyarıyor, kaldırınca doğrulayıcı
@@ -6826,6 +6838,122 @@ karar verilemiyor.
 - **Kopyalama düğmesi gerçek cihazlarda denenmedi.** `navigator.clipboard`
   güvenli bağlam istiyor; başarısızlık yakalanıyor ve kullanıcıya söyleniyor
   ama hangi tarayıcılarda düştüğü ölçülmedi.
+
+### 12.8 Hangisi Daha odası — ikinci oda modu (TASARIM, 23 Eylül 2026)
+
+Bugüne kadar odada oynanan tek oyun İstatistik'ti. İkinci bir oda modu ekleniyor:
+**Hangisi Daha'yı arkadaşa karşı.** Oda altyapısının çoğu (kod, kur/katıl/peek,
+yoklama, sönme, giriş şartı) oyundan bağımsız; yeniden yazılmıyor. Değişen tek
+şey **tur üretimi, puanlama, sonuç ve tahta**. Not: İstatistik odası eklenirken
+Stitch'in "oda modu seçimi" reddedilmişti (§12.7) çünkü o an tek oda modu vardı;
+**şimdi gerçekten iki mod olduğu için o seçim dürüst hâle geliyor.**
+
+**Değişmez kurallar (İstatistik odasıyla aynı hat):** gerçek zamanlı altyapı YOK
+— yoklama (§12.1). Giriş şart (BR-54), oda kısa ömürlü (BR-60), kod bir sır
+(BR-55). Değerler cevaptan önce gizli (BR-32). Puanlama ve eleme **sunucuda**;
+istemci değer/eleme gönderemez. **Sonuç saklanmaz, lider tablosuna girmez** —
+hem BR-60 hem §9.3 (Hangisi Daha zaten sıralanmıyor). Stitch'in oda tasarımındaki
+"+120 liderlik puanı / hız çarpanı / WebRTC" uydurmaları geçersiz (§5.2).
+
+#### Oda artık MOD taşır — BR-67
+
+`Room` bir `mode` alanı kazanıyor (`istatistik` | `hangisi-daha`) ve moda özgü
+bir `config` (JSON). **İstatistik odası DEĞİŞMEZ:** `mode = "istatistik"`,
+`targetPlayerId` eskisi gibi dolu, `config = null`. Hangisi Daha odasında
+`mode = "hangisi-daha"`, `targetPlayerId = null` ve `config` şunları taşır:
+`{ submode, statKey, level, direction, seed, n? }`. `config` sınırda **Zod** ile
+ayrıştırılıp doğrulanır (§2.3); ayrıştırılmamış JSON iç katmanlara geçmez.
+
+#### Ortak ray: dizi tohumdan türetilir — BR-68
+
+Hangisi Daha "kazanan kalır" der ve **kalan oyuncu VERİYLE belirlenir** (gerçek
+büyük/küçük olan), kullanıcının seçimiyle değil (§9.3). Bunun sonucu güçlü:
+odaya bir **tohum** koyarsak, düello dizisinin tamamı — ilk çift, sonraki
+rakibin hangi taraftan çekileceği (BR-30 yazı turası), band elemesi (BR-29) —
+`(seed, tur indeksi)`'ten **deterministik** üretilebilir. İki oyuncu **birebir
+aynı düelloları** görür; fark yalnızca kimin nerede yanıldığıdır. Bu, İstatistik
+odasındaki "ikinize aynı futbolcu" adaletinin Hangisi Daha karşılığıdır ve
+dürüsttür (uydurma yok).
+
+Ray saf bir zincirdir ve **sunucuda tekrar oynatılarak** hesaplanır: `pair_0 =
+f(seed,0)`, `winner_0 = veri(pair_0)`, `pair_1 = f(seed,1,winner_0,seen_0)`, …
+Rastgelelik DIŞARIDAN gelir — `RandomSource`'un **tohumlu** bir türevi domaine
+verilir; domain kendi rastgeleliğini üretmez (§2.1, BR-30 ile aynı desen). Veri
+bir derleme çıktısı olduğu için (§3.1) ray süreç boyunca değişmez ve tekrar
+oynatma ucuz (§9.3: sıcak ~0,8 ms/tur).
+
+#### İki alt-mod — BR-69
+
+- **Ani ölüm.** Her oyuncu kendi rayında ilerler; **tek yanlış koşusunu
+  bitirir** (solo moddaki gibi). Skor = seri. Daha uzun seri kazanır.
+- **Sabit N düello.** Host **5 / 10 / 15** seçer. **Eleme yok:** iki oyuncu da
+  N düelloyu cevaplar (yanlış cevap rayı dallandırmaz — kalan yine veri
+  belirler), skor = doğru sayısı. Yüksek olan kazanır.
+- Her ikisinde de **eşit = beraberlik** (BR-62 hattı: süreye/hıza bakılmaz).
+
+**Ani ölümün kapanışı sınırlıdır.** Bir oyuncunun koşusu ilk yanlışta biter.
+Maç, sonuç KESİNLEŞTİĞİ an kapanır: (a) ikisi de bittiyse serileri karşılaştır;
+(b) biri `s` serisinde bittiyse ve diğerinin serisi `s`'yi GEÇTİYSE, diğeri
+kazanmıştır (henüz oynuyor olsa bile — `s`'yi geçmek geleceğinden bağımsız
+kazandırır). Tek "karar verilmemiş" hâl: biri `s`'de bitmiş, diğeri hâlâ `≤ s`
+seride canlı — o zaman canlı oyuncunun yalnızca `s+1`'e ulaşması yeter. Yani
+bekleyiş sınırlıdır. İkisi de hiç yanılmaz (çok nadir) → 60 dk sönmesi (BR-60)
+devreye girer ve maç **yarım** kalır. Sabit N'de sonuç ikisi de N'i bitirince
+kesinleşir; süre dolmadan biri bitirmezse **yarım**.
+
+#### Rakibin ilerlemesi bitene dek gizli — BR-70
+
+İstatistik odasında rakibin PUANI tur biterken gizlidir (BR-63). Buranın
+karşılığı: rakibin **serisi / doğru sayısı ve hangi kartı seçtiği** oda bitene
+kadar gizli; yalnızca durumu görünür — `oynuyor`, `elendi` (Ani ölüm), `n/N
+bitirdi` (Sabit N). Oda bitince rakibin seçimleri açılır: iki tarafın aynı
+düellolarda ne seçtiğini yan yana görmek, odanın tek kalıcı-olmayan ödülü
+(BR-60). Sızıntı yok: rakibin `k`. turda olması `k-1`'i doğru bildiğini söyler,
+ama `k`. çiftin cevabını söylemez (kart hâlâ kapalı, BR-32).
+
+#### Veri modeli (şema göçü)
+
+- `Room`: `+ mode` (metin), `+ config` (metin/JSON, boş bırakılabilir);
+  `targetPlayerId` artık boş bırakılabilir (yalnızca İstatistik odasında dolu).
+- `RoomPlayer` DEĞİŞMEZ (oda–kullanıcı bağı + koltuk).
+- `+ RoomWhichMoreAnswer`: `{ roomId, userId, roundIndex, chosenId, correct }`.
+  Seri ve bitmişlik buradan TÜRETİLİR (§12.3'ün "durum saklanmaz, türetilir"
+  kuralı); ayrı bir `streak`/`status` sütunu yok.
+- **Göç Turso'ya ELLE doğrulanacak.** §12.3'ün uyarısı burada da geçerli:
+  `prisma migrate` bir kez tabloları yalnızca yerel dosyaya kurmuştu; tabloların
+  gerçekten Turso'da olduğu ayrıca sayılacak — "komut hata vermedi" kanıt değil.
+
+#### API uçları
+
+Hepsi `cacheable: false` (BR-47). Mevcut dört uç korunur, gövdeleri moda göre
+genişler (sunucu odanın modunu bilir, gövde **Zod ayrık birliğiyle** doğrulanır):
+
+| Uç                          | Hangisi Daha'da ne değişir                                                                              |
+| --------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `POST /api/oda`             | Gövde `mode` + `config` alır (varsayılan `istatistik`, geriye dönük)                                    |
+| `POST /api/oda/{kod}/katil` | Değişmez                                                                                                |
+| `GET /api/oda/{kod}`        | Durum + oyuncunun o anki turu (kendi indeksine göre çift, değerler kapalı) + ilerleme + (bitince) sonuç |
+| `POST /api/oda/{kod}/cevap` | Gövde `{ roundIndex, chosenId }`; sunucu rayı yeniden oynatıp doğruluğu ve bir sonraki turu döner       |
+
+#### Arayüz
+
+- **Lobi "Oda kur" akışına mod seçimi** eklenir (İstatistik / Hangisi Daha).
+  Hangisi Daha seçilince alt-mod (Ani ölüm / Sabit N + 5/10/15), metrik, havuz
+  (Kolay/Zor), yön seçilir — solo kurulum ekranının (§9.3) alanlarıyla aynı.
+- **Oda tahtası:** solo düello kartı yeniden kullanılır; ek olarak rakibin
+  gizli ilerlemesi ve sonuç şeridi. Erişilebilirlik/CSP korunur (§7.10/§7.3).
+- **Giriş noktası solo sayfasında.** §12.7 odanın "beşinci bir oyun modu değil,
+  bir oynanış biçimi" olduğuna karar vermiş ve odaya çağrı şeridini (`RoomEntryBar`)
+  ilgili oyunun tek başına oynandığı sayfaya koymuştu — İstatistik için
+  `/istatistik`. Aynı gerekçe Hangisi Daha için de geçerli: şerit
+  `/hangisi-daha`'nın **kurulum ekranına** (§9.3 Ekran A, kullanıcı oyunu anlamış
+  ama henüz başlamamışken; `h1`'in ALTINA, §12.7'deki sıra kararıyla) konur.
+  Aynı kapı (hesap kapalıyken hiç gösterilmez, girişsizde `/giris`, §11.11);
+  metin moda göre değişir ("aynı futbolcu" yerine "aynı düellolar"). Şerit
+  lobiye modu **önseçili** götürür (`/oda?mod=hangisi-daha`): oradan Hangisi
+  Daha kurmaya gelen kullanıcı İstatistik'e ayarlı bir formla karşılaşmaz. Mod
+  sorgu parametresi lobide **Zod'la** doğrulanır; tanınmayan değer varsayılan
+  İstatistik'e düşer (§2.3).
 
 ## 13. Sözlük
 
