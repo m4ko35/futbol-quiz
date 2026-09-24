@@ -5684,10 +5684,22 @@ yeniden ölçülmelidir.
 > koşucumuzu yazmak ve bakımını üstlenmek. Kararsız da olsa Prisma'nın kendi
 > yolu seçildi.
 >
-> **İLK GÖÇ `migrate dev` İLE ATILAMIYOR:** boş bir uzak veritabanında
-> `_prisma_migrations` tablosunu okumaya çalışıp düşüyor. İlk göç bu yüzden
-> `migrate diff` ile üretilip `migrate deploy` ile uygulandı. Sonrakiler
-> `db:migrate:accounts` ile normal akışına döner.
+> **`migrate dev` BU VERİTABANINDA HİÇ ÇALIŞMIYOR — ölçüldü.** Önce yalnızca
+> ilk göçte düştüğü biliniyordu: boş bir uzak veritabanında
+> `_prisma_migrations` tablosunu okumaya çalışıp hata veriyordu. 23 Eylül 2026
+> göçünde (§12.8) kusurun ilk göçe özgü OLMADIĞI görüldü. `migrate dev` bir
+> **gölge veritabanı** ister ve onu bağdaştırıcının `connectToShadowDb()`
+> işlevinden alır; `/web` girişinde o işlev adresi `:memory:` yapıp HTTP
+> istemcisini çağırıyor (`@prisma/adapter-libsql/dist/index-web.mjs`), o
+> istemci ise yerel dosya ya da bellek adresi açamaz. Komut
+> `Failed to connect to the shadow database` ile duruyor. Düğüm girişine
+> geçmek gölgeyi çözerdi ama 7 MB'lık yerel ikiliyi geri getirir (§11.8) —
+> bedeli, yalnızca göç anında işe yarayan bir kolaylık için fazla.
+>
+> **AKIŞ BU YÜZDEN İKİ ADIMLIDIR:** göç SQL'i `migrate diff` ile üretilir,
+> `npm run db:deploy:accounts` ile uygulanır, sonra `npm run db:generate:accounts`
+> ve `npm run db:verify:accounts` koşar. `db:migrate:accounts` betiği duruyor
+> ama bu veritabanında çalışmaz; onu çağırmak zaman kaybıdır.
 >
 > **Şemadaki `url` bir YER TUTUCU ve silinemiyor:** göç komutu "bu değerler
 > kullanılmayacak, kaldırmanızı öneririz" diye uyarıyor, kaldırınca doğrulayıcı

@@ -23,6 +23,7 @@ function taraf(answered: number, points: number | null = null): RoomSideDto {
 
 function oda(patch: Partial<RoomDto> = {}): RoomDto {
   return {
+    mode: "istatistik",
     code: "BKJ7TZ",
     status: "oynaniyor",
     expiresAt: "2026-08-20T11:00:00.000Z",

@@ -1,6 +1,7 @@
 import type {
   CreateRoomResult,
   JoinRoomResult,
+  RoomMode,
   RoomsRepository,
   SaveRoomAnswerResult,
   StoredRoom,
@@ -160,6 +161,18 @@ export class PrismaRoomsRepository implements RoomsRepository {
     });
 
     return row === null ? null : toStoredRoom(row);
+  }
+
+  async findRoomMode(code: string): Promise<RoomMode | null> {
+    // MOD SÜZGECİ YOK — dağıtımın amacı her iki modu da ayırt etmek (§12.8).
+    // Tek sütun okunur; tam oda use-case'te ayrıca okunacak.
+    const row = await this.prisma.room.findUnique({
+      where: { code },
+      select: { mode: true },
+    });
+
+    if (row === null) return null;
+    return row.mode === "hangisi-daha" ? "hangisi-daha" : "istatistik";
   }
 
   async createRoom(input: {

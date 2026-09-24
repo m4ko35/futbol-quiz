@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { getRoom } from "@/application/use-cases/rooms";
+import { getWhichMoreRoom } from "@/application/use-cases/which-more-rooms";
 import {
   rateLimiter,
   resolveClientKey,
@@ -40,12 +41,18 @@ export async function GET(
     cacheable: false,
     run: async () => {
       const { kod } = await context.params;
-      const { userId, deps } = await roomRequestContext(request);
+      const { userId, deps, whichMoreDeps } = await roomRequestContext(request);
+      const now = new Date();
+      const code = parseRoomCode(kod);
 
-      return getRoom(
-        { now: new Date(), userId, code: parseRoomCode(kod) },
-        deps,
-      );
+      // MODA GÖRE DAĞITIM (§12.8): önce ucuz mod okuması, sonra doğru use-case.
+      // Kod yoksa `null` → İstatistik use-case "böyle bir oda yok" der (tutarlı).
+      const mode = await deps.rooms.findRoomMode(code);
+      if (mode === "hangisi-daha") {
+        return getWhichMoreRoom({ now, userId, code }, whichMoreDeps);
+      }
+
+      return getRoom({ now, userId, code }, deps);
     },
   });
 }

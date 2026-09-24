@@ -259,6 +259,8 @@ export interface WhichMoreOpponentDto {
 }
 
 export interface WhichMoreRoomDto {
+  /** §12.8 — istemci hangi oda şekliyle konuştuğunu buradan ayırt eder (BR-67). */
+  readonly mode: "hangisi-daha";
   readonly code: string;
   readonly status: RoomStatus;
   readonly expiresAt: string;
@@ -401,6 +403,7 @@ async function presentWhichMore(
   const current = await currentDuelFor(room, me, now, deps);
 
   return {
+    mode: "hangisi-daha",
     code: room.code,
     status,
     expiresAt: whichMoreRoomDeadline(state).toISOString(),

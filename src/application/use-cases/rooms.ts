@@ -85,6 +85,8 @@ export type RoomOutcomeKind =
   "devam" | "yarim" | "beraberlik" | "kazandin" | "kaybettin";
 
 export interface RoomDto {
+  /** §12.8 — istemci hangi oda şekliyle konuştuğunu buradan ayırt eder (BR-67). */
+  readonly mode: "istatistik";
   readonly code: string;
   readonly status: RoomStatus;
   /** Odanın sönme anı — arayüz geri sayımı buradan çizer (BR-60). */
@@ -186,6 +188,7 @@ async function present(
     : null;
 
   return {
+    mode: "istatistik",
     code: room.code,
     status,
     expiresAt: roomDeadline(room.state).toISOString(),

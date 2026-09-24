@@ -44,6 +44,7 @@ function taraf(
 
 function bitmisOda(patch: Partial<RoomDto> = {}): RoomDto {
   return {
+    mode: "istatistik",
     code: "BKJ7TZ",
     status: "bitti",
     expiresAt: "2026-08-20T11:00:00.000Z",

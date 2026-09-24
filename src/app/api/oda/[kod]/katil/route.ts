@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { joinRoom } from "@/application/use-cases/rooms";
+import { joinWhichMoreRoom } from "@/application/use-cases/which-more-rooms";
 import {
   rateLimiter,
   resolveClientKey,
@@ -33,12 +34,18 @@ export async function POST(
     cacheable: false,
     run: async () => {
       const { kod } = await context.params;
-      const { userId, deps } = await roomRequestContext(request);
+      const { userId, deps, whichMoreDeps } = await roomRequestContext(request);
+      const now = new Date();
+      const code = parseRoomCode(kod);
 
-      return joinRoom(
-        { now: new Date(), userId, code: parseRoomCode(kod) },
-        deps,
-      );
+      // MODA GÖRE DAĞITIM (§12.8) — katılma yaşam döngüsü iki modda da aynı ama
+      // dönen DTO şekli moda göre değişir; doğru use-case doğru şekli üretir.
+      const mode = await deps.rooms.findRoomMode(code);
+      if (mode === "hangisi-daha") {
+        return joinWhichMoreRoom({ now, userId, code }, whichMoreDeps);
+      }
+
+      return joinRoom({ now, userId, code }, deps);
     },
   });
 }

@@ -95,6 +95,11 @@ class SahteOdaDeposu implements RoomsRepository {
     return Promise.resolve(this.odalar.get(code) ?? null);
   }
 
+  findRoomMode(code: string): Promise<"istatistik" | "hangisi-daha" | null> {
+    // Bu fake yalnızca İstatistik odası tutar; kod varsa mod odur.
+    return Promise.resolve(this.odalar.has(code) ? "istatistik" : null);
+  }
+
   createRoom(input: {
     readonly hostId: string;
     readonly code: string;
