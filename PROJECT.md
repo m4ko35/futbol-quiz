@@ -6972,8 +6972,10 @@ TÜRETİLİR (§12.3): tabloda yalnızca hamle dizisi durur.
 
 #### BR-71 — Oda "izgara" modunu ve tohumlu ortak ızgarayı taşır
 
-`Room.mode` üçüncü değeri alır: `izgara`. `config = { seed, firstMark }` (JSON,
-sınırda **Zod** ile doğrulanır §2.3). Izgara **tohumdan tamamen sunucuda**
+`Room.mode` üçüncü değeri alır: `izgara`. `config = { seed, firstSeat }` (JSON,
+sınırda **Zod** ile doğrulanır §2.3); `firstSeat` ∈ {0,1} ilk hamleyi (X) yapan
+KOLTUĞU söyler (0 = kurucu, 1 = katılan), soyut bir "işaret" değil — çünkü ilk
+hamle katılan belli olmadan, tohumdan belirlenir (BR-76). Izgara **tohumdan tamamen sunucuda**
 üretilir — `generateGrid(seed, deps)` herhangi bir tam sayı tohumuyla
 deterministik (§9.1; BR-68'in Hangisi Daha rayıyla **aynı** desen). İki oyuncu
 **birebir aynı 3×3'ü** görür; istemci tohumu ya da üreteci hiç görmez. İstatistik
@@ -7022,9 +7024,9 @@ sütunu yok.
 #### BR-76 — İlk hamle (X) tohumdan rastgele
 
 XOX'ta ilk hamle avantajı gerçektir; onu kurucuya ya da katılana sabitlemek
-haksız olur. İlk işaretin kime düştüğü **oda tohumundan** belirlenir
-(belirlenimci, adil) ve `config.firstMark` içinde saklanır — ray gibi tekrar
-oynatılabilir olsun diye. Kim X, kim O olduğu iki oyuncuya da açıktır.
+haksız olur. İlk hamlenin hangi **koltuğa** düştüğü **oda tohumundan** belirlenir
+(belirlenimci, adil) ve `config.firstSeat` içinde saklanır — ray gibi tekrar
+oynatılabilir olsun diye. O koltuk X, diğeri O; kim X kim O iki oyuncuya da açıktır.
 
 #### Veri modeli (şema göçü)
 
