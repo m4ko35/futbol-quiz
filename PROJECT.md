@@ -6955,6 +6955,117 @@ genişler (sunucu odanın modunu bilir, gövde **Zod ayrık birliğiyle** doğru
   sorgu parametresi lobide **Zod'la** doğrulanır; tanınmayan değer varsayılan
   İstatistik'e düşer (§2.3).
 
+### 12.9 Izgara odası — üçüncü oda modu: XOX (TASARIM, 24 Eylül 2026)
+
+İlk iki oda modu (İstatistik, Hangisi Daha) **paraleldi**: iki oyuncu aynı anda
+kendi kendine oynar, ilerleme oda bitene dek gizlidir (BR-63/BR-70), sonuç sonda
+türetilir. Üçüncü mod bu kalıbı kırıyor: **Izgara'yı XOX (tic-tac-toe) olarak
+arkadaşa karşı.** İki oyuncu **aynı 3×3 ızgarada sırayla** hamle yapar ve tahta
+iki tarafa da **açıktır**. Oda altyapısının çoğu (kod, kur/katıl/peek, yoklama
+§12.1, sönme BR-60, giriş şartı BR-54, mod dispatch §12.8) yeniden yazılmaz;
+değişen **tur değil sıra**, ve öncekinin aksine **hiçbir ilerleme gizli değil**.
+
+**Değişmez hat:** gerçek zamanlı altyapı YOK — yoklama (§12.1). Sonuç saklanmaz,
+lider tablosuna girmez (BR-60 + §9.1 zaten sıralanmıyor). Doğrulama ve galip
+**sunucuda**; istemci "kazandım" ya da "bu hücre benim" diyemez. Durum SAKLANMAZ,
+TÜRETİLİR (§12.3): tabloda yalnızca hamle dizisi durur.
+
+#### BR-71 — Oda "izgara" modunu ve tohumlu ortak ızgarayı taşır
+
+`Room.mode` üçüncü değeri alır: `izgara`. `config = { seed, firstMark }` (JSON,
+sınırda **Zod** ile doğrulanır §2.3). Izgara **tohumdan tamamen sunucuda**
+üretilir — `generateGrid(seed, deps)` herhangi bir tam sayı tohumuyla
+deterministik (§9.1; BR-68'in Hangisi Daha rayıyla **aynı** desen). İki oyuncu
+**birebir aynı 3×3'ü** görür; istemci tohumu ya da üreteci hiç görmez. İstatistik
+ve Hangisi Daha odaları **DEĞİŞMEZ**.
+
+#### BR-72 — Sıra tabanlı: hamleyi sunucu sıralar
+
+Paralel modların aksine aynı anda **yalnızca bir oyuncu** hamle yapar. Sıra, hamle
+dizisinden TÜRETİLİR (§12.3): ilk işaret (BR-76) artı o ana kadarki hamle sayısı
+kimin sırada olduğunu belirler. Sunucu **sıra dışı hamleyi reddeder** —
+istemcinin "şimdi benim sıram" iddiasına güvenilmez (§2.3, §7.1). Bekleyen oyuncu
+yoklamayla (§12.1) rakibin hamlesinin belirmesini görür, ardından kendi sırası
+açılır. Bu, oda modlarının ilk **sıra zorlaması**; İstatistik ve Hangisi Daha'da
+karşılığı yoktu.
+
+#### BR-73 — Hamle: doğru kapar, yanlış hücreyi öldürür, sıra her hâlde geçer
+
+Sıradaki oyuncu bir **boş hücre** seçip o hücrenin iki ölçütüne uyan bir futbolcu
+verir. Sunucu ızgarayı tohumdan üretip `matchesAll` ile doğrular (§9.1, BR-12).
+**Doğruysa** hücre oyuncunun işaretiyle (X/O) dolar; **yanlışsa** hücre "ölü"
+(nötr) olur ve artık kimse kapayamaz. Her iki durumda da **sıra rakibe geçer**.
+Sonuç güçlü: her hamle tam bir hücre kapatır, yani oyun **en çok 9 turda** biter —
+sonsuz döngü yok, §12.8'in "sınırlı kapanış" ahlakı ve BR-60 kısa ömürle uyumlu.
+Aynı hücreye iki eşzamanlı hamle veritabanı kısıtıyla durur
+(`@@unique([roomId, cellRow, cellCol])`, BR-58 hattı): yarışı kaybeden istek
+kendi hesabını değil **saklanan durumu** görür.
+
+#### BR-74 — Futbolcu SINIRSIZ tekrar (solo BR-10'un aksine)
+
+Solo ızgarada bir futbolcu yalnızca bir hücrede kullanılabilir (BR-10). Oda
+XOX'unda **kullanılabilir**: aynı futbolcu birden çok hücreyi kapayabilir, çünkü
+her hücre kendi iki ölçütüyle **bağımsız** doğrulanır ve XOX'un asıl gerilimi
+sıra/blok stratejisidir, kadro tüketmek değil. Doğrulama da basitleşir —
+"kullanılmış futbolcu" hiç izlenmez. Tahta yine de her kapalı hücrede **hangi
+futbolcunun** kullanıldığını gösterir (bilgilendirici; bir kullanımı kilitlemez).
+
+#### BR-75 — Galip: üç sıra, yoksa çok hücre, eşitse beraberlik
+
+Bir işaret **3'lü sıra** (yatay, dikey ya da çapraz) tamamlarsa o oyuncu kazanır
+ve oyun o an biter (kalan hücreler oynanmaz). Tahta 3'lüsüz dolarsa **çok hücre
+kapan** kazanır; eşitse **beraberlik** (§12.8'in "eşit=beraberlik" hattı, BR-62).
+Tur yarım kalırsa (rakip bırakır, 60 dk söner) **galip yoktur**, "yarım kaldı"
+denir (BR-61). Galip de sıra gibi hamle dizisinden TÜRETİLİR; ayrı bir `winner`
+sütunu yok.
+
+#### BR-76 — İlk hamle (X) tohumdan rastgele
+
+XOX'ta ilk hamle avantajı gerçektir; onu kurucuya ya da katılana sabitlemek
+haksız olur. İlk işaretin kime düştüğü **oda tohumundan** belirlenir
+(belirlenimci, adil) ve `config.firstMark` içinde saklanır — ray gibi tekrar
+oynatılabilir olsun diye. Kim X, kim O olduğu iki oyuncuya da açıktır.
+
+#### Veri modeli (şema göçü)
+
+- `Room`: `mode` üçüncü değeri (`izgara`) alır; `config` tohum + ilk işaret
+  taşır. `targetPlayerId` boş (yalnızca İstatistik odasında dolu).
+- `+ RoomGridMove`: `{ roomId, userId, moveIndex, cellRow, cellCol, playerId,
+correct }`. Sıra, tahta ve galip **buradan** türetilir (§12.3'ün "durum
+  saklanmaz, türetilir" kuralı); ayrı `turn`/`board`/`winner` sütunu yok.
+  `@@unique([roomId, cellRow, cellCol])` — bir hücre yalnızca **bir kez**
+  kapatılır (BR-73).
+- **Göç Turso'ya ELLE doğrulanacak** (§12.3/§11.3 tuzağı): `migrate dev` bu
+  projede çalışmaz; çalışan yol `db:deploy:accounts → db:generate:accounts →
+db:verify:accounts`. "Komut hata vermedi" kanıt değil.
+
+#### API uçları
+
+Mevcut dört uç korunur; gövde moda göre genişler ve **Zod ayrık birliğiyle**
+doğrulanır (§12.8'deki dispatch ile aynı):
+
+| Uç                          | Izgara'da ne değişir                                                                                                     |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `POST /api/oda`             | Gövde `mode="izgara"`; sunucu tohumu üretir ve ilk işareti belirler (BR-71/BR-76)                                        |
+| `POST /api/oda/{kod}/katil` | Değişmez                                                                                                                 |
+| `GET /api/oda/{kod}`        | Ortak ızgara ölçütleri + tahta durumu + kimin sırası + (bitince) galip                                                   |
+| `POST /api/oda/{kod}/cevap` | Gövde `{ cellRow, cellCol, playerId }` (bir HAMLE); sunucu sırayı ve hücreyi doğrular, sonucu ve sıradaki oyuncuyu döner |
+
+#### Arayüz
+
+- **Lobi mod seçicisi** üçüncü seçeneği alır (Izgara). Kurulum sadedir: tahta
+  **3×3 sabit** (XOX'un doğası); solo ızgaranın boyut seçimi (BR-27) burada
+  **yok**. Neredeyse tek karar "Oda kur".
+- **Oda tahtası:** ortak 3×3 ızgara — satır/sütun ölçütleri, **kimin sırası**
+  göstergesi, sıradaki oyuncunun hücre seçip futbolcu araması (mevcut
+  `player-picker` yeniden kullanılır), X/O işaretleri, ölü hücreler ve kapalı
+  hücrelerdeki futbolcu adları. Erişilebilirlik/CSP korunur (§7.10/§7.3);
+  otomatik ilerleme ve süre sınırı YOK (WCAG 2.2.1). Renk tek gösterge değildir
+  (WCAG 1.4.1): X/O ve "ölü" ayrımı işaret/desenle de verilir.
+- **Giriş noktası** `/izgara` solo sayfasında (§12.7/§12.8 kararı): odaya çağrı
+  şeridi (`RoomEntryBar mode="izgara"`), metin "aynı ızgarada karşı karşıya";
+  lobiye modu önseçili götürür (`/oda?mod=izgara`).
+
 ## 13. Sözlük
 
 | Terim         | Anlam                                                                       |
