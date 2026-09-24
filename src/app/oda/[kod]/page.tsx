@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { peekRoom } from "@/application/use-cases/rooms";
+import { peekWhichMoreRoom } from "@/application/use-cases/which-more-rooms";
 import { PageShell } from "@/components/page-shell";
 import { RoomBoard } from "@/components/room-board";
+import { WhichMoreRoomBoard } from "@/components/which-more-room-board";
 import { buttonClasses } from "@/components/ui/button";
 import { RoomInvite } from "@/components/room-invite";
 import { RoomJoin } from "@/components/room-join";
@@ -76,8 +78,40 @@ export default async function RoomPage({ params }: PageProps) {
     );
   }
 
+  /**
+   * MODA GÖRE DAĞITIM (§12.8). Kod uzayı iki mod arasında ortak; önce ucuz mod
+   * okuması, sonra doğru peek + tahta. `null` (kod yok) İstatistik yoluna
+   * düşer ve `peekRoom` "yok" der → 404 (tutarlı). RoomJoin/RoomClosed iki modda
+   * da ortak: katılma ve kapalılık oyundan bağımsız.
+   */
+  const now = new Date();
+  const mode = await context.deps.rooms.findRoomMode(code);
+
+  if (mode === "hangisi-daha") {
+    const entry = await peekWhichMoreRoom(
+      { now, userId: context.userId, code },
+      context.whichMoreDeps,
+    );
+
+    if (entry.kind === "yok") notFound();
+
+    return (
+      <PageShell>
+        {entry.kind === "uye" && (
+          <WhichMoreRoomBoard initialRoom={entry.room} />
+        )}
+        {entry.kind === "katilabilir" && <RoomJoin code={code} />}
+        {entry.kind === "kapali" && (
+          <RoomClosed code={code} reason={entry.reason} />
+        )}
+
+        <SiteFooter dataGeneratedAt={dataGeneratedAt} />
+      </PageShell>
+    );
+  }
+
   const entry = await peekRoom(
-    { now: new Date(), userId: context.userId, code },
+    { now, userId: context.userId, code },
     context.deps,
   );
 
