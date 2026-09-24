@@ -20,7 +20,7 @@ import { currentUser } from "@/lib/auth/current-user";
  * olurdu.
  */
 const modeParamSchema = z
-  .enum(["istatistik", "hangisi-daha"])
+  .enum(["istatistik", "hangisi-daha", "izgara"])
   .catch("istatistik");
 
 /**

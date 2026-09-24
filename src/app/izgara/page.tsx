@@ -6,8 +6,14 @@ import { listLeagues } from "@/application/use-cases/search-clubs";
 import { DataLabel } from "@/components/data-label";
 import { GridQuiz } from "@/components/grid-quiz";
 import { PageShell } from "@/components/page-shell";
+import { RoomEntryBar } from "@/components/room-entry-bar";
 import { SiteFooter } from "@/components/site-footer";
-import { datasets, repositories } from "@/infrastructure/db/repositories";
+import {
+  accountsRepository,
+  datasets,
+  repositories,
+} from "@/infrastructure/db/repositories";
+import { currentUser } from "@/lib/auth/current-user";
 
 /**
  * 3×3 ızgara ekranı — PROJECT.md §9.1.
@@ -57,32 +63,54 @@ const HOW_TO_RULES: readonly {
 
 export default async function GridPage() {
   // Hepsi birbirinden bağımsız; sırayla beklemek boşuna gecikme olurdu.
-  const [grid, dataGeneratedAt, curated, clubCount, playerCount, leagues] =
-    await Promise.all([
-      getDailyGrid(new Date(), repositories),
-      datasets.getGeneratedAt(),
-      /*
-       * "Sen kur" sütun seçicisinin ARAMASIZ ilk listesi (§9.1).
-       *
-       * Sunucuda hazırlanıyor çünkü istemci bunu ancak bir gidiş-dönüşle
-       * alabilirdi ve alfabetik ilk sayfa tanınmayan kulüplerle açılıyordu.
-       * Havuz bir SINIR DEĞİL: kullanıcı yazdığı anda 906 seçilebilir kulübün
-       * tamamı aranır.
-       */
-      repositories.clubs.findByWikidataIds(CURATED_CLUB_QIDS),
-      // "Kapsam" şeridinin GERÇEK sayıları (§5.2): uydurma değil, veri kümesi.
-      datasets.countSelectableClubs(),
-      datasets.countPlayers(),
-      listLeagues({ clubs: repositories.clubs }),
-    ]);
+  const [
+    grid,
+    dataGeneratedAt,
+    curated,
+    clubCount,
+    playerCount,
+    leagues,
+    user,
+  ] = await Promise.all([
+    getDailyGrid(new Date(), repositories),
+    datasets.getGeneratedAt(),
+    /*
+     * "Sen kur" sütun seçicisinin ARAMASIZ ilk listesi (§9.1).
+     *
+     * Sunucuda hazırlanıyor çünkü istemci bunu ancak bir gidiş-dönüşle
+     * alabilirdi ve alfabetik ilk sayfa tanınmayan kulüplerle açılıyordu.
+     * Havuz bir SINIR DEĞİL: kullanıcı yazdığı anda 906 seçilebilir kulübün
+     * tamamı aranır.
+     */
+    repositories.clubs.findByWikidataIds(CURATED_CLUB_QIDS),
+    // "Kapsam" şeridinin GERÇEK sayıları (§5.2): uydurma değil, veri kümesi.
+    datasets.countSelectableClubs(),
+    datasets.countPlayers(),
+    listLeagues({ clubs: repositories.clubs }),
+    currentUser(),
+  ]);
 
   const curatedClubs = curated
     .map(toClubDto)
     .sort((a, b) => a.shortName.localeCompare(b.shortName, "tr"));
 
+  /**
+   * ODAYA ÇAĞRI ŞERİDİ — §12.9, İstatistik/Hangisi Daha ile aynı kapı (§12.7).
+   * Hesap kapalıyken HİÇ gösterilmez (`/oda` 404 döner); girişsizde `/giris`.
+   */
+  const accounts = accountsRepository();
+  const roomEntry =
+    accounts === null ? undefined : (
+      <RoomEntryBar mode="izgara" signedIn={user !== null} />
+    );
+
   return (
     <PageShell>
-      <GridQuiz grid={grid} curatedClubs={curatedClubs} />
+      <GridQuiz
+        grid={grid}
+        curatedClubs={curatedClubs}
+        {...(roomEntry === undefined ? {} : { roomEntry })}
+      />
 
       {/*
         SEO/tanıtım bölümü — §7.11. Oyunun altında, ikincil tonda. Stitch'in

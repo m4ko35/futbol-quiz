@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 import type { ClubDto } from "@/application/dto/club-dto";
 import type { PlayerDto } from "@/application/dto/player-dto";
 import type { GridCriterionRefDto } from "@/application/use-cases/custom-grid";
@@ -46,6 +46,12 @@ export interface GridQuizProps {
    * yazdığı anda 906 seçilebilir kulübün tamamı aranır.
    */
   readonly curatedClubs: readonly ClubDto[];
+  /**
+   * Odaya çağrı şeridi — §12.9. YALNIZCA günün ızgarasına geçirilir ("Sen kur"
+   * turu almaz). Sunucu sayfası girişi/hesap durumunu bildiği için şerit orada
+   * kurulur; bu istemci sarmalayıcısı yalnızca doğru GridGame'e taşır.
+   */
+  readonly roomEntry?: ReactNode;
 }
 
 /** Kulüp kaydı → ızgara ölçütü. Etiket KISA ad: başlık hücresine sığmalı. */
@@ -53,7 +59,7 @@ function toColumnRef(club: ClubDto): GridCriterionRefDto {
   return { kind: "club", id: club.id, label: club.shortName };
 }
 
-export function GridQuiz({ grid, curatedClubs }: GridQuizProps) {
+export function GridQuiz({ grid, curatedClubs, roomEntry }: GridQuizProps) {
   const [custom, setCustom] = useState<BuiltGrid | null>(null);
 
   const searchPlayers = useCallback(
@@ -227,6 +233,7 @@ export function GridQuiz({ grid, curatedClubs }: GridQuizProps) {
       <GridGame
         grid={grid}
         date={grid.date}
+        {...(roomEntry === undefined ? {} : { roomEntry })}
         header={{
           // Yalnızca TARİH. "Mod 2 · Matris" kaldırıldı: modun adı gezinme
           // şeridinde ve hemen altındaki `h1`'de zaten yazılı. Tarih ise
