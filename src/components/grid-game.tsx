@@ -97,6 +97,13 @@ export interface GridGameProps {
   };
   /** Oyun bitince yeni ızgara kurmak için — yalnızca "Sen kur" turunda. */
   onRestart?: () => void;
+  /**
+   * KONUMSAL YUVA — §12.9 (İstatistik'teki `beforeStats`, §12.7 deseni). Odaya
+   * çağrı şeridi (`RoomEntryBar`) buraya gelir: künyenin ALTINDA, durum
+   * bandının üstünde (kullanıcı oyunu anladı ama henüz başlamadı). Yalnızca
+   * günün ızgarasında verilir; "Sen kur" turu almaz.
+   */
+  readonly roomEntry?: ReactNode;
   /** Cevap doğrulama; testlerde sahte bir uygulama verilir. */
   checkAnswer(cell: CellRef, playerId: string): Promise<boolean>;
   /** Oyuncu arama; testlerde sahte bir uygulama verilir. */
@@ -133,6 +140,7 @@ export function GridGame({
   grid,
   date,
   onRestart,
+  roomEntry,
   checkAnswer,
   searchPlayers,
   reveal,
@@ -393,6 +401,9 @@ export function GridGame({
       ) : (
         <p className="max-w-prose text-sm text-muted">{task}</p>
       )}
+
+      {/* ODAYA ÇAĞRI — §12.9, künyenin altında, durum bandının üstünde. */}
+      {roomEntry}
 
       {/*
         DURUM BANDI (§7.15) — künyenin ALTINDA, tablonun ÜSTÜNDE. Sayaçlar

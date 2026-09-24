@@ -164,7 +164,7 @@ export class PrismaRoomsRepository implements RoomsRepository {
   }
 
   async findRoomMode(code: string): Promise<RoomMode | null> {
-    // MOD SÜZGECİ YOK — dağıtımın amacı her iki modu da ayırt etmek (§12.8).
+    // MOD SÜZGECİ YOK — dağıtımın amacı ÜÇ modu da ayırt etmek (§12.8/§12.9).
     // Tek sütun okunur; tam oda use-case'te ayrıca okunacak.
     const row = await this.prisma.room.findUnique({
       where: { code },
@@ -172,7 +172,11 @@ export class PrismaRoomsRepository implements RoomsRepository {
     });
 
     if (row === null) return null;
-    return row.mode === "hangisi-daha" ? "hangisi-daha" : "istatistik";
+    // Bilinen modlar açıkça; tanınmayan/eski değer geriye dönük İstatistik'e
+    // düşer (mode sütunu eklenmeden önceki odalar İstatistik'ti, BR-67).
+    if (row.mode === "hangisi-daha") return "hangisi-daha";
+    if (row.mode === "izgara") return "izgara";
+    return "istatistik";
   }
 
   async createRoom(input: {
