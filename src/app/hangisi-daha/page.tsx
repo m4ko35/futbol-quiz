@@ -2,9 +2,15 @@ import type { Metadata } from "next";
 import { listLeagues } from "@/application/use-cases/search-clubs";
 import { DataLabel } from "@/components/data-label";
 import { PageShell } from "@/components/page-shell";
+import { RoomEntryBar } from "@/components/room-entry-bar";
 import { SiteFooter } from "@/components/site-footer";
 import { WhichMoreQuiz } from "@/components/which-more-quiz";
-import { datasets, repositories } from "@/infrastructure/db/repositories";
+import {
+  accountsRepository,
+  datasets,
+  repositories,
+} from "@/infrastructure/db/repositories";
+import { currentUser } from "@/lib/auth/current-user";
 
 /**
  * "Hangisi daha" ekranı — PROJECT.md §9.3.
@@ -52,17 +58,32 @@ const HOW_TO_RULES: readonly {
 
 export default async function WhichMorePage() {
   // Hepsi birbirinden bağımsız; sırayla beklemek boşuna gecikme olurdu.
-  const [dataGeneratedAt, leagues, clubCount, playerCount] = await Promise.all([
-    datasets.getGeneratedAt(),
-    // "Kapsam" şeridinin GERÇEK sayıları (§5.2): uydurma değil, veri kümesi.
-    listLeagues({ clubs: repositories.clubs }),
-    datasets.countSelectableClubs(),
-    datasets.countPlayers(),
-  ]);
+  const [dataGeneratedAt, leagues, clubCount, playerCount, user] =
+    await Promise.all([
+      datasets.getGeneratedAt(),
+      // "Kapsam" şeridinin GERÇEK sayıları (§5.2): uydurma değil, veri kümesi.
+      listLeagues({ clubs: repositories.clubs }),
+      datasets.countSelectableClubs(),
+      datasets.countPlayers(),
+      currentUser(),
+    ]);
+
+  /**
+   * ODAYA ÇAĞRI ŞERİDİ — §12.8, İstatistik sayfasındakiyle aynı kapı (§12.7).
+   *
+   * HESAP KAPALIYKEN HİÇ GÖSTERİLMİYOR: `/oda` o kurulumda 404 döner ve
+   * çalışmayan bir kapıyı tanıtmak §11.11'de düzeltilen kusurun aynısı olurdu.
+   * Şerit kurulum ekranında (Ekran A) görünür; `signedIn` hedefi belirler.
+   */
+  const accounts = accountsRepository();
+  const roomEntry =
+    accounts === null ? undefined : (
+      <RoomEntryBar mode="hangisi-daha" signedIn={user !== null} />
+    );
 
   return (
     <PageShell>
-      <WhichMoreQuiz />
+      <WhichMoreQuiz {...(roomEntry === undefined ? {} : { roomEntry })} />
 
       {/*
         SEO/tanıtım bölümü — §7.11. Oyunun altında, ikincil tonda. Stitch'in üç

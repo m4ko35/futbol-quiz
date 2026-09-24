@@ -6942,6 +6942,18 @@ genişler (sunucu odanın modunu bilir, gövde **Zod ayrık birliğiyle** doğru
   (Kolay/Zor), yön seçilir — solo kurulum ekranının (§9.3) alanlarıyla aynı.
 - **Oda tahtası:** solo düello kartı yeniden kullanılır; ek olarak rakibin
   gizli ilerlemesi ve sonuç şeridi. Erişilebilirlik/CSP korunur (§7.10/§7.3).
+- **Giriş noktası solo sayfasında.** §12.7 odanın "beşinci bir oyun modu değil,
+  bir oynanış biçimi" olduğuna karar vermiş ve odaya çağrı şeridini (`RoomEntryBar`)
+  ilgili oyunun tek başına oynandığı sayfaya koymuştu — İstatistik için
+  `/istatistik`. Aynı gerekçe Hangisi Daha için de geçerli: şerit
+  `/hangisi-daha`'nın **kurulum ekranına** (§9.3 Ekran A, kullanıcı oyunu anlamış
+  ama henüz başlamamışken; `h1`'in ALTINA, §12.7'deki sıra kararıyla) konur.
+  Aynı kapı (hesap kapalıyken hiç gösterilmez, girişsizde `/giris`, §11.11);
+  metin moda göre değişir ("aynı futbolcu" yerine "aynı düellolar"). Şerit
+  lobiye modu **önseçili** götürür (`/oda?mod=hangisi-daha`): oradan Hangisi
+  Daha kurmaya gelen kullanıcı İstatistik'e ayarlı bir formla karşılaşmaz. Mod
+  sorgu parametresi lobide **Zod'la** doğrulanır; tanınmayan değer varsayılan
+  İstatistik'e düşer (§2.3).
 
 ## 13. Sözlük
 

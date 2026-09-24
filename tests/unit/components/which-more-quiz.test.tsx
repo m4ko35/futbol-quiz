@@ -159,6 +159,41 @@ describe("kurulum ekranı (§9.3)", () => {
   });
 });
 
+/**
+ * §12.8 — odaya çağrı yuvası (`roomEntry`).
+ *
+ * Yuvanın tek sözleşmesi KONUM: kurulum ekranında görünür, düello başlayınca
+ * kaybolur (bir "arkadaşına karşı oyna" çağrısı koşunun önüne geçmemeli).
+ * İçeriğini (RoomEntryBar) bileşen tanımıyor; test de bir vekil düğümle bakıyor.
+ */
+describe("roomEntry yuvası (§12.8)", () => {
+  it("kurulum ekranında görünür, düello başlayınca kaybolur", async () => {
+    const fetchRound = vi.fn<(body: unknown) => Promise<WhichMoreRoundDto>>(
+      () => Promise.resolve({ statKey: "appearances", pair: PAIR }),
+    );
+    const fetchAnswer = vi.fn<(body: unknown) => Promise<WhichMoreAnswerDto>>();
+    render(
+      <WhichMoreQuiz
+        fetchRound={fetchRound}
+        fetchAnswer={fetchAnswer}
+        roomEntry={<div data-testid="oda-cagrisi">Arkadaşına karşı oyna</div>}
+      />,
+    );
+
+    expect(screen.getByTestId("oda-cagrisi")).toBeInTheDocument();
+
+    await start();
+
+    expect(screen.queryByTestId("oda-cagrisi")).not.toBeInTheDocument();
+  });
+
+  it("verilmezse hiçbir çağrı çizilmez (hesap kapalı)", () => {
+    setup();
+
+    expect(screen.queryByTestId("oda-cagrisi")).not.toBeInTheDocument();
+  });
+});
+
 describe("BR-32 — değerler cevaptan önce görünmez", () => {
   it("soru sorulurken hiçbir sayı yok", async () => {
     setup();

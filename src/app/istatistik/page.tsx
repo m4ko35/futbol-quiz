@@ -142,7 +142,11 @@ export default async function StatMatchPage() {
         */
         {...(accounts === null
           ? {}
-          : { beforeStats: <RoomEntryBar signedIn={user !== null} /> })}
+          : {
+              beforeStats: (
+                <RoomEntryBar mode="istatistik" signedIn={user !== null} />
+              ),
+            })}
       />
 
       {/*

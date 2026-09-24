@@ -26,12 +26,24 @@ import { WhichMoreRoomSetup } from "./which-more-room-setup";
  * bir eylem DEĞİL — ikisi de aynı kartta, aynı ölçüde duruyor.
  */
 
-export function RoomLobby() {
+export interface RoomLobbyProps {
+  /**
+   * Açılışta seçili oda modu — §12.8. Solo sayfadaki odaya çağrı şeridi
+   * (`RoomEntryBar`) lobiye modu önseçili getirir (`/oda?mod=hangisi-daha`),
+   * böylece Hangisi Daha kurmaya gelen kullanıcı İstatistik'e ayarlı bir
+   * formla karşılaşmaz. Sorgu parametresi sunucuda (`/oda`) Zod'la doğrulanıp
+   * buraya PROP olarak geliyor; bileşen `useSearchParams`'a bağlı değil (Suspense
+   * sınırı gerekmez) ve varsayılan geriye dönük İstatistik.
+   */
+  readonly initialMode?: "istatistik" | "hangisi-daha";
+}
+
+export function RoomLobby({ initialMode = "istatistik" }: RoomLobbyProps) {
   const router = useRouter();
   const create = useCreateRoom();
 
   /** Kurulacak oda modu — §12.8, BR-67. Varsayılan İstatistik (geriye dönük). */
-  const [mode, setMode] = useState<"istatistik" | "hangisi-daha">("istatistik");
+  const [mode, setMode] = useState<"istatistik" | "hangisi-daha">(initialMode);
 
   const goToRoom = useCallback(
     (code: string) => {

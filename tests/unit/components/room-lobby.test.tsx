@@ -135,6 +135,36 @@ describe("kod alanı", () => {
   });
 });
 
+/**
+ * §12.8 — açılış modu önseçimi.
+ *
+ * Solo sayfadaki odaya çağrı şeridi lobiye modu `/oda?mod=…` ile getiriyor;
+ * sunucu bunu doğrulayıp `initialMode` PROP'u olarak veriyor. Varsayılan geriye
+ * dönük İstatistik; Hangisi Daha ile gelen kullanıcı doğru forma açılmalı.
+ */
+describe("açılış modu (§12.8)", () => {
+  it("varsayılan İstatistik — tek tık 'Oda kur' düğmesi", () => {
+    render(<RoomLobby />);
+
+    expect(screen.getByRole("button", { name: "İstatistik" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    // İstatistik modunda alt-mod alanı (Ani ölüm) yok.
+    expect(screen.queryByText("Ani ölüm")).not.toBeInTheDocument();
+  });
+
+  it("initialMode 'hangisi-daha' verilince Hangisi Daha formu açılır", () => {
+    render(<RoomLobby initialMode="hangisi-daha" />);
+
+    expect(
+      screen.getByRole("button", { name: "Hangisi Daha" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    // Hangisi Daha kurulum formunun alt-mod seçeneği görünür.
+    expect(screen.getByText("Ani ölüm")).toBeInTheDocument();
+  });
+});
+
 describe("bekleyen davet", () => {
   /**
    * BAĞLANTIYLA GELİP GİRİŞ YAPAN KULLANICI BURAYA DÜŞÜYOR. Google akışı onu
