@@ -16,10 +16,11 @@ import type { RoomState } from "@/domain/services/room";
  */
 
 /**
- * Odanın oyun modu — §12.8, BR-67. Kod uzayı iki mod arasında ortaktır; bir
- * uç, gövdeyi hangi kurala göre ayrıştıracağını bilmek için önce modu okur.
+ * Odanın oyun modu — §12.8/§12.9, BR-67/BR-71. Kod uzayı ÜÇ mod arasında
+ * ortaktır; bir uç, gövdeyi hangi kurala göre ayrıştıracağını bilmek için önce
+ * modu okur.
  */
-export type RoomMode = "istatistik" | "hangisi-daha";
+export type RoomMode = "istatistik" | "hangisi-daha" | "izgara";
 
 /** Bir odanın kaydı: saf alan durumu artı depolamanın eklediği kimlikler. */
 export interface StoredRoom {

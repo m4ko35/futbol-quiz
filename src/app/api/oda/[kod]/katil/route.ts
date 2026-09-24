@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { joinGridRoom } from "@/application/use-cases/grid-rooms";
 import { joinRoom } from "@/application/use-cases/rooms";
 import { joinWhichMoreRoom } from "@/application/use-cases/which-more-rooms";
 import {
@@ -34,15 +35,19 @@ export async function POST(
     cacheable: false,
     run: async () => {
       const { kod } = await context.params;
-      const { userId, deps, whichMoreDeps } = await roomRequestContext(request);
+      const { userId, deps, whichMoreDeps, gridDeps } =
+        await roomRequestContext(request);
       const now = new Date();
       const code = parseRoomCode(kod);
 
-      // MODA GÖRE DAĞITIM (§12.8) — katılma yaşam döngüsü iki modda da aynı ama
-      // dönen DTO şekli moda göre değişir; doğru use-case doğru şekli üretir.
+      // MODA GÖRE DAĞITIM (§12.8/§12.9) — katılma yaşam döngüsü üç modda da aynı
+      // ama dönen DTO şekli moda göre değişir; doğru use-case doğru şekli üretir.
       const mode = await deps.rooms.findRoomMode(code);
       if (mode === "hangisi-daha") {
         return joinWhichMoreRoom({ now, userId, code }, whichMoreDeps);
+      }
+      if (mode === "izgara") {
+        return joinGridRoom({ now, userId, code }, gridDeps);
       }
 
       return joinRoom({ now, userId, code }, deps);

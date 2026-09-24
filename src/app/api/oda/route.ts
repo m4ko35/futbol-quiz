@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
+import { createGridRoom } from "@/application/use-cases/grid-rooms";
 import { createRoom } from "@/application/use-cases/rooms";
 import { createWhichMoreRoom } from "@/application/use-cases/which-more-rooms";
 import { ValidationError } from "@/domain/errors/domain-error";
@@ -42,6 +43,9 @@ const directionSchema = z
 
 const createBodySchema = z.union([
   z.object({ mode: z.literal("istatistik") }),
+  // Izgara (XOX) — ek alan YOK: tahta 3×3 sabit, alt-mod yok (§12.9). Gövde
+  // yalnızca hangi oyunun kurulacağını söyler; tohum + ilk koltuk sunucuda.
+  z.object({ mode: z.literal("izgara") }),
   z.object({
     mode: z.literal("hangisi-daha"),
     submode: z.literal("ani-olum"),
@@ -70,7 +74,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     // Kişiye özel bir oyun eylemi; paylaşılan önbelleğe girmez (§7.9, BR-47).
     cacheable: false,
     run: async () => {
-      const { userId, deps, whichMoreDeps } = await roomRequestContext(request);
+      const { userId, deps, whichMoreDeps, gridDeps } =
+        await roomRequestContext(request);
       const now = new Date();
 
       // BOŞ GÖVDE = İstatistik (geriye dönük). Yalnızca gövde varsa ayrıştır.
@@ -92,6 +97,10 @@ export async function POST(request: NextRequest): Promise<Response> {
 
       if (parsed.data.mode === "istatistik") {
         return createRoom({ now, userId }, deps);
+      }
+
+      if (parsed.data.mode === "izgara") {
+        return createGridRoom({ now, userId }, gridDeps);
       }
 
       return createWhichMoreRoom(
