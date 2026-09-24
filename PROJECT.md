@@ -7034,9 +7034,11 @@ oynatılabilir olsun diye. O koltuk X, diğeri O; kim X kim O iki oyuncuya da a�
   taşır. `targetPlayerId` boş (yalnızca İstatistik odasında dolu).
 - `+ RoomGridMove`: `{ roomId, userId, moveIndex, cellRow, cellCol, playerId,
 correct }`. Sıra, tahta ve galip **buradan** türetilir (§12.3'ün "durum
-  saklanmaz, türetilir" kuralı); ayrı `turn`/`board`/`winner` sütunu yok.
-  `@@unique([roomId, cellRow, cellCol])` — bir hücre yalnızca **bir kez**
-  kapatılır (BR-73).
+  saklanmaz, türetilir" kuralı); ayrı `turn`/`board`/`winner` sütunu yok. İki
+  kısıt: `@@unique([roomId, cellRow, cellCol])` bir hücreyi **bir kez** kapatır
+  (BR-73); `@@unique([roomId, moveIndex])` tek turda **iki hamle** yarışını
+  durdurur (BR-72 — iki eşzamanlı istek aynı `moveIndex`'i hesaplar, biri düşer,
+  BR-58 hattı).
 - **Göç Turso'ya ELLE doğrulanacak** (§12.3/§11.3 tuzağı): `migrate dev` bu
   projede çalışmaz; çalışan yol `db:deploy:accounts → db:generate:accounts →
 db:verify:accounts`. "Komut hata vermedi" kanıt değil.
