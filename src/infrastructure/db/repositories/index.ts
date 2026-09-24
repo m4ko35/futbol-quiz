@@ -1,5 +1,6 @@
 import type { AccountsRepository } from "@/application/ports/accounts-repository";
 import type { DatasetRepository } from "@/application/ports/dataset-repository";
+import type { GridRoomsRepository } from "@/application/ports/grid-rooms-repository";
 import type { RoomsRepository } from "@/application/ports/rooms-repository";
 import type { WhichMoreRoomsRepository } from "@/application/ports/which-more-rooms-repository";
 import type { GameModeDeps } from "@/application/game-modes";
@@ -8,6 +9,7 @@ import { prisma } from "../client";
 import { PrismaAccountsRepository } from "./prisma-accounts-repository";
 import { PrismaClubRepository } from "./prisma-club-repository";
 import { PrismaDatasetRepository } from "./prisma-dataset-repository";
+import { PrismaGridRoomsRepository } from "./prisma-grid-rooms-repository";
 import { PrismaPlayerRepository } from "./prisma-player-repository";
 import { PrismaRoomsRepository } from "./prisma-rooms-repository";
 import { PrismaWhichMoreRoomsRepository } from "./prisma-which-more-rooms-repository";
@@ -16,6 +18,7 @@ import { PrismaWhichMoreRepository } from "./prisma-which-more-repository";
 
 export { PrismaClubRepository } from "./prisma-club-repository";
 export { PrismaDatasetRepository } from "./prisma-dataset-repository";
+export { PrismaGridRoomsRepository } from "./prisma-grid-rooms-repository";
 export { PrismaPlayerRepository } from "./prisma-player-repository";
 export { PrismaRoomsRepository } from "./prisma-rooms-repository";
 export { PrismaWhichMoreRoomsRepository } from "./prisma-which-more-rooms-repository";
@@ -93,4 +96,16 @@ export function whichMoreRoomsRepository(): WhichMoreRoomsRepository | null {
   if (client === null) return null;
 
   return new PrismaWhichMoreRoomsRepository(client);
+}
+
+/**
+ * Izgara (XOX) oda deposu — §12.9. `roomsRepository` ile AYNI kapıdan geçer
+ * (aynı Turso istemcisi, aynı giriş şartı); ayrı işlev çünkü üçüncü oda modu
+ * ayrı bir port. Hesaplar kapalıysa `null`.
+ */
+export function gridRoomsRepository(): GridRoomsRepository | null {
+  const client = accountsPrisma();
+  if (client === null) return null;
+
+  return new PrismaGridRoomsRepository(client);
 }

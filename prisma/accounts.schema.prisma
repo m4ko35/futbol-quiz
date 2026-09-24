@@ -87,6 +87,9 @@ model User {
   hostedRooms Room[]
   roomSeats   RoomPlayer[]
 
+  /// §12.9 — Izgara odasında yaptığı hamleler (oda-global; koltuk değil kullanıcı).
+  gridMoves RoomGridMove[]
+
   @@map("users")
 }
 
@@ -235,19 +238,20 @@ model Room {
   hostId String
   host   User   @relation(fields: [hostId], references: [id], onDelete: Cascade)
 
-  /// Oda hangi oyunu oynatıyor — PROJECT.md §12.8, BR-67.
+  /// Oda hangi oyunu oynatıyor — PROJECT.md §12.8/§12.9, BR-67/BR-71.
   ///
-  /// `istatistik` | `hangisi-daha`. VARSAYILAN `istatistik` ve bu bir kolaylık
-  /// değil geriye dönük GARANTİ: bu sütun eklenmeden önce kurulmuş her oda
-  /// İstatistik odasıdır ve göç onlara doğru değeri kendiliğinden yazar.
+  /// `istatistik` | `hangisi-daha` | `izgara`. VARSAYILAN `istatistik` ve bu bir
+  /// kolaylık değil geriye dönük GARANTİ: bu sütun eklenmeden önce kurulmuş her
+  /// oda İstatistik odasıdır ve göç onlara doğru değeri kendiliğinden yazar.
   mode String @default("istatistik")
 
-  /// Moda özgü yapılandırma (JSON) — BR-67. İstatistik odasında `null`.
+  /// Moda özgü yapılandırma (JSON) — BR-67/BR-71. İstatistik odasında `null`.
   ///
-  /// Hangisi Daha odasında `{ submode, statKey, level, direction, seed, n? }`
-  /// taşır. Sınırda **Zod** ile ayrıştırılır (§2.3); ayrıştırılmamış JSON iç
-  /// katmanlara geçmez. Ayrı sütunlar yerine JSON çünkü alanlar moda göre
-  /// değişir ve İstatistik tarafına hiç sızmamalı.
+  /// Hangisi Daha odasında `{ submode, statKey, level, direction, seed, n? }`,
+  /// Izgara odasında `{ seed, firstSeat }` taşır. Sınırda **Zod** ile
+  /// ayrıştırılır (§2.3); ayrıştırılmamış JSON iç katmanlara geçmez. Ayrı
+  /// sütunlar yerine JSON çünkü alanlar moda göre değişir ve İstatistik tarafına
+  /// hiç sızmamalı.
   config String?
 
   /// BR-56 — hedefi SUNUCU seçti; istemci hedef gönderemez.
@@ -269,6 +273,10 @@ model Room {
   createdAt DateTime @default(now())
 
   players RoomPlayer[]
+
+  /// Izgara odasının hamleleri — §12.9, BR-72/BR-73. Oda-GLOBAL (sıralı, iki
+  /// oyuncu arası) olduğu için `RoomPlayer` değil doğrudan `Room`'a bağlı.
+  gridMoves RoomGridMove[]
 
   /// BR-60 — sönmüş odaların temizliği bu sütunlardan okur. Tablo yapısı
   /// gereği küçük kalıyor (oda en fazla bir saat yaşar), bu yüzden tek bir
@@ -396,4 +404,59 @@ model RoomWhichMoreAnswer {
   /// `@@unique([roomPlayerId, statKey])`.)
   @@unique([roomPlayerId, roundIndex])
   @@map("room_which_more_answers")
+}
+
+/// Izgara (XOX) odasındaki tek bir hamle — PROJECT.md §12.9, BR-71…BR-76.
+///
+/// `RoomAnswer`/`RoomWhichMoreAnswer`'DAN AYRI ve bir KOLTUĞA değil doğrudan
+/// ODAYA bağlı. Sebep: paralel modların cevabı oyuncunun KENDİ ilerlemesine
+/// aittir (bir istatistik, bir düello); XOX hamlesi ORTAK tahtanın global
+/// sırasının bir adımıdır ve kısıtları oda-kapsamlıdır (bir hücre EITHER oyuncu
+/// tarafından bir kez, sıra numarası odada tekil). Bu yüzden `roomId` + `userId`
+/// ikisi de kolonda durur: `userId` hamleyi kimin yaptığını, `roomId` tekillik
+/// kısıtlarının eksenini verir.
+///
+/// TAHTA / SIRA / GALİP SAKLANMAZ, TÜRETİLİR (§12.3): ayrı `turn`/`board`/
+/// `winner` sütunu yok; hepsi bu satırlardan hesaplanır
+/// (`domain/services/grid-room.ts`).
+model RoomGridMove {
+  id String @id
+
+  roomId String
+  room   Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  /// Hamleyi yapan kullanıcı — koltuk (X/O) bundan türetilir (BR-76). Hesap
+  /// silinince (BR-48) hamleleri de düşsün diye User'a bağlı; oda zaten kısa
+  /// ömürlü (BR-60).
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Sıra numarası — 0'dan başlar (BR-72). Sıranın kimde olduğu bundan türetilir.
+  moveIndex Int
+
+  /// Hücre koordinatı (0–2). Ölçüt değil KOORDİNAT: ızgara tohumdan üretilir,
+  /// koordinat sunucuda ölçüte çevrilir (BR-71/BR-12).
+  cellRow Int
+  cellCol Int
+
+  /// Oynanan futbolcunun futbol veritabanındaki kimliği; yabancı anahtar yok
+  /// (`RoomAnswer.playerId` ile aynı gerekçe — oyuncu başka veritabanında).
+  playerId String
+
+  /// Doğruluğu SUNUCU hesaplar (`matchesAll`); istemci göndermez (BR-73/BR-12).
+  /// Doğru → hücre kapanır (işaret), yanlış → hücre ölür; ikisi de sırayı geçirir.
+  correct Boolean
+
+  createdAt DateTime @default(now())
+
+  /// BR-73 — bir hücre yalnızca BİR KEZ kapatılır (doğru ya da yanlış).
+  ///
+  /// KISIT UYGULAMA MANTIĞININ TEKRARI DEĞİL, GARANTİSİDİR: karar önce okuyup
+  /// sonra yazar; eşzamanlı iki istek aynı hücreye yazmaya çalışabilir. O yarışı
+  /// yalnızca veritabanı durdurur.
+  @@unique([roomId, cellRow, cellCol])
+  /// BR-72 — tek turda İKİ hamle yarışını durdurur: iki eşzamanlı istek aynı
+  /// `moveIndex`'i hesaplar, yalnızca biri yazabilir (BR-58 hattı).
+  @@unique([roomId, moveIndex])
+  @@map("room_grid_moves")
 }
