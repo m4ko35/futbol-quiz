@@ -12,9 +12,9 @@ import { readErrorMessage, toDisplayMessage } from "@/lib/http/error-message";
  * lobiye bir bağlantı da olabilirdi ama rövanş, oyunun en sıcak anı — araya
  * fazladan bir sayfa koymak onu soğutur.
  *
- * GÖVDE MODA GÖRE (§12.8, BR-67). Argümansız çağrı İstatistik odası kurar
- * (geriye dönük, hedefi sunucu seçer — BR-56). Hangisi Daha config'i verilirse
- * o mod kurulur; tohum yine SUNUCUDA üretilir (istemci gönderemez, BR-68).
+ * GÖVDE MODA GÖRE (§12.8/§12.9, BR-67/BR-71). Argümansız çağrı İstatistik odası
+ * kurar (geriye dönük, hedefi sunucu seçer — BR-56). Hangisi Daha ya da Izgara
+ * gövdesi verilirse o mod kurulur; tohum yine SUNUCUDA üretilir (BR-68/BR-71).
  */
 
 /** Hangisi Daha odası kurulum gövdesi — tohumsuz, kullanıcının seçtikleri. */
@@ -28,8 +28,16 @@ export interface WhichMoreCreateBody {
   readonly n?: number;
 }
 
+/** Izgara (XOX) odası kurulum gövdesi — §12.9. Ayar YOK (3×3 sabit). */
+export interface GridCreateBody {
+  readonly mode: "izgara";
+}
+
+/** Bir oda kurma gövdesi — argümansız çağrı İstatistik (geriye dönük). */
+export type CreateRoomBody = WhichMoreCreateBody | GridCreateBody;
+
 export interface CreateRoomState {
-  create(body?: WhichMoreCreateBody): void;
+  create(body?: CreateRoomBody): void;
   readonly isCreating: boolean;
   readonly failure: string | null;
 }
@@ -40,7 +48,7 @@ export function useCreateRoom(): CreateRoomState {
   const [failure, setFailure] = useState<string | null>(null);
 
   const create = useCallback(
-    (body?: WhichMoreCreateBody) => {
+    (body?: CreateRoomBody) => {
       setIsCreating(true);
       setFailure(null);
 

@@ -25,12 +25,13 @@ import { buttonClasses } from "./ui/button";
  */
 
 /** Şeridin taşıdığı oda modu — metni ve lobinin önseçimini belirler. */
-type EntryMode = "istatistik" | "hangisi-daha";
+type EntryMode = "istatistik" | "hangisi-daha" | "izgara";
 
 /** Moda özgü tek cümlelik kural metni (§5.2: uydurma yok, gerçek kural). */
 const COPY: Readonly<Record<EntryMode, string>> = {
   istatistik: "aynı futbolcu ikinize açılır, çok puan toplayan kazanır",
   "hangisi-daha": "ikinize aynı düellolar açılır, daha iyi bilen kazanır",
+  izgara: "ikinize aynı ızgara açılır, sırayla oynayıp üç taşı dizen kazanır",
 };
 
 export interface RoomEntryBarProps {

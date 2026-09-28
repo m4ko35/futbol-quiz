@@ -1,9 +1,11 @@
 import type { NextRequest } from "next/server";
+import type { GridRoomDeps } from "@/application/use-cases/grid-rooms";
 import type { RoomDeps } from "@/application/use-cases/rooms";
 import type { WhichMoreRoomDeps } from "@/application/use-cases/which-more-rooms";
 import { ValidationError } from "@/domain/errors/domain-error";
 import { roomCode } from "@/domain/value-objects/room-code";
 import {
+  gridRoomsRepository,
   repositories,
   roomsRepository,
   whichMoreRoomsRepository,
@@ -30,6 +32,8 @@ export interface RoomRequestContext {
   readonly deps: RoomDeps;
   /** §12.8 — Hangisi Daha odası bağımlılıkları; uç, moda göre birini kullanır. */
   readonly whichMoreDeps: WhichMoreRoomDeps;
+  /** §12.9 — Izgara (XOX) odası bağımlılıkları. */
+  readonly gridDeps: GridRoomDeps;
 }
 
 /**
@@ -53,9 +57,11 @@ export async function roomRequestContext(
    */
   if (rooms === null) throw new ValidationError(LOGIN_REQUIRED);
 
-  // Aynı kapıdan geçer (aynı Turso istemcisi); `rooms` doluysa bu da dolu.
+  // Aynı kapıdan geçer (aynı Turso istemcisi); `rooms` doluysa bunlar da dolu.
   const whichMoreRooms = whichMoreRoomsRepository();
   if (whichMoreRooms === null) throw new ValidationError(LOGIN_REQUIRED);
+  const gridRooms = gridRoomsRepository();
+  if (gridRooms === null) throw new ValidationError(LOGIN_REQUIRED);
 
   const user = await currentUserFromRequest(request);
   if (user === null) throw new ValidationError(LOGIN_REQUIRED);
@@ -71,6 +77,11 @@ export async function roomRequestContext(
     whichMoreDeps: {
       rooms: whichMoreRooms,
       whichMore: repositories.whichMore,
+      random,
+    },
+    gridDeps: {
+      rooms: gridRooms,
+      grid: { clubs: repositories.clubs, players: repositories.players },
       random,
     },
   };
@@ -98,6 +109,8 @@ export interface RoomPageContext {
   readonly deps: RoomDeps;
   /** §12.8 — Hangisi Daha odası bağımlılıkları. */
   readonly whichMoreDeps: WhichMoreRoomDeps;
+  /** §12.9 — Izgara (XOX) odası bağımlılıkları. */
+  readonly gridDeps: GridRoomDeps;
 }
 
 export async function roomPageContext(): Promise<RoomPageContext | null> {
@@ -106,6 +119,8 @@ export async function roomPageContext(): Promise<RoomPageContext | null> {
 
   const whichMoreRooms = whichMoreRoomsRepository();
   if (whichMoreRooms === null) return null;
+  const gridRooms = gridRoomsRepository();
+  if (gridRooms === null) return null;
 
   const user = await currentUser();
   if (user === null) return null;
@@ -121,6 +136,11 @@ export async function roomPageContext(): Promise<RoomPageContext | null> {
     whichMoreDeps: {
       rooms: whichMoreRooms,
       whichMore: repositories.whichMore,
+      random,
+    },
+    gridDeps: {
+      rooms: gridRooms,
+      grid: { clubs: repositories.clubs, players: repositories.players },
       random,
     },
   };

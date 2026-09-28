@@ -52,6 +52,8 @@ const TABLES = [
   "room_answers",
   // §12.8 — Hangisi Daha odasının düello cevapları (BR-68/BR-70).
   "room_which_more_answers",
+  // §12.9 — Izgara (XOX) odasının hamleleri (BR-71..BR-76).
+  "room_grid_moves",
 ] as const;
 
 /**
@@ -87,6 +89,14 @@ const CONSTRAINTS: readonly (readonly [string, string])[] = [
   [
     "room_which_more_answers_roomPlayerId_roundIndex_key",
     "BR-58 hattı (§12.8) — bir düelloya tek cevap",
+  ],
+  [
+    "room_grid_moves_roomId_cellRow_cellCol_key",
+    "BR-73 (§12.9) — bir hücre bir kez kapatılır",
+  ],
+  [
+    "room_grid_moves_roomId_moveIndex_key",
+    "BR-72 (§12.9) — tek turda iki hamle yarışını durdurur",
   ],
 ];
 

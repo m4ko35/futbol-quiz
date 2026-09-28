@@ -1,8 +1,10 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
+import { submitGridMove } from "@/application/use-cases/grid-rooms";
 import { submitRoomAnswer } from "@/application/use-cases/rooms";
 import { submitWhichMoreAnswer } from "@/application/use-cases/which-more-rooms";
 import { ValidationError } from "@/domain/errors/domain-error";
+import { GRID_SIZE } from "@/domain/services/grid";
 import { isStatKey } from "@/domain/services/stat-match";
 import {
   isValidIdentifier,
@@ -45,6 +47,21 @@ const whichMoreBodySchema = z.object({
   chosenId: z.string().refine(isValidIdentifier).transform(playerId),
 });
 
+/** Izgara hamlesi — hangi hücre (satır/sütun), hangi futbolcu (§12.9, BR-73). */
+const gridMoveBodySchema = z.object({
+  row: z
+    .number()
+    .int()
+    .min(0)
+    .max(GRID_SIZE - 1),
+  column: z
+    .number()
+    .int()
+    .min(0)
+    .max(GRID_SIZE - 1),
+  playerId: z.string().refine(isValidIdentifier).transform(playerId),
+});
+
 export async function POST(
   request: NextRequest,
   context: { readonly params: Promise<{ readonly kod: string }> },
@@ -59,7 +76,8 @@ export async function POST(
     cacheable: false,
     run: async () => {
       const { kod } = await context.params;
-      const { userId, deps, whichMoreDeps } = await roomRequestContext(request);
+      const { userId, deps, whichMoreDeps, gridDeps } =
+        await roomRequestContext(request);
       const now = new Date();
       const code = parseRoomCode(kod);
 
@@ -67,9 +85,9 @@ export async function POST(
         throw new ValidationError("Gövde geçerli JSON olmalıdır.");
       });
 
-      // MODA GÖRE DAĞITIM (§12.8): gövde şekli moda göre değişir; sunucu odanın
-      // modunu okuyup DOĞRU şemayla ayrıştırır. Kod yoksa İstatistik yolu "böyle
-      // bir oda yok" der (tutarlı).
+      // MODA GÖRE DAĞITIM (§12.8/§12.9): gövde şekli moda göre değişir; sunucu
+      // odanın modunu okuyup DOĞRU şemayla ayrıştırır. Kod yoksa İstatistik yolu
+      // "böyle bir oda yok" der (tutarlı).
       const mode = await deps.rooms.findRoomMode(code);
 
       if (mode === "hangisi-daha") {
@@ -86,6 +104,24 @@ export async function POST(
             chosenId: parsed.data.chosenId,
           },
           whichMoreDeps,
+        );
+      }
+
+      if (mode === "izgara") {
+        const parsed = gridMoveBodySchema.safeParse(body);
+        if (!parsed.success) {
+          throw new ValidationError("Gönderilen hamle geçersiz.");
+        }
+        return submitGridMove(
+          {
+            now,
+            userId,
+            code,
+            row: parsed.data.row,
+            column: parsed.data.column,
+            playerId: parsed.data.playerId,
+          },
+          gridDeps,
         );
       }
 

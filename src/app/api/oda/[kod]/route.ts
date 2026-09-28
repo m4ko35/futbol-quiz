@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { getGridRoom } from "@/application/use-cases/grid-rooms";
 import { getRoom } from "@/application/use-cases/rooms";
 import { getWhichMoreRoom } from "@/application/use-cases/which-more-rooms";
 import {
@@ -41,15 +42,19 @@ export async function GET(
     cacheable: false,
     run: async () => {
       const { kod } = await context.params;
-      const { userId, deps, whichMoreDeps } = await roomRequestContext(request);
+      const { userId, deps, whichMoreDeps, gridDeps } =
+        await roomRequestContext(request);
       const now = new Date();
       const code = parseRoomCode(kod);
 
-      // MODA GÖRE DAĞITIM (§12.8): önce ucuz mod okuması, sonra doğru use-case.
-      // Kod yoksa `null` → İstatistik use-case "böyle bir oda yok" der (tutarlı).
+      // MODA GÖRE DAĞITIM (§12.8/§12.9): önce ucuz mod okuması, sonra doğru
+      // use-case. Kod yoksa `null` → İstatistik use-case "böyle bir oda yok" der.
       const mode = await deps.rooms.findRoomMode(code);
       if (mode === "hangisi-daha") {
         return getWhichMoreRoom({ now, userId, code }, whichMoreDeps);
+      }
+      if (mode === "izgara") {
+        return getGridRoom({ now, userId, code }, gridDeps);
       }
 
       return getRoom({ now, userId, code }, deps);

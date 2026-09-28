@@ -35,15 +35,17 @@ export interface RoomLobbyProps {
    * buraya PROP olarak geliyor; bileşen `useSearchParams`'a bağlı değil (Suspense
    * sınırı gerekmez) ve varsayılan geriye dönük İstatistik.
    */
-  readonly initialMode?: "istatistik" | "hangisi-daha";
+  readonly initialMode?: "istatistik" | "hangisi-daha" | "izgara";
 }
 
 export function RoomLobby({ initialMode = "istatistik" }: RoomLobbyProps) {
   const router = useRouter();
   const create = useCreateRoom();
 
-  /** Kurulacak oda modu — §12.8, BR-67. Varsayılan İstatistik (geriye dönük). */
-  const [mode, setMode] = useState<"istatistik" | "hangisi-daha">(initialMode);
+  /** Kurulacak oda modu — §12.8/§12.9, BR-67/BR-71. Varsayılan İstatistik. */
+  const [mode, setMode] = useState<"istatistik" | "hangisi-daha" | "izgara">(
+    initialMode,
+  );
 
   const goToRoom = useCallback(
     (code: string) => {
@@ -115,6 +117,7 @@ export function RoomLobby({ initialMode = "istatistik" }: RoomLobbyProps) {
             [
               ["istatistik", "İstatistik"],
               ["hangisi-daha", "Hangisi Daha"],
+              ["izgara", "Izgara"],
             ] as const
           ).map(([key, label]) => (
             <button
@@ -136,7 +139,7 @@ export function RoomLobby({ initialMode = "istatistik" }: RoomLobbyProps) {
           ))}
         </div>
 
-        {mode === "istatistik" ? (
+        {mode === "istatistik" && (
           <>
             <p className="flex-1 text-sm text-muted">
               Sana bir kod verilir. Kodu arkadaşına söylersin, o katılınca{" "}
@@ -157,7 +160,9 @@ export function RoomLobby({ initialMode = "istatistik" }: RoomLobbyProps) {
               {create.isCreating ? "Oda kuruluyor…" : "Oda kur"}
             </Button>
           </>
-        ) : (
+        )}
+
+        {mode === "hangisi-daha" && (
           <>
             <p className="text-sm text-muted">
               Kodu arkadaşına söylersin, o katılınca{" "}
@@ -173,6 +178,34 @@ export function RoomLobby({ initialMode = "istatistik" }: RoomLobbyProps) {
               }}
               isCreating={create.isCreating}
             />
+          </>
+        )}
+
+        {mode === "izgara" && (
+          <>
+            {/*
+              IZGARA (XOX) — ayar YOK (§12.9): tahta 3×3 sabit, alt-mod yok.
+              Neredeyse tek karar "Oda kur". Sırayla oynanan üç taş.
+            */}
+            <p className="flex-1 text-sm text-muted">
+              Kodu arkadaşına söylersin, o katılınca{" "}
+              <strong className="font-semibold text-foreground">
+                ikinize aynı ızgara
+              </strong>{" "}
+              açılır. Sırayla hücre kaparsınız; üç taşı dizen ya da çok hücre
+              kapan kazanır.
+            </p>
+
+            <Button
+              size="md"
+              loading={create.isCreating}
+              className="w-fit"
+              onClick={() => {
+                create.create({ mode: "izgara" });
+              }}
+            >
+              {create.isCreating ? "Oda kuruluyor…" : "Oda kur"}
+            </Button>
           </>
         )}
 

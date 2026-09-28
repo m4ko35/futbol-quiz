@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { peekGridRoom } from "@/application/use-cases/grid-rooms";
 import { peekRoom } from "@/application/use-cases/rooms";
 import { peekWhichMoreRoom } from "@/application/use-cases/which-more-rooms";
+import { GridRoomBoard } from "@/components/grid-room-board";
 import { PageShell } from "@/components/page-shell";
 import { RoomBoard } from "@/components/room-board";
 import { WhichMoreRoomBoard } from "@/components/which-more-room-board";
@@ -100,6 +102,27 @@ export default async function RoomPage({ params }: PageProps) {
         {entry.kind === "uye" && (
           <WhichMoreRoomBoard initialRoom={entry.room} />
         )}
+        {entry.kind === "katilabilir" && <RoomJoin code={code} />}
+        {entry.kind === "kapali" && (
+          <RoomClosed code={code} reason={entry.reason} />
+        )}
+
+        <SiteFooter dataGeneratedAt={dataGeneratedAt} />
+      </PageShell>
+    );
+  }
+
+  if (mode === "izgara") {
+    const entry = await peekGridRoom(
+      { now, userId: context.userId, code },
+      context.gridDeps,
+    );
+
+    if (entry.kind === "yok") notFound();
+
+    return (
+      <PageShell>
+        {entry.kind === "uye" && <GridRoomBoard initialRoom={entry.room} />}
         {entry.kind === "katilabilir" && <RoomJoin code={code} />}
         {entry.kind === "kapali" && (
           <RoomClosed code={code} reason={entry.reason} />
