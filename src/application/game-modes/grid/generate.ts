@@ -37,12 +37,14 @@ import { GRID_NATIONALITY_CODES } from "./pool";
  * başına dokuz gidiş-dönüş demekti; aynı tercih ortak oyuncu sorgusunda
  * ölçülerek doğrulanmıştı (p95 47,7 → 16,8 ms).
  *
- * ÖLÇÜM (82 kulüplük küratörlü havuz, gerçek veri, gerçek depolar, 365 gün):
- * 365/365 geçerli ızgara · 82 kulübün hepsi en az 4 kez çıktı · hücre başına
- * min 5, medyan 9, p95 62, max 103 cevap · ızgara başına 432 ms.
+ * ÖLÇÜM (39 kulüplük küratörlü havuz, gerçek veri, gerçek depolar, 365 gün —
+ * `npm run measure:grid`): 365/365 geçerli ızgara · 39 kulübün hepsi en az 22
+ * kez çıktı · ızgara başına ~311 ms. Hücre cevap sayısı BR-9 ile band içinde
+ * (≥5, ≤150) kalır; bu band pool boyutundan bağımsızdır.
  *
- * 432 ms'yi günün İLK isteği öder; sonuç `daily-grid.ts` içinde gün anahtarıyla
- * önbelleklenir. Maliyet kriter başına ayrı kimlik sorgusundan gelir.
+ * ~311 ms'yi günün İLK isteği öder; sonuç `daily-grid.ts` içinde gün anahtarıyla
+ * önbelleklenir. Maliyet kriter başına ayrı kimlik sorgusundan gelir. (Havuz
+ * 2026-10-22'de 82→39 kulübe indirildi; ölçüm o gün yeniden koşuldu.)
  */
 
 /** Bir günün ızgarası kaç farklı tohumla denenir. */

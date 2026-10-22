@@ -34,6 +34,7 @@
     "stats:measure": "tsx scripts/measure-stats.ts",
     "clubs:lineage": "tsx scripts/measure-club-lineage.ts",
     "bench": "tsx scripts/benchmark.ts",
+    "measure:grid": "tsx scripts/measure-grid.ts",
     "dataset:fetch": "tsx scripts/fetch-dataset.ts",
     "isle:bildirimler": "tsx scripts/name-reports.ts",
     "vercel-build": "npm run dataset:fetch && npm run db:generate && npm run db:generate:accounts && next build"
