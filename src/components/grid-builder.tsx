@@ -52,6 +52,14 @@ export interface GridBuilderProps {
     against: readonly GridCriterionRefDto[],
     signal: AbortSignal,
   ): Promise<GridCriterionRefDto[]>;
+  /**
+   * RASTGELE IZGARA (BR-77) — seçili boyutta oynanabilir bir ızgara üretir.
+   *
+   * İSTEĞE BAĞLI: verilmezse düğme çıkmaz (testlerde elle kurmayı yalıtmak
+   * için). Dönen ızgara `onBuilt`'e verilir — elle kurulmuş bir ızgarayla
+   * aynı yoldan oynanır.
+   */
+  generateRandom?(size: GridSize): Promise<BuiltGrid>;
   onBuilt(grid: BuiltGrid): void;
 }
 
@@ -60,6 +68,7 @@ type Slot = { readonly axis: "column" | "row"; readonly index: number };
 export function GridBuilder({
   searchColumns,
   searchRows,
+  generateRandom,
   onBuilt,
 }: GridBuilderProps) {
   // Varsayılan boyut günlük ızgarayla aynı: kullanıcı bildiği oyunla
@@ -68,6 +77,27 @@ export function GridBuilder({
   const [columns, setColumns] = useState<GridCriterionRefDto[]>([]);
   const [rows, setRows] = useState<GridCriterionRefDto[]>([]);
   const [open, setOpen] = useState<Slot | null>(null);
+  const [isRandomizing, setIsRandomizing] = useState(false);
+  const [randomError, setRandomError] = useState<string | null>(null);
+
+  /**
+   * RASTGELE IZGARA (BR-77) — seçili boyutta bir ızgara üretip oyuna geçer.
+   *
+   * Üretilemezse (büyük boyutta tek tohum yetmeyebilir) HAK HARCANMAZ, oyun
+   * başlamaz: kullanıcıya söylenir ve tekrar deneyebilir (§2.7).
+   */
+  const randomize = useCallback(async (): Promise<void> => {
+    if (generateRandom === undefined) return;
+    setIsRandomizing(true);
+    setRandomError(null);
+    try {
+      onBuilt(await generateRandom(size));
+    } catch {
+      setRandomError("Rastgele ızgara oluşturulamadı. Lütfen tekrar deneyin.");
+    } finally {
+      setIsRandomizing(false);
+    }
+  }, [generateRandom, size, onBuilt]);
 
   const columnsReady = columns.length === size;
   const rowsReady = rows.length === size;
@@ -153,6 +183,83 @@ export function GridBuilder({
           ))}
         </span>
       </fieldset>
+
+      {/*
+        RASTGELE IZGARA (BR-77) — elle kurmaya bir ALTERNATİF, onun yerine
+        geçmez. Seçili boyutu kullanır; tek tıkla oynanabilir bir ızgara üretip
+        oyuna geçer. Düğme yalnızca `generateRandom` verildiğinde çıkar.
+      */}
+      {generateRandom !== undefined && (
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              variant="outline"
+              size="md"
+              disabled={isRandomizing}
+              onClick={() => {
+                void randomize();
+              }}
+            >
+              <span className="inline-flex items-center gap-2">
+                {/* Zar ikonu — süsleme (§7.12: satır içi SVG, emoji değil). */}
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  focusable="false"
+                  className="h-4 w-4 text-accent"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinejoin="round"
+                >
+                  <rect x="3" y="3" width="18" height="18" rx="4" />
+                  <circle
+                    cx="8.5"
+                    cy="8.5"
+                    r="1.1"
+                    fill="currentColor"
+                    stroke="none"
+                  />
+                  <circle
+                    cx="15.5"
+                    cy="8.5"
+                    r="1.1"
+                    fill="currentColor"
+                    stroke="none"
+                  />
+                  <circle
+                    cx="8.5"
+                    cy="15.5"
+                    r="1.1"
+                    fill="currentColor"
+                    stroke="none"
+                  />
+                  <circle
+                    cx="15.5"
+                    cy="15.5"
+                    r="1.1"
+                    fill="currentColor"
+                    stroke="none"
+                  />
+                </svg>
+                {isRandomizing ? "Oluşturuluyor…" : "Rastgele ızgara oluştur"}
+              </span>
+            </Button>
+            <p className="text-sm text-muted">
+              Seçili boyutta rastgele, oynanabilir bir ızgara — ya da aşağıdan
+              kendiniz kurun.
+            </p>
+          </div>
+          {randomError !== null && (
+            <p
+              role="alert"
+              className="rounded-xl border border-wrong bg-wrong-soft px-4 py-3 text-sm text-wrong"
+            >
+              {randomError}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* MATRİS İSKELETİ — kurulan ızgarayı gösterir (§9.1). */}
       <div className="rounded-2xl border border-line bg-surface p-3 shadow-card sm:p-4">

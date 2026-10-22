@@ -1,14 +1,26 @@
 import { describe, expect, it } from "vitest";
+import { CURATED_CLUB_QIDS } from "@/application/curated-clubs";
 import type { GridDeps } from "@/application/game-modes/grid/generate";
 import {
   checkCustomAnswer,
+  generateRandomGrid,
   listPlayableCriteria,
   revealCustomGrid,
+  type BuiltGridDto,
   type CriterionRef,
 } from "@/application/use-cases/custom-grid";
-import { ValidationError } from "@/domain/errors/domain-error";
+import {
+  GridUnavailableError,
+  ValidationError,
+} from "@/domain/errors/domain-error";
 import type { PlayerSpells } from "@/domain/services/common-players";
-import { MIN_CELL_ANSWERS } from "@/domain/services/grid";
+import {
+  isGridShapeValid,
+  MIN_CELL_ANSWERS,
+  type Grid,
+  type GridCriterion,
+  type GridSize,
+} from "@/domain/services/grid";
 import { clubId, playerId } from "@/domain/value-objects/identifiers";
 import { aClub, aPlayer, aSpell } from "../../helpers/builders";
 import {
@@ -236,6 +248,62 @@ describe("revealCustomGrid — BR-66", () => {
         deps,
       ),
     ).rejects.toBeInstanceOf(ValidationError);
+  });
+});
+
+describe("generateRandomGrid — BR-77", () => {
+  // Ölçüt referanslarını domain ızgarasına çevirir — şekil doğrulaması için.
+  const toGrid = (built: BuiltGridDto): Grid => {
+    const toCriterion = (r: {
+      kind: string;
+      id: string;
+      label: string;
+    }): GridCriterion =>
+      r.kind === "club"
+        ? { type: "club", clubId: clubId(r.id), label: r.label }
+        : { type: "nationality", code: r.id, label: r.label };
+    return {
+      rows: built.rows.map(toCriterion),
+      columns: built.columns.map(toCriterion),
+    };
+  };
+
+  it.each([2, 3] as GridSize[])(
+    "seçili boyutta (%i) yapısal olarak geçerli bir ızgara üretir",
+    async (size) => {
+      const fixture = gridFixture();
+      const built = await generateRandomGrid(size, fixture.deps, 12345);
+
+      expect(built.rows).toHaveLength(size);
+      expect(built.columns).toHaveLength(size);
+      // Satır/sütun tekrarsız ve hiçbir ölçüt hem satırda hem sütunda değil.
+      expect(isGridShapeValid(toGrid(built))).toBe(true);
+    },
+  );
+
+  it("aynı tohum aynı ızgarayı verir (deterministik üretim)", async () => {
+    const fixture = gridFixture();
+    const first = await generateRandomGrid(3, fixture.deps, 777);
+    const second = await generateRandomGrid(3, fixture.deps, 777);
+
+    // Tohum sabitken üretim deterministik (BR-11 ile aynı mekanizma); rastgelelik
+    // yalnızca tohum SEÇİMİNDE, üretimde değil.
+    expect(second).toEqual(first);
+  });
+
+  it("havuz boyuta yetmezse GridUnavailableError — sessizce bozuk ızgara yok", async () => {
+    // size=3 için en az 4 kulüp gerekir; havuzda 2 kulüp var → üretim boşa çıkar.
+    const clubs = CURATED_CLUB_QIDS.slice(0, 2).map((qid) =>
+      aClub({ id: clubId(qid), shortName: `Kulüp ${qid}` }),
+    );
+    const deps: GridDeps = {
+      clubs: new FakeClubRepository(clubs),
+      players: new FakePlayerRepository([]),
+    };
+
+    await expect(generateRandomGrid(3, deps, 1)).rejects.toBeInstanceOf(
+      GridUnavailableError,
+    );
   });
 });
 

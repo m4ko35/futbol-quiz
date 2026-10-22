@@ -113,8 +113,8 @@ indirdi (`Q75729`, 700 dönem). Kısa ad çakışması 3'ten 4'e çıktı ve ay�
 edici ad geçişi dördünü de açtı — `db:verify`'da "aynı görünen seçilebilir
 kulüp: **0**".
 
-> **Izgara havuzu genişlemedi ve bu bilinçli.** Küratörlü 82 kulüp bir ÜRÜN
-> KARARIDIR (§9.1); Ajax, Porto ve Benfica ortak oyuncu modunda çıkar ama
+> **Izgara havuzu genişlemedi ve bu bilinçli.** Küratörlü 39 kulüp bir ÜRÜN
+> KARARIDIR (§9.1; 2026-10-22'de 82→39'a daraltıldı); Ajax, Porto ve Benfica ortak oyuncu modunda çıkar ama
 > ızgara kriteri ve günün oyuncusu havuzu değişmedi. Havuza eklenmeleri ürün
 > sahibinin kararıdır, ETL'in değil.
 
@@ -3798,30 +3798,33 @@ Veride tanınırlık sinyali arandı, **yoktur**:
 
 Tanınırlık ölçülebilir bir veri değil, bir **ürün kararıdır**. Bu yüzden ızgara havuzu **küratörlüdür** ve QID ile sabitlenmiştir — `db:verify`'daki zorunlu kulüp listesiyle aynı gerekçe (§8.2): ada güvenmek bu projede dört kez yanılttı.
 
-#### Havuz: 82 kulüp, ürün sahibi tarafından seçildi
+#### Havuz: 39 kulüp, ürün sahibi tarafından seçildi
 
-Veri kümesindeki 345 seçilebilir kulübün tamamı — ligiyle ve oyuncu sayısıyla — ürün sahibine sunuldu; aşağıdaki 82'yi kendisi seçti. Bu bir ölçüm sonucu değil, kayıt altına alınmış bir karardır:
+Veri kümesindeki 345 seçilebilir kulübün tamamı — ligiyle ve oyuncu sayısıyla — ürün sahibine sunuldu; önce 82 kulüp seçildi, **2026-10-22'de liste en tanınmış 39 kulüpte daraltıldı**. Bu bir ölçüm sonucu değil, kayıt altına alınmış bir karardır:
 
 | Lig            | Kulüp |
 | -------------- | ----- |
-| Premier League | 20    |
-| Bundesliga     | 15    |
-| Serie A        | 13    |
-| La Liga        | 13    |
-| Ligue 1        | 12    |
-| Süper Lig      | 9     |
+| Premier League | 8     |
+| Bundesliga     | 8     |
+| Süper Lig      | 8     |
+| Serie A        | 6     |
+| Ligue 1        | 5     |
+| La Liga        | 4     |
 
-Havuzdaki 82 QID'nin 82'si veri kümesinde çözüldü (0 eksik). Liste `src/application/game-modes/grid/pool.ts` içinde; değiştirmek bir kod değişikliğidir.
+Havuzdaki 39 QID'nin 39'u veri kümesinde çözüldü (0 eksik; `db:verify`). Liste `src/application/curated-clubs.ts` içinde (iki mod paylaşır, §9.2); değiştirmek bir kod değişikliğidir.
 
 #### Ölçüm: küratörlü havuzla üretim (365 gün, gerçek veri, gerçek depolar)
 
-| Ölçüt              | Sonuç                                        |
-| ------------------ | -------------------------------------------- |
-| Geçerli ızgara     | **365/365**                                  |
-| Hiç çıkmayan kulüp | **0** — 82 kulübün hepsi en az 4 kez         |
-| Üretim süresi      | 432 ms/ızgara (gün başına bir kez, §9.1)     |
-| Ülke kriteri payı  | 408 / 2.190 kriter yuvası (%18,6)            |
-| Hücre başına cevap | min 5 · medyan 9 · p75 21 · p95 62 · max 103 |
+39 kulüple yeniden koşuldu (2026-10-22, `npm run measure:grid`):
+
+| Ölçüt              | Sonuç                                       |
+| ------------------ | ------------------------------------------- |
+| Geçerli ızgara     | **365/365**                                 |
+| Hiç çıkmayan kulüp | **0** — 39 kulübün hepsi en az **22** kez   |
+| Üretim süresi      | ~311 ms/ızgara (gün başına bir kez, §9.1)   |
+| Hücre başına cevap | BR-9 bandında (≥5, ≤150) — pooldan bağımsız |
+
+En sık çıkan kulüpler kesişimi bol olanlar: Galatasaray (101), Fenerbahçe (97), Beşiktaş (91) — Türk kulüpleri havuzun geri kalanıyla çok kesişiyor. En seyrek Göztepe (22), RB Leipzig (23): genç kadroları diğer kulüplerle az kesişiyor (BR-9), eksik oldukları için değil.
 
 Hücre alt sınırı `MIN_CELL_ANSWERS = 5` ölçülen minimumla birebir örtüşüyor: üretim BR-9'u gerçekten uyguluyor, band dışı hücre hiç geçmedi.
 
@@ -3893,7 +3896,7 @@ satır.
 
 **Havuz küratörlü DEĞİL: 906 seçilebilir kulübün hepsi.** Gerekçe "Sen
 seç"tekiyle aynı (§9.2): seçen kullanıcının kendisi olduğunda tanınırlık
-süzgecinin işi kalmaz. Küratörlü 82 kulüp günlük ızgaranın havuzu olarak
+süzgecinin işi kalmaz. Küratörlü 39 kulüp günlük ızgaranın havuzu olarak
 DURUYOR — orada oyuncuyu sistem seçtiği için tanınırlık hâlâ gerekli.
 
 **Izgara SAKLANMAZ**, "Sen seç" turuyla aynı gerekçe (§9.2): günlük ilerleme
@@ -3925,7 +3928,7 @@ gizlerdi.
 araması alfabetiktir ve süzgeçsiz ilk sayfa "08 Homburg", "1. FC Heidenheim"
 ile açılıyordu — yani kutuyu açan kullanıcı hiç tanımadığı kulüpler görüyordu.
 Tanınırlık ölçülebilir bir veri DEĞİL (yukarıda ölçüldü: oyuncu sayısı kulübün
-yaşını ölçüyor), bu yüzden ilk liste ürün sahibinin seçtiği 82 kulüptür ve
+yaşını ölçüyor), bu yüzden ilk liste ürün sahibinin seçtiği 39 kulüptür ve
 sunucuda hazırlanıp sayfayla birlikte gelir. **Havuz bir SINIR değil:**
 kullanıcı bir harf yazdığı anda 906 seçilebilir kulübün tamamı aranır. Günlük
 ızgarada havuz bir sınırdır (§9.1 havuz kararı); burada yalnızca bir
@@ -4016,6 +4019,7 @@ için yapıldı.
 - **BR-25 — Kullanıcı ızgarası KILAVUZLU kurulur.** "Sen kur" turunda satır adayları, seçilmiş üç sütunun **hepsiyle** BR-9 bandında kesişen ölçütlerle sınırlıdır; seçici yalnızca bunları gösterir. Serbest seçim ölçülerek elendi: rastgele altı kulübün %0,1'i geçerli ızgara veriyor (yukarıda).
 - **BR-26 — Kullanıcı ızgarasında ölçütler istemciden gelir.** Sunucu ölçütleri yeniden ÜRETMEZ, yalnızca **var olduklarını** doğrular (kulüp seçilebilir mi, ülke kodu tanınıyor mu) ve cevabı kimlikle denetler (BR-12). Bu kabul günlük ızgara için GEÇERSİZDİR: orada ızgara herkes için aynıdır ve tohumdan yeniden üretilir (BR-11).
 - **BR-27 — Kullanıcı ızgarasının boyutu seçilebilir.** "Sen kur" turunda boyut **2×2, 3×3, 4×4, 5×5** arasından seçilir; günlük ızgara **3×3 kalır** (BR-11 gereği herkes aynı ızgarayı görmeli). Diğer bütün kurallar boyuttan bağımsızdır: BR-9 bandı aynen uygulanır, BR-13'ün hak sayısı hücre sayısından türer, BR-25'in süzgeci seçilen **her** sütuna karşı çalışır.
+- **BR-77 — Rastgele ızgara.** _(§9.1 — UYGULANDI.)_ "Sen kur" bölümünde, elle kurmaya bir **alternatif** olarak, kullanıcı seçili boyutta tek tıkla rastgele bir ızgara üretebilir. Üretim günlük ızgarayla **aynı algoritmadır** (`generateGrid`); tek fark tohumdadır — günlük ızgara günün tohumunu kullanır (BR-11), rastgele ızgara **rastgele bir tohum** kullanır. **Tohumu SUNUCU seçer**, istemci gönderemez: aksi hâlde "rastgele" ızgara istemcinin elinde deterministik olur ve kolay ızgaralar aranabilirdi. Boyut istemciden gelir (BR-27). Dönen ızgara ölçüt **referansları** olarak verilir ve istemci onu **kurulmuş bir ızgara gibi** oynar: cevaplar `custom-answer` / `custom-reveal` ile doğrulanır (BR-26). Böylece yeni bir doğrulama ucu gerekmez — üretilen ızgara, kurulmuş bir ızgaradır. Üretilemezse (büyük boyutta 40 tohum denemesi tükenirse, §9.1) `GridUnavailableError` döner; sessizce bozuk ızgara üretilmez (§2.7), kullanıcı "tekrar dene" der. Yanıt **önbelleklenmez** (`cacheable: false`): her çağrı farklı bir ızgaradır, paylaşılan önbelleğe girerse herkes aynı "rastgele" ızgarayı görürdü — BR-11'in tersi gerekçe.
 - **BR-66 — Pes eden kullanıcıya ÖRNEK cevaplar gösterilir.** _(§9.1 — UYGULANDI.)_ Kullanıcı "Pes et" derse boş kalan her hücreye, o hücrenin **iki ölçütünü birden** sağlayan bir örnek oyuncu yazılır ve oyun biter. Örnek **doğrulanmaz** — sunucu her hücre için en çok maç yapan uygun oyuncuyu döndürür (`search` ile aynı sıra, tanınır bir isim çıksın diye); eşitlikte sıra sabit (kimlik) ki iki çağrı aynı örneği versin. Örnekler **birbirinden ve kullanıcının kendi cevaplarından ayrıdır** (`used` dışlaması): aynı isim iki hücrede görünmez, BR-10'un hissi korunur. Açığa çıkan hücre **doğru sayılmaz**: skor yalnızca kullanıcının kendi bulduğu doğruları (`correct`) toplar, paylaşımda açığa çıkan hücre boş (⬜) durur. Uç (`/api/grid/reveal`, `/api/grid/custom-reveal`) cevap **döndürür** ve bu bilinçlidir: §9.1'in sızıntı kuralı ızgaranın _teslimini_ (GET) ve süzgeç listesini bağlar, kullanıcının pes ettikten sonra **açıkça istediği** bir eylemi değil. Şu an güvenli çünkü ızgarada skor/sıralama YOK (BR-13'ün aynı gerekçesi); §11'in skoru ızgaraya geldiğinde uç, sunucu tarafı "oyun bitti" durumunun arkasına alınmak ZORUNDA (§10.2).
 
 #### Seçici hedef hücreye kenetli (10 Ağustos 2026)
@@ -4058,6 +4062,29 @@ tablosal veri yok, bir **form** var (ölçüt seçimi); tabloya çevirmek "düze
 tablosu" olurdu. İç hücreler `aria-hidden` ve tıklanamaz: bu ekran ızgarayı
 **kurar**, oynatmaz. Yön bilgisi her yuvanın erişilebilir adında (`1. sütun için
 kulüp seçin`).
+
+#### "Rastgele ızgara" — kurucunun hızlı yolu (BR-77)
+
+Kurucunun üstünde, boyut seçicinin hemen altında bir **"Rastgele ızgara oluştur"**
+düğmesi var. Elle kurmanın yerine geçmez, ona bir **alternatiftir**: kullanıcı
+boyutu seçer, düğmeye basar, sunucu o boyutta oynanabilir bir ızgara üretir ve
+oyun hemen başlar. Düğme seçili boyutu kullanır — 5×5 seçiliyse 5×5 üretilir.
+
+**Neden sunucuda üretiliyor, istemcide değil.** Üretim algoritması kulüp id-
+kümelerini kesiştirir (§9.1); bu veri istemcide yok ve olmamalı (sızıntı
+kuralı). Dahası tohum sunucuda seçilir (BR-77): istemci üretseydi ya da tohumu
+gönderebilseydi, "rastgele" sözü boş kalır, kullanıcı en kolay ızgarayı
+arayabilirdi.
+
+**Neden yeni bir oyun akışı yok.** Üretilen ızgara, kullanıcının elle kurduğu
+ızgarayla **aynı şekle** sahip (ölçüt referansları); istemci onu `onBuilt`'e
+verir ve mevcut `custom-answer` / `custom-reveal` yolundan oynanır (BR-26).
+Yani tek eklenen şey ölçütlerin **kaynağı** — oyunun kendisi değişmedi.
+
+**Üretilemezse hak harcanmaz.** Büyük boyutta tek bir çağrı başarısız olabilir
+(`generateGrid` 40 tohum dener, yine de tükenebilir); o zaman oyun başlamaz,
+kullanıcıya söylenir ve tekrar deneyebilir. Sessizce eksik/bozuk ızgara
+gösterilmez (§2.7).
 
 #### BR-10 şu an yalnızca istemcide zorlanıyor
 
@@ -5036,8 +5063,8 @@ Hedef: **eksiksiz bir proje**, sonra yayın. Sıra kasten bu — yayına çıkma
 Yayından **önce** eklendi. Gerekçe Faz 4'ün gerekçesiyle aynı: mimarinin ikinci bir modu gerçekten taşıdığı ancak ikinci mod yazılınca ölçülebilir. Sözleşme (§9) değişmedi — mod, kayıt listesine bir satır eklenerek girdi.
 
 - [x] Domain kuralları: BR-9…BR-13, deterministik günlük tohum (mulberry32)
-- [x] Küratörlü kulüp havuzu — **82 kulüp**, ürün sahibi 345 kulübün tamamını görerek seçti
-- [x] Üretim algoritması + 365 günlük ölçüm (365/365, 82 kulübün hepsi çıkıyor)
+- [x] Küratörlü kulüp havuzu — **39 kulüp** (2026-10-22'de 82→39 daraltıldı), ürün sahibi 345 kulübün tamamını görerek seçti
+- [x] Üretim algoritması + 365 günlük ölçüm (365/365, 39 kulübün hepsi çıkıyor)
 - [x] `GET /api/grid`, `POST /api/grid/answer`, `GET /api/players` (§6.4)
 - [x] Arayüz: semantik tablo, oyuncu seçici, `localStorage` ilerleme
 - [x] `db:verify`'a havuz denetimi — QID'ler veride gerçekten var mı
@@ -5451,7 +5478,7 @@ Bunun süreçteki karşılığı `npm run db:verify`. Faz 1 boyunca doğrulama "
 | Bağsız kulüp ikizi (Gençlerbirliği)          | Kabul — ölçüldü, eşik tabanlı kural GÜVENLİ DEĞİL: %80 eşiği Barcelona'yı yedek takımıyla birleştirirdi (§5.3)                                                                                                                                                                                                                                                                                                                                                                                         | Doğru düzeltme yeri kaynağın kendisi: Wikidata'da iki öğenin birleştirilmesi                                                                                                                                                                                                                                                                                                                                           |
 | Kadro keşfi: güncel kadronun **%43'ü** eksik | **YENİDEN ÖLÇÜLDÜ (22 Ağu 2026, tam sayım): eski %26 sayısı sekiz seçkin kulüpten geliyordu ve yanıltıcıydı.** 730 kulüp, 19.666 kadro yeri: QID'si olanlar içinde kapsam %57,1. Sebep yapısal olarak DOĞRULANDI — 5.547 eksiğin hiçbirinde evrendeki bir kulübe `P54` bağı yok, yani boru hattı kusuru sıfır (§4.3 Aşama 3).                                                                                                                                                                          | **KAPANDI — eşik açıldı ve yüklendi (23 Ağu 2026): +3.541 oyuncu, +8.470 dönem.** Kazanç ızgara modundadır; keşfedilenlerin %0,5'inde millî maç olduğu için istatistik havuzuna yalnızca 12'si giriyor (§4.3 Aşama 3). **İki devam işi de ölçülüp REDDEDİLDİ (ürün sahibi, 23 Ağu): millî maçı bilgi kutusundan okumak ve sayı çakışmasında dil önceliğini değiştirmek — ikisinin de kazancı maliyetini karşılamıyor** |
 | Kaleci golleri kaynakta kirli                | Kabul — Vikipedi YENEN golü negatif yazıyor (`-87`), bu değerler Wikidata'ya pozitif gol olarak girmiş olabiliyor (Ottavio Bugatti 256 maç / 329 "gol"). BR-22 mutabakatı bunları düşürüyor ama kaynağı temizlemiyor                                                                                                                                                                                                                                                                                   | Kaleci dönemleri ayrı bir alanla (yenen gol) modellenirse; şu an oyunun hiçbir ekseni kaleci golü sormuyor                                                                                                                                                                                                                                                                                                             |
-| Izgara havuzu 18 ligi kapsamıyor             | **Kısmen ödendi (2026-08-07):** "Sen kur" turunda kullanıcı 906 kulübün hepsini kullanabiliyor (BR-25); günlük ızgara ertelenmiş kararla 82 kulüpte kaldı — Ajax/Porto/Benfica, LA Galaxy ve Al-Hilal ızgarada ve günün oyuncusu havuzunda YOK (§9.1)                                                                                                                                                                                                                                                  | Ürün sahibi yeni lig kulüplerini görüp seçtiğinde; ölçüm değil KARAR                                                                                                                                                                                                                                                                                                                                                   |
+| Izgara havuzu 18 ligi kapsamıyor             | **Kısmen ödendi (2026-08-07):** "Sen kur" turunda kullanıcı 906 kulübün hepsini kullanabiliyor (BR-25); günlük ızgara ertelenmiş kararla 39 kulüpte kaldı (2026-10-22'de 82→39 daraltıldı) — Ajax/Porto/Benfica, LA Galaxy ve Al-Hilal ızgarada ve günün oyuncusu havuzunda YOK (§9.1)                                                                                                                                                                                                                 | Ürün sahibi yeni lig kulüplerini görüp seçtiğinde; ölçüm değil KARAR                                                                                                                                                                                                                                                                                                                                                   |
 
 **En büyük ortak oyuncu sonucu yeniden ölçüldü ve ölçüm bir şey daha söyledi.**
 Faz 3'te kaydedilen 128 değeri eskimişti; 363 seçilebilir kulübün tüm çiftleri

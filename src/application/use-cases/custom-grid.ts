@@ -1,12 +1,16 @@
-import { ValidationError } from "@/domain/errors/domain-error";
+import {
+  GridUnavailableError,
+  ValidationError,
+} from "@/domain/errors/domain-error";
 import {
   isSameCriterion,
   MAX_GRID_SIZE,
   type GridCriterion,
+  type GridSize,
 } from "@/domain/services/grid";
 import { clubId, type PlayerId } from "@/domain/value-objects/identifiers";
 import { countryName } from "@/lib/country-name";
-import type { GridDeps } from "../game-modes/grid/generate";
+import { generateGrid, type GridDeps } from "../game-modes/grid/generate";
 import type { RevealedCellDto } from "./daily-grid";
 import {
   DEFAULT_CLUB_RESULTS,
@@ -44,6 +48,47 @@ export interface CriterionRef {
  */
 export interface GridCriterionRefDto extends CriterionRef {
   readonly label: string;
+}
+
+/** Oynanmaya hazır bir ızgara — iki eksenin ölçüt referansları (BR-77, BR-26). */
+export interface BuiltGridDto {
+  readonly rows: GridCriterionRefDto[];
+  readonly columns: GridCriterionRefDto[];
+}
+
+/**
+ * BR-77 — "Rastgele ızgara": sunucu, kullanıcının seçtiği boyutta rastgele
+ * oynanabilir bir ızgara üretir.
+ *
+ * NEDEN "SEN KUR" İLE AYNI YOL. Üretim günlük ızgarayla AYNI algoritmadır
+ * (`generateGrid`) — fark yalnızca tohumdadır: günlük ızgara günün tohumunu
+ * kullanır (BR-11), burada tohum rastgeledir. Dönen ızgara ölçüt referansları
+ * olarak verilir; istemci onu tıpkı elle kurulmuş bir ızgara gibi oynar ve
+ * cevaplar `custom-answer` / `custom-reveal` ile doğrulanır (BR-26). Böylece
+ * yeni bir doğrulama ucu GEREKMEZ: üretilen ızgara kurulmuş bir ızgaradır.
+ *
+ * TOHUM SUNUCUDA SEÇİLİR. İstemci tohum gönderemez; aksi hâlde "rastgele"
+ * ızgara kullanıcının elinde deterministik hâle gelir ve kolay ızgaralar
+ * aranabilirdi. `seed` parametresi YALNIZCA testler için — üretimde her zaman
+ * rastgeledir.
+ *
+ * ÜRETİLEMEZSE `GridUnavailableError`. Daha büyük boyutlarda (5×5) tek bir
+ * tohum denemesi başarısız olabilir; `generateGrid` zaten 40 tohum dener
+ * (§9.1). Hepsi tükenirse sessizce bozuk bir ızgara döndürmek yerine (§2.7)
+ * hata verilir ve istemci "tekrar dene" der.
+ */
+export async function generateRandomGrid(
+  size: GridSize,
+  deps: GridDeps,
+  seed: number = Math.floor(Math.random() * 0x7fffffff),
+): Promise<BuiltGridDto> {
+  const grid = await generateGrid(seed, deps, size);
+  if (grid === null) throw new GridUnavailableError();
+
+  return {
+    rows: grid.rows.map(toRefDto),
+    columns: grid.columns.map(toRefDto),
+  };
 }
 
 export interface ListPlayableCriteriaInput {
