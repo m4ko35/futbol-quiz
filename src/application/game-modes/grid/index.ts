@@ -1,13 +1,15 @@
 import { z } from "zod";
-import { GRID_SIZE, MAX_GRID_SIZE } from "@/domain/services/grid";
+import { GRID_SIZE, isGridSize, MAX_GRID_SIZE } from "@/domain/services/grid";
 import {
   isValidIdentifier,
   playerId,
 } from "@/domain/value-objects/identifiers";
 import {
   checkCustomAnswer,
+  generateRandomGrid,
   listPlayableCriteria,
   revealCustomGrid,
+  type BuiltGridDto,
   type GridCriterionRefDto,
 } from "../../use-cases/custom-grid";
 import {
@@ -71,6 +73,13 @@ const criterionRefSchema = z.discriminatedUnion("kind", [
 
 export const gridInputSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("daily") }),
+  // "Rastgele ızgara" (BR-77). Boyut kullanıcıdan gelir (BR-27) ama tohum
+  // GELMEZ: tohumu sunucu seçer, yoksa "rastgele" ızgara istemcinin elinde
+  // deterministik olurdu. `isGridSize` 2–5 dışını sınırda reddeder (§2.3).
+  z.object({
+    action: z.literal("random"),
+    size: z.int().refine(isGridSize),
+  }),
   z.object({
     action: z.literal("criteria"),
     // Kullanıcı ızgarası 5×5'e kadar çıkabilir (BR-27); günlük ızgaranın
@@ -123,7 +132,11 @@ export const gridInputSchema = z.discriminatedUnion("action", [
 
 export type GridInput = z.output<typeof gridInputSchema>;
 export type GridOutput =
-  DailyGridDto | CheckAnswerDto | GridCriterionRefDto[] | RevealedCellDto[];
+  | DailyGridDto
+  | CheckAnswerDto
+  | GridCriterionRefDto[]
+  | RevealedCellDto[]
+  | BuiltGridDto;
 
 export const GRID_MODE_ID = "grid";
 
@@ -141,6 +154,8 @@ export const gridMode: RegisteredGameMode = defineGameMode<
     switch (input.action) {
       case "daily":
         return getDailyGrid(now, deps);
+      case "random":
+        return generateRandomGrid(input.size, deps);
       case "criteria":
         return listPlayableCriteria(
           { against: input.against, term: input.term, limit: input.limit },

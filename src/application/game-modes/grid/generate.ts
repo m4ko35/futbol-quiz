@@ -5,6 +5,7 @@
   GRID_SIZE,
   type Grid,
   type GridCriterion,
+  type GridSize,
 } from "@/domain/services/grid";
 import {
   createRandom,
@@ -18,10 +19,16 @@ import { CURATED_CLUB_QIDS } from "../../curated-clubs";
 import { GRID_NATIONALITY_CODES } from "./pool";
 
 /**
- * Günlük ızgara üretimi — PROJECT.md §9.1.
+ * Izgara üretimi — PROJECT.md §9.1.
  *
- * ALGORİTMA. Önce üç sütun (kulüp) seçilir, sonra üç sütunun HEPSİYLE
- * oynanabilir kesişimi olan üç satır aranır. Ters sıra — önce satırlar —
+ * İKİ ÇAĞIRAN, TEK ALGORİTMA. Günlük ızgara bunu günün tohumuyla ve sabit
+ * `GRID_SIZE` ile çağırır (BR-11); "Rastgele ızgara" (BR-77) rastgele bir
+ * tohumla ve kullanıcının seçtiği boyutla çağırır (BR-27). Boyut bir
+ * PARAMETREDİR, varsayılanı günlük ızgaranın boyutudur — eski çağrı aynen
+ * çalışır, yeni çağıran boyutu kendisi verir.
+ *
+ * ALGORİTMA. Önce `size` sütun (kulüp) seçilir, sonra bu sütunların HEPSİYLE
+ * oynanabilir kesişimi olan `size` satır aranır. Ters sıra — önce satırlar —
  * daha çok başarısız denemeye yol açıyordu: sütunlar seçilmeden bir satırın
  * uygunluğu bilinemez.
  *
@@ -52,6 +59,7 @@ export interface GridDeps {
 export async function generateGrid(
   seed: number,
   deps: GridDeps,
+  size: GridSize = GRID_SIZE,
 ): Promise<Grid | null> {
   const clubs = await deps.clubs.findByWikidataIds(CURATED_CLUB_QIDS);
 
@@ -69,8 +77,9 @@ export async function generateGrid(
   );
 
   // Havuz beklenmedik biçimde küçükse ızgara kurulamaz; sessizce bozuk bir
-  // ızgara üretmektense `null` dönmek doğrudur (§2.7).
-  if (clubCriteria.length < GRID_SIZE + 1) return null;
+  // ızgara üretmektense `null` dönmek doğrudur (§2.7). `size` sütunun hepsi
+  // ayrı kulüp, en az bir satır da ayrı bir kulüp olabilsin diye `size + 1`.
+  if (clubCriteria.length < size + 1) return null;
 
   const rowPool = [...clubCriteria, ...nationalityCriteria];
 
@@ -91,14 +100,14 @@ export async function generateGrid(
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const random = createRandom(seedVariant(seed, attempt));
 
-    const columns = shuffled(clubCriteria, random).slice(0, GRID_SIZE);
+    const columns = shuffled(clubCriteria, random).slice(0, size);
     const columnSets = await Promise.all(columns.map(setOf));
 
     const rows: GridCriterion[] = [];
     const candidates = shuffled(rowPool, random);
 
     for (const candidate of candidates.slice(0, MAX_ROW_PROBES)) {
-      if (rows.length === GRID_SIZE) break;
+      if (rows.length === size) break;
       if (rows.some((row) => isSameCriterion(row, candidate))) continue;
       if (columns.some((column) => isSameCriterion(column, candidate)))
         continue;
@@ -110,7 +119,7 @@ export async function generateGrid(
       if (playable) rows.push(candidate);
     }
 
-    if (rows.length === GRID_SIZE) {
+    if (rows.length === size) {
       const grid: Grid = { rows, columns };
       // Kural domain'de; burada yalnızca DOĞRULANIR. Üretim mantığındaki bir
       // hata sessizce geçersiz ızgara üretmesin.

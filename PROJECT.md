@@ -4016,6 +4016,7 @@ için yapıldı.
 - **BR-25 — Kullanıcı ızgarası KILAVUZLU kurulur.** "Sen kur" turunda satır adayları, seçilmiş üç sütunun **hepsiyle** BR-9 bandında kesişen ölçütlerle sınırlıdır; seçici yalnızca bunları gösterir. Serbest seçim ölçülerek elendi: rastgele altı kulübün %0,1'i geçerli ızgara veriyor (yukarıda).
 - **BR-26 — Kullanıcı ızgarasında ölçütler istemciden gelir.** Sunucu ölçütleri yeniden ÜRETMEZ, yalnızca **var olduklarını** doğrular (kulüp seçilebilir mi, ülke kodu tanınıyor mu) ve cevabı kimlikle denetler (BR-12). Bu kabul günlük ızgara için GEÇERSİZDİR: orada ızgara herkes için aynıdır ve tohumdan yeniden üretilir (BR-11).
 - **BR-27 — Kullanıcı ızgarasının boyutu seçilebilir.** "Sen kur" turunda boyut **2×2, 3×3, 4×4, 5×5** arasından seçilir; günlük ızgara **3×3 kalır** (BR-11 gereği herkes aynı ızgarayı görmeli). Diğer bütün kurallar boyuttan bağımsızdır: BR-9 bandı aynen uygulanır, BR-13'ün hak sayısı hücre sayısından türer, BR-25'in süzgeci seçilen **her** sütuna karşı çalışır.
+- **BR-77 — Rastgele ızgara.** _(§9.1 — UYGULANDI.)_ "Sen kur" bölümünde, elle kurmaya bir **alternatif** olarak, kullanıcı seçili boyutta tek tıkla rastgele bir ızgara üretebilir. Üretim günlük ızgarayla **aynı algoritmadır** (`generateGrid`); tek fark tohumdadır — günlük ızgara günün tohumunu kullanır (BR-11), rastgele ızgara **rastgele bir tohum** kullanır. **Tohumu SUNUCU seçer**, istemci gönderemez: aksi hâlde "rastgele" ızgara istemcinin elinde deterministik olur ve kolay ızgaralar aranabilirdi. Boyut istemciden gelir (BR-27). Dönen ızgara ölçüt **referansları** olarak verilir ve istemci onu **kurulmuş bir ızgara gibi** oynar: cevaplar `custom-answer` / `custom-reveal` ile doğrulanır (BR-26). Böylece yeni bir doğrulama ucu gerekmez — üretilen ızgara, kurulmuş bir ızgaradır. Üretilemezse (büyük boyutta 40 tohum denemesi tükenirse, §9.1) `GridUnavailableError` döner; sessizce bozuk ızgara üretilmez (§2.7), kullanıcı "tekrar dene" der. Yanıt **önbelleklenmez** (`cacheable: false`): her çağrı farklı bir ızgaradır, paylaşılan önbelleğe girerse herkes aynı "rastgele" ızgarayı görürdü — BR-11'in tersi gerekçe.
 - **BR-66 — Pes eden kullanıcıya ÖRNEK cevaplar gösterilir.** _(§9.1 — UYGULANDI.)_ Kullanıcı "Pes et" derse boş kalan her hücreye, o hücrenin **iki ölçütünü birden** sağlayan bir örnek oyuncu yazılır ve oyun biter. Örnek **doğrulanmaz** — sunucu her hücre için en çok maç yapan uygun oyuncuyu döndürür (`search` ile aynı sıra, tanınır bir isim çıksın diye); eşitlikte sıra sabit (kimlik) ki iki çağrı aynı örneği versin. Örnekler **birbirinden ve kullanıcının kendi cevaplarından ayrıdır** (`used` dışlaması): aynı isim iki hücrede görünmez, BR-10'un hissi korunur. Açığa çıkan hücre **doğru sayılmaz**: skor yalnızca kullanıcının kendi bulduğu doğruları (`correct`) toplar, paylaşımda açığa çıkan hücre boş (⬜) durur. Uç (`/api/grid/reveal`, `/api/grid/custom-reveal`) cevap **döndürür** ve bu bilinçlidir: §9.1'in sızıntı kuralı ızgaranın _teslimini_ (GET) ve süzgeç listesini bağlar, kullanıcının pes ettikten sonra **açıkça istediği** bir eylemi değil. Şu an güvenli çünkü ızgarada skor/sıralama YOK (BR-13'ün aynı gerekçesi); §11'in skoru ızgaraya geldiğinde uç, sunucu tarafı "oyun bitti" durumunun arkasına alınmak ZORUNDA (§10.2).
 
 #### Seçici hedef hücreye kenetli (10 Ağustos 2026)
@@ -4058,6 +4059,29 @@ tablosal veri yok, bir **form** var (ölçüt seçimi); tabloya çevirmek "düze
 tablosu" olurdu. İç hücreler `aria-hidden` ve tıklanamaz: bu ekran ızgarayı
 **kurar**, oynatmaz. Yön bilgisi her yuvanın erişilebilir adında (`1. sütun için
 kulüp seçin`).
+
+#### "Rastgele ızgara" — kurucunun hızlı yolu (BR-77)
+
+Kurucunun üstünde, boyut seçicinin hemen altında bir **"Rastgele ızgara oluştur"**
+düğmesi var. Elle kurmanın yerine geçmez, ona bir **alternatiftir**: kullanıcı
+boyutu seçer, düğmeye basar, sunucu o boyutta oynanabilir bir ızgara üretir ve
+oyun hemen başlar. Düğme seçili boyutu kullanır — 5×5 seçiliyse 5×5 üretilir.
+
+**Neden sunucuda üretiliyor, istemcide değil.** Üretim algoritması kulüp id-
+kümelerini kesiştirir (§9.1); bu veri istemcide yok ve olmamalı (sızıntı
+kuralı). Dahası tohum sunucuda seçilir (BR-77): istemci üretseydi ya da tohumu
+gönderebilseydi, "rastgele" sözü boş kalır, kullanıcı en kolay ızgarayı
+arayabilirdi.
+
+**Neden yeni bir oyun akışı yok.** Üretilen ızgara, kullanıcının elle kurduğu
+ızgarayla **aynı şekle** sahip (ölçüt referansları); istemci onu `onBuilt`'e
+verir ve mevcut `custom-answer` / `custom-reveal` yolundan oynanır (BR-26).
+Yani tek eklenen şey ölçütlerin **kaynağı** — oyunun kendisi değişmedi.
+
+**Üretilemezse hak harcanmaz.** Büyük boyutta tek bir çağrı başarısız olabilir
+(`generateGrid` 40 tohum dener, yine de tükenebilir); o zaman oyun başlamaz,
+kullanıcıya söylenir ve tekrar deneyebilir. Sessizce eksik/bozuk ızgara
+gösterilmez (§2.7).
 
 #### BR-10 şu an yalnızca istemcide zorlanıyor
 

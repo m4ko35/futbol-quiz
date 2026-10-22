@@ -170,6 +170,24 @@ export function GridQuiz({ grid, curatedClubs, roomEntry }: GridQuizProps) {
     [curatedClubs],
   );
 
+  /**
+   * RASTGELE IZGARA (BR-77) — sunucudan seçilen boyutta oynanabilir bir ızgara.
+   *
+   * Dönen ızgara elle kurulmuş bir ızgarayla AYNI şekle sahip (BuiltGrid) ve
+   * aynı yoldan oynanır: `checkCustomAnswer` / `revealCustom`. Yani burada yeni
+   * bir oyun akışı yok — yalnızca ölçütleri sunucu üretiyor (§9.1).
+   */
+  const requestRandomGrid = useCallback(
+    async (size: number): Promise<BuiltGrid> => {
+      const response = await fetch(`/api/grid/random?size=${String(size)}`);
+      if (!response.ok) throw new Error(await readErrorMessage(response));
+
+      const body = (await response.json()) as { data: BuiltGrid };
+      return body.data;
+    },
+    [],
+  );
+
   /** Satır adayları: seçilmiş sütunlarla BR-9 bandında kesişenler (BR-25). */
   const searchRows = useCallback(
     async (
@@ -272,6 +290,7 @@ export function GridQuiz({ grid, curatedClubs, roomEntry }: GridQuizProps) {
           <GridBuilder
             searchColumns={searchColumns}
             searchRows={searchRows}
+            generateRandom={requestRandomGrid}
             onBuilt={setCustom}
           />
         ) : (

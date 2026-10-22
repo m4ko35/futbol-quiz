@@ -27,6 +27,7 @@ let criteriaRoute: typeof import("@/app/api/grid/criteria/route");
 let customAnswerRoute: typeof import("@/app/api/grid/custom-answer/route");
 let revealRoute: typeof import("@/app/api/grid/reveal/route");
 let customRevealRoute: typeof import("@/app/api/grid/custom-reveal/route");
+let randomRoute: typeof import("@/app/api/grid/random/route");
 
 /** Üretim en az `GRID_SIZE + 1` kulüp ister; altı, seçim yapılabilecek kadar. */
 const CLUB_COUNT = 6;
@@ -136,6 +137,7 @@ beforeAll(async () => {
   customAnswerRoute = await import("@/app/api/grid/custom-answer/route");
   revealRoute = await import("@/app/api/grid/reveal/route");
   customRevealRoute = await import("@/app/api/grid/custom-reveal/route");
+  randomRoute = await import("@/app/api/grid/random/route");
 }, 120_000);
 
 afterAll(async () => {
@@ -778,5 +780,81 @@ describe("POST /api/grid/custom-reveal — BR-66", () => {
     );
 
     expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+});
+
+describe("GET /api/grid/random — BR-77", () => {
+  // Kulüp kimliği (`club-Q…`) → havuz QID'i: ortak oyuncuyu bulmak için.
+  const qidOf = (clubId: string) => clubId.replace("club-", "");
+  const bothOf = (a: string, b: string): string => {
+    const ids = playersByPair.get(pairKey(a, b));
+    if (ids?.[0] === undefined) throw new Error("çift için oyuncu yok");
+    return ids[0];
+  };
+
+  interface Ref {
+    kind: string;
+    id: string;
+    label: string;
+  }
+
+  it("seçili boyutta ızgara döner ve dönen ızgara custom-answer ile OYNANABİLİR", async () => {
+    const response = await randomRoute.GET(get("/api/grid/random?size=3"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data.rows).toHaveLength(3);
+    expect(body.data.columns).toHaveLength(3);
+
+    // Her ölçüt bir referanstır (kimlik + tür + etiket) — "Sen kur" ile aynı şekil.
+    const rows = body.data.rows as Ref[];
+    const columns = body.data.columns as Ref[];
+    for (const ref of [...rows, ...columns]) {
+      expect(Object.keys(ref).sort()).toEqual(["id", "kind", "label"]);
+    }
+
+    // (0,0) hücresi: fixture'da herkes club-only üretir (uyruk havuz dışı).
+    const row = rows[0];
+    const column = columns[0];
+    if (row === undefined || column === undefined)
+      throw new Error("boş ızgara");
+
+    const check = await customAnswerRoute.POST(
+      post("/api/grid/custom-answer", {
+        row: { kind: row.kind, id: row.id },
+        column: { kind: column.kind, id: column.id },
+        playerId: bothOf(qidOf(row.id), qidOf(column.id)),
+      }),
+    );
+    const checkBody = await check.json();
+    // Rastgele ızgara gerçekten oynanabilir: kesişim oyuncusu DOĞRU sayılır.
+    expect(checkBody.data).toEqual({ correct: true });
+  });
+
+  it("boyut verilmezse günlük ızgaranın boyutunu (3) kullanır", async () => {
+    const response = await randomRoute.GET(get("/api/grid/random"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data.rows).toHaveLength(GRID_SIZE);
+    expect(body.data.columns).toHaveLength(GRID_SIZE);
+  });
+
+  it("her çağrı önbelleklenMEZ — paylaşılan 'rastgele' ızgara olmaz", async () => {
+    const response = await randomRoute.GET(get("/api/grid/random?size=3"));
+
+    expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it.each([
+    ["boyut çok büyük", "/api/grid/random?size=7"],
+    ["boyut çok küçük", "/api/grid/random?size=1"],
+    ["boyut sayı değil", "/api/grid/random?size=abc"],
+  ])("geçersiz boyut (%s) → 400", async (_label, path) => {
+    const response = await randomRoute.GET(get(path));
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error.code).toBe("VALIDATION_ERROR");
   });
 });

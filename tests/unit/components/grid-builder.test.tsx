@@ -303,3 +303,89 @@ describe("GridBuilder — boyut (BR-27)", () => {
     ]);
   });
 });
+
+/**
+ * BR-77 — "Rastgele ızgara". Denetlenen şey düğmenin, SEÇİLİ BOYUTLA üretim
+ * fonksiyonunu çağırıp sonucu `onBuilt`'e taşıması; üretim başarısızsa oyunun
+ * BAŞLAMAMASI (hak harcanmaz, §2.7).
+ */
+describe("GridBuilder — Rastgele ızgara (BR-77)", () => {
+  const RANDOM: BuiltGrid = {
+    columns: [
+      { kind: "club", id: "x1", label: "Real Madrid" },
+      { kind: "club", id: "x2", label: "Juventus" },
+      { kind: "club", id: "x3", label: "Bayern" },
+    ],
+    rows: [
+      { kind: "club", id: "y1", label: "Chelsea" },
+      { kind: "nationality", id: "AR", label: "Arjantin" },
+      { kind: "club", id: "y2", label: "Porto" },
+    ],
+  };
+
+  function setupRandom(
+    generateRandom: (size: 2 | 3 | 4 | 5) => Promise<BuiltGrid>,
+  ) {
+    const onBuilt = vi.fn<(grid: BuiltGrid) => void>();
+    render(
+      <GridBuilder
+        searchColumns={vi.fn().mockResolvedValue([...CLUBS])}
+        searchRows={vi.fn().mockResolvedValue([...ROWS])}
+        generateRandom={generateRandom}
+        onBuilt={onBuilt}
+      />,
+    );
+    return { onBuilt, user: userEvent.setup() };
+  }
+
+  it("generateRandom verilmezse düğme çıkmaz", () => {
+    setup();
+
+    expect(
+      screen.queryByRole("button", { name: /Rastgele ızgara/u }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("düğme varsayılan boyutta ızgara üretip oyuna geçer", async () => {
+    const generateRandom = vi.fn().mockResolvedValue(RANDOM);
+    const { onBuilt, user } = setupRandom(generateRandom);
+
+    await user.click(
+      screen.getByRole("button", { name: /Rastgele ızgara oluştur/u }),
+    );
+
+    await waitFor(() => {
+      expect(onBuilt).toHaveBeenCalledWith(RANDOM);
+    });
+    // Elle kurulmuş bir ızgarayla aynı yoldan oynanır; boyut 3 (varsayılan).
+    expect(generateRandom).toHaveBeenCalledWith(3);
+  });
+
+  it("SEÇİLİ boyutu kullanır", async () => {
+    const generateRandom = vi.fn().mockResolvedValue(RANDOM);
+    const { user } = setupRandom(generateRandom);
+
+    await user.click(screen.getByRole("radio", { name: "4×4" }));
+    await user.click(
+      screen.getByRole("button", { name: /Rastgele ızgara oluştur/u }),
+    );
+
+    await waitFor(() => {
+      expect(generateRandom).toHaveBeenCalledWith(4);
+    });
+  });
+
+  it("üretim başarısızsa oyun başlamaz ve hata gösterilir", async () => {
+    const generateRandom = vi.fn().mockRejectedValue(new Error("fail"));
+    const { onBuilt, user } = setupRandom(generateRandom);
+
+    await user.click(
+      screen.getByRole("button", { name: /Rastgele ızgara oluştur/u }),
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /oluşturulamadı/iu,
+    );
+    expect(onBuilt).not.toHaveBeenCalled();
+  });
+});
